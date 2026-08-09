@@ -1,7 +1,15 @@
-import { useCallback, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
+import { useCallback, useEffect, useState } from "react";
+import BrineView from "./components/BrineView";
 import JarRail, { type JarSummary } from "./components/JarRail";
 import TitleBar from "./components/TitleBar";
-import { openPreview, usePreviewHole } from "./lib/preview";
+import { BRINE_CHANGED, brineCount } from "./lib/db";
+import {
+  hidePreview,
+  openPreview,
+  showPreview,
+  usePreviewHole,
+} from "./lib/preview";
 
 function normalizeUrl(input: string): string {
   const trimmed = input.trim();
@@ -19,24 +27,65 @@ export default function App() {
   const [activeJarId, setActiveJarId] = useState<string | null>(null);
   const [url, setUrl] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [brineOpen, setBrineOpen] = useState(false);
+  const [count, setCount] = useState(0);
 
   const holeRef = usePreviewHole(loaded);
   const activeJar = PLACEHOLDER_JARS.find((j) => j.id === activeJarId) ?? null;
 
+  // The rail count stays live: refreshed at startup and after every
+  // extraction Rust reports.
+  useEffect(() => {
+    void brineCount().then(setCount);
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    void listen(BRINE_CHANGED, () => void brineCount().then(setCount)).then(
+      (f) => {
+        if (disposed) f();
+        else unlisten = f;
+      },
+    );
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
+
+  const openUrl = useCallback(
+    async (target: string) => {
+      const box = holeRef.current?.getBoundingClientRect();
+      if (!box) return;
+
+      await openPreview(target, {
+        x: Math.round(box.left),
+        y: Math.round(box.top),
+        width: Math.round(box.width),
+        height: Math.round(box.height),
+      });
+      setUrl(target);
+      setLoaded(true);
+      setBrineOpen(false);
+    },
+    [holeRef],
+  );
+
   const navigate = useCallback(async () => {
     const target = normalizeUrl(url);
     if (!target) return;
-    const box = holeRef.current?.getBoundingClientRect();
-    if (!box) return;
+    await openUrl(target);
+  }, [url, openUrl]);
 
-    await openPreview(target, {
-      x: Math.round(box.left),
-      y: Math.round(box.top),
-      width: Math.round(box.width),
-      height: Math.round(box.height),
-    });
-    setLoaded(true);
-  }, [url, holeRef]);
+  const toggleBrine = useCallback(async () => {
+    setActiveJarId(null);
+    if (brineOpen) {
+      // Back to the page, exactly where it was. Nothing was closed.
+      setBrineOpen(false);
+      if (loaded) await showPreview();
+    } else {
+      setBrineOpen(true);
+      if (loaded) await hidePreview();
+    }
+  }, [brineOpen, loaded]);
 
   return (
     <div className="nr-app" data-nr-theme={theme}>
@@ -51,21 +100,27 @@ export default function App() {
         <JarRail
           jars={PLACEHOLDER_JARS}
           activeJarId={activeJarId}
-          brineCount={0}
+          brineCount={count}
+          brineActive={brineOpen}
           onSelectJar={setActiveJarId}
-          onOpenBrine={() => setActiveJarId(null)}
+          onOpenBrine={() => void toggleBrine()}
         />
 
         {/* The hole. The native WKWebView is positioned over this rect —
-            nothing rendered inside it survives once a page loads. */}
+            nothing rendered inside it survives once a page loads. The Brine
+            surface only ever shows while that webview is hidden. */}
         <div className="nr-stage" ref={holeRef}>
-          {!loaded && (
-            <div className="nr-stage__empty">
-              <p className="nr-stage__mark">NetRelish</p>
-              <p className="nr-stage__hint">
-                Enter an address. Everything you read lands in Brine.
-              </p>
-            </div>
+          {brineOpen ? (
+            <BrineView onOpen={(target) => void openUrl(target)} />
+          ) : (
+            !loaded && (
+              <div className="nr-stage__empty">
+                <p className="nr-stage__mark">NetRelish</p>
+                <p className="nr-stage__hint">
+                  Enter an address. Everything you read lands in Brine.
+                </p>
+              </div>
+            )
           )}
         </div>
       </div>

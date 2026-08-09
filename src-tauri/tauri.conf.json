@@ -60,6 +60,9 @@
     }
   },
   "plugins": {
+    "sql": {
+      "preload": ["sqlite:netrelish.db"]
+    },
     "updater": {
       "active": true,
       "dialog": false,

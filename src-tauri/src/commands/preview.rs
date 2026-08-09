@@ -8,7 +8,8 @@
 use crate::error::{Error, Result};
 use serde::{Deserialize, Serialize};
 use tauri::{
-    webview::WebviewBuilder, LogicalPosition, LogicalSize, Manager, WebviewUrl, Window,
+    webview::{PageLoadEvent, WebviewBuilder},
+    LogicalPosition, LogicalSize, Manager, WebviewUrl, Window,
 };
 
 pub const PREVIEW_LABEL: &str = "preview";
@@ -41,12 +42,22 @@ pub async fn preview_open(window: Window, url: String, rect: Rect) -> Result<()>
 
     if let Some(existing) = window.get_webview(PREVIEW_LABEL) {
         existing.navigate(target)?;
+        // The pane may be hidden behind the Brine surface; navigating to a
+        // page always brings it back.
+        existing.show()?;
         return Ok(());
     }
 
     let builder = WebviewBuilder::new(PREVIEW_LABEL, WebviewUrl::External(target))
         .incognito(false)
-        .transparent(false);
+        .transparent(false)
+        // Every finished main-frame load feeds Brine. The page itself gets
+        // no bridge into the app — extraction pulls, nothing pushes.
+        .on_page_load(|webview, payload| {
+            if payload.event() == PageLoadEvent::Finished {
+                crate::extract::on_page_finished(webview, payload.url().clone());
+            }
+        });
 
     window.add_child(
         builder,
@@ -73,6 +84,25 @@ pub async fn preview_set_bounds(window: Window, rect: Rect) -> Result<()> {
 pub async fn preview_close(window: Window) -> Result<()> {
     if let Some(webview) = window.get_webview(PREVIEW_LABEL) {
         webview.close()?;
+    }
+    Ok(())
+}
+
+/// Hide the native pane without destroying it, so chrome surfaces (Brine)
+/// can render in the stage. The page, its session and its scroll position
+/// all survive — hiding is not closing.
+#[tauri::command]
+pub async fn preview_hide(window: Window) -> Result<()> {
+    if let Some(webview) = window.get_webview(PREVIEW_LABEL) {
+        webview.hide()?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn preview_show(window: Window) -> Result<()> {
+    if let Some(webview) = window.get_webview(PREVIEW_LABEL) {
+        webview.show()?;
     }
     Ok(())
 }

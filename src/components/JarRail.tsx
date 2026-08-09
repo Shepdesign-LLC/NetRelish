@@ -13,6 +13,7 @@ interface Props {
   jars: JarSummary[];
   activeJarId: string | null;
   brineCount: number;
+  brineActive: boolean;
   onSelectJar(id: string | null): void;
   onOpenBrine(): void;
 }
@@ -25,6 +26,7 @@ export default function JarRail({
   jars,
   activeJarId,
   brineCount,
+  brineActive,
   onSelectJar,
   onOpenBrine,
 }: Props) {
@@ -35,6 +37,8 @@ export default function JarRail({
       <button
         type="button"
         className="nr-rail__tile nr-rail__tile--brine"
+        data-active={brineActive || undefined}
+        aria-pressed={brineActive}
         style={{ clipPath: clip }}
         title={`Brine — ${brineCount} unsorted`}
         onClick={onOpenBrine}

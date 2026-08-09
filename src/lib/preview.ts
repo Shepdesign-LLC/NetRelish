@@ -29,6 +29,18 @@ export function closePreview(): Promise<void> {
   return invoke("preview_close");
 }
 
+/**
+ * Hide the native pane so chrome surfaces (Brine) can use the stage.
+ * The page and its scroll position survive — hiding is not closing.
+ */
+export function hidePreview(): Promise<void> {
+  return invoke("preview_hide");
+}
+
+export function showPreview(): Promise<void> {
+  return invoke("preview_show");
+}
+
 /** Observe an element and mirror its bounds onto the native pane. */
 export function usePreviewHole(active: boolean) {
   const ref = useRef<HTMLDivElement | null>(null);
