@@ -1,0 +1,38 @@
+# deps
+node_modules/
+.pnp
+.pnp.js
+
+# build output
+dist/
+dist-ssr/
+src-tauri/target/
+src-tauri/gen/
+
+# env & secrets — NEVER commit these
+.env
+.env.*
+!.env.example
+*.p12
+*.cer
+*.certSigningRequest
+*.provisionprofile
+AuthKey_*.p8
+src-tauri/*.key
+src-tauri/updater.key
+src-tauri/updater.key.pub
+
+# macOS
+.DS_Store
+*.dmg
+*.app
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# logs
+*.log
+npm-debug.log*
