@@ -1,13 +1,27 @@
 # NetRelish
 
-The browser for people who build the web.
+A downloadable macOS browser that is also a workstation.
 
-A native macOS browser with the NetRelish Pantry — Mise, Zest, Scale — running
-as first-class panels, and a filesystem bridge that writes generated tokens,
-`theme.json` and ACF PHP straight into the open project. No clipboard.
+Chrome gives you tab groups — a coloured rectangle that holds tabs and forgets
+everything else. NetRelish gives you **Jars**: a project that holds tabs,
+notes, tasks, files and messages together, knows what its subject is, and can
+be run as a **Recipe**.
 
-**Status:** week 1 — shell, native preview pane, bridge seam, signed release
-pipeline. Not yet a usable browser.
+Everything you browse is preserved into **Brine** automatically — extracted,
+full-text searchable, offline, forever. Closing a tab stops meaning losing it.
+
+**No account. No server. No sync. Nothing leaves your machine.**
+
+Direct download, Developer ID signed and notarized. Not on the App Store.
+
+---
+
+## Status
+
+Week 1 of 8. The shell runs and renders pages in a native WKWebView. It is not
+yet a browser you'd use.
+
+See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -15,90 +29,46 @@ pipeline. Not yet a usable browser.
 
 ```bash
 npm install
-npm run app          # tauri dev
+npm run app
 ```
 
-Requires Rust (`rustup`), Xcode Command Line Tools, and Node 20+.
+Requires Rust stable, Xcode Command Line Tools, Node 20+.
 
 | Command | Does |
 | :-- | :-- |
-| `npm run app` | Dev build with hot reload and devtools |
-| `npm run app:build` | Local release build (unsigned unless env vars are set) |
-| `npm run typecheck` | Frontend types only |
+| `npm run app` | Dev build, hot reload, devtools |
+| `npm run app:build` | Local release build |
+| `npm run typecheck` | Frontend types |
 
 ---
 
-## Architecture
+## Working on this
 
-```
-NetRelish.app
-├── Chrome UI          React + Vite, ships inside the bundle
-│   ├── Pantry rail    Mise · Zest · Scale, superellipse tiles
-│   ├── Tool panels    iframes over the existing embed protocol
-│   └── Stage          an empty div; a hole for the native pane
-├── Rust core          project state, disk writes, webview positioning
-└── Preview webview    a real child WKWebView, not an iframe
-```
+Read [`CLAUDE.md`](CLAUDE.md) first. It's the brief: vocabulary, architecture,
+schema, conventions, and the five things that are non-negotiable.
 
-Two things here are load-bearing and easy to get wrong:
+Two that catch people out:
 
-**The preview is a native child webview.** `Window::add_child`, gated behind
-tauri's `unstable` feature. Iframes cannot render the web — most sites refuse
-to load in one. React draws a hole, a `ResizeObserver` measures it, Rust puts
-the webview over it.
+**The preview pane is not in the DOM.** It's a real child WKWebView positioned
+over a hole in the layout. Iframes cannot render the web — most sites refuse
+to load in one. Overlays must be siblings of `.nr-stage`, never children.
 
-**Disk writes go through one command.** `write_project_files` enforces
-containment inside the project root, backs up anything it overwrites into
-`.nr-backup/`, and writes atomically via temp-file-and-rename. The frontend
-must show a diff and get confirmation before calling it — the command does not
-prompt.
-
-### The bridge
-
-The Pantry tools speak the same postMessage protocol as the web build, plus
-one desktop-only message:
-
-```js
-// from inside Zest / Mise / Scale
-parent.postMessage({
-  type: "nr:export",
-  tool: "zest",
-  files: [{ path: "theme/assets/css/_tokens.css", contents: css }],
-}, "*");
-```
-
-The shell replies `nr:export:ack` with a write report, or `nr:export:nack`
-with a reason. Web builds simply never receive a reply and fall back to
-copy-to-clipboard, so a single build serves both hosts.
-
-Only origins listed in `TOOL_ORIGINS` are honoured. Without that check any
-page loaded in a panel could write to the user's project.
-
----
-
-## Roadmap
-
-- [x] **1** — Shell, notarized pipeline, preview pane, bridge seam
-- [ ] **2** — Project model, SQLite persistence, project switcher
-- [ ] **3** — Tool panes against live Mise / Zest / Scale
-- [ ] **4** — Export bridge with real diff sheet
-- [ ] **5** — Navigation: back/forward, loading state, error pages
-- [ ] **6** — Entitlement check against `nr_pantry_access`
-- [ ] **7** — Updater, crash-safe state, shortcuts
-- [ ] **8** — Buffer
-
-Deliberately **not** in v1: tabs, bookmarks, history, downloads, Supabase,
-clipping, team sync.
+**One `items` table, discriminated by `kind`.** Pages, notes, tasks, files and
+messages share a row shape, an index and a search. Email is not a future
+feature — it's `kind = 'message'` in a table that already exists.
 
 ---
 
 ## Docs
 
-- [`docs/notarization.md`](docs/notarization.md) — certificates, secrets,
-  verification, and the failure modes worth knowing in advance
+| | |
+| :-- | :-- |
+| [`CLAUDE.md`](CLAUDE.md) | The brief. Read before writing code. |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Eight weeks, with acceptance criteria. |
+| [`docs/notarization.md`](docs/notarization.md) | Certificates, secrets, verification, failure modes. |
 
 ---
 
 ## Licence
 
-Code MIT. Brand — name, wordmark, Pantry identity — all rights reserved.
+Code MIT. Brand — name, wordmark, vocabulary — all rights reserved.

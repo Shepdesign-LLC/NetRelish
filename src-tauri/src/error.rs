@@ -11,11 +11,8 @@ pub enum Error {
     #[error("not a valid url: {0}")]
     BadUrl(String),
 
-    #[error("{0} is outside the project directory")]
-    OutsideProject(String),
-
-    #[error("no project is open")]
-    NoProject,
+    #[error("no jar is open")]
+    NoJar,
 }
 
 // Surface a plain string to the frontend rather than a serde-tagged enum.

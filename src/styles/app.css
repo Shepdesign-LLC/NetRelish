@@ -84,7 +84,7 @@ body {
   flex-shrink: 0;
 }
 
-.nr-project {
+.nr-jar-chip {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -100,16 +100,16 @@ body {
   cursor: default;
 }
 
-.nr-project:hover {
+.nr-jar-chip:hover {
   color: var(--nr-text);
   border-color: var(--nr-chrome-line);
 }
 
-.nr-project__dot {
+.nr-jar-chip__dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--nr-hue-mise);
+  background: var(--nr-hue-brine);
 }
 
 .nr-omnibar {
@@ -135,7 +135,7 @@ body {
   font-family: var(--nr-font-ui);
 }
 
-/* --- pantry rail (the signature) ------------------------------------------ */
+/* --- shelf rail (the signature) ------------------------------------------- */
 
 .nr-rail {
   display: flex;
@@ -180,21 +180,18 @@ body {
   }
 }
 
-/* --- tool panel ----------------------------------------------------------- */
-
-.nr-panel {
-  width: 380px;
-  min-width: 300px;
-  border-right: 1px solid var(--nr-chrome-line-soft);
-  background: var(--nr-chrome-raised);
-  flex-shrink: 0;
+.nr-rail__split {
+  width: 18px;
+  height: 1px;
+  margin: 2px 0;
+  border: 0;
+  background: var(--nr-chrome-line);
 }
 
-.nr-panel iframe {
-  width: 100%;
-  height: 100%;
-  border: 0;
-  display: block;
+.nr-rail__tile--brine {
+  --tile-hue: var(--nr-hue-brine);
+  color: var(--nr-hue-brine);
+  font-size: 15px;
 }
 
 /* --- stage (the hole for the native webview) ------------------------------ */

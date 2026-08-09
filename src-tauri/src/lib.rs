@@ -42,8 +42,6 @@ pub fn run() {
             commands::preview::preview_open,
             commands::preview::preview_set_bounds,
             commands::preview::preview_close,
-            commands::project::write_project_files,
-            commands::project::read_project_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running NetRelish");

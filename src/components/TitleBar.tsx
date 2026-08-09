@@ -1,25 +1,23 @@
 interface Props {
-  projectName: string | null;
+  jarName: string | null;
   url: string;
   onUrlChange(value: string): void;
   onNavigate(): void;
-  onPickProject(): void;
 }
 
 export default function TitleBar({
-  projectName,
+  jarName,
   url,
   onUrlChange,
   onNavigate,
-  onPickProject,
 }: Props) {
   return (
     <header className="nr-titlebar" data-tauri-drag-region>
       <div className="nr-titlebar__lead" />
 
-      <button type="button" className="nr-project" onClick={onPickProject}>
-        <span className="nr-project__dot" aria-hidden="true" />
-        {projectName ?? "Open a project"}
+      <button type="button" className="nr-jar-chip">
+        <span className="nr-jar-chip__dot" aria-hidden="true" />
+        {jarName ?? "Brine"}
       </button>
 
       <form
@@ -35,7 +33,7 @@ export default function TitleBar({
           spellCheck={false}
           autoCorrect="off"
           autoCapitalize="off"
-          placeholder="Search or enter address"
+          placeholder="Search your Pantry, or enter an address"
           aria-label="Address"
           onChange={(event) => onUrlChange(event.target.value)}
         />
