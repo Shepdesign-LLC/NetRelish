@@ -1,0 +1,51 @@
+/* ---------------------------------------------------------------------------
+   netrelish.css — PLACEHOLDER
+
+   Drop your real brand stylesheet in over this file. It exists so the scaffold
+   runs standalone; the variable names below match your `nr-` convention so the
+   swap should be a straight replacement.
+
+   The only additions this app needs beyond your web tokens are the
+   `--nr-chrome-*` values: app-chrome surfaces sit darker and flatter than
+   web surfaces so that page content stays the brightest thing on screen.
+--------------------------------------------------------------------------- */
+
+:root {
+  /* Pantry hues — replace with the real values from your brand system */
+  --nr-hue-mise: oklch(0.72 0.15 150);
+  --nr-hue-zest: oklch(0.78 0.17 85);
+  --nr-hue-scale: oklch(0.62 0.16 275);
+
+  /* Type */
+  --nr-font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui,
+    sans-serif;
+  --nr-font-display: "Bricolage Grotesque", var(--nr-font-ui);
+  --nr-font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+
+  /* Spacing */
+  --nr-rail-w: 56px;
+  --nr-titlebar-h: 44px;
+  --nr-traffic-inset: 78px;
+}
+
+[data-nr-theme="dark"] {
+  --nr-chrome-base: oklch(0.18 0.008 95);
+  --nr-chrome-raised: oklch(0.225 0.01 95);
+  --nr-chrome-line: oklch(0.31 0.01 95);
+  --nr-chrome-line-soft: oklch(0.26 0.008 95);
+  --nr-text: oklch(0.93 0.008 95);
+  --nr-text-muted: oklch(0.66 0.012 95);
+  --nr-text-faint: oklch(0.48 0.01 95);
+  --nr-focus: oklch(0.78 0.17 85);
+}
+
+[data-nr-theme="light"] {
+  --nr-chrome-base: oklch(0.965 0.005 95);
+  --nr-chrome-raised: oklch(0.995 0.003 95);
+  --nr-chrome-line: oklch(0.86 0.008 95);
+  --nr-chrome-line-soft: oklch(0.91 0.006 95);
+  --nr-text: oklch(0.24 0.012 95);
+  --nr-text-muted: oklch(0.5 0.014 95);
+  --nr-text-faint: oklch(0.66 0.01 95);
+  --nr-focus: oklch(0.62 0.16 275);
+}

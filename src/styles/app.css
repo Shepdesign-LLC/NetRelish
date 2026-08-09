@@ -1,0 +1,232 @@
+/* ---------------------------------------------------------------------------
+   NetRelish app chrome.
+
+   Design brief: this is a frame around someone else's content, all day, for
+   years. It gets one memorable move — the superellipse Pantry rail, carrying
+   the brand's own shape math — and everything else stays quiet enough to
+   disappear. No gradients, no glass, no accent colour outside the rail.
+--------------------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--nr-font-ui);
+  font-size: 13px;
+  color: var(--nr-text);
+  background: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+.nr-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+:where(button, input):focus-visible {
+  outline: 2px solid var(--nr-focus);
+  outline-offset: 2px;
+}
+
+/* --- shell ---------------------------------------------------------------- */
+
+.nr-app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--nr-chrome-base);
+}
+
+.nr-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* --- titlebar ------------------------------------------------------------- */
+
+.nr-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--nr-titlebar-h);
+  padding-right: 12px;
+  border-bottom: 1px solid var(--nr-chrome-line-soft);
+  background: var(--nr-chrome-base);
+  flex-shrink: 0;
+}
+
+/* Reserve space so the traffic lights never overlap controls. */
+.nr-titlebar__lead {
+  width: var(--nr-traffic-inset);
+  flex-shrink: 0;
+}
+
+.nr-titlebar__trail {
+  width: 4px;
+  flex-shrink: 0;
+}
+
+.nr-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: 0 11px;
+  border: 1px solid var(--nr-chrome-line-soft);
+  border-radius: 7px;
+  background: var(--nr-chrome-raised);
+  color: var(--nr-text-muted);
+  font: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.nr-project:hover {
+  color: var(--nr-text);
+  border-color: var(--nr-chrome-line);
+}
+
+.nr-project__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--nr-hue-mise);
+}
+
+.nr-omnibar {
+  flex: 1;
+  min-width: 0;
+}
+
+.nr-omnibar input {
+  width: 100%;
+  height: 26px;
+  padding: 0 11px;
+  border: 1px solid var(--nr-chrome-line-soft);
+  border-radius: 7px;
+  background: var(--nr-chrome-raised);
+  color: var(--nr-text);
+  font: inherit;
+  font-family: var(--nr-font-mono);
+  font-size: 12px;
+}
+
+.nr-omnibar input::placeholder {
+  color: var(--nr-text-faint);
+  font-family: var(--nr-font-ui);
+}
+
+/* --- pantry rail (the signature) ------------------------------------------ */
+
+.nr-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: var(--nr-rail-w);
+  padding: 10px 0;
+  border-right: 1px solid var(--nr-chrome-line-soft);
+  background: var(--nr-chrome-base);
+  flex-shrink: 0;
+}
+
+.nr-rail__tile {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  padding: 0;
+  background: var(--nr-chrome-raised);
+  color: var(--nr-text-faint);
+  font-family: var(--nr-font-display);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: default;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.nr-rail__tile:hover {
+  color: var(--tile-hue);
+}
+
+.nr-rail__tile[data-active] {
+  background: color-mix(in oklab, var(--tile-hue) 22%, var(--nr-chrome-raised));
+  color: var(--tile-hue);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nr-rail__tile {
+    transition: none;
+  }
+}
+
+/* --- tool panel ----------------------------------------------------------- */
+
+.nr-panel {
+  width: 380px;
+  min-width: 300px;
+  border-right: 1px solid var(--nr-chrome-line-soft);
+  background: var(--nr-chrome-raised);
+  flex-shrink: 0;
+}
+
+.nr-panel iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+/* --- stage (the hole for the native webview) ------------------------------ */
+
+.nr-stage {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  background: var(--nr-chrome-raised);
+}
+
+.nr-stage__empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.nr-stage__mark {
+  margin: 0;
+  font-family: var(--nr-font-display);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--nr-text-faint);
+}
+
+.nr-stage__hint {
+  margin: 0;
+  color: var(--nr-text-faint);
+}
