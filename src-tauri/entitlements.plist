@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Hardened Runtime is mandatory for notarization. These are the minimum
+       exceptions NetRelish actually needs. Do not add more without a reason. -->
+
+  <!-- JIT: WKWebView needs it to run JavaScript at usable speed. -->
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+
+  <!-- Outbound network: browsing, updater, entitlement checks. -->
+  <key>com.apple.security.network.client</key>
+  <true/>
+
+  <!-- User-selected file access. NetRelish writes generated tokens, theme.json
+       and ACF PHP into a project directory the user explicitly picks. -->
+  <key>com.apple.security.files.user-selected.read-write</key>
+  <true/>
+</dict>
+</plist>
