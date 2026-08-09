@@ -49,11 +49,16 @@ pub fn run() {
                 let _ = window.set_title_bar_style(TitleBarStyle::Overlay);
             }
 
+            // Opt-in via NR_DEVTOOLS=1: the inspector docks into the main
+            // window and steals focus, which gets in the way of normal dev
+            // runs (and of scripted UI testing).
             #[cfg(debug_assertions)]
             {
                 let _ = &window;
-                if let Some(webview) = app.get_webview_window("main") {
-                    webview.open_devtools();
+                if std::env::var("NR_DEVTOOLS").is_ok_and(|v| v == "1") {
+                    if let Some(webview) = app.get_webview_window("main") {
+                        webview.open_devtools();
+                    }
                 }
             }
 
