@@ -17,7 +17,7 @@ pub enum Error {
 
 // Surface a plain string to the frontend rather than a serde-tagged enum.
 impl Serialize for Error {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
         serializer.serialize_str(&self.to_string())
     }
 }

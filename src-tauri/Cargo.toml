@@ -17,7 +17,7 @@ tauri-build = { version = "2", features = [] }
 # `unstable` unlocks Window::add_child — required to embed a real WKWebView
 # for page rendering. Without it you are stuck with iframes, which most of
 # the web refuses to load (X-Frame-Options / frame-ancestors).
-tauri = { version = "2", features = ["macos-private-api", "unstable"] }
+tauri = { version = "2", features = ["macos-private-api", "unstable", "protocol-asset"] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
