@@ -1,5 +1,7 @@
 # NetRelish
 
+> **Savor the web. Get more done.**
+
 A downloadable macOS browser that is also a workstation.
 
 Chrome gives you tab groups — a coloured rectangle that holds tabs and forgets
@@ -10,7 +12,7 @@ be run as a **Recipe**.
 Everything you browse is preserved into **Brine** automatically — extracted,
 full-text searchable, offline, forever. Closing a tab stops meaning losing it.
 
-**No account. No server. No sync. Nothing leaves your machine.**
+Everything lives on your machine — no account, no server, no sync.
 
 Direct download, Developer ID signed and notarized. Not on the App Store.
 
@@ -21,7 +23,7 @@ Direct download, Developer ID signed and notarized. Not on the App Store.
 Week 1 of 8. The shell runs and renders pages in a native WKWebView. It is not
 yet a browser you'd use.
 
-See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+See the build order in [`CLAUDE.md`](CLAUDE.md#11-build-order).
 
 ---
 
@@ -44,8 +46,9 @@ Requires Rust stable, Xcode Command Line Tools, Node 20+.
 
 ## Working on this
 
-Read [`CLAUDE.md`](CLAUDE.md) first. It's the brief: vocabulary, architecture,
-schema, conventions, and the five things that are non-negotiable.
+Read [`CLAUDE.md`](CLAUDE.md) first. It's the whole spec — vocabulary,
+architecture, schema, conventions, the eight-week build order, and the five
+things that are non-negotiable.
 
 Two that catch people out:
 
@@ -63,8 +66,7 @@ feature — it's `kind = 'message'` in a table that already exists.
 
 | | |
 | :-- | :-- |
-| [`CLAUDE.md`](CLAUDE.md) | The brief. Read before writing code. |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Eight weeks, with acceptance criteria. |
+| [`CLAUDE.md`](CLAUDE.md) | The spec. Read before writing code. |
 | [`docs/notarization.md`](docs/notarization.md) | Certificates, secrets, verification, failure modes. |
 
 ---
