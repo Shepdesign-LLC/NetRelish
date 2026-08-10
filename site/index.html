@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetRelish — Savor the web. Get more done.</title>
+<meta name="description" content="The macOS browser that keeps everything you read — organized into jars, searchable forever, never leaving your Mac.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  /* NetRelish marketing — the full Aero Relish treatment (brand system v2).
+     The glass lives HERE; the app chrome stays quiet (CLAUDE.md §9). */
+  :root {
+    --relish: #93E413;
+    --rind: #2C6E12;
+    --brine: #EFFCCB;
+    --aurora: #1A2B0E;
+    --mustard: #EDB51E;
+    --tomato: #E24B2C;
+    --ink: #141B0C;
+    --salt: #FAFAF6;
+    --ink-on-glass: #33430F;
+    --ink-on-pour: #1D3506;
+  }
+  * { margin: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-size: 15.5px;
+    line-height: 1.6;
+    color: var(--ink-on-glass);
+    background:
+      radial-gradient(circle at 18% 12%, rgba(147,228,19,0.28), transparent 65%),
+      radial-gradient(circle at 82% 78%, rgba(147,228,19,0.22), transparent 65%),
+      linear-gradient(160deg, #2F4A14, #0C1206);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* The aero glass recipe, three depths. */
+  .glass {
+    background: rgba(244,248,232,0.72);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid rgba(255,255,255,0.55);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+  }
+  .glass--nested {
+    background: rgba(244,248,232,0.5);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .kicker {
+    font-family: "Spline Sans Mono", monospace;
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #C4E38F;
+  }
+
+  /* --- header ------------------------------------------------------------ */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 22px 0;
+  }
+  header img { width: 40px; height: 40px; }
+  .wordmark {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+    color: var(--brine);
+  }
+  header .kicker { margin-left: auto; }
+
+  /* --- hero -------------------------------------------------------------- */
+  .hero { padding: 48px 0 26px; text-align: center; }
+  .hero h1 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 800;
+    font-size: clamp(40px, 7vw, 68px);
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    color: var(--salt);
+  }
+  .hero h1 em { font-style: normal; color: var(--relish); }
+  .hero p.sub {
+    max-width: 560px;
+    margin: 22px auto 0;
+    font-size: 18px;
+    color: rgba(230,242,205,0.82);
+  }
+
+  /* Relish Pour CTA with gloss cap. */
+  .pour {
+    position: relative;
+    display: inline-block;
+    margin-top: 30px;
+    padding: 14px 30px;
+    border-radius: 14px;
+    background: linear-gradient(#C7F55E, #96E018);
+    box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.8), 0 3px 10px rgba(110,180,15,0.5);
+    color: var(--ink-on-pour);
+    font-weight: 700;
+    font-size: 15px;
+    text-decoration: none;
+    overflow: hidden;
+  }
+  .pour::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 55% 0;
+    border-radius: 14px 14px 40% 40%;
+    background: linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.02));
+    pointer-events: none;
+  }
+  .hero .fine {
+    margin-top: 12px;
+    font-family: "Spline Sans Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: rgba(196,227,143,0.7);
+  }
+
+  /* --- the window mock --------------------------------------------------- */
+  .mock {
+    margin: 54px auto 0;
+    max-width: 880px;
+    border-radius: 26px;
+    box-shadow: 0 50px 110px rgba(0,0,0,0.55);
+    overflow: hidden;
+    text-align: left;
+  }
+  .mock__titlebar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 54px;
+    padding: 0 16px;
+    background: linear-gradient(rgba(255,255,255,0.65), rgba(255,255,255,0.25));
+    border-bottom: 1px solid rgba(20,40,5,0.1);
+  }
+  .lights { display: flex; gap: 7px; }
+  .lights span { width: 13px; height: 13px; border-radius: 50%;
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.6); }
+  .lights span:nth-child(1) { background: linear-gradient(#FF9273, #D8411F); }
+  .lights span:nth-child(2) { background: linear-gradient(#FFDD67, #E0A00C); }
+  .lights span:nth-child(3) { background: linear-gradient(#C7F55E, #7BC80D); }
+  .mock__address {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 36px;
+    max-width: 540px;
+    margin: 0 auto;
+    padding: 0 8px 0 14px;
+    border-radius: 18px;
+    background: linear-gradient(rgba(255,255,255,0.95), rgba(255,255,255,0.8));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+    font-family: "Spline Sans Mono", monospace;
+    font-size: 12.5px;
+    color: var(--ink);
+  }
+  .mock__address .path { color: #9BA88A; }
+  .mock__jarchip {
+    margin-left: auto;
+    padding: 4px 12px;
+    border-radius: 12px;
+    background: linear-gradient(#C7F55E, #96E018);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+    font-family: "Spline Sans Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--ink-on-pour);
+    white-space: nowrap;
+  }
+  .mock__body { display: flex; min-height: 300px; }
+  .mock__rail {
+    width: 210px;
+    padding: 14px 12px;
+    background: rgba(255,255,255,0.28);
+    border-right: 1px solid rgba(20,40,5,0.08);
+  }
+  .mock__rail .kicker { color: #748360; display: block; margin: 12px 4px 6px; }
+  .tabrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 14px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--ink-on-glass);
+  }
+  .tabrow.active {
+    background: linear-gradient(#C7F55E, #96E018);
+    box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.8), 0 3px 10px rgba(110,180,15,0.4);
+    color: var(--ink-on-pour);
+    font-weight: 700;
+  }
+  .tabrow .dot { width: 18px; height: 18px; border-radius: 6px;
+    background: rgba(255,255,255,0.85); box-shadow: 0 1px 2px rgba(20,40,5,0.15);
+    display: grid; place-items: center; font-size: 10px; }
+  .mock__page {
+    flex: 1;
+    padding: 26px 30px;
+    background: rgba(255,255,255,0.92);
+    color: var(--ink);
+  }
+  .mock__page h3 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+  }
+  .mock__page p { margin-top: 10px; color: #4A5540; font-size: 14px; max-width: 46ch; }
+  .mock__suggest {
+    margin-top: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: rgba(147,228,19,0.14);
+    border: 1px solid rgba(110,180,15,0.35);
+    font-size: 13px;
+  }
+  .mock__suggest .pill {
+    margin-left: auto;
+    padding: 4px 12px;
+    border-radius: 10px;
+    background: linear-gradient(#C7F55E, #96E018);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--ink-on-pour);
+    white-space: nowrap;
+  }
+
+  /* --- features ---------------------------------------------------------- */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 18px;
+    padding: 72px 0 8px;
+  }
+  .card {
+    border-radius: 20px;
+    padding: 26px 24px;
+  }
+  .card h2 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 800;
+    font-size: 19px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+  .card .kicker { color: #748360; display: block; margin-bottom: 10px; }
+  .card p { font-size: 14.5px; }
+
+  /* --- privacy strip ----------------------------------------------------- */
+  .privacy {
+    margin: 56px 0;
+    border-radius: 26px;
+    padding: 40px 36px;
+    text-align: center;
+  }
+  .privacy h2 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 800;
+    font-size: clamp(24px, 4vw, 34px);
+    letter-spacing: -0.03em;
+    color: var(--ink);
+  }
+  .privacy p { max-width: 60ch; margin: 14px auto 0; }
+  .privacy .mono-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px 26px;
+    margin-top: 22px;
+    font-family: "Spline Sans Mono", monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--rind);
+  }
+
+  /* --- footer ------------------------------------------------------------ */
+  footer {
+    padding: 30px 0 46px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 24px;
+    align-items: center;
+    justify-content: space-between;
+    color: rgba(196,227,143,0.65);
+    font-size: 13px;
+  }
+  footer .kicker { color: rgba(196,227,143,0.5); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .pour { transition: transform 150ms ease-out; }
+    .pour:hover { transform: translateY(-2px); }
+    .card { transition: transform 150ms ease-out; }
+    .card:hover { transform: translateY(-2px); }
+  }
+  @media (max-width: 700px) {
+    .mock__rail { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <img src="icon.svg" alt="" width="40" height="40">
+    <span class="wordmark">NetRelish</span>
+    <span class="kicker">macOS · beta soon</span>
+  </header>
+
+  <section class="hero">
+    <h1>Savor the web.<br><em>Get more done.</em></h1>
+    <p class="sub">
+      The macOS browser that keeps everything you read — organized into
+      jars, searchable forever, and never leaving your Mac.
+    </p>
+    <a class="pour" href="#download">Download for macOS</a>
+    <div class="fine">FREE DURING BETA · APPLE SILICON</div>
+
+    <div class="mock glass" role="img" aria-label="The NetRelish window: a jar holding tabs, notes and tasks, with a suggestion from the on-device engine.">
+      <div class="mock__titlebar">
+        <div class="lights"><span></span><span></span><span></span></div>
+        <div class="mock__address">
+          <span>🔒</span> netrelish.com<span class="path">/why-jars</span>
+          <span class="mock__jarchip">JAR · MERIDIAN REBUILD</span>
+        </div>
+      </div>
+      <div class="mock__body">
+        <div class="mock__rail">
+          <span class="kicker">Today</span>
+          <div class="tabrow active"><span class="dot">▲</span> Design tokens spec <span style="margin-left:auto">×</span></div>
+          <div class="tabrow"><span class="dot">⌁</span> WKWebView docs</div>
+          <div class="tabrow"><span class="dot">✎</span> Kickoff notes</div>
+          <span class="kicker">Pantry</span>
+          <div class="tabrow"><span class="dot">◍</span> Brine · 214 pages</div>
+        </div>
+        <div class="mock__page">
+          <h3>A jar is a project.</h3>
+          <p>Tabs, notes, tasks and files — held together, aware of their
+          subject, runnable as a recipe. Close anything. It stays.</p>
+          <div class="mock__suggest">
+            <span>◍ 9 things in Brine look like they belong here</span>
+            <span class="pill">Add all</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="card glass">
+      <span class="kicker">Brine</span>
+      <h2>Closing is free.</h2>
+      <p>Every page you read is extracted and preserved the moment it loads.
+      Close the tab. A week later, search half a phrase you remember —
+      it's there, full text, offline.</p>
+    </div>
+    <div class="card glass">
+      <span class="kicker">Jars</span>
+      <h2>Projects, not piles.</h2>
+      <p>A jar holds the tabs, notes, tasks and files of one piece of work.
+      ⌘J files the page you're on. ⌘1–9 switches projects. The window
+      follows your head.</p>
+    </div>
+    <div class="card glass">
+      <span class="kicker">Ask the Pantry</span>
+      <h2>⌘K finds it.</h2>
+      <p>Your own reading always outranks the web. Exact matches first,
+      similar-by-meaning next, a search engine last — where it belongs.</p>
+    </div>
+    <div class="card glass">
+      <span class="kicker">Sealing</span>
+      <h2>Tabs that tidy themselves.</h2>
+      <p>Leave a tab three days and it preserves itself into its jar and
+      closes. One sweep, one toast, one Undo that restores the whole batch —
+      open, in order.</p>
+    </div>
+    <div class="card glass">
+      <span class="kicker">The engine</span>
+      <h2>It learns your jars.</h2>
+      <p>A language model running on your Mac notices what belongs together
+      and suggests it. You approve with one key. Nothing is ever filed
+      without your hand on it.</p>
+    </div>
+    <div class="card glass">
+      <span class="kicker">Recipes</span>
+      <h2>Work once. Replay it.</h2>
+      <p>Record a working session — the tabs, the layout, the note that
+      starts the day — and run it tomorrow with ⌘R. Output lands back in
+      the jar.</p>
+    </div>
+  </section>
+
+  <section class="privacy glass" id="download">
+    <h2>Everything is local. Everything.</h2>
+    <p>Your browsing lives in one SQLite file on your Mac. The suggestion
+    engine is a 90MB model that runs on your CPU. NetRelish makes no network
+    requests except the pages you visit and the update check.</p>
+    <div class="mono-row">
+      <span>No telemetry</span>
+      <span>No account</span>
+      <span>No cloud</span>
+      <span>No analytics</span>
+    </div>
+    <p style="margin-top:26px"><a class="pour" href="#">Download for macOS — beta soon</a></p>
+  </section>
+
+  <footer>
+    <span>© 2026 NetRelish. Code MIT · brand all rights reserved.</span>
+    <span class="kicker">Savor the web · Get more done</span>
+  </footer>
+
+</div>
+</body>
+</html>

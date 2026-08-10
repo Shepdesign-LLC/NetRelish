@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bgIc" cx="0.5" cy="0.22" r="0.95"><stop offset="0" stop-color="#38571C"/><stop offset="1" stop-color="#0E1706"/></radialGradient>
+    <linearGradient id="gearIc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#DDE3EA"/><stop offset="1" stop-color="#8E99A6"/></linearGradient>
+    <linearGradient id="goopIc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C7F55E"/><stop offset="1" stop-color="#6FBA12"/></linearGradient>
+    <linearGradient id="glossIc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.85"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
+    <clipPath id="squircle"><rect width="100" height="100" rx="23"/></clipPath>
+  </defs>
+  <g clip-path="url(#squircle)">
+    <rect width="100" height="100" rx="23" fill="url(#bgIc)"/>
+    <g transform="translate(50 52) scale(0.78) translate(-50 -50)">
+      <g fill="url(#gearIc)">
+        <rect x="43.5" y="12" width="13" height="13" rx="4"/>
+        <rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(45 50 50)"/>
+        <rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(90 50 50)"/>
+        <rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(135 50 50)"/>
+        <rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(180 50 50)"/>
+        <rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(225 50 50)"/>
+        <rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(270 50 50)"/>
+        <rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(315 50 50)"/>
+        <circle cx="50" cy="50" r="30"/>
+      </g>
+      <circle cx="50" cy="50" r="11" fill="#17220C"/>
+      <path fill="url(#goopIc)" d="M15 42 C13 20, 30 7, 50 7 C70 7, 87 20, 85 42 C85 47, 80 49, 76 46 C74 44, 75 46, 74.5 52 C74 60, 65 60, 65 52 C65 47, 66 45, 63 43 C59 41, 57 44, 55 46 C53 49, 47 50, 46 45 C45.5 42, 47 41, 44 40.5 C40 40, 39 42, 38 44 C37 47, 37 49, 36.5 55 C36 63, 27 63, 27 55 C27 49, 28 45, 25 44 C21 43, 17 46, 15 42 Z"/>
+    </g>
+    <ellipse cx="50" cy="3" rx="55" ry="24" fill="url(#glossIc)" opacity="0.45"/>
+  </g>
+</svg>
