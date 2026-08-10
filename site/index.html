@@ -171,6 +171,7 @@
   .m-nav.dim { background: rgba(255,255,255,0.3); color: #8A9478; box-shadow: none; }
   .mock__address {
     flex: 1;
+    min-width: 60px;
     max-width: 380px;
     margin: 0 auto;
     display: flex;
@@ -178,6 +179,7 @@
     gap: 8px;
     height: 30px;
     padding: 0 12px;
+    overflow: hidden;
     border-radius: 15px;
     border: 1px solid rgba(255,255,255,0.6);
     background: linear-gradient(rgba(255,255,255,0.95), rgba(255,255,255,0.8));
@@ -186,9 +188,16 @@
     font-size: 11px;
     color: var(--ink);
   }
+  .mock__address .u {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .mock__address .path { color: #9BA88A; }
   .mock__jarchip {
     position: relative;
+    flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -211,6 +220,7 @@
     background: linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.02));
   }
   .mock__status {
+    flex-shrink: 0;
     display: flex; align-items: center; gap: 7px;
     font-size: 11px; color: #5B6844; white-space: nowrap;
   }
@@ -340,8 +350,10 @@
     font-family: "Bricolage Grotesque", sans-serif;
     font-weight: 700; font-size: 13.5px; letter-spacing: -0.02em;
     color: var(--ink);
+    white-space: nowrap;
   }
-  .m-jarbar .n { color: #8A9478; flex: 1; }
+  .m-jarbar .n { color: #8A9478; flex: 1; white-space: nowrap; }
+  .m-jarbar .m-pill { flex-shrink: 0; }
   .m-pill {
     padding: 4px 10px;
     border: 1px solid rgba(255,255,255,0.6);
@@ -358,7 +370,8 @@
     border-bottom: 1px solid rgba(255,255,255,0.45);
     font-size: 11.5px;
   }
-  .m-suggest span { flex: 1; }
+  .m-suggest > span:first-child { flex: 1; min-width: 0; line-height: 1.35; }
+  .m-suggest .m-pill { flex-shrink: 0; }
   .m-suggest .m-pill.go { border-color: rgba(110,180,15,0.55); }
   .m-row {
     display: flex; align-items: baseline; gap: 10px;
@@ -467,8 +480,16 @@
     .card { transition: transform 150ms ease-out, box-shadow 150ms ease-out; }
     .card:hover { transform: translateY(-4px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.95), 0 26px 54px rgba(0,0,0,0.34); }
   }
+  @media (max-width: 980px) {
+    .mock__status { display: none; }
+    .m-jarbar .m-pill:nth-of-type(1) { display: none; } /* shelf life */
+  }
+  @media (max-width: 800px) {
+    .m-suggest .m-pill:last-child { display: none; } /* Review */
+    .m-nav { display: none; }
+  }
   @media (max-width: 700px) {
-    .mock__rail { display: none; }
+    .mock__side { display: none; }
   }
 </style>
 </head>
@@ -495,7 +516,7 @@
         <div class="lights"><span></span><span></span><span></span></div>
         <span class="m-nav">‹</span><span class="m-nav dim">›</span>
         <div class="mock__address">
-          <span>🔒</span> meridian.dev<span class="path">/design-tokens</span>
+          <span>🔒</span><span class="u">meridian.dev<span class="path">/design-tokens</span></span>
         </div>
         <span class="mock__jarchip"><span></span>◍ MERIDIAN REBUILD</span>
         <span class="mock__status">Sealed 3 tabs <b>Undo</b></span>
