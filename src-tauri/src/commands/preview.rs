@@ -9,7 +9,7 @@ use crate::error::{Error, Result};
 use serde::{Deserialize, Serialize};
 use tauri::{
     webview::{PageLoadEvent, WebviewBuilder},
-    LogicalPosition, LogicalSize, Manager, WebviewUrl, Window,
+    Emitter, LogicalPosition, LogicalSize, Manager, WebviewUrl, Window,
 };
 
 pub const PREVIEW_LABEL: &str = "preview";
@@ -55,6 +55,9 @@ pub async fn preview_open(window: Window, url: String, rect: Rect) -> Result<()>
         // no bridge into the app — extraction pulls, nothing pushes.
         .on_page_load(|webview, payload| {
             if payload.event() == PageLoadEvent::Finished {
+                // Keep the omnibox honest: link clicks and redirects inside
+                // the pane never pass through the React side otherwise.
+                let _ = webview.emit_to("main", "preview:navigated", payload.url().as_str());
                 crate::extract::on_page_finished(webview, payload.url().clone());
             }
         });

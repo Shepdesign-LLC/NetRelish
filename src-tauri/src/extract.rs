@@ -42,23 +42,37 @@ fn script() -> &'static str {
     })
 }
 
-/// Entry point, called on `PageLoadEvent::Finished`.
+/// Entry point, called on `PageLoadEvent::Finished`. Files into the active
+/// jar (or Brine) and respects the deny list.
 pub fn on_page_finished<R: Runtime>(webview: Webview<R>, url: Url) {
+    schedule(webview, url, None);
+}
+
+/// `⌘J` — explicit user intent. Bypasses the deny list and moves the row
+/// into `jar_id` even if Brine already holds it.
+pub fn jar_page_now<R: Runtime>(webview: Webview<R>, url: Url, jar_id: String) {
+    schedule(webview, url, Some(jar_id));
+}
+
+fn schedule<R: Runtime>(webview: Webview<R>, url: Url, jar_override: Option<String>) {
     if !matches!(url.scheme(), "http" | "https") {
         return;
     }
 
     let app = webview.app_handle().clone();
     tauri::async_runtime::spawn(async move {
-        if denylist::is_denied(url.as_str(), &denylist::patterns(&app)) {
+        if jar_override.is_none()
+            && denylist::is_denied(url.as_str(), &denylist::patterns(&app))
+        {
             return;
         }
 
         let result = webview.eval_with_callback(script(), move |json| {
             let app = app.clone();
             let url = url.clone();
+            let jar_override = jar_override.clone();
             tauri::async_runtime::spawn(async move {
-                record(&app, &url, &json).await;
+                record(&app, &url, &json, jar_override.as_deref()).await;
             });
         });
 
@@ -68,7 +82,12 @@ pub fn on_page_finished<R: Runtime>(webview: Webview<R>, url: Url) {
     });
 }
 
-async fn record<R: Runtime>(app: &AppHandle<R>, url: &Url, json: &str) {
+async fn record<R: Runtime>(
+    app: &AppHandle<R>,
+    url: &Url,
+    json: &str,
+    jar_override: Option<&str>,
+) {
     // Empty string means the eval produced nothing (navigated away mid-run,
     // or the page refused to evaluate). Nothing to preserve.
     let Ok(extraction) = serde_json::from_str::<Extraction>(json) else {
@@ -110,25 +129,44 @@ async fn record<R: Runtime>(app: &AppHandle<R>, url: &Url, json: &str) {
         return;
     };
 
-    // One row per URL. Revisits refresh content and touched_at but never
-    // move the item between jars — that is the user's call alone.
-    let upsert = sqlx::query(
+    // New rows land in the explicit target (⌘J) or the active jar; NULL is
+    // Brine. On revisit, content and touched_at refresh but the row only
+    // MOVES between jars for an explicit ⌘J — never from mere browsing.
+    // Filing silently is how trust in the jar dies.
+    let jar_id: Option<String> = jar_override.map(String::from).or_else(|| {
+        app.try_state::<db::ActiveJar>()
+            .and_then(|s| s.0.lock().unwrap_or_else(|p| p.into_inner()).clone())
+    });
+
+    let sql = if jar_override.is_some() {
         "INSERT INTO items (id, jar_id, kind, url, title, body, meta, created_at, touched_at)
-         VALUES (?1, NULL, 'page', ?2, ?3, ?4, ?5, ?6, ?6)
+         VALUES (?1, ?2, 'page', ?3, ?4, ?5, ?6, ?7, ?7)
+         ON CONFLICT(url) WHERE url IS NOT NULL DO UPDATE SET
+           jar_id = excluded.jar_id,
+           title = excluded.title,
+           body = excluded.body,
+           meta = excluded.meta,
+           touched_at = excluded.touched_at"
+    } else {
+        "INSERT INTO items (id, jar_id, kind, url, title, body, meta, created_at, touched_at)
+         VALUES (?1, ?2, 'page', ?3, ?4, ?5, ?6, ?7, ?7)
          ON CONFLICT(url) WHERE url IS NOT NULL DO UPDATE SET
            title = excluded.title,
            body = excluded.body,
            meta = excluded.meta,
-           touched_at = excluded.touched_at",
-    )
-    .bind(uuid::Uuid::new_v4().to_string())
-    .bind(url.as_str())
-    .bind(&title)
-    .bind(&body)
-    .bind(&meta)
-    .bind(db::now_ms())
-    .execute(&pool)
-    .await;
+           touched_at = excluded.touched_at"
+    };
+
+    let upsert = sqlx::query(sql)
+        .bind(uuid::Uuid::new_v4().to_string())
+        .bind(&jar_id)
+        .bind(url.as_str())
+        .bind(&title)
+        .bind(&body)
+        .bind(&meta)
+        .bind(db::now_ms())
+        .execute(&pool)
+        .await;
 
     match upsert {
         Ok(_) => {

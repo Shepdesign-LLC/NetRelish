@@ -12,8 +12,10 @@
     "core:webview:allow-set-webview-position",
     "core:webview:allow-set-webview-size",
     "dialog:allow-open",
+    "dialog:allow-ask",
     "opener:allow-open-url",
     "updater:default",
-    "sql:default"
+    "sql:default",
+    "sql:allow-execute"
   ]
 }

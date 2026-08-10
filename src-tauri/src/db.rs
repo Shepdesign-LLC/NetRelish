@@ -23,6 +23,11 @@ pub async fn sqlite_pool<R: Runtime>(app: &AppHandle<R>) -> Option<Pool<Sqlite>>
     }
 }
 
+/// The jar new pages extract into (None = Brine). Set from the frontend via
+/// `set_active_jar`; read by extraction at write time.
+#[derive(Default)]
+pub struct ActiveJar(pub std::sync::Mutex<Option<String>>);
+
 /// Epoch milliseconds, the timestamp unit used across `items`.
 pub fn now_ms() -> i64 {
     std::time::SystemTime::now()

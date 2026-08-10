@@ -13,6 +13,9 @@ pub enum Error {
 
     #[error("no jar is open")]
     NoJar,
+
+    #[error("no page is open")]
+    NoPage,
 }
 
 // Surface a plain string to the frontend rather than a serde-tagged enum.

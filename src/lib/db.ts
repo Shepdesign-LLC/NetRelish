@@ -92,3 +92,91 @@ export async function brineCount(): Promise<number> {
   );
   return rows[0]?.n ?? 0;
 }
+
+/** A jar with its live item count, as the shelf rail shows it. */
+export interface Jar {
+  id: string;
+  name: string;
+  hue: number; // 1..6, maps to --nr-jar-N
+  created_at: number;
+  item_count: number;
+}
+
+/** Unarchived jars, oldest first — shelf order is the order they were made. */
+export async function listJars(): Promise<Jar[]> {
+  return db().select<Jar[]>(
+    `SELECT j.id, j.name, j.hue, j.created_at, count(i.id) AS item_count
+     FROM jars j
+     LEFT JOIN items i ON i.jar_id = j.id AND i.sealed_at IS NULL
+     WHERE j.sealed_at IS NULL
+     GROUP BY j.id
+     ORDER BY j.created_at`,
+  );
+}
+
+/** Create a jar; the hue rotates through --nr-jar-1..6 in creation order. */
+export async function createJar(name: string): Promise<Jar> {
+  const counted = await db().select<{ n: number }[]>(
+    `SELECT count(*) AS n FROM jars`,
+  );
+  const jar: Jar = {
+    id: crypto.randomUUID(),
+    name,
+    hue: ((counted[0]?.n ?? 0) % 6) + 1,
+    created_at: Date.now(),
+    item_count: 0,
+  };
+  await db().execute(
+    `INSERT INTO jars (id, name, hue, created_at) VALUES ($1, $2, $3, $4)`,
+    [jar.id, jar.name, jar.hue, jar.created_at],
+  );
+  return jar;
+}
+
+export async function renameJar(id: string, name: string): Promise<void> {
+  await db().execute(`UPDATE jars SET name = $1 WHERE id = $2`, [name, id]);
+}
+
+/**
+ * Delete a jar. Its items return to Brine via the schema's ON DELETE SET
+ * NULL — nothing the user preserved is ever deleted by tidying.
+ */
+export async function deleteJar(id: string): Promise<void> {
+  await db().execute(`DELETE FROM jars WHERE id = $1`, [id]);
+}
+
+/** An item row as the jar view lists it. */
+export interface JarItemRow {
+  id: string;
+  kind: Item["kind"];
+  url: string | null;
+  title: string;
+  touched_at: number;
+  snippet: string;
+}
+
+/** A jar's items, newest touch first; the view groups them by kind. */
+export async function jarItems(jarId: string): Promise<JarItemRow[]> {
+  return db().select<JarItemRow[]>(
+    `SELECT id, kind, url, title, touched_at,
+            substr(coalesce(body, ''), 1, 240) AS snippet
+     FROM items
+     WHERE jar_id = $1 AND sealed_at IS NULL
+     ORDER BY touched_at DESC
+     LIMIT 500`,
+  [jarId],
+  );
+}
+
+/** Move items into a jar, or back to Brine (null). The Batch gesture. */
+export async function moveItems(
+  ids: string[],
+  jarId: string | null,
+): Promise<void> {
+  if (ids.length === 0) return;
+  const slots = ids.map((_, i) => `$${i + 2}`).join(", ");
+  await db().execute(
+    `UPDATE items SET jar_id = $1 WHERE id IN (${slots})`,
+    [jarId, ...ids],
+  );
+}

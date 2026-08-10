@@ -2,18 +2,15 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BRINE_CHANGED, brineSearch, type BrineRow } from "../lib/db";
+import { domainOf } from "../lib/format";
 
 interface Props {
+  activeJarName: string | null;
+  selection: string[];
+  refreshToken: number;
+  onSelectionChange(selection: string[]): void;
   onOpen(url: string): void;
-}
-
-function domainOf(url: string | null): string {
-  if (!url) return "";
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return "";
-  }
+  onJarSelection(): void;
 }
 
 /**
@@ -21,7 +18,14 @@ function domainOf(url: string | null): string {
  * while the native preview pane is hidden — never on top of it (nothing
  * drawn inside .nr-stage survives a visible page).
  */
-export default function BrineView({ onOpen }: Props) {
+export default function BrineView({
+  activeJarName,
+  selection,
+  refreshToken,
+  onSelectionChange,
+  onOpen,
+  onJarSelection,
+}: Props) {
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<BrineRow[] | null>(null);
   const [denyOpen, setDenyOpen] = useState(false);
@@ -34,13 +38,14 @@ export default function BrineView({ onOpen }: Props) {
     setRows(await brineSearch(queryRef.current));
   }, []);
 
-  // Results as you type, lightly debounced.
+  // Results as you type, lightly debounced; refreshToken covers moves made
+  // from outside (⌘J batches, jar deletions).
   useEffect(() => {
     const t = window.setTimeout(() => {
       void refresh();
     }, 80);
     return () => window.clearTimeout(t);
-  }, [query, refresh]);
+  }, [query, refresh, refreshToken]);
 
   // New extractions land live while the list is open.
   useEffect(() => {
@@ -55,6 +60,17 @@ export default function BrineView({ onOpen }: Props) {
       unlisten?.();
     };
   }, [refresh]);
+
+  const toggle = useCallback(
+    (id: string) => {
+      onSelectionChange(
+        selection.includes(id)
+          ? selection.filter((s) => s !== id)
+          : [...selection, id],
+      );
+    },
+    [selection, onSelectionChange],
+  );
 
   const toggleDenyList = useCallback(async () => {
     if (!denyOpen) {
@@ -119,6 +135,25 @@ export default function BrineView({ onOpen }: Props) {
         </div>
       )}
 
+      {selection.length > 0 && (
+        <div className="nr-brine__batch">
+          <span>
+            {selection.length} selected
+          </span>
+          <button
+            type="button"
+            disabled={!activeJarName}
+            title={activeJarName ? "⌘J" : "Open a jar on the shelf first"}
+            onClick={onJarSelection}
+          >
+            {activeJarName ? `Jar into ${activeJarName}` : "No jar open"}
+          </button>
+          <button type="button" onClick={() => onSelectionChange([])}>
+            Clear
+          </button>
+        </div>
+      )}
+
       {rows !== null && rows.length === 0 && (
         <div className="nr-brine__empty">
           {query.trim() ? (
@@ -134,7 +169,14 @@ export default function BrineView({ onOpen }: Props) {
 
       <ul className="nr-brine__list">
         {(rows ?? []).map((row) => (
-          <li key={row.id}>
+          <li key={row.id} className="nr-brine__item">
+            <input
+              type="checkbox"
+              className="nr-brine__pick"
+              aria-label={`Select ${row.title}`}
+              checked={selection.includes(row.id)}
+              onChange={() => toggle(row.id)}
+            />
             <button
               type="button"
               className="nr-brine__row"

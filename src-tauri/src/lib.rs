@@ -4,7 +4,8 @@ pub mod denylist;
 pub mod error;
 pub mod extract;
 
-use tauri::Manager;
+use tauri::menu::{Menu, MenuItemBuilder, SubmenuBuilder};
+use tauri::{Emitter, Manager};
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 /// Applied in order at startup (the database is preloaded, see
@@ -63,6 +64,26 @@ pub fn run() {
             }
 
             let _ = denylist::ensure_default(app.handle());
+            app.manage(db::ActiveJar::default());
+
+            // ⌘J must work while the native page pane has keyboard focus,
+            // where DOM listeners in the chrome never hear it. A real menu
+            // item is the macOS-native answer: the menu system claims the
+            // key before either webview sees it.
+            {
+                let jar_item = MenuItemBuilder::with_id("jar-it", "Jar This Page")
+                    .accelerator("CmdOrCtrl+J")
+                    .build(app)?;
+                let submenu = SubmenuBuilder::new(app, "Jars").item(&jar_item).build()?;
+                match app.menu() {
+                    Some(menu) => menu.append(&submenu)?,
+                    None => {
+                        let menu = Menu::default(app.handle())?;
+                        menu.append(&submenu)?;
+                        app.set_menu(menu)?;
+                    }
+                }
+            }
 
             // Dev affordance, absent from release builds: NR_DEV_OPEN_URL
             // opens the preview straight to a page so the extraction
@@ -107,6 +128,13 @@ pub fn run() {
 
             Ok(())
         })
+        .on_menu_event(|app, event| {
+            if event.id() == "jar-it" {
+                // The frontend owns the decision of what "it" is — the
+                // current page, or the Brine selection as a Batch.
+                let _ = app.emit_to("main", "menu:jar-it", ());
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::preview::preview_open,
             commands::preview::preview_set_bounds,
@@ -115,6 +143,8 @@ pub fn run() {
             commands::preview::preview_show,
             commands::denylist::denylist_get,
             commands::denylist::denylist_set,
+            commands::jars::set_active_jar,
+            commands::jars::jar_page,
         ])
         .run(tauri::generate_context!())
         .expect("error while running NetRelish");

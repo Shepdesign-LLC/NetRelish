@@ -318,38 +318,38 @@ Build in order. Later weeks read from schema decisions made in earlier ones.
 - [x] Shelf rail with superellipse tiles
 - [x] CI: build → sign → notarize → staple → draft release
 
-### Week 2 — Brine
+### Week 2 — Brine ✅
 
 **Demo:** browse for ten minutes, then find any page you visited by typing a
 phrase from its body text. Offline.
 
-- [ ] `tauri-plugin-sql` wired, database at the app support path
-- [ ] Migration `001_init.sql` — the full schema in §6
-- [ ] `src/lib/db.ts` — the only module that writes SQL
-- [ ] Content script injection on preview navigation
-- [ ] Readability extraction → `items`, `kind='page'`, `jar_id = NULL`
-- [ ] FTS5 triggers on insert, update **and** delete
-- [ ] User-editable deny list
-- [ ] Brine surface: reverse-chronological, title + domain + snippet
-- [ ] Click a Brine row → reopens in the preview pane
+- [x] `tauri-plugin-sql` wired, database at the app support path
+- [x] Migration `001_init.sql` — the full schema in §6
+- [x] `src/lib/db.ts` — the only module that writes SQL
+- [x] Content script injection on preview navigation
+- [x] Readability extraction → `items`, `kind='page'`, `jar_id = NULL`
+- [x] FTS5 triggers on insert, update **and** delete
+- [x] User-editable deny list
+- [x] Brine surface: reverse-chronological, title + domain + snippet
+- [x] Click a Brine row → reopens in the preview pane
 
 **Acceptance:** extraction under 50ms p95 · 1,000 items → FTS under 10ms ·
 quit mid-navigation and relaunch with nothing corrupt · nothing leaves the
 machine (verify with `lsof -i` or Little Snitch).
 
-### Week 3 — Jars
+### Week 3 — Jars ✅
 
 **Demo:** create a jar, browse into it, `⌘J` a page from Brine into it, switch
 jars and watch the window change.
 
-- [ ] Jar CRUD, hue assigned round-robin from `--nr-jar-1..6`
-- [ ] Shelf rail renders real jars with live counts
-- [ ] Active-jar state — new pages extract with that `jar_id`
-- [ ] `⌘J` on the current page
-- [ ] `⌘J` on a Brine multi-selection → jars as a **Batch**
-- [ ] Jar view: items grouped by kind, newest first
-- [ ] Move items between jars, and back to Brine
-- [ ] Jar chip in the titlebar reflects the active jar
+- [x] Jar CRUD, hue assigned round-robin from `--nr-jar-1..6`
+- [x] Shelf rail renders real jars with live counts
+- [x] Active-jar state — new pages extract with that `jar_id`
+- [x] `⌘J` on the current page
+- [x] `⌘J` on a Brine multi-selection → jars as a **Batch**
+- [x] Jar view: items grouped by kind, newest first
+- [x] Move items between jars, and back to Brine
+- [x] Jar chip in the titlebar reflects the active jar
 
 **Acceptance:** jar switch under 100ms at 5,000 items · deleting a jar sends
 its items to Brine and never deletes them · every action keyboard reachable.
