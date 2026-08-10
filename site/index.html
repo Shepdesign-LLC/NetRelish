@@ -378,20 +378,47 @@
     gap: 18px;
     padding: 72px 0 8px;
   }
+  /* Feature cards: the guide's white-glass card — bright fill so ink is
+     crisp, a real shadow so they float, one condiment tick each. */
   .card {
-    border-radius: 20px;
+    position: relative;
+    border-radius: 22px;
     padding: 26px 24px;
+    background: linear-gradient(rgba(255,255,255,0.93), rgba(244,248,232,0.8));
+    border: 1px solid rgba(255,255,255,0.75);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.95),
+      0 18px 44px rgba(0,0,0,0.28);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
+  .card::before {
+    content: "";
+    position: absolute;
+    top: 26px;
+    right: 24px;
+    width: 10px;
+    height: 10px;
+    border-radius: 4px;
+    background: var(--tick, var(--relish));
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.5);
+  }
+  .card:nth-child(1) { --tick: #93E413; }
+  .card:nth-child(2) { --tick: #EDB51E; }
+  .card:nth-child(3) { --tick: #E24B2C; }
+  .card:nth-child(4) { --tick: #38B58A; }
+  .card:nth-child(5) { --tick: #C9762B; }
+  .card:nth-child(6) { --tick: #A85B9E; }
   .card h2 {
     font-family: "Bricolage Grotesque", sans-serif;
     font-weight: 800;
-    font-size: 19px;
-    letter-spacing: -0.02em;
+    font-size: 20px;
+    letter-spacing: -0.025em;
     color: var(--ink);
     margin-bottom: 8px;
   }
-  .card .kicker { color: #748360; display: block; margin-bottom: 10px; }
-  .card p { font-size: 14.5px; }
+  .card .kicker { color: var(--rind); display: block; margin-bottom: 12px; }
+  .card p { font-size: 14.5px; color: #4A5540; }
 
   /* --- privacy strip ----------------------------------------------------- */
   .privacy {
@@ -437,8 +464,8 @@
   @media (prefers-reduced-motion: no-preference) {
     .pour { transition: transform 150ms ease-out; }
     .pour:hover { transform: translateY(-2px); }
-    .card { transition: transform 150ms ease-out; }
-    .card:hover { transform: translateY(-2px); }
+    .card { transition: transform 150ms ease-out, box-shadow 150ms ease-out; }
+    .card:hover { transform: translateY(-4px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.95), 0 26px 54px rgba(0,0,0,0.34); }
   }
   @media (max-width: 700px) {
     .mock__rail { display: none; }
