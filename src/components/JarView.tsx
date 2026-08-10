@@ -10,7 +10,9 @@ import {
   setJarShelfLife,
   type Jar,
   type JarItemRow,
+  type Recipe,
 } from "../lib/db";
+import RecipesPanel from "./RecipesPanel";
 
 const SHELF_LIVES: { hours: number; label: string }[] = [
   { hours: 24, label: "1 day" },
@@ -46,9 +48,14 @@ interface Props {
   jar: Jar;
   jars: Jar[];
   refreshToken: number;
+  recording: boolean;
   onOpen(url: string): void;
   onChanged(): void;
   onDeleted(): void;
+  onStartRecording(): void;
+  onSaveRecording(name: string): Promise<void>;
+  onDiscardRecording(): void;
+  onRunRecipe(recipe: Recipe): void;
 }
 
 /**
@@ -59,9 +66,14 @@ export default function JarView({
   jar,
   jars,
   refreshToken,
+  recording,
   onOpen,
   onChanged,
   onDeleted,
+  onStartRecording,
+  onSaveRecording,
+  onDiscardRecording,
+  onRunRecipe,
 }: Props) {
   const [rows, setRows] = useState<JarItemRow[] | null>(null);
   const [selection, setSelection] = useState<string[]>([]);
@@ -230,6 +242,16 @@ export default function JarView({
           Delete jar
         </button>
       </header>
+
+      <RecipesPanel
+        jarId={jar.id}
+        refreshToken={refreshToken}
+        recording={recording}
+        onStartRecording={onStartRecording}
+        onSaveRecording={onSaveRecording}
+        onDiscardRecording={onDiscardRecording}
+        onRun={onRunRecipe}
+      />
 
       {suggestions.length > 0 && (
         <div className="nr-jarview__suggest">

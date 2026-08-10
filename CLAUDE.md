@@ -414,18 +414,18 @@ It's right about most of them.
 across quits · suggestions never applied without approval · model adds no more
 than ~120MB to the bundle.
 
-### Week 7 — Recipes
+### Week 7 — Recipes ✅
 
 **Demo:** run a saved recipe. Four tabs open in the right layout, it walks you
 through three steps, output lands back in the jar.
 
-- [ ] `recipes` table, JSON steps
-- [ ] Recorder — work normally, "Save as Recipe", steps reconstructed
-- [ ] Step kinds: `open`, `split`, `task`, `note`, `collect`, `seal`
-- [ ] Runner UI — current step, skip, back, finish
-- [ ] `{{date}}`, `{{jar}}`, `{{url}}` interpolation
-- [ ] `⌘R` runs a recipe in the active jar
-- [ ] Split layout with synced scroll
+- [x] `recipes` table, JSON steps
+- [x] Recorder — work normally, "Save as Recipe", steps reconstructed
+- [x] Step kinds: `open`, `split`, `task`, `note`, `collect`, `seal`
+- [x] Runner UI — current step, skip, back, finish
+- [x] `{{date}}`, `{{jar}}`, `{{url}}` interpolation
+- [x] `⌘R` runs a recipe in the active jar
+- [x] Split layout with synced scroll
 
 **Acceptance:** a recorded recipe replays to the same end state · cancelling
 mid-run leaves no orphan tabs or half-written items · recipe JSON is readable

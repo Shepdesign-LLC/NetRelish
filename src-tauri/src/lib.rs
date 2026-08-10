@@ -109,8 +109,12 @@ pub fn run() {
                 let new_tab = MenuItemBuilder::with_id("new-tab", "New Tab")
                     .accelerator("CmdOrCtrl+T")
                     .build(app)?;
+                let run_recipe = MenuItemBuilder::with_id("run-recipe", "Run Recipe")
+                    .accelerator("CmdOrCtrl+R")
+                    .build(app)?;
                 let mut submenu_builder = SubmenuBuilder::new(app, "Jars")
                     .item(&jar_item)
+                    .item(&run_recipe)
                     .separator()
                     .item(&new_tab)
                     .item(&ask_pantry)
@@ -141,6 +145,31 @@ pub fn run() {
             // Dev affordance, absent from release builds: NR_DEV_OPEN_URL
             // opens the preview straight to a page so the extraction
             // pipeline can be exercised without driving the UI.
+            // Dev affordance: NR_DEV_SPLIT="left_url|right_url" opens the
+            // split layout at launch so the second pane and scroll sync can
+            // be exercised without driving the UI. Absent from release.
+            #[cfg(debug_assertions)]
+            if let Ok(spec) = std::env::var("NR_DEV_SPLIT") {
+                if let Some((l, r)) = spec.split_once('|') {
+                    let window = window.clone();
+                    let (l, r) = (l.to_string(), r.to_string());
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_millis(1000));
+                        let rect = commands::preview::Rect {
+                            x: 56.0,
+                            y: 44.0,
+                            width: 1000.0,
+                            height: 640.0,
+                        };
+                        if let Err(e) = tauri::async_runtime::block_on(
+                            commands::preview::preview_split(window, l, r, rect),
+                        ) {
+                            eprintln!("dev split failed: {e}");
+                        }
+                    });
+                }
+            }
+
             #[cfg(debug_assertions)]
             if let Ok(dev_url) = std::env::var("NR_DEV_OPEN_URL") {
                 let window = window.clone();
@@ -192,6 +221,8 @@ pub fn run() {
                 let _ = app.emit_to("main", "menu:jar-it", ());
             } else if event.id() == "new-tab" {
                 let _ = app.emit_to("main", "menu:new-tab", ());
+            } else if event.id() == "run-recipe" {
+                let _ = app.emit_to("main", "menu:run-recipe", ());
             } else if let Some(n) = event
                 .id()
                 .as_ref()
@@ -225,6 +256,8 @@ pub fn run() {
             commands::preview::preview_show,
             commands::preview::preview_get_scroll,
             commands::preview::preview_set_scroll,
+            commands::preview::preview_split,
+            commands::preview::preview_unsplit,
             commands::denylist::denylist_get,
             commands::denylist::denylist_set,
             commands::jars::set_active_jar,

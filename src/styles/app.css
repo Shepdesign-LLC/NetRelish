@@ -463,6 +463,165 @@ body {
   border-color: var(--nr-focus);
 }
 
+/* --- the recipe runner (a band of chrome, never an overlay) ---------------- */
+
+.nr-runner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--nr-chrome-line-soft);
+  background: color-mix(in oklab, var(--nr-accent) 8%, var(--nr-chrome-base));
+  flex-shrink: 0;
+}
+
+.nr-runner__which {
+  color: var(--nr-text-faint);
+  font-family: var(--nr-font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.nr-runner__step {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--nr-text);
+}
+
+.nr-runner button {
+  height: 24px;
+  padding: 0 11px;
+  border: 1px solid var(--nr-chrome-line-soft);
+  border-radius: 10px;
+  background: var(--nr-chrome-base);
+  color: var(--nr-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: default;
+  flex-shrink: 0;
+}
+
+.nr-runner button:disabled {
+  color: var(--nr-text-faint);
+}
+
+.nr-runner button:hover:not(:disabled) {
+  border-color: var(--nr-focus);
+}
+
+.nr-runner__done {
+  border-color: color-mix(in oklab, var(--nr-accent) 45%, transparent) !important;
+}
+
+/* --- recipes panel --------------------------------------------------------- */
+
+.nr-recipes {
+  border-bottom: 1px solid var(--nr-chrome-line-soft);
+  flex-shrink: 0;
+}
+
+.nr-recipes__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+}
+
+.nr-recipes__bar .nr-jarview__kind {
+  margin: 0;
+  flex: 1;
+}
+
+.nr-recipes__bar input {
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--nr-chrome-line-soft);
+  border-radius: 10px;
+  background: var(--nr-chrome-base);
+  color: var(--nr-text);
+  font: inherit;
+}
+
+.nr-recipes__bar button,
+.nr-recipes__row button,
+.nr-recipes__editor button {
+  height: 26px;
+  padding: 0 11px;
+  border: 1px solid var(--nr-chrome-line-soft);
+  border-radius: 10px;
+  background: var(--nr-chrome-base);
+  color: var(--nr-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: default;
+}
+
+.nr-recipes__bar button:hover,
+.nr-recipes__row button:hover,
+.nr-recipes__editor button:hover {
+  border-color: var(--nr-focus);
+}
+
+.nr-recipes__hint {
+  margin: 0;
+  padding: 0 14px 8px;
+  color: var(--nr-text-muted);
+  font-size: 12px;
+}
+
+.nr-recipes__list {
+  margin: 0;
+  padding: 0 14px 10px;
+  list-style: none;
+}
+
+.nr-recipes__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.nr-recipes__name {
+  flex: 1;
+  min-width: 120px;
+  font-weight: 500;
+}
+
+.nr-recipes__editor {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 0 8px;
+}
+
+.nr-recipes__editor textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 8px 11px;
+  border: 1px solid var(--nr-chrome-line-soft);
+  border-radius: 10px;
+  background: var(--nr-chrome-base);
+  color: var(--nr-text);
+  font-family: var(--nr-font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.nr-recipes__problem {
+  margin: 0;
+  color: var(--nr-jar-3); /* Tomato Jam — the one destructive-adjacent hue */
+  font-size: 12px;
+}
+
 /* --- the suggestion strip (the engine proposes; you approve) --------------- */
 
 .nr-jarview__suggest {

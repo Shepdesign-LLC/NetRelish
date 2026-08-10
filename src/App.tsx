@@ -5,15 +5,20 @@ import BrineView from "./components/BrineView";
 import JarRail from "./components/JarRail";
 import JarView from "./components/JarView";
 import Palette from "./components/Palette";
+import RunnerBar from "./components/RunnerBar";
 import TabStrip from "./components/TabStrip";
 import TitleBar, { OMNIBOX_ID, type Status } from "./components/TitleBar";
 import { normalizeUrl, parseDenyList } from "./lib/format";
+import { interpolate, parseSteps, type RecipeStep } from "./lib/recipes";
 import {
   BRINE_CHANGED,
   brineCount,
   createJar,
+  createNoteItem,
+  createRecipe,
   lastSealedScroll,
   listJars,
+  listRecipes,
   moveItems,
   purgeExpiredSweeps,
   sweepDue,
@@ -26,6 +31,7 @@ import {
   undoSweep,
   unsealUrl,
   type Jar,
+  type Recipe,
   type Tab,
 } from "./lib/db";
 import {
@@ -38,6 +44,17 @@ import {
 /** What the stage shows. Independent of which jar is active — you can look
  *  at Brine while a jar stays open for ⌘J and new pages. */
 type View = "page" | "brine" | "jar" | "create";
+
+/** A recipe run in progress. */
+interface RunState {
+  recipe: Recipe;
+  steps: RecipeStep[];
+  index: number;
+  finished: boolean;
+  executed: number[];
+  openedTabs: string[];
+  split: boolean;
+}
 
 export default function App() {
   const [theme] = useState<"dark" | "light">("dark");
@@ -57,6 +74,11 @@ export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   // Palette input lives here so Escape never loses what was typed.
   const [paletteQuery, setPaletteQuery] = useState("");
+  // The recorder: null when off; while on, chrome-initiated actions append.
+  const [recordedSteps, setRecordedSteps] = useState<RecipeStep[] | null>(null);
+  const [run, setRun] = useState<RunState | null>(null);
+  const runRef = useRef<RunState | null>(null);
+  runRef.current = run;
   const statusTimer = useRef<number | undefined>(undefined);
   const returnView = useRef<View>("brine");
   // Scroll to restore once the pane reports the navigation finished.
@@ -94,9 +116,15 @@ export default function App() {
   /* Tabs                                                                */
 
   const openUrl = useCallback(
-    async (target: string, opts?: { newTab?: boolean }) => {
+    async (target: string, opts?: { newTab?: boolean }): Promise<string | null> => {
       const box = holeRef.current?.getBoundingClientRect();
-      if (!box) return;
+      if (!box) return null;
+
+      // The recorder hears where YOU point the browser — chrome-initiated
+      // opens only, and never the runner's own steps.
+      if (!runRef.current) {
+        setRecordedSteps((s) => (s ? [...s, { kind: "open", url: target }] : s));
+      }
 
       let tab = tabs.find((t) => t.id === activeTabId) ?? null;
       if (opts?.newTab || !tab) {
@@ -122,6 +150,7 @@ export default function App() {
       setView("page");
       setRefreshToken((t) => t + 1);
       await refreshTabs();
+      return tab.id;
     },
     [holeRef, tabs, activeTabId, activeJarId, refreshTabs],
   );
@@ -264,6 +293,215 @@ export default function App() {
     return () => {
       window.clearTimeout(t);
       window.clearInterval(interval);
+    };
+  }, []);
+
+  /* ------------------------------------------------------------------ */
+  /* Recipes: recorder + runner                                          */
+
+  const openUrlRef = useRef(openUrl);
+  openUrlRef.current = openUrl;
+
+  /** Perform one action step. Task steps perform nothing — they wait. */
+  const executeStep = useCallback(
+    async (state: RunState, index: number): Promise<RunState> => {
+      const step = state.steps[index];
+      const ctx = {
+        jar: jars.find((j) => j.id === activeJarId)?.name ?? "Brine",
+        url,
+      };
+      const next = { ...state, executed: [...state.executed, index] };
+      switch (step.kind) {
+        case "open": {
+          const tabId = await openUrlRef.current(interpolate(step.url, ctx), {
+            newTab: true,
+          });
+          if (tabId) next.openedTabs = [...next.openedTabs, tabId];
+          break;
+        }
+        case "split": {
+          const box = holeRef.current?.getBoundingClientRect();
+          if (box) {
+            await invoke("preview_split", {
+              left: interpolate(step.left, ctx),
+              right: interpolate(step.right, ctx),
+              rect: {
+                x: Math.round(box.left),
+                y: Math.round(box.top),
+                width: Math.round(box.width),
+                height: Math.round(box.height),
+              },
+            });
+            setUrl(interpolate(step.left, ctx));
+            setLoaded(true);
+            setView("page");
+            next.split = true;
+          }
+          break;
+        }
+        case "note":
+          await createNoteItem(activeJarId, interpolate(step.text, ctx));
+          setRefreshToken((t) => t + 1);
+          break;
+        case "collect":
+          if (activeJarId) {
+            await invoke("jar_page", { jarId: activeJarId }).catch(() => {});
+          }
+          break;
+        case "seal": {
+          for (const id of next.openedTabs) {
+            await tabClose(id);
+          }
+          next.openedTabs = [];
+          await refreshTabs();
+          break;
+        }
+        case "task":
+          break;
+      }
+      return next;
+    },
+    [jars, activeJarId, url, holeRef, refreshTabs],
+  );
+
+  /** Advance from `from`, auto-running action steps until a task or the
+   *  end. Steps run at most once; Back never re-fires them. */
+  const advanceRun = useCallback(
+    async (state: RunState, from: number): Promise<void> => {
+      let s = state;
+      let i = from;
+      while (i + 1 < s.steps.length) {
+        i += 1;
+        s = { ...s, index: i };
+        if (s.steps[i].kind === "task") {
+          setRun(s);
+          return;
+        }
+        if (!s.executed.includes(i)) {
+          setRun(s); // show the step as it happens
+          s = await executeStep(s, i);
+          await new Promise((r) => setTimeout(r, 350));
+        }
+      }
+      setRun({ ...s, finished: true });
+    },
+    [executeStep],
+  );
+
+  const startRun = useCallback(
+    async (recipe: Recipe) => {
+      const parsed = parseSteps(recipe.steps);
+      if (typeof parsed === "string") {
+        showStatus({ text: `Recipe won't run: ${parsed}` });
+        return;
+      }
+      if (parsed.length === 0) {
+        showStatus({ text: "This recipe has no steps yet." });
+        return;
+      }
+      const state: RunState = {
+        recipe,
+        steps: parsed,
+        index: -1,
+        finished: false,
+        executed: [],
+        openedTabs: [],
+        split: false,
+      };
+      setRun(state);
+      await advanceRun(state, -1);
+    },
+    [advanceRun, showStatus],
+  );
+
+  const unsplitNow = useCallback(async () => {
+    const box = holeRef.current?.getBoundingClientRect();
+    if (!box) return;
+    await invoke("preview_unsplit", {
+      rect: {
+        x: Math.round(box.left),
+        y: Math.round(box.top),
+        width: Math.round(box.width),
+        height: Math.round(box.height),
+      },
+    }).catch(() => {});
+  }, [holeRef]);
+
+  /** Finish keeps everything the run made; only the split closes. */
+  const finishRun = useCallback(async () => {
+    const s = runRef.current;
+    if (s?.split) await unsplitNow();
+    setRun(null);
+  }, [unsplitNow]);
+
+  /** Cancel undoes the run's presence: its tabs close (their pages stay
+   *  preserved — closing is free), the split closes. Completed notes are
+   *  whole, not half-written, and remain. */
+  const cancelRun = useCallback(async () => {
+    const s = runRef.current;
+    if (!s) return;
+    for (const id of s.openedTabs) {
+      await tabClose(id);
+    }
+    if (s.split) await unsplitNow();
+    await refreshTabs();
+    setRun(null);
+    showStatus({ text: "Recipe cancelled. Its tabs are closed; nothing is lost." });
+  }, [unsplitNow, refreshTabs, showStatus]);
+
+  const runnerDone = useCallback(async () => {
+    const s = runRef.current;
+    if (s) await advanceRun(s, s.index);
+  }, [advanceRun]);
+
+  const runnerBack = useCallback(() => {
+    setRun((s) => (s && s.index > 0 ? { ...s, index: s.index - 1, finished: false } : s));
+  }, []);
+
+  const startRecording = useCallback(() => {
+    setRecordedSteps([]);
+    showStatus({ text: "Recording. Work normally; save from the jar's Recipes panel." });
+  }, [showStatus]);
+
+  const saveRecording = useCallback(
+    async (name: string) => {
+      if (!activeJarId || recordedSteps === null) return;
+      await createRecipe(activeJarId, name, JSON.stringify(recordedSteps, null, 2));
+      setRecordedSteps(null);
+      setRefreshToken((t) => t + 1);
+      showStatus({ text: `Recipe “${name}” saved` });
+    },
+    [activeJarId, recordedSteps, showStatus],
+  );
+
+  // ⌘R — run the active jar's recipe.
+  const runShortcutRef = useRef(() => {});
+  runShortcutRef.current = () => {
+    void (async () => {
+      if (!activeJarId) {
+        showStatus({ text: "No jar open. Click a jar on the shelf first." });
+        return;
+      }
+      const recipes = await listRecipes(activeJarId);
+      if (recipes.length === 1) void startRun(recipes[0]);
+      else if (recipes.length === 0)
+        showStatus({ text: "No recipe in this jar yet. Record one from its Recipes panel." });
+      else {
+        setView("jar");
+        showStatus({ text: `${recipes.length} recipes here — run one from the panel.` });
+      }
+    })();
+  };
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    void listen("menu:run-recipe", () => runShortcutRef.current()).then((f) => {
+      if (disposed) f();
+      else unlisten = f;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
     };
   }, []);
 
@@ -444,6 +682,9 @@ export default function App() {
     }
     try {
       await invoke("jar_page", { jarId: activeJar.id });
+      if (!runRef.current) {
+        setRecordedSteps((s) => (s ? [...s, { kind: "collect" }] : s));
+      }
       showStatus({ text: `Jarred into ${activeJar.name}` });
     } catch (e) {
       showStatus({ text: String(e) });
@@ -580,12 +821,17 @@ export default function App() {
           jar={activeJar}
           jars={jars}
           refreshToken={refreshToken}
+          recording={recordedSteps !== null}
           onOpen={(target) => void openUrl(target)}
           onChanged={() => {
             setRefreshToken((t) => t + 1);
             void refreshShelf();
           }}
           onDeleted={() => void jarDeleted()}
+          onStartRecording={startRecording}
+          onSaveRecording={saveRecording}
+          onDiscardRecording={() => setRecordedSteps(null)}
+          onRunRecipe={(r) => void startRun(r)}
         />
       );
     }
@@ -646,6 +892,20 @@ export default function App() {
         onNavigate={() => void navigate()}
         onReleaseJar={() => void releaseJar()}
       />
+
+      {run && (
+        <RunnerBar
+          recipeName={run.recipe.name}
+          steps={run.steps}
+          index={Math.max(run.index, 0)}
+          finished={run.finished}
+          onBack={runnerBack}
+          onSkip={() => void runnerDone()}
+          onDone={() => void runnerDone()}
+          onFinish={() => void finishRun()}
+          onCancel={() => void cancelRun()}
+        />
+      )}
 
       {tabs.length > 0 && (
         <TabStrip

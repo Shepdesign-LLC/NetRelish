@@ -13,6 +13,7 @@ use tauri::{
 };
 
 pub const PREVIEW_LABEL: &str = "preview";
+pub const SPLIT_LABEL: &str = "preview2";
 
 /// Where the pane sits inside the main window, in logical (CSS) pixels.
 /// The React layout owns these numbers and reports them down.
@@ -71,10 +72,20 @@ pub async fn preview_open(window: Window, url: String, rect: Rect) -> Result<()>
     Ok(())
 }
 
-/// Keep the native pane glued to the hole the React layout leaves for it.
-/// Called on window resize and on sidebar collapse.
+/// Keep the native pane(s) glued to the hole the React layout leaves.
+/// Called on window resize and on sidebar collapse; split-aware.
 #[tauri::command]
 pub async fn preview_set_bounds(window: Window, rect: Rect) -> Result<()> {
+    if let Some(second) = window.get_webview(SPLIT_LABEL) {
+        let (l, r) = halves(&rect);
+        if let Some(main) = window.get_webview(PREVIEW_LABEL) {
+            main.set_position(LogicalPosition::new(l.x, l.y))?;
+            main.set_size(LogicalSize::new(l.width, l.height))?;
+        }
+        second.set_position(LogicalPosition::new(r.x, r.y))?;
+        second.set_size(LogicalSize::new(r.width, r.height))?;
+        return Ok(());
+    }
     let Some(webview) = window.get_webview(PREVIEW_LABEL) else {
         return Ok(());
     };
@@ -89,6 +100,142 @@ pub async fn preview_close(window: Window) -> Result<()> {
         webview.close()?;
     }
     Ok(())
+}
+
+fn halves(rect: &Rect) -> (Rect, Rect) {
+    let half = (rect.width / 2.0).floor();
+    (
+        Rect { x: rect.x, y: rect.y, width: half, height: rect.height },
+        Rect {
+            x: rect.x + half + 1.0,
+            y: rect.y,
+            width: rect.width - half - 1.0,
+            height: rect.height,
+        },
+    )
+}
+
+/// Split layout: the main pane takes the left half, a second native pane
+/// (same species, same extraction hooks) takes the right. A background
+/// task keeps their scroll positions in step until the split closes.
+#[tauri::command]
+pub async fn preview_split(window: Window, left: String, right: String, rect: Rect) -> Result<()> {
+    let left_url = parse_web_url(&left)?;
+    let right_url = parse_web_url(&right)?;
+    let (l, r) = halves(&rect);
+
+    // Left half: the existing pane, navigated.
+    if let Some(main) = window.get_webview(PREVIEW_LABEL) {
+        main.navigate(left_url)?;
+        main.set_position(LogicalPosition::new(l.x, l.y))?;
+        main.set_size(LogicalSize::new(l.width, l.height))?;
+        main.show()?;
+    } else {
+        let builder = WebviewBuilder::new(PREVIEW_LABEL, WebviewUrl::External(left_url))
+            .incognito(false)
+            .transparent(false)
+            .on_page_load(|webview, payload| {
+                if payload.event() == PageLoadEvent::Finished {
+                    let _ = webview.emit_to("main", "preview:navigated", payload.url().as_str());
+                    crate::extract::on_page_finished(webview, payload.url().clone());
+                }
+            });
+        window.add_child(
+            builder,
+            LogicalPosition::new(l.x, l.y),
+            LogicalSize::new(l.width, l.height),
+        )?;
+    }
+
+    // Right half: the second pane. Extraction applies — recipe pages are
+    // preserved like any other browsing.
+    if let Some(second) = window.get_webview(SPLIT_LABEL) {
+        second.navigate(right_url)?;
+        second.show()?;
+    } else {
+        let builder = WebviewBuilder::new(SPLIT_LABEL, WebviewUrl::External(right_url))
+            .incognito(false)
+            .transparent(false)
+            .on_page_load(|webview, payload| {
+                if payload.event() == PageLoadEvent::Finished {
+                    crate::extract::on_page_finished(webview, payload.url().clone());
+                }
+            });
+        window.add_child(
+            builder,
+            LogicalPosition::new(r.x, r.y),
+            LogicalSize::new(r.width, r.height),
+        )?;
+        spawn_scroll_sync(window.clone());
+    }
+    if let Some(second) = window.get_webview(SPLIT_LABEL) {
+        second.set_position(LogicalPosition::new(r.x, r.y))?;
+        second.set_size(LogicalSize::new(r.width, r.height))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn preview_unsplit(window: Window, rect: Rect) -> Result<()> {
+    if let Some(second) = window.get_webview(SPLIT_LABEL) {
+        second.close()?; // ends the sync task on its next tick
+    }
+    if let Some(main) = window.get_webview(PREVIEW_LABEL) {
+        main.set_position(LogicalPosition::new(rect.x, rect.y))?;
+        main.set_size(LogicalSize::new(rect.width, rect.height))?;
+    }
+    Ok(())
+}
+
+/// Synced scroll (§11): poll both panes and mirror whichever moved. Wakes
+/// five times a second while the split lives; exits when it closes.
+fn spawn_scroll_sync(window: Window) {
+    tauri::async_runtime::spawn(async move {
+        let mut last: (f64, f64) = (0.0, 0.0);
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            let (Some(a), Some(b)) = (
+                window.get_webview(PREVIEW_LABEL),
+                window.get_webview(SPLIT_LABEL),
+            ) else {
+                return;
+            };
+            let read = |wv: tauri::webview::Webview| async move {
+                let (tx, rx) = tokio::sync::oneshot::channel::<f64>();
+                let tx = std::sync::Mutex::new(Some(tx));
+                let ok = wv
+                    .eval_with_callback("window.scrollY", move |json| {
+                        if let Some(tx) = tx.lock().unwrap_or_else(|p| p.into_inner()).take() {
+                            let _ = tx.send(json.parse::<f64>().unwrap_or(-1.0));
+                        }
+                    })
+                    .is_ok();
+                if !ok {
+                    return None;
+                }
+                tokio::time::timeout(std::time::Duration::from_millis(250), rx)
+                    .await
+                    .ok()
+                    .and_then(|r| r.ok())
+                    .filter(|y| *y >= 0.0)
+            };
+            let (ya, yb) = match (read(a.clone()).await, read(b.clone()).await) {
+                (Some(ya), Some(yb)) => (ya, yb),
+                _ => continue,
+            };
+            let (da, db) = ((ya - last.0).abs(), (yb - last.1).abs());
+            // Mirror the pane the reader actually moved; ignore jitter.
+            if da > 4.0 && da >= db {
+                let _ = b.eval(format!("window.scrollTo(0, {ya});"));
+                last = (ya, ya);
+            } else if db > 4.0 {
+                let _ = a.eval(format!("window.scrollTo(0, {yb});"));
+                last = (yb, yb);
+            } else {
+                last = (ya, yb);
+            }
+        }
+    });
 }
 
 /// Read the page's scroll position, for preserving a tab's exact state

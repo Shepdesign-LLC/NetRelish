@@ -518,6 +518,59 @@ export async function setJarShelfLife(
   ]);
 }
 
+/* ---------------------------------------------------------------------------
+   Recipes (week 7): runnable workflows attached to a jar. Steps are JSON —
+   readable, hand-editable, recorded rather than authored.
+--------------------------------------------------------------------------- */
+
+export interface Recipe {
+  id: string;
+  jar_id: string;
+  name: string;
+  steps: string; // JSON array of RecipeStep (src/lib/recipes.ts)
+}
+
+export async function listRecipes(jarId: string): Promise<Recipe[]> {
+  return db().select<Recipe[]>(
+    `SELECT id, jar_id, name, steps FROM recipes WHERE jar_id = $1 ORDER BY name`,
+    [jarId],
+  );
+}
+
+export async function createRecipe(
+  jarId: string,
+  name: string,
+  steps: string,
+): Promise<Recipe> {
+  const recipe: Recipe = { id: crypto.randomUUID(), jar_id: jarId, name, steps };
+  await db().execute(
+    `INSERT INTO recipes (id, jar_id, name, steps) VALUES ($1, $2, $3, $4)`,
+    [recipe.id, recipe.jar_id, recipe.name, recipe.steps],
+  );
+  return recipe;
+}
+
+export async function updateRecipeSteps(id: string, steps: string): Promise<void> {
+  await db().execute(`UPDATE recipes SET steps = $1 WHERE id = $2`, [steps, id]);
+}
+
+export async function deleteRecipe(id: string): Promise<void> {
+  await db().execute(`DELETE FROM recipes WHERE id = $1`, [id]);
+}
+
+/** A note authored by a recipe's note step (full note UI arrives week 8). */
+export async function createNoteItem(
+  jarId: string | null,
+  text: string,
+): Promise<void> {
+  const now = Date.now();
+  await db().execute(
+    `INSERT INTO items (id, jar_id, kind, title, body, created_at, touched_at)
+     VALUES ($1, $2, 'note', $3, $4, $5, $5)`,
+    [crypto.randomUUID(), jarId, text.split("\n")[0].slice(0, 120) || "Note", text, now],
+  );
+}
+
 /** Move items into a jar, or back to Brine (null). The Batch gesture. */
 export async function moveItems(
   ids: string[],
