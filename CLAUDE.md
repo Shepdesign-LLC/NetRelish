@@ -431,18 +431,19 @@ through three steps, output lands back in the jar.
 mid-run leaves no orphan tabs or half-written items · recipe JSON is readable
 and hand-editable.
 
-### Week 8 — Notes, tasks, ship
+### Week 8 — Notes, tasks, ship ✅
 
 **Demo:** a jar holding tabs, notes, tasks and files, all searchable together,
 on a machine that has never been online.
 
-- [ ] In-jar markdown notes, `kind='note'`
-- [ ] Tasks with due dates, `kind='task'`
-- [ ] Drag a local file into a jar → `kind='file'`, path watched
-- [ ] Labels: create, assign, filter
-- [ ] Full keyboard map + shortcut sheet
-- [ ] Light theme parity pass
-- [ ] Updater live, first public build
+- [x] In-jar markdown notes, `kind='note'`
+- [x] Tasks with due dates, `kind='task'`
+- [x] Drag a local file into a jar → `kind='file'`, path watched
+- [x] Labels: create, assign, filter
+- [x] Full keyboard map + shortcut sheet
+- [x] Light theme parity pass
+- [x] Updater wired (keys generated, pipeline ready — public build waits
+      on Apple Developer enrolment, see docs/RELEASING.md)
 
 ---
 

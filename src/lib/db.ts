@@ -157,6 +157,7 @@ export interface JarItemRow {
   title: string;
   touched_at: number;
   sealed_at: number | null;
+  meta: string | null;
   snippet: string;
 }
 
@@ -165,7 +166,7 @@ export interface JarItemRow {
  *  view is exactly where they must remain findable. */
 export async function jarItems(jarId: string): Promise<JarItemRow[]> {
   return db().select<JarItemRow[]>(
-    `SELECT id, kind, url, title, touched_at, sealed_at,
+    `SELECT id, kind, url, title, touched_at, sealed_at, meta,
             substr(coalesce(body, ''), 1, 240) AS snippet
      FROM items
      WHERE jar_id = $1
@@ -224,6 +225,12 @@ export async function pantrySearch(
     );
   }
   if (q.sinceMs !== null) where.push(`items.touched_at >= ${bind(q.sinceMs)}`);
+  if (q.label) {
+    where.push(
+      `items.id IN (SELECT il.item_id FROM item_labels il
+        JOIN labels l ON l.id = il.label_id WHERE l.name = ${bind(q.label)})`,
+    );
+  }
 
   if (q.text) {
     const match = q.text
@@ -558,17 +565,176 @@ export async function deleteRecipe(id: string): Promise<void> {
   await db().execute(`DELETE FROM recipes WHERE id = $1`, [id]);
 }
 
-/** A note authored by a recipe's note step (full note UI arrives week 8). */
+/** A markdown note in a jar; returns the new item's id. */
 export async function createNoteItem(
   jarId: string | null,
   text: string,
-): Promise<void> {
+): Promise<string> {
   const now = Date.now();
+  const id = crypto.randomUUID();
   await db().execute(
     `INSERT INTO items (id, jar_id, kind, title, body, created_at, touched_at)
      VALUES ($1, $2, 'note', $3, $4, $5, $5)`,
-    [crypto.randomUUID(), jarId, text.split("\n")[0].slice(0, 120) || "Note", text, now],
+    [id, jarId, text.split("\n")[0].slice(0, 120) || "Note", text, now],
   );
+  return id;
+}
+
+/* ---------------------------------------------------------------------------
+   Notes, tasks, files, labels (week 8). All of them are rows in `items` —
+   the schema's one big bet — so search, jars and the engine already know
+   how to hold them.
+--------------------------------------------------------------------------- */
+
+export async function updateNote(id: string, text: string): Promise<void> {
+  await db().execute(
+    `UPDATE items SET title = $1, body = $2, touched_at = $3 WHERE id = $4`,
+    [text.split("\n")[0].slice(0, 120) || "Note", text, Date.now(), id],
+  );
+}
+
+export async function getItem(id: string): Promise<Item | null> {
+  const rows = await db().select<Item[]>(
+    `SELECT * FROM items WHERE id = $1`,
+    [id],
+  );
+  return rows[0] ?? null;
+}
+
+/** A task: meta carries { due: epoch-ms | null, done: bool }. */
+export async function createTask(
+  jarId: string | null,
+  title: string,
+  due: number | null,
+): Promise<void> {
+  const now = Date.now();
+  await db().execute(
+    `INSERT INTO items (id, jar_id, kind, title, meta, created_at, touched_at)
+     VALUES ($1, $2, 'task', $3, $4, $5, $5)`,
+    [crypto.randomUUID(), jarId, title, JSON.stringify({ due, done: false }), now],
+  );
+}
+
+export async function toggleTaskDone(id: string): Promise<void> {
+  await db().execute(
+    `UPDATE items SET
+       meta = json_set(coalesce(meta, '{}'), '$.done',
+                       NOT coalesce(json_extract(meta, '$.done'), 0)),
+       touched_at = $1
+     WHERE id = $2`,
+    [Date.now(), id],
+  );
+}
+
+const TEXT_EXTENSIONS = new Set([
+  "txt", "md", "markdown", "ts", "tsx", "js", "jsx", "rs", "css", "html",
+  "json", "yaml", "yml", "toml", "sh", "py", "sql", "csv",
+]);
+
+/** Text files under this size get their content into `body` for search. */
+export function isSearchableFile(name: string): boolean {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  return TEXT_EXTENSIONS.has(ext);
+}
+
+/** A dropped file becomes kind='file'; url holds its file:// address. */
+export async function createFileItem(
+  jarId: string | null,
+  path: string,
+  body: string | null,
+): Promise<void> {
+  const now = Date.now();
+  const name = path.split("/").pop() ?? path;
+  const url = `file://${path}`;
+  await db().execute(
+    `INSERT INTO items (id, jar_id, kind, url, title, body, meta, created_at, touched_at)
+     VALUES ($1, $2, 'file', $3, $4, $5, $6, $7, $7)
+     ON CONFLICT(url) WHERE url IS NOT NULL DO UPDATE SET
+       jar_id = excluded.jar_id, body = excluded.body,
+       meta = excluded.meta, touched_at = excluded.touched_at`,
+    [crypto.randomUUID(), jarId, url, name, body, JSON.stringify({ path }), now],
+  );
+}
+
+/** Mark a watched file's fate: still there, changed, or gone. */
+export async function markFileStatus(
+  id: string,
+  missing: boolean,
+): Promise<void> {
+  await db().execute(
+    `UPDATE items SET meta = json_set(coalesce(meta, '{}'), '$.missing', $1)
+     WHERE id = $2`,
+    [missing, id],
+  );
+}
+
+export async function listFileItems(): Promise<
+  { id: string; path: string }[]
+> {
+  return db().select<{ id: string; path: string }[]>(
+    `SELECT id, json_extract(meta, '$.path') AS path
+     FROM items WHERE kind = 'file' AND path IS NOT NULL`,
+  );
+}
+
+/* Labels: create, assign, filter (§6 tables from day one). */
+
+export interface Label {
+  id: string;
+  name: string;
+  /** How many items wear it, for the chip row. */
+  uses: number;
+}
+
+export async function listLabels(): Promise<Label[]> {
+  return db().select<Label[]>(
+    `SELECT l.id, l.name, count(il.item_id) AS uses
+     FROM labels l LEFT JOIN item_labels il ON il.label_id = l.id
+     GROUP BY l.id ORDER BY l.name`,
+  );
+}
+
+/** Assign a label (created on first use) to a set of items. */
+export async function assignLabel(
+  name: string,
+  itemIds: string[],
+): Promise<void> {
+  const clean = name.trim().toLowerCase();
+  if (!clean || itemIds.length === 0) return;
+  await db().execute(
+    `INSERT OR IGNORE INTO labels (id, name) VALUES ($1, $2)`,
+    [crypto.randomUUID(), clean],
+  );
+  for (const itemId of itemIds) {
+    await db().execute(
+      `INSERT OR IGNORE INTO item_labels (item_id, label_id)
+       SELECT $1, id FROM labels WHERE name = $2`,
+      [itemId, clean],
+    );
+  }
+}
+
+export async function unassignLabel(
+  name: string,
+  itemIds: string[],
+): Promise<void> {
+  for (const itemId of itemIds) {
+    await db().execute(
+      `DELETE FROM item_labels WHERE item_id = $1
+       AND label_id IN (SELECT id FROM labels WHERE name = $2)`,
+      [itemId, name.trim().toLowerCase()],
+    );
+  }
+}
+
+/** Item ids in a jar wearing a given label — the jar view's filter. */
+export async function itemIdsWithLabel(name: string): Promise<string[]> {
+  const rows = await db().select<{ item_id: string }[]>(
+    `SELECT il.item_id FROM item_labels il
+     JOIN labels l ON l.id = il.label_id WHERE l.name = $1`,
+    [name.trim().toLowerCase()],
+  );
+  return rows.map((r) => r.item_id);
 }
 
 /** Move items into a jar, or back to Brine (null). The Batch gesture. */

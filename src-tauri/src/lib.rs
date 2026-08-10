@@ -103,6 +103,9 @@ pub fn run() {
                 let open_location = MenuItemBuilder::with_id("open-location", "Open Location…")
                     .accelerator("CmdOrCtrl+L")
                     .build(app)?;
+                let shortcuts = MenuItemBuilder::with_id("shortcuts", "Keyboard Shortcuts")
+                    .accelerator("CmdOrCtrl+/")
+                    .build(app)?;
                 let ask_pantry = MenuItemBuilder::with_id("ask-pantry", "Ask the Pantry")
                     .accelerator("CmdOrCtrl+K")
                     .build(app)?;
@@ -119,6 +122,7 @@ pub fn run() {
                     .item(&new_tab)
                     .item(&ask_pantry)
                     .item(&open_location)
+                    .item(&shortcuts)
                     .separator();
                 // ⌘1–⌘9 switch jars by shelf position, even while the page
                 // pane holds the keyboard.
@@ -223,6 +227,8 @@ pub fn run() {
                 let _ = app.emit_to("main", "menu:new-tab", ());
             } else if event.id() == "run-recipe" {
                 let _ = app.emit_to("main", "menu:run-recipe", ());
+            } else if event.id() == "shortcuts" {
+                let _ = app.emit_to("main", "menu:shortcuts", ());
             } else if let Some(n) = event
                 .id()
                 .as_ref()
@@ -265,6 +271,8 @@ pub fn run() {
             commands::engine::suggest_for_jar,
             commands::engine::suggestion_feedback,
             commands::engine::semantic_search,
+            commands::files::read_text_file,
+            commands::files::stat_files,
         ])
         .run(tauri::generate_context!())
         .expect("error while running NetRelish");

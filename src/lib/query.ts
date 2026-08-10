@@ -18,6 +18,8 @@ export interface ParsedQuery {
   sealed: boolean;
   /** Lower bound on touched_at, epoch ms. */
   sinceMs: number | null;
+  /** Exact label name. */
+  label: string | null;
 }
 
 const KINDS = new Set(["page", "note", "task", "file", "message"]);
@@ -35,13 +37,16 @@ export function parseQuery(raw: string, now = Date.now()): ParsedQuery {
     kind: null,
     sealed: false,
     sinceMs: null,
+    label: null,
   };
   const rest: string[] = [];
 
   for (const token of raw.trim().split(/\s+/)) {
-    const [, key, value] = token.match(/^(jar|kind|is|since):(.*)$/) ?? [];
+    const [, key, value] = token.match(/^(jar|kind|is|since|label):(.*)$/) ?? [];
     if (key === "jar" && value) {
       parsed.jar = value.toLowerCase();
+    } else if (key === "label" && value) {
+      parsed.label = value.toLowerCase();
     } else if (key === "kind" && KINDS.has(value)) {
       parsed.kind = value as ParsedQuery["kind"];
     } else if (key === "is" && value === "sealed") {
@@ -61,5 +66,7 @@ export function parseQuery(raw: string, now = Date.now()): ParsedQuery {
 
 /** True when the query has nothing to act on at all. */
 export function isEmptyQuery(q: ParsedQuery): boolean {
-  return !q.text && !q.jar && !q.kind && !q.sealed && q.sinceMs === null;
+  return (
+    !q.text && !q.jar && !q.kind && !q.sealed && q.sinceMs === null && !q.label
+  );
 }

@@ -2,14 +2,22 @@ import { invoke } from "@tauri-apps/api/core";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
 import { domainOf } from "../lib/format";
+import { openPath } from "@tauri-apps/plugin-opener";
 import {
+  assignLabel,
+  createNoteItem,
+  createTask,
   deleteJar,
+  itemIdsWithLabel,
   jarItems,
+  listLabels,
   moveItems,
   renameJar,
   setJarShelfLife,
+  toggleTaskDone,
   type Jar,
   type JarItemRow,
+  type Label,
   type Recipe,
 } from "../lib/db";
 import RecipesPanel from "./RecipesPanel";
@@ -50,6 +58,7 @@ interface Props {
   refreshToken: number;
   recording: boolean;
   onOpen(url: string): void;
+  onOpenNote(id: string): void;
   onChanged(): void;
   onDeleted(): void;
   onStartRecording(): void;
@@ -68,6 +77,7 @@ export default function JarView({
   refreshToken,
   recording,
   onOpen,
+  onOpenNote,
   onChanged,
   onDeleted,
   onStartRecording,
@@ -82,15 +92,72 @@ export default function JarView({
   const [moveTarget, setMoveTarget] = useState<string>("brine");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [reviewing, setReviewing] = useState(false);
+  const [taskDraft, setTaskDraft] = useState("");
+  const [taskDue, setTaskDue] = useState("");
+  const [labels, setLabels] = useState<Label[]>([]);
+  const [labelDraft, setLabelDraft] = useState("");
+  const [labelFilter, setLabelFilter] = useState<string | null>(null);
+  const [labelledIds, setLabelledIds] = useState<string[] | null>(null);
 
   const refresh = useCallback(async () => {
     setRows(await jarItems(jar.id));
+    setLabels(await listLabels());
     setSelection([]);
   }, [jar.id]);
 
   useEffect(() => {
     void refresh();
   }, [refresh, refreshToken]);
+
+  // Label filter: resolve which items wear the chip.
+  useEffect(() => {
+    if (!labelFilter) {
+      setLabelledIds(null);
+      return;
+    }
+    void itemIdsWithLabel(labelFilter).then(setLabelledIds);
+  }, [labelFilter, refreshToken]);
+
+  const addTask = useCallback(async () => {
+    const title = taskDraft.trim();
+    if (!title) return;
+    await createTask(
+      jar.id,
+      title,
+      taskDue ? new Date(`${taskDue}T12:00:00`).getTime() : null,
+    );
+    setTaskDraft("");
+    setTaskDue("");
+    await refresh();
+    onChanged();
+  }, [taskDraft, taskDue, jar.id, refresh, onChanged]);
+
+  const newNote = useCallback(async () => {
+    const id = await createNoteItem(jar.id, "");
+    onChanged();
+    onOpenNote(id);
+  }, [jar.id, onChanged, onOpenNote]);
+
+  const labelSelection = useCallback(async () => {
+    await assignLabel(labelDraft, selection);
+    setLabelDraft("");
+    await refresh();
+    onChanged();
+  }, [labelDraft, selection, refresh, onChanged]);
+
+  /** What clicking a row means depends on what the row is. */
+  const openRow = useCallback(
+    (row: JarItemRow) => {
+      if (row.kind === "note") onOpenNote(row.id);
+      else if (row.kind === "task") {
+        void toggleTaskDone(row.id).then(refresh);
+      } else if (row.kind === "file") {
+        const path = row.url?.replace(/^file:\/\//, "");
+        if (path) void openPath(path).catch(() => {});
+      } else if (row.url) onOpen(row.url);
+    },
+    [onOpen, onOpenNote, refresh],
+  );
 
   // The engine proposes; nothing is filed without a hand on a key (§8).
   useEffect(() => {
@@ -168,11 +235,23 @@ export default function JarView({
     onChanged();
   }, [selection, moveTarget, refresh, onChanged]);
 
-  const live = (rows ?? []).filter((r) => r.sealed_at === null);
-  const sealed = (rows ?? []).filter((r) => r.sealed_at !== null);
+  const visible = (rows ?? []).filter(
+    (r) => labelledIds === null || labelledIds.includes(r.id),
+  );
+  const live = visible.filter((r) => r.sealed_at === null);
+  const sealed = visible.filter((r) => r.sealed_at !== null);
   const grouped = KIND_ORDER.map(
     (kind) => [kind, live.filter((r) => r.kind === kind)] as const,
   ).filter(([, list]) => list.length > 0);
+
+  const taskState = (row: JarItemRow): { done: boolean; due: number | null } => {
+    try {
+      const m = JSON.parse(row.meta ?? "{}") as { done?: boolean; due?: number };
+      return { done: !!m.done, due: m.due ?? null };
+    } catch {
+      return { done: false, due: null };
+    }
+  };
 
   return (
     <section className="nr-jarview" aria-label={`Jar: ${jar.name}`}>
@@ -242,6 +321,56 @@ export default function JarView({
           Delete jar
         </button>
       </header>
+
+      <div className="nr-jarview__make">
+        <button type="button" onClick={() => void newNote()}>
+          New note
+        </button>
+        <form
+          className="nr-jarview__task-add"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void addTask();
+          }}
+        >
+          <input
+            placeholder="Add a task"
+            aria-label="New task"
+            value={taskDraft}
+            onChange={(e) => setTaskDraft(e.target.value)}
+          />
+          <input
+            type="date"
+            aria-label="Due date"
+            value={taskDue}
+            onChange={(e) => setTaskDue(e.target.value)}
+          />
+          <button type="submit" disabled={!taskDraft.trim()}>
+            Add
+          </button>
+        </form>
+      </div>
+
+      {labels.filter((l) => l.uses > 0).length > 0 && (
+        <div className="nr-jarview__labels" role="group" aria-label="Filter by label">
+          {labels
+            .filter((l) => l.uses > 0)
+            .map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                className="nr-jarview__label-chip"
+                aria-pressed={labelFilter === l.name}
+                data-active={labelFilter === l.name || undefined}
+                onClick={() =>
+                  setLabelFilter((f) => (f === l.name ? null : l.name))
+                }
+              >
+                {l.name} <span>{l.uses}</span>
+              </button>
+            ))}
+        </div>
+      )}
 
       <RecipesPanel
         jarId={jar.id}
@@ -324,6 +453,19 @@ export default function JarView({
           <button type="button" onClick={() => void moveSelection()}>
             Move
           </button>
+          <input
+            placeholder="or label as…"
+            aria-label="Label name"
+            value={labelDraft}
+            onChange={(e) => setLabelDraft(e.target.value)}
+          />
+          <button
+            type="button"
+            disabled={!labelDraft.trim()}
+            onClick={() => void labelSelection()}
+          >
+            Label
+          </button>
         </div>
       )}
 
@@ -341,26 +483,46 @@ export default function JarView({
           <section key={kind} aria-label={KIND_LABELS[kind]}>
             <h2 className="nr-jarview__kind">{KIND_LABELS[kind]}</h2>
             <ul className="nr-brine__list">
-              {list.map((row) => (
-                <li key={row.id} className="nr-brine__item">
-                  <input
-                    type="checkbox"
-                    className="nr-brine__pick"
-                    aria-label={`Select ${row.title}`}
-                    checked={selection.includes(row.id)}
-                    onChange={() => toggle(row.id)}
-                  />
-                  <button
-                    type="button"
-                    className="nr-brine__row"
-                    onClick={() => row.url && onOpen(row.url)}
-                  >
-                    <span className="nr-brine__title">{row.title}</span>
-                    <span className="nr-brine__domain">{domainOf(row.url)}</span>
-                    <span className="nr-brine__snippet">{row.snippet}</span>
-                  </button>
-                </li>
-              ))}
+              {list.map((row) => {
+                const task = row.kind === "task" ? taskState(row) : null;
+                return (
+                  <li key={row.id} className="nr-brine__item">
+                    <input
+                      type="checkbox"
+                      className="nr-brine__pick"
+                      aria-label={`Select ${row.title}`}
+                      checked={selection.includes(row.id)}
+                      onChange={() => toggle(row.id)}
+                    />
+                    <button
+                      type="button"
+                      className="nr-brine__row"
+                      data-done={task?.done || undefined}
+                      title={
+                        row.kind === "task"
+                          ? "Toggle done"
+                          : row.kind === "note"
+                            ? "Edit note"
+                            : row.kind === "file"
+                              ? "Open file"
+                              : undefined
+                      }
+                      onClick={() => openRow(row)}
+                    >
+                      <span className="nr-brine__title">
+                        {task ? (task.done ? "☑ " : "☐ ") : ""}
+                        {row.title}
+                      </span>
+                      <span className="nr-brine__domain">
+                        {task?.due
+                          ? `due ${new Date(task.due).toLocaleDateString("en-CA")}`
+                          : domainOf(row.url)}
+                      </span>
+                      <span className="nr-brine__snippet">{row.snippet}</span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </section>
         ))}

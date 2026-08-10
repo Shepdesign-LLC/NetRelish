@@ -4,8 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import BrineView from "./components/BrineView";
 import JarRail from "./components/JarRail";
 import JarView from "./components/JarView";
+import NoteView from "./components/NoteView";
 import Palette from "./components/Palette";
 import RunnerBar from "./components/RunnerBar";
+import ShortcutSheet from "./components/ShortcutSheet";
 import TabStrip from "./components/TabStrip";
 import TitleBar, { OMNIBOX_ID, type Status } from "./components/TitleBar";
 import { normalizeUrl, parseDenyList } from "./lib/format";
@@ -13,12 +15,16 @@ import { interpolate, parseSteps, type RecipeStep } from "./lib/recipes";
 import {
   BRINE_CHANGED,
   brineCount,
+  createFileItem,
   createJar,
   createNoteItem,
   createRecipe,
+  isSearchableFile,
   lastSealedScroll,
+  listFileItems,
   listJars,
   listRecipes,
+  markFileStatus,
   moveItems,
   purgeExpiredSweeps,
   sweepDue,
@@ -43,7 +49,7 @@ import {
 
 /** What the stage shows. Independent of which jar is active — you can look
  *  at Brine while a jar stays open for ⌘J and new pages. */
-type View = "page" | "brine" | "jar" | "create";
+type View = "page" | "brine" | "jar" | "create" | "note";
 
 /** A recipe run in progress. */
 interface RunState {
@@ -57,7 +63,18 @@ interface RunState {
 }
 
 export default function App() {
-  const [theme] = useState<"dark" | "light">("dark");
+  // Light theme parity: the chrome follows the Mac's appearance, live.
+  const [theme, setTheme] = useState<"dark" | "light">(() =>
+    window.matchMedia("(prefers-color-scheme: light)").matches
+      ? "light"
+      : "dark",
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: light)");
+    const onChange = () => setTheme(mq.matches ? "light" : "dark");
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
   const [view, setView] = useState<View>("brine");
   const [activeJarId, setActiveJarId] = useState<string | null>(null);
   const [jars, setJars] = useState<Jar[]>([]);
@@ -79,6 +96,8 @@ export default function App() {
   const [run, setRun] = useState<RunState | null>(null);
   const runRef = useRef<RunState | null>(null);
   runRef.current = run;
+  const [noteId, setNoteId] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const statusTimer = useRef<number | undefined>(undefined);
   const returnView = useRef<View>("brine");
   // Scroll to restore once the pane reports the navigation finished.
@@ -105,12 +124,13 @@ export default function App() {
   }, []);
 
   // The native pane only shows when the stage is the page of a tab that
-  // actually has one, with no chrome surface (the palette) over it.
+  // actually has one, with no chrome surface over it.
   useEffect(() => {
     if (!loaded) return;
-    if (view === "page" && !paletteOpen && activeTab?.url) void showPreview();
+    if (view === "page" && !paletteOpen && !sheetOpen && activeTab?.url)
+      void showPreview();
     else void hidePreview();
-  }, [view, loaded, paletteOpen, activeTab]);
+  }, [view, loaded, paletteOpen, sheetOpen, activeTab]);
 
   /* ------------------------------------------------------------------ */
   /* Tabs                                                                */
@@ -293,6 +313,74 @@ export default function App() {
     return () => {
       window.clearTimeout(t);
       window.clearInterval(interval);
+    };
+  }, []);
+
+  /* ------------------------------------------------------------------ */
+  /* Files: drops land in the active jar; watched paths get a stat pass  */
+
+  const activeJarIdRef = useRef(activeJarId);
+  activeJarIdRef.current = activeJarId;
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    void listen<{ paths: string[] }>("tauri://drag-drop", (e) => {
+      void (async () => {
+        const jarId = activeJarIdRef.current;
+        if (!jarId) {
+          showStatus({
+            text: "Open a jar first — dropped files land in the jar you're in.",
+          });
+          return;
+        }
+        let added = 0;
+        for (const path of e.payload.paths ?? []) {
+          const body = isSearchableFile(path)
+            ? await invoke<string | null>("read_text_file", { path }).catch(
+                () => null,
+              )
+            : null;
+          await createFileItem(jarId, path, body);
+          added += 1;
+        }
+        if (added > 0) {
+          setRefreshToken((t) => t + 1);
+          await refreshShelf();
+          showStatus({
+            text: `${added} file${added === 1 ? "" : "s"} into the jar`,
+          });
+        }
+      })();
+    }).then((f) => {
+      if (disposed) f();
+      else unlisten = f;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // The path watcher: stat watched files at startup and hourly. A missing
+  // file is marked, never deleted — the item still remembers what it was.
+  useEffect(() => {
+    const check = async () => {
+      const files = await listFileItems();
+      if (files.length === 0) return;
+      const stats = await invoke<{ id: string; exists: boolean }[]>(
+        "stat_files",
+        { entries: files.map((f) => [f.id, f.path]) },
+      ).catch(() => []);
+      for (const s of stats) {
+        await markFileStatus(s.id, !s.exists);
+      }
+    };
+    const t = window.setTimeout(() => void check(), 4000);
+    const i = window.setInterval(() => void check(), 3_600_000);
+    return () => {
+      window.clearTimeout(t);
+      window.clearInterval(i);
     };
   }, []);
 
@@ -496,6 +584,20 @@ export default function App() {
     let unlisten: (() => void) | undefined;
     let disposed = false;
     void listen("menu:run-recipe", () => runShortcutRef.current()).then((f) => {
+      if (disposed) f();
+      else unlisten = f;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
+
+  // ⌘/ — the keyboard sheet.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    void listen("menu:shortcuts", () => setSheetOpen((o) => !o)).then((f) => {
       if (disposed) f();
       else unlisten = f;
     });
@@ -815,6 +917,19 @@ export default function App() {
         />
       );
     }
+    if (view === "note" && noteId) {
+      return (
+        <NoteView
+          noteId={noteId}
+          jarName={activeJar?.name ?? null}
+          onClose={() => {
+            setNoteId(null);
+            setView("jar");
+            setRefreshToken((t) => t + 1);
+          }}
+        />
+      );
+    }
     if (view === "jar" && activeJar) {
       return (
         <JarView
@@ -823,6 +938,10 @@ export default function App() {
           refreshToken={refreshToken}
           recording={recordedSteps !== null}
           onOpen={(target) => void openUrl(target)}
+          onOpenNote={(id) => {
+            setNoteId(id);
+            setView("note");
+          }}
           onChanged={() => {
             setRefreshToken((t) => t + 1);
             void refreshShelf();
@@ -939,6 +1058,8 @@ export default function App() {
         <div className="nr-stage" ref={holeRef}>
           {stageContent()}
         </div>
+
+        {sheetOpen && <ShortcutSheet onClose={() => setSheetOpen(false)} />}
 
         {/* Sibling of .nr-stage by design (§11): it must never render
             inside the hole the native pane covers. */}
