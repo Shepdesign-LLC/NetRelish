@@ -5,7 +5,11 @@ interface Props {
   status: string | null; // transient action feedback ("Jarred into X")
   onUrlChange(value: string): void;
   onNavigate(): void;
+  onReleaseJar(): void;
 }
+
+/** The omnibox input id — App focuses it on ⌘L (menu:open-location). */
+export const OMNIBOX_ID = "nr-omnibox";
 
 export default function TitleBar({
   jarName,
@@ -14,6 +18,7 @@ export default function TitleBar({
   status,
   onUrlChange,
   onNavigate,
+  onReleaseJar,
 }: Props) {
   const dotColor = jarHue ? `var(--nr-jar-${jarHue})` : "var(--nr-hue-brine)";
 
@@ -21,7 +26,16 @@ export default function TitleBar({
     <header className="nr-titlebar" data-tauri-drag-region>
       <div className="nr-titlebar__lead" />
 
-      <button type="button" className="nr-jar-chip" title="Where new pages land">
+      <button
+        type="button"
+        className="nr-jar-chip"
+        title={
+          jarName
+            ? `New pages land in ${jarName} — click to switch to Brine`
+            : "New pages land in Brine. Open a jar on the shelf to change that."
+        }
+        onClick={jarName ? onReleaseJar : undefined}
+      >
         <span
           className="nr-jar-chip__dot"
           style={{ background: dotColor }}
@@ -38,6 +52,7 @@ export default function TitleBar({
         }}
       >
         <input
+          id={OMNIBOX_ID}
           type="text"
           value={url}
           spellCheck={false}

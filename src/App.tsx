@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import BrineView from "./components/BrineView";
 import JarRail from "./components/JarRail";
 import JarView from "./components/JarView";
-import TitleBar from "./components/TitleBar";
+import TitleBar, { OMNIBOX_ID } from "./components/TitleBar";
 import {
   BRINE_CHANGED,
   brineCount,
@@ -176,14 +176,43 @@ export default function App() {
       } else if (view !== "jar") {
         setView("jar");
       } else {
-        // Second click on the jar you're looking at: close it.
-        setActiveJarId(null);
-        await invoke("set_active_jar", { jarId: null });
+        // Second click on the jar you're looking at: back to the page.
+        // Never deactivate here — silently changing where pages land is
+        // exactly the kind of surprise that erodes trust in the jar.
         setView(loaded ? "page" : "brine");
       }
     },
     [activeJarId, view, loaded],
   );
+
+  /** Chip click: stop filing into the jar; new pages land in Brine again. */
+  const releaseJar = useCallback(async () => {
+    setActiveJarId(null);
+    await invoke("set_active_jar", { jarId: null });
+    if (view === "jar") setView("brine");
+    showStatus("New pages land in Brine");
+  }, [view, showStatus]);
+
+  // ⌘L — focus the omnibox (Rust has already pulled keyboard focus back
+  // from the page pane to the chrome webview).
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    void listen("menu:open-location", () => {
+      const box = document.getElementById(OMNIBOX_ID);
+      if (box instanceof HTMLInputElement) {
+        box.focus();
+        box.select();
+      }
+    }).then((f) => {
+      if (disposed) f();
+      else unlisten = f;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
 
   const toggleBrine = useCallback(() => {
     if (view === "brine" && loaded) setView("page");
@@ -293,6 +322,7 @@ export default function App() {
         status={status}
         onUrlChange={setUrl}
         onNavigate={() => void navigate()}
+        onReleaseJar={() => void releaseJar()}
       />
 
       <div className="nr-body">
