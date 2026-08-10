@@ -11,7 +11,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   /* NetRelish marketing — the full Aero Relish treatment (brand system v2).
-     The glass lives HERE; the app chrome stays quiet (CLAUDE.md §9). */
+     The app wears the same glass; the hero mock below is a faithful
+     portrait of the shipped window. */
   :root {
     --relish: #93E413;
     --rind: #2C6E12;
@@ -129,123 +130,248 @@
     color: rgba(196,227,143,0.7);
   }
 
-  /* --- the window mock --------------------------------------------------- */
+  /* --- the window mock: a faithful portrait of the shipped app --------- */
   .mock {
     margin: 54px auto 0;
     max-width: 880px;
-    border-radius: 26px;
+    border-radius: 14px;
     box-shadow: 0 50px 110px rgba(0,0,0,0.55);
     overflow: hidden;
     text-align: left;
+    border: 1px solid rgba(255,255,255,0.35);
+    font-size: 12px;
+    color: var(--ink-on-glass);
+    background: rgba(244,248,232,0.28);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
   .mock__titlebar {
     display: flex;
     align-items: center;
-    gap: 10px;
-    height: 54px;
-    padding: 0 16px;
-    background: linear-gradient(rgba(255,255,255,0.65), rgba(255,255,255,0.25));
-    border-bottom: 1px solid rgba(20,40,5,0.1);
+    gap: 9px;
+    height: 46px;
+    padding: 0 14px;
+    background: linear-gradient(rgba(255,255,255,0.6), rgba(255,255,255,0.22));
+    border-bottom: 1px solid rgba(255,255,255,0.35);
   }
-  .lights { display: flex; gap: 7px; }
-  .lights span { width: 13px; height: 13px; border-radius: 50%;
-    box-shadow: inset 0 1px 1px rgba(255,255,255,0.6); }
-  .lights span:nth-child(1) { background: linear-gradient(#FF9273, #D8411F); }
-  .lights span:nth-child(2) { background: linear-gradient(#FFDD67, #E0A00C); }
-  .lights span:nth-child(3) { background: linear-gradient(#C7F55E, #7BC80D); }
+  .lights { display: flex; gap: 6px; }
+  .lights span { width: 11px; height: 11px; border-radius: 50%; }
+  .lights span:nth-child(1) { background: #E24B2C; }
+  .lights span:nth-child(2) { background: #EDB51E; }
+  .lights span:nth-child(3) { background: #7BC80D; }
+  .m-nav {
+    width: 26px; height: 26px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.55);
+    background: rgba(255,255,255,0.55);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+    font-size: 13px;
+  }
+  .m-nav.dim { background: rgba(255,255,255,0.3); color: #8A9478; box-shadow: none; }
   .mock__address {
     flex: 1;
+    max-width: 380px;
+    margin: 0 auto;
     display: flex;
     align-items: center;
-    gap: 10px;
-    height: 36px;
-    max-width: 540px;
-    margin: 0 auto;
-    padding: 0 8px 0 14px;
-    border-radius: 18px;
+    gap: 8px;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 15px;
+    border: 1px solid rgba(255,255,255,0.6);
     background: linear-gradient(rgba(255,255,255,0.95), rgba(255,255,255,0.8));
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
     font-family: "Spline Sans Mono", monospace;
-    font-size: 12.5px;
+    font-size: 11px;
     color: var(--ink);
   }
   .mock__address .path { color: #9BA88A; }
   .mock__jarchip {
-    margin-left: auto;
-    padding: 4px 12px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px;
     border-radius: 12px;
     background: linear-gradient(#C7F55E, #96E018);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+    box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.8), 0 3px 10px rgba(110,180,15,0.4);
     font-family: "Spline Sans Mono", monospace;
-    font-size: 10px;
+    font-size: 9px;
+    font-weight: 700;
     letter-spacing: 0.08em;
     color: var(--ink-on-pour);
     white-space: nowrap;
+    overflow: hidden;
   }
-  .mock__body { display: flex; min-height: 300px; }
-  .mock__rail {
-    width: 210px;
-    padding: 14px 12px;
-    background: rgba(255,255,255,0.28);
-    border-right: 1px solid rgba(20,40,5,0.08);
+  .mock__jarchip::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 55% 0;
+    background: linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.02));
   }
-  .mock__rail .kicker { color: #748360; display: block; margin: 12px 4px 6px; }
-  .tabrow {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
-    border-radius: 14px;
-    font-size: 13.5px;
+  .mock__status {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 11px; color: #5B6844; white-space: nowrap;
+  }
+  .mock__status b {
+    padding: 2px 9px;
+    border: 1px solid rgba(255,255,255,0.55);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.55);
     font-weight: 500;
-    color: var(--ink-on-glass);
   }
-  .tabrow.active {
+  .mock__body { display: flex; min-height: 330px; }
+  .mock__side {
+    width: 208px;
+    padding: 12px 10px 10px;
+    display: flex;
+    flex-direction: column;
+    background: rgba(244,248,232,0.42);
+    border-right: 1px solid rgba(255,255,255,0.3);
+    flex-shrink: 0;
+  }
+  .m-head { display: flex; align-items: center; gap: 8px; padding: 0 4px 10px; }
+  .m-orb {
+    width: 20px; height: 20px; border-radius: 50%;
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.55);
+    background: radial-gradient(circle at 35% 30%, #C7F55E, #4E7A0B);
+  }
+  .m-head b {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 700; font-size: 13.5px; letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .m-newtab {
+    height: 28px;
+    margin: 0 2px 4px;
+    display: grid; place-items: center;
+    border: 1px solid rgba(255,255,255,0.7);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.55);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+    font-weight: 600; font-size: 11.5px;
+  }
+  .m-kick {
+    margin: 8px 6px 4px;
+    font-family: "Spline Sans Mono", monospace;
+    font-size: 9px; font-weight: 500;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: #74805C;
+  }
+  .m-tab {
+    position: relative;
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 9px;
+    border-radius: 12px;
+    font-size: 12px; font-weight: 500;
+    overflow: hidden;
+  }
+  .m-tab .chip {
+    width: 16px; height: 16px;
+    display: grid; place-items: center;
+    border-radius: 5px;
+    background: rgba(255,255,255,0.85);
+    box-shadow: 0 1px 2px rgba(20,40,5,0.15);
+    font-size: 9px;
+    flex-shrink: 0;
+  }
+  .m-tab .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .m-tab .g { color: #8A9478; font-size: 10px; }
+  .m-tab.active {
     background: linear-gradient(#C7F55E, #96E018);
     box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.8), 0 3px 10px rgba(110,180,15,0.4);
     color: var(--ink-on-pour);
     font-weight: 700;
   }
-  .tabrow .dot { width: 18px; height: 18px; border-radius: 6px;
-    background: rgba(255,255,255,0.85); box-shadow: 0 1px 2px rgba(20,40,5,0.15);
-    display: grid; place-items: center; font-size: 10px; }
-  .mock__page {
-    flex: 1;
-    padding: 26px 30px;
-    background: rgba(255,255,255,0.92);
+  .m-tab.active::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 55% 0;
+    background: linear-gradient(rgba(255,255,255,0.6), rgba(255,255,255,0.02));
+  }
+  .m-tab.active > * { position: relative; }
+  .m-count {
+    margin-left: auto;
+    padding: 1px 7px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.8);
+    font-family: "Spline Sans Mono", monospace;
+    font-size: 9px;
+    color: #566246;
+  }
+  .m-foot {
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.4);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .m-foot .orbs { display: flex; gap: 6px; }
+  .m-foot .orb {
+    width: 24px; height: 24px;
+    border-radius: 34%;
+    display: grid; place-items: center;
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 700; font-size: 10px;
+    color: var(--ink-on-pour);
+    opacity: 0.62;
+  }
+  .m-foot .orb.on { opacity: 1; box-shadow: 0 0 0 2.5px rgba(147,228,19,0.75); }
+  .m-foot .orb.add {
+    background: rgba(255,255,255,0.3);
+    border: 1.5px dashed rgba(90,110,60,0.5);
+    color: #74805C; font-weight: 400;
+  }
+  .m-foot .cap {
+    margin-left: auto;
+    text-align: right;
+    font-family: "Spline Sans Mono", monospace;
+    font-size: 8px; line-height: 1.5; letter-spacing: 0.04em;
+    color: #74805C;
+  }
+  .mock__stage { flex: 1; background: rgba(244,248,232,0.72); min-width: 0; }
+  .m-jarbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.45);
+  }
+  .m-jarbar .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--relish); }
+  .m-jarbar b {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 700; font-size: 13.5px; letter-spacing: -0.02em;
     color: var(--ink);
   }
-  .mock__page h3 {
-    font-family: "Bricolage Grotesque", sans-serif;
-    font-weight: 800;
-    font-size: 22px;
-    letter-spacing: -0.02em;
-  }
-  .mock__page p { margin-top: 10px; color: #4A5540; font-size: 14px; max-width: 46ch; }
-  .mock__suggest {
-    margin-top: 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    border-radius: 14px;
-    background: rgba(147,228,19,0.14);
-    border: 1px solid rgba(110,180,15,0.35);
-    font-size: 13px;
-  }
-  .mock__suggest .pill {
-    margin-left: auto;
-    padding: 4px 12px;
+  .m-jarbar .n { color: #8A9478; flex: 1; }
+  .m-pill {
+    padding: 4px 10px;
+    border: 1px solid rgba(255,255,255,0.6);
     border-radius: 10px;
-    background: linear-gradient(#C7F55E, #96E018);
+    background: rgba(255,255,255,0.55);
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
-    font-weight: 700;
-    font-size: 12px;
-    color: var(--ink-on-pour);
+    font-size: 10.5px;
     white-space: nowrap;
   }
-
-  /* --- features ---------------------------------------------------------- */
+  .m-suggest {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    background: rgba(147,228,19,0.13);
+    border-bottom: 1px solid rgba(255,255,255,0.45);
+    font-size: 11.5px;
+  }
+  .m-suggest span { flex: 1; }
+  .m-suggest .m-pill.go { border-color: rgba(110,180,15,0.55); }
+  .m-row {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 6px 14px 0;
+  }
+  .m-row .t { font-weight: 500; color: var(--ink); }
+  .m-row .dom {
+    margin-left: auto;
+    font-family: "Spline Sans Mono", monospace;
+    font-size: 9.5px; color: #8A9478;
+  }
+  .m-snip { padding: 1px 14px 6px; color: #5B6844; font-size: 10.5px; }
+\n  /* --- features ---------------------------------------------------------- */
   .features {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -337,35 +463,59 @@
     <a class="pour" href="#download">Download for macOS</a>
     <div class="fine">FREE DURING BETA · APPLE SILICON</div>
 
-    <div class="mock glass" role="img" aria-label="The NetRelish window: a jar holding tabs, notes and tasks, with a suggestion from the on-device engine.">
+    <div class="mock" role="img" aria-label="The NetRelish window: the glass sidebar holds today's tabs and Brine, a jar view shows pages and tasks together, and the engine suggests what belongs.">
       <div class="mock__titlebar">
         <div class="lights"><span></span><span></span><span></span></div>
+        <span class="m-nav">‹</span><span class="m-nav dim">›</span>
         <div class="mock__address">
-          <span>🔒</span> netrelish.com<span class="path">/why-jars</span>
-          <span class="mock__jarchip">JAR · MERIDIAN REBUILD</span>
+          <span>🔒</span> meridian.dev<span class="path">/design-tokens</span>
         </div>
+        <span class="mock__jarchip"><span></span>◍ MERIDIAN REBUILD</span>
+        <span class="mock__status">Sealed 3 tabs <b>Undo</b></span>
       </div>
       <div class="mock__body">
-        <div class="mock__rail">
-          <span class="kicker">Today</span>
-          <div class="tabrow active"><span class="dot">▲</span> Design tokens spec <span style="margin-left:auto">×</span></div>
-          <div class="tabrow"><span class="dot">⌁</span> WKWebView docs</div>
-          <div class="tabrow"><span class="dot">✎</span> Kickoff notes</div>
-          <span class="kicker">Pantry</span>
-          <div class="tabrow"><span class="dot">◍</span> Brine · 214 pages</div>
-        </div>
-        <div class="mock__page">
-          <h3>A jar is a project.</h3>
-          <p>Tabs, notes, tasks and files — held together, aware of their
-          subject, runnable as a recipe. Close anything. It stays.</p>
-          <div class="mock__suggest">
-            <span>◍ 9 things in Brine look like they belong here</span>
-            <span class="pill">Add all</span>
+        <aside class="mock__side">
+          <div class="m-head"><span class="m-orb"></span><b>Meridian Rebuild</b></div>
+          <div class="m-newtab">＋ New tab</div>
+          <span class="m-kick">Today</span>
+          <div class="m-tab active"><span class="chip">M</span><span class="t">Design tokens spec</span><span class="g">○</span><span class="g">×</span></div>
+          <div class="m-tab"><span class="chip">D</span><span class="t">WKWebView reference</span><span class="g">×</span></div>
+          <div class="m-tab"><span class="chip">T</span><span class="t">Type scale playground</span><span class="g">×</span></div>
+          <span class="m-kick">Pantry</span>
+          <div class="m-tab"><span class="chip">◍</span><span class="t">Brine</span><span class="m-count">214</span></div>
+          <div class="m-foot">
+            <div class="orbs">
+              <span class="orb on" style="background:radial-gradient(circle at 35% 30%,#C7F55E,#4E7A0B)">M</span>
+              <span class="orb" style="background:radial-gradient(circle at 35% 30%,#FFDD67,#B8850A)">S</span>
+              <span class="orb" style="background:radial-gradient(circle at 35% 30%,#FF9273,#B23517)">P</span>
+              <span class="orb add">＋</span>
+            </div>
+            <span class="cap">1,204 things preserved,<br>none of them lost</span>
           </div>
-        </div>
+        </aside>
+        <main class="mock__stage">
+          <div class="m-jarbar">
+            <span class="dot"></span><b>Meridian Rebuild</b>
+            <span class="n">12 items</span>
+            <span class="m-pill">Shelf life · 3 days</span>
+            <span class="m-pill">Delete jar</span>
+          </div>
+          <div class="m-suggest">
+            <span>◍ 3 things in Brine look like they belong here</span>
+            <span class="m-pill go">Add all</span>
+            <span class="m-pill">Review</span>
+          </div>
+          <span class="m-kick" style="display:block;margin:10px 14px 2px">Pages</span>
+          <div class="m-row"><span class="t">Design tokens spec — v2</span><span class="dom">meridian.dev</span></div>
+          <div class="m-snip">Spacing walks a 4px grid; radii step 26 · 20 · 14. The glass recipe never stacks…</div>
+          <div class="m-row"><span class="t">WKWebView reference</span><span class="dom">developer.apple.com</span></div>
+          <div class="m-snip">A WKWebView object is a platform-native view that you use to incorporate web…</div>
+          <span class="m-kick" style="display:block;margin:10px 14px 2px">Tasks</span>
+          <div class="m-row"><span class="t">☐ Ship nav revisions</span><span class="dom">due 2026-08-14</span></div>
+        </main>
       </div>
     </div>
-  </section>
+    </section>
 
   <section class="features">
     <div class="card glass">
