@@ -1,8 +1,10 @@
 pub mod commands;
 pub mod db;
 pub mod denylist;
+pub mod embed;
 pub mod error;
 pub mod extract;
+pub mod suggest;
 
 use tauri::menu::{Menu, MenuItemBuilder, SubmenuBuilder};
 use tauri::{Emitter, Manager};
@@ -25,11 +27,27 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/002_sealing.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "engine",
+            sql: include_str!("../migrations/003_engine.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // sqlite-vec must hook every future connection, including the pool
+    // tauri-plugin-sql opens during its own setup — so register the
+    // auto-extension before anything touches SQLite.
+    #[allow(clippy::missing_transmute_annotations)]
+    unsafe {
+        libsqlite3_sys::sqlite3_auto_extension(Some(std::mem::transmute(
+            sqlite_vec::sqlite3_vec_init as *const (),
+        )));
+    }
+
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -161,6 +179,10 @@ pub fn run() {
                 }
             });
 
+            // The engine: embed anything extraction preserved before the
+            // model existed. Resumable by construction.
+            embed::spawn_backfill(app.handle().clone());
+
             Ok(())
         })
         .on_menu_event(|app, event| {
@@ -207,6 +229,9 @@ pub fn run() {
             commands::denylist::denylist_set,
             commands::jars::set_active_jar,
             commands::jars::jar_page,
+            commands::engine::suggest_for_jar,
+            commands::engine::suggestion_feedback,
+            commands::engine::semantic_search,
         ])
         .run(tauri::generate_context!())
         .expect("error while running NetRelish");

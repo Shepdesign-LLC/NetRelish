@@ -16,6 +16,9 @@ pub enum Error {
 
     #[error("no page is open")]
     NoPage,
+
+    #[error("engine: {0}")]
+    Engine(String),
 }
 
 // Surface a plain string to the frontend rather than a serde-tagged enum.

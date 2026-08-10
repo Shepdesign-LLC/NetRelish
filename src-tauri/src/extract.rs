@@ -22,6 +22,7 @@ pub const BRINE_CHANGED: &str = "brine:changed";
 struct Extraction {
     ok: bool,
     title: Option<String>,
+    referrer: Option<String>,
     byline: Option<String>,
     excerpt: Option<String>,
     site: Option<String>,
@@ -116,6 +117,8 @@ async fn record<R: Runtime>(
         "excerpt": extraction.excerpt,
         "site": extraction.site,
         "extract_ms": extraction.ms,
+        // Session layer (§8): how this page was reached.
+        "referrer": extraction.referrer,
     })
     .to_string();
 
@@ -171,6 +174,18 @@ async fn record<R: Runtime>(
     match upsert {
         Ok(_) => {
             let _ = app.emit_to("main", BRINE_CHANGED, ());
+            // Feed the engine: every preserved page gets a vector, off the
+            // UI thread. The row id is stable across revisits (§7).
+            if !body.is_empty() {
+                if let Ok(Some((id,))) =
+                    sqlx::query_as::<_, (String,)>("SELECT id FROM items WHERE url = ?1")
+                        .bind(url.as_str())
+                        .fetch_optional(&pool)
+                        .await
+                {
+                    crate::embed::spawn_embed_item(app.clone(), id, title.clone(), body.clone());
+                }
+            }
         }
         Err(e) => eprintln!("extract: write failed for {url}: {e}"),
     }

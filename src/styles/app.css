@@ -463,6 +463,69 @@ body {
   border-color: var(--nr-focus);
 }
 
+/* --- the suggestion strip (the engine proposes; you approve) --------------- */
+
+.nr-jarview__suggest {
+  border-bottom: 1px solid var(--nr-chrome-line-soft);
+  background: color-mix(in oklab, var(--nr-accent) 7%, var(--nr-chrome-raised));
+  flex-shrink: 0;
+}
+
+.nr-jarview__suggest-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  color: var(--nr-text);
+}
+
+.nr-jarview__suggest-bar span {
+  flex: 1;
+}
+
+.nr-jarview__suggest-bar button,
+.nr-jarview__suggest-list button {
+  height: 26px;
+  padding: 0 11px;
+  border: 1px solid var(--nr-chrome-line-soft);
+  border-radius: 10px;
+  background: var(--nr-chrome-base);
+  color: var(--nr-text);
+  font: inherit;
+  cursor: default;
+  flex-shrink: 0;
+}
+
+.nr-jarview__suggest-bar button:first-of-type {
+  border-color: color-mix(in oklab, var(--nr-accent) 45%, transparent);
+}
+
+.nr-jarview__suggest-bar button:hover,
+.nr-jarview__suggest-list button:hover {
+  border-color: var(--nr-focus);
+}
+
+.nr-jarview__suggest-list {
+  margin: 0;
+  padding: 0 14px 10px;
+  list-style: none;
+}
+
+.nr-jarview__suggest-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.nr-jarview__suggest-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* --- sealed rows & shelf life ---------------------------------------------- */
 
 .nr-brine__row--sealed .nr-brine__title::after {

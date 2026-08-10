@@ -396,19 +396,19 @@ the UI.
 This is the feature that gets screenshotted. Make the animation good and make
 Undo genuinely reliable.
 
-### Week 6 — The engine
+### Week 6 — The engine ✅
 
 **Demo:** open a jar. It says *"9 things in Brine look like they belong here."*
 It's right about most of them.
 
-- [ ] ONNX embedding model bundled, `ort` crate, Apple Silicon
-- [ ] `sqlite-vec` loaded
-- [ ] Embed on extraction; backfill existing items in the background
-- [ ] Session detection — time window + referrer chains
-- [ ] Entity extraction — domains, `[A-Z]{2,6}-\d+`, repo paths
-- [ ] Suggestion strip in the jar header, one key to accept all
-- [ ] Rejections weighted into future scoring
-- [ ] Semantic results merged into `⌘K` behind exact matches
+- [x] ONNX embedding model bundled, `ort` crate, Apple Silicon
+- [x] `sqlite-vec` loaded
+- [x] Embed on extraction; backfill existing items in the background
+- [x] Session detection — time window + referrer chains
+- [x] Entity extraction — domains, `[A-Z]{2,6}-\d+`, repo paths
+- [x] Suggestion strip in the jar header, one key to accept all
+- [x] Rejections weighted into future scoring
+- [x] Semantic results merged into `⌘K` behind exact matches
 
 **Acceptance:** under 200ms per item, off the UI thread · backfill resumable
 across quits · suggestions never applied without approval · model adds no more

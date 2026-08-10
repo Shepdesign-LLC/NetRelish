@@ -38,6 +38,7 @@
     return {
       ok: true,
       url: String(location.href),
+      referrer: document.referrer ? String(document.referrer) : null,
       title:
         (article && article.title) || document.title || String(location.href),
       byline: (article && article.byline) || null,

@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
 import { domainOf } from "../lib/format";
@@ -17,6 +18,14 @@ const SHELF_LIVES: { hours: number; label: string }[] = [
   { hours: 168, label: "1 week" },
   { hours: 336, label: "2 weeks" },
 ];
+
+/** One engine suggestion (src-tauri/src/suggest.rs). */
+interface Suggestion {
+  item_id: string;
+  title: string;
+  url: string | null;
+  score: number;
+}
 
 const KIND_LABELS: Record<JarItemRow["kind"], string> = {
   page: "Pages",
@@ -59,6 +68,8 @@ export default function JarView({
   const [renaming, setRenaming] = useState(false);
   const [draftName, setDraftName] = useState(jar.name);
   const [moveTarget, setMoveTarget] = useState<string>("brine");
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [reviewing, setReviewing] = useState(false);
 
   const refresh = useCallback(async () => {
     setRows(await jarItems(jar.id));
@@ -68,6 +79,46 @@ export default function JarView({
   useEffect(() => {
     void refresh();
   }, [refresh, refreshToken]);
+
+  // The engine proposes; nothing is filed without a hand on a key (§8).
+  useEffect(() => {
+    let stale = false;
+    void invoke<Suggestion[]>("suggest_for_jar", { jarId: jar.id }).then(
+      (s) => {
+        if (!stale) setSuggestions(s);
+      },
+    );
+    return () => {
+      stale = true;
+    };
+  }, [jar.id, refreshToken]);
+
+  const acceptSuggestions = useCallback(
+    async (ids: string[]) => {
+      await moveItems(ids, jar.id);
+      await invoke("suggestion_feedback", {
+        jarId: jar.id,
+        itemIds: ids,
+        action: "accepted",
+      });
+      setSuggestions((s) => s.filter((x) => !ids.includes(x.item_id)));
+      await refresh();
+      onChanged();
+    },
+    [jar.id, refresh, onChanged],
+  );
+
+  const rejectSuggestion = useCallback(
+    async (id: string) => {
+      await invoke("suggestion_feedback", {
+        jarId: jar.id,
+        itemIds: [id],
+        action: "rejected",
+      });
+      setSuggestions((s) => s.filter((x) => x.item_id !== id));
+    },
+    [jar.id],
+  );
 
   const toggle = useCallback((id: string) => {
     setSelection((sel) =>
@@ -179,6 +230,55 @@ export default function JarView({
           Delete jar
         </button>
       </header>
+
+      {suggestions.length > 0 && (
+        <div className="nr-jarview__suggest">
+          <div className="nr-jarview__suggest-bar">
+            <span>
+              {suggestions.length} thing{suggestions.length === 1 ? "" : "s"} in
+              Brine look{suggestions.length === 1 ? "s" : ""} like{" "}
+              {suggestions.length === 1 ? "it belongs" : "they belong"} here
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                void acceptSuggestions(suggestions.map((s) => s.item_id))
+              }
+            >
+              Add all
+            </button>
+            <button
+              type="button"
+              aria-expanded={reviewing}
+              onClick={() => setReviewing((r) => !r)}
+            >
+              Review
+            </button>
+          </div>
+          {reviewing && (
+            <ul className="nr-jarview__suggest-list">
+              {suggestions.map((s) => (
+                <li key={s.item_id}>
+                  <span className="nr-jarview__suggest-title">{s.title}</span>
+                  <span className="nr-brine__domain">{domainOf(s.url)}</span>
+                  <button
+                    type="button"
+                    onClick={() => void acceptSuggestions([s.item_id])}
+                  >
+                    Add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void rejectSuggestion(s.item_id)}
+                  >
+                    Not this jar
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {selection.length > 0 && (
         <div className="nr-jarview__actions">

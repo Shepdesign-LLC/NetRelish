@@ -36,3 +36,6 @@ src-tauri/updater.key.pub
 # logs
 *.log
 npm-debug.log*
+
+# the embedding model is fetched by scripts/ensure-model.mjs, not committed
+src-tauri/models/

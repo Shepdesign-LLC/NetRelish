@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   MARK_END,
@@ -7,6 +8,22 @@ import {
 } from "../lib/db";
 import { domainOf, looksLikeUrl, normalizeUrl } from "../lib/format";
 import { isEmptyQuery, parseQuery } from "../lib/query";
+
+/** A row from semantic_search (src-tauri/src/commands/engine.rs). */
+interface SemanticRow {
+  id: string;
+  url: string | null;
+  title: string;
+  jar_id: string | null;
+  jar_name: string | null;
+  snippet: string;
+  distance: number;
+}
+
+type Row = PantryRow & { semantic?: boolean };
+
+/** Cosine-distance ceiling for "similar" — beyond this it's just noise. */
+const SEMANTIC_MAX_DISTANCE = 0.62;
 
 interface Props {
   query: string;
@@ -47,7 +64,7 @@ export default function Palette({
   onOpen,
   onClose,
 }: Props) {
-  const [rows, setRows] = useState<PantryRow[] | null>(null);
+  const [rows, setRows] = useState<Row[] | null>(null);
   const [selected, setSelected] = useState(0);
   const lastFired = useRef(0);
   const generation = useRef(0);
@@ -60,10 +77,35 @@ export default function Palette({
         setRows(null);
         return;
       }
-      const result = await pantrySearch(parsed, activeJarId);
+      // Exact matches and semantic neighbours in parallel; semantic rows
+      // merge BEHIND every exact match, never above (§11), and never
+      // duplicate one.
+      const [exact, semantic] = await Promise.all([
+        pantrySearch(parsed, activeJarId),
+        parsed.text
+          ? invoke<SemanticRow[]>("semantic_search", {
+              query: parsed.text,
+              limit: 8,
+            }).catch(() => [] as SemanticRow[])
+          : Promise.resolve([] as SemanticRow[]),
+      ]);
+      const seen = new Set(exact.map((r) => r.id));
+      const similar: Row[] = semantic
+        .filter((s) => !seen.has(s.id) && s.distance <= SEMANTIC_MAX_DISTANCE)
+        .map((s) => ({
+          id: s.id,
+          url: s.url,
+          title: s.title,
+          kind: "page" as const,
+          jar_id: s.jar_id,
+          jar_name: s.jar_name,
+          tier: 3,
+          snippet: s.snippet,
+          semantic: true,
+        }));
       // A slower earlier query must never overwrite a newer one.
       if (generation.current === mine) {
-        setRows(result);
+        setRows([...exact, ...similar]);
         setSelected(0);
       }
     },
@@ -173,6 +215,7 @@ export default function Palette({
                 >
                   <span className="nr-palette__title">{row.title}</span>
                   <span className="nr-palette__where">
+                    {row.semantic ? "similar · " : ""}
                     {row.jar_name ?? (row.jar_id ? "" : "Brine")}
                     {row.url ? ` · ${domainOf(row.url)}` : ""}
                   </span>

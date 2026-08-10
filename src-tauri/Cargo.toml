@@ -27,6 +27,12 @@ serde_json = "1"
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio"] }
 uuid = { version = "1", features = ["v4"] }
 tokio = { version = "1", features = ["sync", "time"] }
+# The organization engine (week 6): local ONNX embeddings + vector search.
+ort = "2.0.0-rc.10"
+tokenizers = { version = "0.21", default-features = false, features = ["onig"] }
+sqlite-vec = "0.1"
+libsqlite3-sys = "0.30"
+regex = "1"
 thiserror = "2"
 url = "2"
 
@@ -39,3 +45,6 @@ lto = true
 opt-level = "s"
 panic = "abort"
 strip = true
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros"] }
