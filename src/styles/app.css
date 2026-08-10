@@ -92,7 +92,7 @@ body {
   height: 26px;
   padding: 0 11px;
   border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 7px;
+  border-radius: 10px;
   background: var(--nr-chrome-raised);
   color: var(--nr-text-muted);
   font: inherit;
@@ -123,7 +123,7 @@ body {
   height: 26px;
   padding: 0 11px;
   border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 7px;
+  border-radius: 10px;
   background: var(--nr-chrome-raised);
   color: var(--nr-text);
   font: inherit;
@@ -168,16 +168,26 @@ body {
 
 .nr-rail__tile:hover {
   color: var(--tile-hue);
+  transform: translateY(-1px);
 }
 
+/* The active tile is the rail's one gradient: the jar's orb, rendered
+   inside the superellipse (§9). Everything else stays flat. */
 .nr-rail__tile[data-active] {
-  background: color-mix(in oklab, var(--tile-hue) 22%, var(--nr-chrome-raised));
-  color: var(--tile-hue);
+  background: radial-gradient(
+    circle at 35% 30%,
+    color-mix(in oklab, var(--tile-hue) 55%, white),
+    color-mix(in oklab, var(--tile-hue) 82%, black)
+  );
+  color: var(--nr-ink-on-pour);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .nr-rail__tile {
     transition: none;
+  }
+  .nr-rail__tile:hover {
+    transform: none;
   }
 }
 
@@ -279,7 +289,7 @@ body {
   max-width: 220px;
   flex: 0 1 auto;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: 12px;
   background: none;
   transition:
     max-width 260ms ease,
@@ -287,9 +297,21 @@ body {
     background 140ms ease;
 }
 
+/* The strip's one gradient: the active tab wears Relish Pour. */
 .nr-tab[data-active] {
-  border-color: var(--nr-chrome-line-soft);
-  background: var(--nr-chrome-raised);
+  border-color: transparent;
+  background: linear-gradient(var(--nr-pour-a), var(--nr-pour-b));
+}
+
+.nr-tab[data-active] .nr-tab__main,
+.nr-tab[data-active] .nr-tab__domain,
+.nr-tab[data-active] .nr-tab__pin,
+.nr-tab[data-active] .nr-tab__close {
+  color: var(--nr-ink-on-pour);
+}
+
+.nr-tab[data-active] .nr-tab__title {
+  font-weight: 700;
 }
 
 /* The sweep: tabs squeeze shut as they seal. The one signature motion. */
@@ -367,7 +389,7 @@ body {
   flex-shrink: 0;
   width: 28px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 10px;
   background: none;
   color: var(--nr-text-faint);
   font-size: 15px;
@@ -428,7 +450,7 @@ body {
   height: 24px;
   padding: 0 11px;
   border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 7px;
+  border-radius: 10px;
   background: var(--nr-chrome-base);
   color: var(--nr-text);
   font: inherit;
@@ -463,7 +485,7 @@ body {
   height: 26px;
   padding: 0 6px;
   border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 7px;
+  border-radius: 10px;
   background: var(--nr-chrome-base);
   color: var(--nr-text);
   font: inherit;
@@ -495,7 +517,7 @@ body {
   height: 28px;
   padding: 0 11px;
   border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 7px;
+  border-radius: 10px;
   background: var(--nr-chrome-base);
   color: var(--nr-text);
   font: inherit;
@@ -510,7 +532,7 @@ body {
   height: 28px;
   padding: 0 11px;
   border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 7px;
+  border-radius: 10px;
   background: var(--nr-chrome-base);
   color: var(--nr-text-muted);
   font: inherit;
@@ -540,7 +562,7 @@ body {
   resize: vertical;
   padding: 8px 11px;
   border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 7px;
+  border-radius: 10px;
   background: var(--nr-chrome-base);
   color: var(--nr-text);
   font-family: var(--nr-font-mono);
@@ -584,7 +606,7 @@ body {
   height: 26px;
   padding: 0 11px;
   border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 7px;
+  border-radius: 10px;
   background: var(--nr-chrome-base);
   color: var(--nr-text);
   font: inherit;
@@ -720,7 +742,7 @@ body {
   height: 26px;
   padding: 0 8px;
   border: 1px solid var(--nr-chrome-line);
-  border-radius: 7px;
+  border-radius: 10px;
   background: var(--nr-chrome-base);
   color: var(--nr-text);
   font: inherit;
@@ -736,7 +758,7 @@ body {
   height: 26px;
   padding: 0 11px;
   border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 7px;
+  border-radius: 10px;
   background: var(--nr-chrome-base);
   color: var(--nr-text-muted);
   font: inherit;
@@ -803,7 +825,7 @@ body {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--nr-chrome-line);
-  border-radius: 10px;
+  border-radius: 20px;
   background: var(--nr-chrome-raised);
   overflow: hidden;
 }
@@ -942,7 +964,7 @@ body {
   height: 32px;
   padding: 0 11px;
   border: 1px solid var(--nr-chrome-line);
-  border-radius: 7px;
+  border-radius: 10px;
   background: var(--nr-chrome-base);
   color: var(--nr-text);
   font: inherit;

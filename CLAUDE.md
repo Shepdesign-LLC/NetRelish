@@ -271,10 +271,16 @@ here"* — accepted with one key. Never applied automatically.
 - Plain CSS with custom properties. No Tailwind, no CSS-in-JS.
 - All colour in OKLCH. Never hex, never `rgb()`.
 - All tokens `--nr-` prefixed, in `src/styles/netrelish.css`.
-- App chrome stays quiet: no gradients, no glass, no accent colour outside the
-  shelf rail. The frame surrounds someone else's content all day.
+- App chrome stays quiet and **flat**: no glass, no blur. The one active
+  element of each surface — the active tab, the active jar tile — wears its
+  gradient (Relish Pour, or its jar's orb); everything else is flat chrome
+  with no accent colour outside the shelf rail. The frame surrounds someone
+  else's content all day. *(Amended Aug 2026 for brand system v2 "Aero
+  Relish": palette, type and actives come from the guide; the full glass
+  material stays on the marketing site.)*
 - The one signature move is the **superellipse** tile shape
-  (`src/lib/superellipse.ts`). Not `border-radius`. Don't replace it.
+  (`src/lib/superellipse.ts`). Not `border-radius`. Don't replace it. The
+  guide's flavor-jar orb gradients render *inside* the superellipse.
 
 **Commits** — conventional and scoped: `feat(jars):`, `fix(preview):`,
 `chore(db):`.

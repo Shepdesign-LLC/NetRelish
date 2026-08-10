@@ -473,6 +473,39 @@ export default function App() {
     };
   }, []);
 
+  // ⌘1–⌘9 — switch to a jar by shelf position. The menu covers page-pane
+  // focus; the DOM listener covers the chrome.
+  const jarsRef = useRef(jars);
+  jarsRef.current = jars;
+  const activateJarRef = useRef((_id: string) => Promise.resolve());
+  useEffect(() => {
+    const byIndex = (n: number) => {
+      const jar = jarsRef.current[n - 1];
+      if (jar) void activateJarRef.current(jar.id);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      const n = Number(event.key);
+      if (event.metaKey && !event.shiftKey && !event.altKey && n >= 1 && n <= 9) {
+        event.preventDefault();
+        byIndex(n);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    void listen<number>("menu:switch-jar", (e) => byIndex(e.payload)).then(
+      (f) => {
+        if (disposed) f();
+        else unlisten = f;
+      },
+    );
+    return () => {
+      disposed = true;
+      unlisten?.();
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
   const activateJar = useCallback(
     async (id: string) => {
       if (activeJarId !== id) {
@@ -490,6 +523,7 @@ export default function App() {
     },
     [activeJarId, view, loaded, activeTab],
   );
+  activateJarRef.current = activateJar;
 
   /** Chip click: stop filing into the jar; new pages land in Brine again. */
   const releaseJar = useCallback(async () => {

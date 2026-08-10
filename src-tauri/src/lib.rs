@@ -91,13 +91,25 @@ pub fn run() {
                 let new_tab = MenuItemBuilder::with_id("new-tab", "New Tab")
                     .accelerator("CmdOrCtrl+T")
                     .build(app)?;
-                let submenu = SubmenuBuilder::new(app, "Jars")
+                let mut submenu_builder = SubmenuBuilder::new(app, "Jars")
                     .item(&jar_item)
                     .separator()
                     .item(&new_tab)
                     .item(&ask_pantry)
                     .item(&open_location)
-                    .build()?;
+                    .separator();
+                // ⌘1–⌘9 switch jars by shelf position, even while the page
+                // pane holds the keyboard.
+                for n in 1..=9u8 {
+                    let item = MenuItemBuilder::with_id(
+                        format!("switch-jar-{n}"),
+                        format!("Switch to Jar {n}"),
+                    )
+                    .accelerator(format!("CmdOrCtrl+{n}"))
+                    .build(app)?;
+                    submenu_builder = submenu_builder.item(&item);
+                }
+                let submenu = submenu_builder.build()?;
                 match app.menu() {
                     Some(menu) => menu.append(&submenu)?,
                     None => {
@@ -158,6 +170,13 @@ pub fn run() {
                 let _ = app.emit_to("main", "menu:jar-it", ());
             } else if event.id() == "new-tab" {
                 let _ = app.emit_to("main", "menu:new-tab", ());
+            } else if let Some(n) = event
+                .id()
+                .as_ref()
+                .strip_prefix("switch-jar-")
+                .and_then(|s| s.parse::<u8>().ok())
+            {
+                let _ = app.emit_to("main", "menu:switch-jar", n);
             } else if event.id() == "open-location" || event.id() == "ask-pantry" {
                 // The page pane may hold the keyboard. Hand the native
                 // first-responder back to the chrome webview, then let the
