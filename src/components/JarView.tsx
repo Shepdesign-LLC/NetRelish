@@ -6,9 +6,17 @@ import {
   jarItems,
   moveItems,
   renameJar,
+  setJarShelfLife,
   type Jar,
   type JarItemRow,
 } from "../lib/db";
+
+const SHELF_LIVES: { hours: number; label: string }[] = [
+  { hours: 24, label: "1 day" },
+  { hours: 72, label: "3 days" },
+  { hours: 168, label: "1 week" },
+  { hours: 336, label: "2 weeks" },
+];
 
 const KIND_LABELS: Record<JarItemRow["kind"], string> = {
   page: "Pages",
@@ -97,8 +105,10 @@ export default function JarView({
     onChanged();
   }, [selection, moveTarget, refresh, onChanged]);
 
+  const live = (rows ?? []).filter((r) => r.sealed_at === null);
+  const sealed = (rows ?? []).filter((r) => r.sealed_at !== null);
   const grouped = KIND_ORDER.map(
-    (kind) => [kind, (rows ?? []).filter((r) => r.kind === kind)] as const,
+    (kind) => [kind, live.filter((r) => r.kind === kind)] as const,
   ).filter(([, list]) => list.length > 0);
 
   return (
@@ -143,6 +153,24 @@ export default function JarView({
             ? ""
             : `${rows.length} item${rows.length === 1 ? "" : "s"}`}
         </span>
+        <label className="nr-jarview__shelf">
+          Shelf life
+          <select
+            aria-label="Shelf life — how long this jar's tabs stay open"
+            value={jar.shelf_life_hours ?? 72}
+            onChange={(e) => {
+              void setJarShelfLife(jar.id, Number(e.target.value)).then(
+                onChanged,
+              );
+            }}
+          >
+            {SHELF_LIVES.map((s) => (
+              <option key={s.hours} value={s.hours}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           type="button"
           className="nr-jarview__delete"
@@ -214,6 +242,37 @@ export default function JarView({
             </ul>
           </section>
         ))}
+
+        {sealed.length > 0 && (
+          <section aria-label="Sealed">
+            <h2 className="nr-jarview__kind">
+              Sealed — preserved exactly as left
+            </h2>
+            <ul className="nr-brine__list">
+              {sealed.map((row) => (
+                <li key={row.id} className="nr-brine__item">
+                  <input
+                    type="checkbox"
+                    className="nr-brine__pick"
+                    aria-label={`Select ${row.title}`}
+                    checked={selection.includes(row.id)}
+                    onChange={() => toggle(row.id)}
+                  />
+                  <button
+                    type="button"
+                    className="nr-brine__row nr-brine__row--sealed"
+                    title="Reopen — restores the page where you left it"
+                    onClick={() => row.url && onOpen(row.url)}
+                  >
+                    <span className="nr-brine__title">{row.title}</span>
+                    <span className="nr-brine__domain">{domainOf(row.url)}</span>
+                    <span className="nr-brine__snippet">{row.snippet}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     </section>
   );

@@ -26,6 +26,7 @@ serde_json = "1"
 # Match tauri-plugin-sql's sqlx so both talk to the same pool type.
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio"] }
 uuid = { version = "1", features = ["v4"] }
+tokio = { version = "1", features = ["sync", "time"] }
 thiserror = "2"
 url = "2"
 

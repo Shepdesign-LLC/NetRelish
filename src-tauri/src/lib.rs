@@ -12,12 +12,20 @@ use tauri_plugin_sql::{Migration, MigrationKind};
 /// tauri.conf.json > plugins > sql). Shipped migrations are never edited —
 /// schema changes get a new NNN file.
 fn migrations() -> Vec<Migration> {
-    vec![Migration {
-        version: 1,
-        description: "init",
-        sql: include_str!("../migrations/001_init.sql"),
-        kind: MigrationKind::Up,
-    }]
+    vec![
+        Migration {
+            version: 1,
+            description: "init",
+            sql: include_str!("../migrations/001_init.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 2,
+            description: "sealing",
+            sql: include_str!("../migrations/002_sealing.sql"),
+            kind: MigrationKind::Up,
+        },
+    ]
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -80,9 +88,13 @@ pub fn run() {
                 let ask_pantry = MenuItemBuilder::with_id("ask-pantry", "Ask the Pantry")
                     .accelerator("CmdOrCtrl+K")
                     .build(app)?;
+                let new_tab = MenuItemBuilder::with_id("new-tab", "New Tab")
+                    .accelerator("CmdOrCtrl+T")
+                    .build(app)?;
                 let submenu = SubmenuBuilder::new(app, "Jars")
                     .item(&jar_item)
                     .separator()
+                    .item(&new_tab)
                     .item(&ask_pantry)
                     .item(&open_location)
                     .build()?;
@@ -144,6 +156,8 @@ pub fn run() {
                 // The frontend owns the decision of what "it" is — the
                 // current page, or the Brine selection as a Batch.
                 let _ = app.emit_to("main", "menu:jar-it", ());
+            } else if event.id() == "new-tab" {
+                let _ = app.emit_to("main", "menu:new-tab", ());
             } else if event.id() == "open-location" || event.id() == "ask-pantry" {
                 // The page pane may hold the keyboard. Hand the native
                 // first-responder back to the chrome webview, then let the
@@ -168,6 +182,8 @@ pub fn run() {
             commands::preview::preview_close,
             commands::preview::preview_hide,
             commands::preview::preview_show,
+            commands::preview::preview_get_scroll,
+            commands::preview::preview_set_scroll,
             commands::denylist::denylist_get,
             commands::denylist::denylist_set,
             commands::jars::set_active_jar,

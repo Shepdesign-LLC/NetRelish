@@ -231,11 +231,242 @@ body {
 
 .nr-titlebar__status {
   flex-shrink: 0;
-  max-width: 260px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 320px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--nr-text-muted);
+  font-size: 12px;
+}
+
+.nr-titlebar__undo {
+  height: 22px;
+  padding: 0 9px;
+  border: 1px solid var(--nr-chrome-line);
+  border-radius: 6px;
+  background: var(--nr-chrome-raised);
+  color: var(--nr-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: default;
+}
+
+.nr-titlebar__undo:hover {
+  border-color: var(--nr-focus);
+}
+
+/* --- tab strip ------------------------------------------------------------- */
+
+.nr-tabstrip {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  height: 34px;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--nr-chrome-line-soft);
+  background: var(--nr-chrome-base);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.nr-tab {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 220px;
+  flex: 0 1 auto;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: none;
+  transition:
+    max-width 260ms ease,
+    opacity 260ms ease,
+    background 140ms ease;
+}
+
+.nr-tab[data-active] {
+  border-color: var(--nr-chrome-line-soft);
+  background: var(--nr-chrome-raised);
+}
+
+/* The sweep: tabs squeeze shut as they seal. The one signature motion. */
+.nr-tab[data-sealing] {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nr-tab {
+    transition: none;
+  }
+}
+
+.nr-tab__main {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+  padding: 0 4px 0 10px;
+  border: 0;
+  background: none;
+  color: var(--nr-text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: default;
+}
+
+.nr-tab[data-active] .nr-tab__main {
+  color: var(--nr-text);
+}
+
+.nr-tab__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.nr-tab__domain {
+  color: var(--nr-text-faint);
+  font-size: 10px;
+  font-family: var(--nr-font-mono);
+  flex-shrink: 0;
+}
+
+.nr-tab__pin,
+.nr-tab__close {
+  border: 0;
+  padding: 0 5px;
+  background: none;
+  color: var(--nr-text-faint);
+  font: inherit;
+  font-size: 11px;
+  cursor: default;
+  flex-shrink: 0;
+}
+
+.nr-tab__pin[aria-pressed="true"] {
+  color: var(--nr-hue-brine);
+}
+
+.nr-tab__pin:hover,
+.nr-tab__close:hover {
+  color: var(--nr-text);
+}
+
+.nr-tab__close {
+  font-size: 14px;
+  padding-right: 8px;
+}
+
+.nr-tabstrip__new {
+  flex-shrink: 0;
+  width: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--nr-text-faint);
+  font-size: 15px;
+  cursor: default;
+}
+
+.nr-tabstrip__new:hover {
+  color: var(--nr-text);
+  background: var(--nr-chrome-raised);
+}
+
+/* --- sweeps (batches of one sweep, undoable) ------------------------------- */
+
+.nr-sweeps {
+  border-bottom: 1px solid var(--nr-chrome-line-soft);
+  flex-shrink: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.nr-sweeps__none {
+  margin: 0;
+  padding: 12px 14px;
+  color: var(--nr-text-faint);
+}
+
+.nr-sweeps__list {
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+}
+
+.nr-sweeps__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 14px;
+}
+
+.nr-sweeps__what {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+  color: var(--nr-text);
+}
+
+.nr-sweeps__titles {
+  color: var(--nr-text-faint);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nr-sweeps__row button {
+  height: 24px;
+  padding: 0 11px;
+  border: 1px solid var(--nr-chrome-line-soft);
+  border-radius: 7px;
+  background: var(--nr-chrome-base);
+  color: var(--nr-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: default;
+  flex-shrink: 0;
+}
+
+.nr-sweeps__row button:hover {
+  border-color: var(--nr-focus);
+}
+
+/* --- sealed rows & shelf life ---------------------------------------------- */
+
+.nr-brine__row--sealed .nr-brine__title::after {
+  content: " ● sealed";
+  color: var(--nr-text-faint);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.nr-jarview__shelf {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--nr-text-faint);
+  font-size: 12px;
+}
+
+.nr-jarview__shelf select {
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--nr-chrome-line-soft);
+  border-radius: 7px;
+  background: var(--nr-chrome-base);
+  color: var(--nr-text);
+  font: inherit;
   font-size: 12px;
 }
 

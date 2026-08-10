@@ -100,15 +100,17 @@ export interface Jar {
   name: string;
   hue: number; // 1..6, maps to --nr-jar-N
   created_at: number;
+  shelf_life_hours: number | null; // NULL = app default (72)
   item_count: number;
 }
 
 /** Unarchived jars, oldest first — shelf order is the order they were made. */
 export async function listJars(): Promise<Jar[]> {
   return db().select<Jar[]>(
-    `SELECT j.id, j.name, j.hue, j.created_at, count(i.id) AS item_count
+    `SELECT j.id, j.name, j.hue, j.created_at, j.shelf_life_hours,
+            count(i.id) AS item_count
      FROM jars j
-     LEFT JOIN items i ON i.jar_id = j.id AND i.sealed_at IS NULL
+     LEFT JOIN items i ON i.jar_id = j.id
      WHERE j.sealed_at IS NULL
      GROUP BY j.id
      ORDER BY j.created_at`,
@@ -125,6 +127,7 @@ export async function createJar(name: string): Promise<Jar> {
     name,
     hue: ((counted[0]?.n ?? 0) % 6) + 1,
     created_at: Date.now(),
+    shelf_life_hours: null,
     item_count: 0,
   };
   await db().execute(
@@ -153,16 +156,19 @@ export interface JarItemRow {
   url: string | null;
   title: string;
   touched_at: number;
+  sealed_at: number | null;
   snippet: string;
 }
 
-/** A jar's items, newest touch first; the view groups them by kind. */
+/** A jar's items, newest touch first; the view groups them by kind, with
+ *  sealed items in their own group — sealing tidies INTO the jar, so its
+ *  view is exactly where they must remain findable. */
 export async function jarItems(jarId: string): Promise<JarItemRow[]> {
   return db().select<JarItemRow[]>(
-    `SELECT id, kind, url, title, touched_at,
+    `SELECT id, kind, url, title, touched_at, sealed_at,
             substr(coalesce(body, ''), 1, 240) AS snippet
      FROM items
-     WHERE jar_id = $1 AND sealed_at IS NULL
+     WHERE jar_id = $1
      ORDER BY touched_at DESC
      LIMIT 500`,
   [jarId],
@@ -251,6 +257,265 @@ export async function pantrySearch(
      LIMIT ${bind(limit)}`,
     params,
   );
+}
+
+/* ---------------------------------------------------------------------------
+   Tabs and sealing (week 5). A tab is preserved state, not a live process:
+   only the active tab occupies the native pane. Sealed tabs keep their rows
+   (stamped with a batch id) so Undo can stand the whole sweep back up.
+--------------------------------------------------------------------------- */
+
+export const DEFAULT_SHELF_LIFE_HOURS = 72;
+
+export interface Tab {
+  id: string;
+  jar_id: string | null;
+  url: string | null;
+  title: string; // resolved from items by url; "New tab" when itemless
+  scroll_y: number;
+  position: number;
+  touched_at: number;
+  seal_after: number | null; // NULL = pinned, never seals
+}
+
+/** Open tabs in strip order. Title comes from the item row when one exists. */
+export async function tabsList(): Promise<Tab[]> {
+  return db().select<Tab[]>(
+    `SELECT t.id, t.jar_id, t.url, t.scroll_y, t.position, t.touched_at,
+            t.seal_after, coalesce(i.title, t.url, 'New tab') AS title
+     FROM tabs t
+     LEFT JOIN items i ON i.url = t.url
+     WHERE t.sealed_batch IS NULL
+     ORDER BY t.position`,
+  );
+}
+
+/** A jar's shelf life in ms, falling back to the app default. */
+async function shelfLifeMs(jarId: string | null): Promise<number> {
+  if (jarId) {
+    const rows = await db().select<{ h: number | null }[]>(
+      `SELECT shelf_life_hours AS h FROM jars WHERE id = $1`,
+      [jarId],
+    );
+    if (rows[0]?.h) return rows[0].h * 3_600_000;
+  }
+  return DEFAULT_SHELF_LIFE_HOURS * 3_600_000;
+}
+
+export async function tabCreate(
+  jarId: string | null,
+  url: string | null,
+): Promise<Tab> {
+  const now = Date.now();
+  const tab: Tab = {
+    id: crypto.randomUUID(),
+    jar_id: jarId,
+    url,
+    title: url ?? "New tab",
+    scroll_y: 0,
+    position: now, // creation order; sparse values keep reordering trivial
+    touched_at: now,
+    seal_after: now + (await shelfLifeMs(jarId)),
+  };
+  await db().execute(
+    `INSERT INTO tabs (id, jar_id, url, scroll_y, position, opened_at,
+                       touched_at, seal_after)
+     VALUES ($1, $2, $3, 0, $4, $5, $5, $6)`,
+    [tab.id, tab.jar_id, tab.url, tab.position, now, tab.seal_after],
+  );
+  return tab;
+}
+
+/** Touching a tab restarts its shelf life (unless pinned) and can move it
+ *  to a new address. */
+export async function tabTouch(
+  id: string,
+  url: string | null | undefined,
+  jarId: string | null,
+): Promise<void> {
+  const now = Date.now();
+  const life = await shelfLifeMs(jarId);
+  await db().execute(
+    `UPDATE tabs SET
+       touched_at = $1,
+       url = coalesce($2, url),
+       seal_after = CASE WHEN seal_after IS NULL THEN NULL ELSE $3 END
+     WHERE id = $4`,
+    [now, url ?? null, now + life, id],
+  );
+}
+
+export async function tabSetScroll(id: string, y: number): Promise<void> {
+  await db().execute(`UPDATE tabs SET scroll_y = $1 WHERE id = $2`, [y, id]);
+}
+
+/** Plain close (⌘W-style): the page is already preserved; the tab just goes. */
+export async function tabClose(id: string): Promise<void> {
+  await db().execute(`DELETE FROM tabs WHERE id = $1`, [id]);
+}
+
+/** Pin = seal_after NULL, the schema's own idiom for "never seals". */
+export async function tabSetPinned(
+  id: string,
+  jarId: string | null,
+  pinned: boolean,
+): Promise<void> {
+  if (pinned) {
+    await db().execute(`UPDATE tabs SET seal_after = NULL WHERE id = $1`, [id]);
+  } else {
+    await db().execute(`UPDATE tabs SET seal_after = $1 WHERE id = $2`, [
+      Date.now() + (await shelfLifeMs(jarId)),
+      id,
+    ]);
+  }
+}
+
+/** The most recent sealed tab for a URL — how a jar reopen knows where the
+ *  reader left off. */
+export async function lastSealedScroll(url: string): Promise<number> {
+  const rows = await db().select<{ scroll_y: number }[]>(
+    `SELECT scroll_y FROM tabs
+     WHERE url = $1 AND sealed_batch IS NOT NULL
+     ORDER BY sealed_at DESC LIMIT 1`,
+    [url],
+  );
+  return rows[0]?.scroll_y ?? 0;
+}
+
+/** Reopening something sealed makes it live again. */
+export async function unsealUrl(url: string): Promise<void> {
+  await db().execute(
+    `UPDATE items SET sealed_at = NULL WHERE url = $1`,
+    [url],
+  );
+}
+
+export interface SweepResult {
+  batchId: string;
+  count: number;
+  /** Jar names swept into, for the toast; empty string stands for Brine. */
+  jarNames: string[];
+  sealedTabIds: string[];
+}
+
+/**
+ * The sweep. Set-based SQL throughout — 200 tabs is four statements, not
+ * 200 round trips, so the UI never freezes.
+ *
+ * A tab is overdue when its seal_after has passed. It seals only if its
+ * page is already in `items` — no tab ever closes before its content is
+ * preserved. Deny-listed pages are the one exception: the user asked for
+ * them to never be kept, so their tabs close without a trace. Overdue tabs
+ * whose extraction failed stay open for the next sweep to retry.
+ */
+export async function sweepDue(denyPatterns: string[]): Promise<SweepResult | null> {
+  const now = Date.now();
+  const overdue = await db().select<
+    { id: string; url: string | null; jar_id: string | null; jar_name: string | null }[]
+  >(
+    `SELECT t.id, t.url, t.jar_id, j.name AS jar_name
+     FROM tabs t LEFT JOIN jars j ON j.id = t.jar_id
+     WHERE t.sealed_batch IS NULL
+       AND t.seal_after IS NOT NULL AND t.seal_after < $1`,
+    [now],
+  );
+  if (overdue.length === 0) return null;
+
+  const denied = (url: string) => {
+    const lower = url.toLowerCase();
+    return denyPatterns.some((p) => lower.includes(p));
+  };
+  const preserved = await db().select<{ url: string }[]>(
+    `SELECT url FROM items WHERE url IN (SELECT url FROM tabs
+       WHERE sealed_batch IS NULL AND seal_after IS NOT NULL AND seal_after < $1)`,
+    [now],
+  );
+  const inItems = new Set(preserved.map((r) => r.url));
+
+  const sealable = overdue.filter(
+    (t) => !t.url || inItems.has(t.url) || denied(t.url),
+  );
+  if (sealable.length === 0) return null;
+
+  const batchId = crypto.randomUUID();
+  const ids = sealable.map((t) => t.id);
+  const slots = ids.map((_, i) => `$${i + 3}`).join(", ");
+
+  // Stamp the batch. Rows survive for Undo; the strip filters them out.
+  await db().execute(
+    `UPDATE tabs SET sealed_batch = $1, sealed_at = $2 WHERE id IN (${slots})`,
+    [batchId, now, ...ids],
+  );
+  // Seal the items, and file Brine items into their tab's jar — that is
+  // what "preserve an untouched tab into its jar" means. Items the user
+  // already filed somewhere else are not second-guessed.
+  await db().execute(
+    `UPDATE items SET
+       sealed_at = coalesce(sealed_at, $1),
+       jar_id = coalesce(jar_id,
+         (SELECT t.jar_id FROM tabs t
+          WHERE t.url = items.url AND t.sealed_batch = $2
+          ORDER BY t.sealed_at DESC LIMIT 1))
+     WHERE url IN (SELECT url FROM tabs WHERE sealed_batch = $2)`,
+    [now, batchId],
+  );
+
+  const jarNames = [...new Set(sealable.map((t) => t.jar_name ?? ""))];
+  return { batchId, count: sealable.length, jarNames, sealedTabIds: ids };
+}
+
+/** Undo a sweep: the whole batch stands back up, open, in strip order. */
+export async function undoSweep(batchId: string): Promise<number> {
+  await db().execute(
+    `UPDATE items SET sealed_at = NULL
+     WHERE url IN (SELECT url FROM tabs WHERE sealed_batch = $1)`,
+    [batchId],
+  );
+  const result = await db().execute(
+    `UPDATE tabs SET sealed_batch = NULL, sealed_at = NULL,
+       seal_after = $1
+     WHERE sealed_batch = $2`,
+    [Date.now() + DEFAULT_SHELF_LIFE_HOURS * 3_600_000, batchId],
+  );
+  return result.rowsAffected;
+}
+
+export interface SweepBatch {
+  batch_id: string;
+  sealed_at: number;
+  count: number;
+  titles: string;
+}
+
+/** Recent sweeps still inside the 24h undo window, newest first. */
+export async function listSweeps(): Promise<SweepBatch[]> {
+  return db().select<SweepBatch[]>(
+    `SELECT t.sealed_batch AS batch_id, max(t.sealed_at) AS sealed_at,
+            count(*) AS count,
+            group_concat(coalesce(i.title, t.url), ' · ') AS titles
+     FROM tabs t LEFT JOIN items i ON i.url = t.url
+     WHERE t.sealed_batch IS NOT NULL
+     GROUP BY t.sealed_batch
+     ORDER BY sealed_at DESC`,
+  );
+}
+
+/** Sealed tab rows older than the undo window have served their purpose. */
+export async function purgeExpiredSweeps(): Promise<void> {
+  await db().execute(
+    `DELETE FROM tabs WHERE sealed_batch IS NOT NULL AND sealed_at < $1`,
+    [Date.now() - 24 * 3_600_000],
+  );
+}
+
+export async function setJarShelfLife(
+  id: string,
+  hours: number | null,
+): Promise<void> {
+  await db().execute(`UPDATE jars SET shelf_life_hours = $1 WHERE id = $2`, [
+    hours,
+    id,
+  ]);
 }
 
 /** Move items into a jar, or back to Brine (null). The Batch gesture. */

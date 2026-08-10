@@ -19,6 +19,15 @@ export function normalizeUrl(input: string): string {
   return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
 }
 
+/** Deny-list file → lowercase patterns; mirrors denylist.rs exactly. */
+export function parseDenyList(contents: string): string[] {
+  return contents
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0 && !l.startsWith("#"))
+    .map((l) => l.toLowerCase());
+}
+
 /** True when normalizeUrl would treat the input as an address, not a search. */
 export function looksLikeUrl(input: string): boolean {
   const trimmed = input.trim();

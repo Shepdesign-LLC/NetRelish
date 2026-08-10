@@ -91,6 +91,38 @@ pub async fn preview_close(window: Window) -> Result<()> {
     Ok(())
 }
 
+/// Read the page's scroll position, for preserving a tab's exact state
+/// before switching away from it or sealing it.
+#[tauri::command]
+pub async fn preview_get_scroll(window: Window) -> Result<f64> {
+    let Some(webview) = window.get_webview(PREVIEW_LABEL) else {
+        return Ok(0.0);
+    };
+    let (tx, rx) = tokio::sync::oneshot::channel::<f64>();
+    let tx = std::sync::Mutex::new(Some(tx));
+    webview.eval_with_callback("window.scrollY", move |json| {
+        if let Some(tx) = tx.lock().unwrap_or_else(|p| p.into_inner()).take() {
+            let _ = tx.send(json.parse::<f64>().unwrap_or(0.0));
+        }
+    })?;
+    // If the page never answers (mid-navigation), a tab with scroll 0 is
+    // still a preserved tab.
+    Ok(tokio::time::timeout(std::time::Duration::from_millis(400), rx)
+        .await
+        .ok()
+        .and_then(|r| r.ok())
+        .unwrap_or(0.0))
+}
+
+/// Put a reopened page back where the reader left it.
+#[tauri::command]
+pub async fn preview_set_scroll(window: Window, y: f64) -> Result<()> {
+    if let Some(webview) = window.get_webview(PREVIEW_LABEL) {
+        webview.eval(format!("window.scrollTo(0, {y});"))?;
+    }
+    Ok(())
+}
+
 /// Hide the native pane without destroying it, so chrome surfaces (Brine)
 /// can render in the stage. The page, its session and its scroll position
 /// all survive — hiding is not closing.

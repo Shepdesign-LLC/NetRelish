@@ -370,18 +370,18 @@ the web fallback below it, not above.
 **Acceptance:** first keystroke to first result under 50ms at 10,000 items ·
 web results never outrank a local match · Escape never loses typed input.
 
-### Week 5 — Sealing
+### Week 5 — Sealing ✅
 
 **Demo:** leave tabs open for three days. They preserve themselves and close.
 Reopen one from its jar exactly as it was.
 
-- [ ] `tabs` table tracking `touched_at` and `seal_after`
-- [ ] Per-jar shelf life, default 3 days; pinned tabs never seal
-- [ ] Background sweep on launch and hourly
-- [ ] Seal = ensure extracted → set `sealed_at` → close tab
-- [ ] Reopen restores URL and scroll position
-- [ ] **Batch** view of one sweep, undoable for 24h
-- [ ] Toast: "Sealed 12 tabs into Meridian Rebuild" → Undo
+- [x] `tabs` table tracking `touched_at` and `seal_after`
+- [x] Per-jar shelf life, default 3 days; pinned tabs never seal
+- [x] Background sweep on launch and hourly
+- [x] Seal = ensure extracted → set `sealed_at` → close tab
+- [x] Reopen restores URL and scroll position
+- [x] **Batch** view of one sweep, undoable for 24h
+- [x] Toast: "Sealed 12 tabs into Meridian Rebuild" → Undo
 
 **Acceptance:** no tab ever closes before its content is in `items` · Undo
 restores the whole batch, open, in order · sweeping 200 tabs never freezes

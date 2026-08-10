@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BRINE_CHANGED, brineSearch, type BrineRow } from "../lib/db";
 import { domainOf } from "../lib/format";
+import SweepsPanel from "./SweepsPanel";
 
 interface Props {
   activeJarName: string | null;
@@ -11,6 +12,7 @@ interface Props {
   onSelectionChange(selection: string[]): void;
   onOpen(url: string): void;
   onJarSelection(): void;
+  onUndoSweep(batchId: string): void;
 }
 
 /**
@@ -25,9 +27,11 @@ export default function BrineView({
   onSelectionChange,
   onOpen,
   onJarSelection,
+  onUndoSweep,
 }: Props) {
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<BrineRow[] | null>(null);
+  const [sweepsOpen, setSweepsOpen] = useState(false);
   const [denyOpen, setDenyOpen] = useState(false);
   const [denyText, setDenyText] = useState("");
   const [denySaved, setDenySaved] = useState(false);
@@ -103,12 +107,24 @@ export default function BrineView({
         <button
           type="button"
           className="nr-brine__deny-toggle"
+          aria-expanded={sweepsOpen}
+          onClick={() => setSweepsOpen((o) => !o)}
+        >
+          Sweeps
+        </button>
+        <button
+          type="button"
+          className="nr-brine__deny-toggle"
           aria-expanded={denyOpen}
           onClick={() => void toggleDenyList()}
         >
           Deny list
         </button>
       </header>
+
+      {sweepsOpen && (
+        <SweepsPanel refreshToken={refreshToken} onUndo={onUndoSweep} />
+      )}
 
       {denyOpen && (
         <div className="nr-brine__deny">

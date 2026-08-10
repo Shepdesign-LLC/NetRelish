@@ -1,8 +1,13 @@
+export interface Status {
+  text: string;
+  action?: { label: string; run(): void };
+}
+
 interface Props {
   jarName: string | null;
   jarHue: number | null; // 1..6, null = Brine
   url: string;
-  status: string | null; // transient action feedback ("Jarred into X")
+  status: Status | null; // transient action feedback ("Sealed 12 tabs…")
   onUrlChange(value: string): void;
   onNavigate(): void;
   onReleaseJar(): void;
@@ -67,7 +72,16 @@ export default function TitleBar({
       {/* Toasts cannot float over the native page pane, so action feedback
           lives here in the chrome, always visible. */}
       <span className="nr-titlebar__status" role="status" aria-live="polite">
-        {status}
+        {status?.text}
+        {status?.action && (
+          <button
+            type="button"
+            className="nr-titlebar__undo"
+            onClick={status.action.run}
+          >
+            {status.action.label}
+          </button>
+        )}
       </span>
 
       <div className="nr-titlebar__trail" />
