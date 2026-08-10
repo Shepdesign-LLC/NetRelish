@@ -58,6 +58,7 @@ body {
   display: flex;
   flex: 1;
   min-height: 0;
+  position: relative; /* anchors the ⌘K palette overlay */
 }
 
 /* --- titlebar ------------------------------------------------------------- */
@@ -544,6 +545,141 @@ body {
   flex: none;
   overflow: visible;
   padding-bottom: 4px;
+}
+
+/* --- Ask the Pantry (⌘K) --------------------------------------------------- */
+
+.nr-palette {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+}
+
+.nr-palette__scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: color-mix(in oklab, var(--nr-chrome-base) 62%, transparent);
+  cursor: default;
+}
+
+.nr-palette__panel {
+  position: relative;
+  margin: 48px auto 0;
+  width: min(560px, calc(100% - 48px));
+  max-height: calc(100% - 96px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--nr-chrome-line);
+  border-radius: 10px;
+  background: var(--nr-chrome-raised);
+  overflow: hidden;
+}
+
+.nr-palette__input {
+  height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-bottom: 1px solid var(--nr-chrome-line-soft);
+  background: none;
+  color: var(--nr-text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.nr-palette__input:focus-visible {
+  outline: none; /* the panel itself is the focus context */
+}
+
+.nr-palette__hint {
+  padding: 18px 16px 22px;
+  color: var(--nr-text-muted);
+}
+
+.nr-palette__hint p {
+  margin: 0 0 8px;
+}
+
+.nr-palette__hint code {
+  padding: 1px 5px;
+  border: 1px solid var(--nr-chrome-line-soft);
+  border-radius: 5px;
+  font-family: var(--nr-font-mono);
+  font-size: 11px;
+  color: var(--nr-text);
+}
+
+.nr-palette__list {
+  margin: 0;
+  padding: 6px 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.nr-palette__none {
+  padding: 10px 16px;
+  color: var(--nr-text-faint);
+}
+
+.nr-palette__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1px 10px;
+  width: 100%;
+  padding: 8px 16px;
+  border: 0;
+  background: none;
+  color: var(--nr-text);
+  font: inherit;
+  text-align: left;
+  cursor: default;
+}
+
+.nr-palette__row[data-selected] {
+  background: color-mix(in oklab, var(--nr-hue-brine) 12%, transparent);
+}
+
+.nr-palette__title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nr-palette__where {
+  color: var(--nr-text-faint);
+  font-size: 11px;
+  align-self: center;
+  white-space: nowrap;
+}
+
+.nr-palette__snippet {
+  grid-column: 1 / -1;
+  color: var(--nr-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.nr-palette__snippet mark {
+  background: color-mix(in oklab, var(--nr-hue-brine) 28%, transparent);
+  color: inherit;
+  border-radius: 3px;
+}
+
+.nr-palette__row--web .nr-palette__title {
+  color: var(--nr-text-muted);
+}
+
+.nr-palette__keys {
+  padding: 8px 16px;
+  border-top: 1px solid var(--nr-chrome-line-soft);
+  color: var(--nr-text-faint);
+  font-size: 11px;
 }
 
 /* --- new jar form ---------------------------------------------------------- */

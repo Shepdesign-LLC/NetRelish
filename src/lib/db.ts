@@ -8,6 +8,7 @@
  * pool beside the one Rust extraction writes through.
  */
 import Database from "@tauri-apps/plugin-sql";
+import { type ParsedQuery } from "./query";
 
 /** Must match DB_URL in src-tauri/src/db.rs — it is the pool's lookup key. */
 const DB_URL = "sqlite:netrelish.db";
@@ -165,6 +166,90 @@ export async function jarItems(jarId: string): Promise<JarItemRow[]> {
      ORDER BY touched_at DESC
      LIMIT 500`,
   [jarId],
+  );
+}
+
+/** Snippet highlight delimiters — control characters no page text uses,
+ *  so the UI can split on them without ever trusting HTML. */
+export const MARK_START = "\u0001";
+export const MARK_END = "\u0002";
+
+/** One Ask-the-Pantry result. tier: 0 active jar, 1 other jars, 2 Brine. */
+export interface PantryRow {
+  id: string;
+  url: string | null;
+  title: string;
+  kind: Item["kind"];
+  jar_id: string | null;
+  jar_name: string | null;
+  tier: number;
+  snippet: string;
+}
+
+/**
+ * Ask the Pantry. Local results ranked active jar → other jars → Brine;
+ * best full-text match first within each. The web fallback is the UI's
+ * job — it must never outrank anything local, so it never enters SQL.
+ */
+export async function pantrySearch(
+  q: ParsedQuery,
+  activeJarId: string | null,
+  limit = 40,
+): Promise<PantryRow[]> {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  const bind = (value: unknown): string => {
+    params.push(value);
+    return `$${params.length}`;
+  };
+
+  const tier = `CASE
+      WHEN ${bind(activeJarId)} IS NOT NULL AND items.jar_id = $1 THEN 0
+      WHEN items.jar_id IS NOT NULL THEN 1
+      ELSE 2 END`;
+
+  where.push(`items.sealed_at IS ${q.sealed ? "NOT NULL" : "NULL"}`);
+  if (q.kind) where.push(`items.kind = ${bind(q.kind)}`);
+  if (q.jar === "brine") {
+    where.push(`items.jar_id IS NULL`);
+  } else if (q.jar) {
+    where.push(
+      `items.jar_id IN (SELECT id FROM jars WHERE name LIKE ${bind(q.jar + "%")})`,
+    );
+  }
+  if (q.sinceMs !== null) where.push(`items.touched_at >= ${bind(q.sinceMs)}`);
+
+  if (q.text) {
+    const match = q.text
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((term) => `"${term.replaceAll('"', '""')}"`)
+      .join(" ");
+    return db().select<PantryRow[]>(
+      `SELECT items.id, items.url, items.title, items.kind, items.jar_id,
+              jars.name AS jar_name, ${tier} AS tier,
+              snippet(items_fts, 1, '${MARK_START}', '${MARK_END}', ' … ', 14) AS snippet
+       FROM items_fts
+       JOIN items ON items.rowid = items_fts.rowid
+       LEFT JOIN jars ON jars.id = items.jar_id
+       WHERE items_fts MATCH ${bind(match)} AND ${where.join(" AND ")}
+       ORDER BY tier, rank
+       LIMIT ${bind(limit)}`,
+      params,
+    );
+  }
+
+  // Filter-only browse: no text to match, newest touch first.
+  return db().select<PantryRow[]>(
+    `SELECT items.id, items.url, items.title, items.kind, items.jar_id,
+            jars.name AS jar_name, ${tier} AS tier,
+            substr(coalesce(items.body, ''), 1, 200) AS snippet
+     FROM items
+     LEFT JOIN jars ON jars.id = items.jar_id
+     WHERE ${where.join(" AND ")}
+     ORDER BY tier, items.touched_at DESC
+     LIMIT ${bind(limit)}`,
+    params,
   );
 }
 

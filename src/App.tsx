@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import BrineView from "./components/BrineView";
 import JarRail from "./components/JarRail";
 import JarView from "./components/JarView";
+import Palette from "./components/Palette";
 import TitleBar, { OMNIBOX_ID } from "./components/TitleBar";
+import { normalizeUrl } from "./lib/format";
 import {
   BRINE_CHANGED,
   brineCount,
@@ -19,14 +21,6 @@ import {
   showPreview,
   usePreviewHole,
 } from "./lib/preview";
-
-function normalizeUrl(input: string): string {
-  const trimmed = input.trim();
-  if (!trimmed) return "";
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  if (/^[\w-]+(\.[\w-]+)+(\/|$)/.test(trimmed)) return `https://${trimmed}`;
-  return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
-}
 
 /** What the stage shows. Independent of which jar is active — you can look
  *  at Brine while a jar stays open for ⌘J and new pages. */
@@ -44,6 +38,9 @@ export default function App() {
   const [brineSelection, setBrineSelection] = useState<string[]>([]);
   const [refreshToken, setRefreshToken] = useState(0);
   const [draftJarName, setDraftJarName] = useState("");
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  // Palette input lives here so Escape never loses what was typed.
+  const [paletteQuery, setPaletteQuery] = useState("");
   const statusTimer = useRef<number | undefined>(undefined);
   const returnView = useRef<View>("brine");
 
@@ -62,12 +59,47 @@ export default function App() {
     setCount(n);
   }, []);
 
-  // The native pane only shows when the stage is actually the page.
+  // The native pane only shows when the stage is actually the page and no
+  // chrome surface (the palette) is over it.
   useEffect(() => {
     if (!loaded) return;
-    if (view === "page") void showPreview();
+    if (view === "page" && !paletteOpen) void showPreview();
     else void hidePreview();
-  }, [view, loaded]);
+  }, [view, loaded, paletteOpen]);
+
+  // ⌘K — Ask the Pantry. The menu accelerator covers the case where the
+  // native page pane holds the keyboard; the DOM listener covers the chrome.
+  // macOS gives the menu first claim, so normally only one path fires — the
+  // debounce makes double-fire impossible rather than merely unlikely.
+  const lastPaletteToggle = useRef(0);
+  useEffect(() => {
+    const toggle = () => {
+      const now = performance.now();
+      if (now - lastPaletteToggle.current < 150) return;
+      lastPaletteToggle.current = now;
+      setPaletteOpen((o) => !o);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.metaKey && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        toggle();
+      }
+    };
+    // DOM path first: it must survive even where the Tauri bridge is
+    // absent (plain-browser dev), and listen() throws there.
+    window.addEventListener("keydown", onKey);
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    void listen("menu:ask-pantry", toggle).then((f) => {
+      if (disposed) f();
+      else unlisten = f;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
 
   // Shelf stays live: startup, plus every extraction Rust reports.
   useEffect(() => {
@@ -345,6 +377,21 @@ export default function App() {
         <div className="nr-stage" ref={holeRef}>
           {stageContent()}
         </div>
+
+        {/* Sibling of .nr-stage by design (§11): it must never render
+            inside the hole the native pane covers. */}
+        {paletteOpen && (
+          <Palette
+            query={paletteQuery}
+            activeJarId={activeJarId}
+            onQueryChange={setPaletteQuery}
+            onOpen={(target, keepOpen) => {
+              void openUrl(target);
+              if (!keepOpen) setPaletteOpen(false);
+            }}
+            onClose={() => setPaletteOpen(false)}
+          />
+        )}
       </div>
     </div>
   );

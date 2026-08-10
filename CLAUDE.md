@@ -354,18 +354,18 @@ jars and watch the window change.
 **Acceptance:** jar switch under 100ms at 5,000 items · deleting a jar sends
 its items to Brine and never deletes them · every action keyboard reachable.
 
-### Week 4 — Ask the Pantry
+### Week 4 — Ask the Pantry ✅
 
 **Demo:** `⌘K`, type a half-remembered phrase, land on the exact page — with
 the web fallback below it, not above.
 
-- [ ] `⌘K` palette, sibling of `.nr-stage`
-- [ ] Ranking: active jar → other jars → Brine → web
-- [ ] Results as you type, 80ms debounce
-- [ ] Filters: `jar:name`, `kind:page`, `is:sealed`, `since:7d`
-- [ ] Snippet highlighting via FTS5 `snippet()`
-- [ ] Enter opens; `⌘Enter` opens without closing the palette
-- [ ] Empty state explains the syntax rather than apologizing
+- [x] `⌘K` palette, sibling of `.nr-stage`
+- [x] Ranking: active jar → other jars → Brine → web
+- [x] Results as you type, 80ms debounce
+- [x] Filters: `jar:name`, `kind:page`, `is:sealed`, `since:7d`
+- [x] Snippet highlighting via FTS5 `snippet()`
+- [x] Enter opens; `⌘Enter` opens without closing the palette
+- [x] Empty state explains the syntax rather than apologizing
 
 **Acceptance:** first keystroke to first result under 50ms at 10,000 items ·
 web results never outrank a local match · Escape never loses typed input.

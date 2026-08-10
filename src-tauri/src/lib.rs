@@ -77,9 +77,13 @@ pub fn run() {
                 let open_location = MenuItemBuilder::with_id("open-location", "Open Location…")
                     .accelerator("CmdOrCtrl+L")
                     .build(app)?;
+                let ask_pantry = MenuItemBuilder::with_id("ask-pantry", "Ask the Pantry")
+                    .accelerator("CmdOrCtrl+K")
+                    .build(app)?;
                 let submenu = SubmenuBuilder::new(app, "Jars")
                     .item(&jar_item)
                     .separator()
+                    .item(&ask_pantry)
                     .item(&open_location)
                     .build()?;
                 match app.menu() {
@@ -140,17 +144,22 @@ pub fn run() {
                 // The frontend owns the decision of what "it" is — the
                 // current page, or the Brine selection as a Batch.
                 let _ = app.emit_to("main", "menu:jar-it", ());
-            } else if event.id() == "open-location" {
+            } else if event.id() == "open-location" || event.id() == "ask-pantry" {
                 // The page pane may hold the keyboard. Hand the native
                 // first-responder back to the chrome webview, then let the
-                // frontend focus the omnibox itself.
+                // frontend focus its own field.
                 if let Some(chrome) = app
                     .get_window("main")
                     .and_then(|w| w.get_webview("main"))
                 {
                     let _ = chrome.set_focus();
                 }
-                let _ = app.emit_to("main", "menu:open-location", ());
+                let event_name = if event.id() == "ask-pantry" {
+                    "menu:ask-pantry"
+                } else {
+                    "menu:open-location"
+                };
+                let _ = app.emit_to("main", event_name, ());
             }
         })
         .invoke_handler(tauri::generate_handler![
