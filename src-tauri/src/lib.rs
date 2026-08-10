@@ -264,6 +264,8 @@ pub fn run() {
             commands::preview::preview_set_scroll,
             commands::preview::preview_split,
             commands::preview::preview_unsplit,
+            commands::preview::preview_back,
+            commands::preview::preview_forward,
             commands::denylist::denylist_get,
             commands::denylist::denylist_set,
             commands::jars::set_active_jar,

@@ -1,3 +1,5 @@
+import { invoke } from "@tauri-apps/api/core";
+
 export interface Status {
   text: string;
   action?: { label: string; run(): void };
@@ -7,7 +9,8 @@ interface Props {
   jarName: string | null;
   jarHue: number | null; // 1..6, null = Brine
   url: string;
-  status: Status | null; // transient action feedback ("Sealed 12 tabs…")
+  status: Status | null;
+  canNavigate: boolean;
   onUrlChange(value: string): void;
   onNavigate(): void;
   onReleaseJar(): void;
@@ -16,37 +19,44 @@ interface Props {
 /** The omnibox input id — App focuses it on ⌘L (menu:open-location). */
 export const OMNIBOX_ID = "nr-omnibox";
 
+/**
+ * The titlebar, per the design system's main window: round glass
+ * back/forward (real ones), the centered address pill, and the jar chip —
+ * Relish Pour when a jar is open, since it's the active thing.
+ */
 export default function TitleBar({
   jarName,
   jarHue,
   url,
   status,
+  canNavigate,
   onUrlChange,
   onNavigate,
   onReleaseJar,
 }: Props) {
-  const dotColor = jarHue ? `var(--nr-jar-${jarHue})` : "var(--nr-hue-brine)";
-
   return (
     <header className="nr-titlebar" data-tauri-drag-region>
       <div className="nr-titlebar__lead" />
 
       <button
         type="button"
-        className="nr-jar-chip"
-        title={
-          jarName
-            ? `New pages land in ${jarName} — click to switch to Brine`
-            : "New pages land in Brine. Open a jar on the shelf to change that."
-        }
-        onClick={jarName ? onReleaseJar : undefined}
+        className="nr-navbtn"
+        title="Back"
+        disabled={!canNavigate}
+        onClick={() => void invoke("preview_back")}
       >
-        <span
-          className="nr-jar-chip__dot"
-          style={{ background: dotColor }}
-          aria-hidden="true"
-        />
-        {jarName ?? "Brine"}
+        <span aria-hidden="true">‹</span>
+        <span className="nr-visually-hidden">Back</span>
+      </button>
+      <button
+        type="button"
+        className="nr-navbtn"
+        title="Forward"
+        disabled={!canNavigate}
+        onClick={() => void invoke("preview_forward")}
+      >
+        <span aria-hidden="true">›</span>
+        <span className="nr-visually-hidden">Forward</span>
       </button>
 
       <form
@@ -56,6 +66,7 @@ export default function TitleBar({
           onNavigate();
         }}
       >
+        <span className="nr-omnibar__lock" aria-hidden="true">🔒</span>
         <input
           id={OMNIBOX_ID}
           type="text"
@@ -69,8 +80,27 @@ export default function TitleBar({
         />
       </form>
 
-      {/* Toasts cannot float over the native page pane, so action feedback
-          lives here in the chrome, always visible. */}
+      <button
+        type="button"
+        className="nr-jar-chip"
+        data-jarred={jarName ? true : undefined}
+        title={
+          jarName
+            ? `New pages land in ${jarName} — click to switch to Brine`
+            : "New pages land in Brine. Open a jar to change that."
+        }
+        onClick={jarName ? onReleaseJar : undefined}
+      >
+        <span
+          className="nr-jar-chip__dot"
+          style={{
+            background: jarHue ? `var(--nr-jar-${jarHue})` : "var(--nr-hue-brine)",
+          }}
+          aria-hidden="true"
+        />
+        {jarName ?? "Brine"}
+      </button>
+
       <span className="nr-titlebar__status" role="status" aria-live="polite">
         {status?.text}
         {status?.action && (

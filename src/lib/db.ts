@@ -85,6 +85,14 @@ export async function brineSearch(
   );
 }
 
+/** Everything ever preserved — the sidebar footer's honest number. */
+export async function totalItemCount(): Promise<number> {
+  const rows = await db().select<{ n: number }[]>(
+    `SELECT count(*) AS n FROM items`,
+  );
+  return rows[0]?.n ?? 0;
+}
+
 /** How many unsorted pages Brine holds; shown on the rail tile. */
 export async function brineCount(): Promise<number> {
   const rows = await db().select<{ n: number }[]>(

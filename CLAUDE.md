@@ -102,8 +102,8 @@ jokes. The vocabulary does the work.
 ```
 NetRelish.app
 ├── Chrome UI            React 18 + Vite + TypeScript, ships in the bundle
-│   ├── Shelf rail       Brine + jars, superellipse tiles
-│   ├── Titlebar         jar chip + omnibox (⌘K)
+│   ├── Sidebar          tabs, Brine, jar orbs — glass, per the design system
+│   ├── Titlebar         back/forward, address pill, jar chip (⌘K)
 │   └── Stage            an empty div — a hole for the native pane
 ├── Rust core            SQLite, extraction, webview positioning
 └── Preview webview      a real child WKWebView
@@ -271,13 +271,16 @@ here"* — accepted with one key. Never applied automatically.
 - Plain CSS with custom properties. No Tailwind, no CSS-in-JS.
 - All colour in OKLCH. Never hex, never `rgb()`.
 - All tokens `--nr-` prefixed, in `src/styles/netrelish.css`.
-- App chrome stays quiet and **flat**: no glass, no blur. The one active
-  element of each surface — the active tab, the active jar tile — wears its
-  gradient (Relish Pour, or its jar's orb); everything else is flat chrome
-  with no accent colour outside the shelf rail. The frame surrounds someone
-  else's content all day. *(Amended Aug 2026 for brand system v2 "Aero
-  Relish": palette, type and actives come from the guide; the full glass
-  material stays on the marketing site.)*
+- App chrome is **aero glass over the Aurora** (brand system v2, §04):
+  the window floats the guide's Aurora Sweep; every chrome surface is the
+  one glass recipe (fill `rgba(244,248,232,…)`, backdrop blur 28/20,
+  hairline `rgba(255,255,255,.55)`, inner highlight) at window/panel/
+  control depths; text on glass never lighter than `#33430F`. Actives
+  trade glass for Relish Pour with a gloss cap; the active jar tile wears
+  its orb. Never stack glass more than two layers deep. The native page
+  pane stays opaque — the glass frames the web, it never tints it.
+  *(Re-amended Aug 2026: Ryan saw the glass live on netrelish.com and
+  chose it for the app, reversing the earlier flat-chrome decision.)*
 - The one signature move is the **superellipse** tile shape
   (`src/lib/superellipse.ts`). Not `border-radius`. Don't replace it. The
   guide's flavor-jar orb gradients render *inside* the superellipse.

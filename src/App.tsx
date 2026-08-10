@@ -2,13 +2,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BrineView from "./components/BrineView";
-import JarRail from "./components/JarRail";
 import JarView from "./components/JarView";
 import NoteView from "./components/NoteView";
 import Palette from "./components/Palette";
 import RunnerBar from "./components/RunnerBar";
 import ShortcutSheet from "./components/ShortcutSheet";
-import TabStrip from "./components/TabStrip";
+import Sidebar from "./components/Sidebar";
 import TitleBar, { OMNIBOX_ID, type Status } from "./components/TitleBar";
 import { normalizeUrl, parseDenyList } from "./lib/format";
 import { interpolate, parseSteps, type RecipeStep } from "./lib/recipes";
@@ -34,6 +33,7 @@ import {
   tabSetScroll,
   tabTouch,
   tabsList,
+  totalItemCount,
   undoSweep,
   unsealUrl,
   type Jar,
@@ -79,6 +79,7 @@ export default function App() {
   const [activeJarId, setActiveJarId] = useState<string | null>(null);
   const [jars, setJars] = useState<Jar[]>([]);
   const [count, setCount] = useState(0);
+  const [totalPreserved, setTotalPreserved] = useState(0);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [sealingIds, setSealingIds] = useState<string[]>([]);
@@ -114,9 +115,14 @@ export default function App() {
   }, []);
 
   const refreshShelf = useCallback(async () => {
-    const [jarRows, n] = await Promise.all([listJars(), brineCount()]);
+    const [jarRows, n, total] = await Promise.all([
+      listJars(),
+      brineCount(),
+      totalItemCount(),
+    ]);
     setJars(jarRows);
     setCount(n);
+    setTotalPreserved(total);
   }, []);
 
   const refreshTabs = useCallback(async () => {
@@ -1007,6 +1013,7 @@ export default function App() {
         jarHue={activeJar?.hue ?? null}
         url={url}
         status={status}
+        canNavigate={loaded && !!activeTab?.url}
         onUrlChange={setUrl}
         onNavigate={() => void navigate()}
         onReleaseJar={() => void releaseJar()}
@@ -1026,26 +1033,22 @@ export default function App() {
         />
       )}
 
-      {tabs.length > 0 && (
-        <TabStrip
+      <div className="nr-body">
+        <Sidebar
+          jars={jars}
+          activeJarId={activeJarId}
           tabs={tabs}
           activeTabId={activeTabId}
           sealingIds={sealingIds}
-          onSelect={(id) => void switchTab(id)}
-          onClose={(id) => void closeTab(id)}
+          brineCount={count}
+          totalPreserved={totalPreserved}
+          brineActive={view === "brine"}
+          onSelectTab={(id) => void switchTab(id)}
+          onCloseTab={(id) => void closeTab(id)}
           onTogglePin={(tab) => void togglePin(tab)}
           onNewTab={() => void newTab()}
-        />
-      )}
-
-      <div className="nr-body">
-        <JarRail
-          jars={jars}
-          activeJarId={activeJarId}
-          brineCount={count}
-          brineActive={view === "brine"}
-          onSelectJar={(id) => void activateJar(id)}
           onOpenBrine={toggleBrine}
+          onSelectJar={(id) => void activateJar(id)}
           onNewJar={() => {
             returnView.current = view === "create" ? "brine" : view;
             setView("create");

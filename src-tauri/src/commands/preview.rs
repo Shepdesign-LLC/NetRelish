@@ -238,6 +238,23 @@ fn spawn_scroll_sync(window: Window) {
     });
 }
 
+/// Back/forward — the titlebar's round glass buttons are real controls.
+#[tauri::command]
+pub async fn preview_back(window: Window) -> Result<()> {
+    if let Some(webview) = window.get_webview(PREVIEW_LABEL) {
+        webview.eval("history.back();")?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn preview_forward(window: Window) -> Result<()> {
+    if let Some(webview) = window.get_webview(PREVIEW_LABEL) {
+        webview.eval("history.forward();")?;
+    }
+    Ok(())
+}
+
 /// Read the page's scroll position, for preserving a tab's exact state
 /// before switching away from it or sealing it.
 #[tauri::command]

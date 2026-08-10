@@ -1,10 +1,11 @@
 /* ---------------------------------------------------------------------------
-   NetRelish app chrome.
+   NetRelish app chrome — Aero Relish (brand system v2), the real thing.
 
-   Design brief: this is a frame around someone else's content, all day, for
-   years. It gets one memorable move — the superellipse Pantry rail, carrying
-   the brand's own shape math — and everything else stays quiet enough to
-   disappear. No gradients, no glass, no accent colour outside the rail.
+   The window floats on the Aurora. Every chrome surface is one glass
+   recipe at three depths (window / panel / control); text on glass never
+   lighter than the guide's floor; actives trade glass for Relish Pour
+   with a gloss cap. The native page pane stays opaque — the glass frames
+   the web, it never tints it. Never stack glass more than two deep.
 --------------------------------------------------------------------------- */
 
 *,
@@ -40,18 +41,23 @@ body {
   white-space: nowrap;
 }
 
-:where(button, input):focus-visible {
+:where(button, input, select, textarea):focus-visible {
   outline: 2px solid var(--nr-focus);
   outline-offset: 2px;
 }
 
-/* --- shell ---------------------------------------------------------------- */
+/* Shared control shape: a white-glass pill with ink. */
+:where(button, select) {
+  cursor: default;
+}
+
+/* --- shell: the Aurora ----------------------------------------------------- */
 
 .nr-app {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--nr-chrome-base);
+  background: var(--nr-app-backdrop);
 }
 
 .nr-body {
@@ -59,76 +65,91 @@ body {
   flex: 1;
   min-height: 0;
   position: relative; /* anchors the ⌘K palette overlay */
+  gap: 0;
 }
 
-/* --- titlebar ------------------------------------------------------------- */
+/* --- titlebar (window-depth glass) ----------------------------------------- */
 
 .nr-titlebar {
   display: flex;
   align-items: center;
   gap: 10px;
   height: var(--nr-titlebar-h);
-  padding-right: 12px;
-  border-bottom: 1px solid var(--nr-chrome-line-soft);
-  background: var(--nr-chrome-base);
+  padding-right: 14px;
+  background: linear-gradient(
+    oklch(1 0 0 / 0.6),
+    oklch(1 0 0 / 0.22)
+  );
+  backdrop-filter: blur(var(--nr-blur));
+  -webkit-backdrop-filter: blur(var(--nr-blur));
+  border-bottom: 1px solid oklch(1 0 0 / 0.35);
   flex-shrink: 0;
 }
 
-/* Reserve space so the traffic lights never overlap controls. */
 .nr-titlebar__lead {
   width: var(--nr-traffic-inset);
   flex-shrink: 0;
 }
 
 .nr-titlebar__trail {
-  width: 4px;
+  width: 2px;
   flex-shrink: 0;
 }
 
-.nr-jar-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 26px;
-  padding: 0 11px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-raised);
-  color: var(--nr-text-muted);
-  font: inherit;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: default;
-}
-
-.nr-jar-chip:hover {
-  color: var(--nr-text);
-  border-color: var(--nr-chrome-line);
-}
-
-.nr-jar-chip__dot {
-  width: 6px;
-  height: 6px;
+/* Round glass nav buttons — and they really navigate. */
+.nr-navbtn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--nr-glass-border);
   border-radius: 50%;
-  background: var(--nr-hue-brine);
+  background: var(--nr-glass-control);
+  box-shadow: var(--nr-glass-highlight);
+  color: var(--nr-text);
+  font-size: 17px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.nr-navbtn:disabled {
+  background: oklch(1 0 0 / 0.35);
+  color: var(--nr-text-faint);
+  box-shadow: none;
 }
 
 .nr-omnibar {
   flex: 1;
   min-width: 0;
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 18px;
+  background: linear-gradient(oklch(1 0 0 / 0.95), oklch(1 0 0 / 0.8));
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.9);
+  border: 1px solid oklch(1 0 0 / 0.6);
+}
+
+.nr-omnibar__lock {
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 .nr-omnibar input {
-  width: 100%;
-  height: 26px;
-  padding: 0 11px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-raised);
-  color: var(--nr-text);
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: oklch(0.22 0.03 129);
   font: inherit;
   font-family: var(--nr-font-mono);
-  font-size: 12px;
+  font-size: 12.5px;
+}
+
+.nr-omnibar input:focus-visible {
+  outline: none; /* the pill is the focus context */
 }
 
 .nr-omnibar input::placeholder {
@@ -136,82 +157,375 @@ body {
   font-family: var(--nr-font-ui);
 }
 
-/* --- shelf rail (the signature) ------------------------------------------- */
-
-.nr-rail {
-  display: flex;
-  flex-direction: column;
+/* The jar chip: glass at rest, Relish Pour when a jar is open — the
+   active thing wears the gradient. */
+.nr-jar-chip {
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  width: var(--nr-rail-w);
-  padding: 10px 0;
-  border-right: 1px solid var(--nr-chrome-line-soft);
-  background: var(--nr-chrome-base);
+  gap: 7px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--nr-glass-border);
+  border-radius: 12px;
+  background: var(--nr-glass-control);
+  box-shadow: var(--nr-glass-highlight);
+  color: var(--nr-text);
+  font: inherit;
+  font-family: var(--nr-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.nr-jar-chip[data-jarred] {
+  border-color: transparent;
+  background: linear-gradient(var(--nr-pour-a), var(--nr-pour-b));
+  box-shadow:
+    inset 0 1.5px 0 oklch(1 0 0 / 0.8),
+    0 3px 10px oklch(0.7 0.17 131 / 0.5);
+  color: var(--nr-ink-on-pour);
+  font-weight: 700;
+}
+
+.nr-jar-chip[data-jarred]::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 55% 0;
+  background: linear-gradient(oklch(1 0 0 / 0.7), oklch(1 0 0 / 0.02));
+  pointer-events: none;
+}
+
+.nr-jar-chip__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   flex-shrink: 0;
 }
 
-.nr-rail__tile {
-  width: 34px;
-  height: 34px;
-  border: 0;
-  padding: 0;
-  background: var(--nr-chrome-raised);
-  color: var(--nr-text-faint);
+.nr-titlebar__status {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--nr-text-muted);
+  font-size: 12px;
+}
+
+.nr-titlebar__undo {
+  height: 22px;
+  padding: 0 10px;
+  border: 1px solid var(--nr-glass-border);
+  border-radius: 8px;
+  background: var(--nr-glass-control);
+  box-shadow: var(--nr-glass-highlight);
+  color: var(--nr-text);
+  font: inherit;
+  font-size: 12px;
+}
+
+/* --- sidebar (panel-depth glass) ------------------------------------------- */
+
+.nr-side {
+  display: flex;
+  flex-direction: column;
+  width: var(--nr-sidebar-w);
+  min-height: 0;
+  padding: 14px 12px 12px;
+  background: var(--nr-glass-nested);
+  backdrop-filter: blur(var(--nr-blur-nested));
+  -webkit-backdrop-filter: blur(var(--nr-blur-nested));
+  border-right: 1px solid oklch(1 0 0 / 0.3);
+  flex-shrink: 0;
+}
+
+.nr-side__head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 2px 4px 12px;
+}
+
+.nr-side__jarorb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  box-shadow: inset 0 1px 1px oklch(1 0 0 / 0.55);
+  flex-shrink: 0;
+}
+
+.nr-side__jarname {
   font-family: var(--nr-font-display);
-  font-size: 14px;
   font-weight: 700;
-  cursor: default;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+  color: oklch(0.22 0.03 129);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nr-side__newtab {
+  height: 32px;
+  margin: 0 2px 6px;
+  border: 1px solid oklch(1 0 0 / 0.7);
+  border-radius: 14px;
+  background: var(--nr-glass-control);
+  box-shadow: var(--nr-glass-highlight);
+  color: var(--nr-text);
+  font: inherit;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.nr-side__kicker {
+  margin: 10px 6px 5px;
+  font-family: var(--nr-font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: oklch(0.5 0.04 122);
+}
+
+.nr-side__tabs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.nr-side__tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: 14px;
+  overflow: hidden;
+  max-height: 60px;
   transition:
-    background 140ms ease,
-    color 140ms ease;
+    max-height 260ms ease,
+    opacity 260ms ease,
+    background 150ms ease-out;
 }
 
-.nr-rail__tile:hover {
-  color: var(--tile-hue);
-  transform: translateY(-1px);
+.nr-side__tab:hover {
+  background: oklch(1 0 0 / 0.5);
 }
 
-/* The active tile is the rail's one gradient: the jar's orb, rendered
-   inside the superellipse (§9). Everything else stays flat. */
-.nr-rail__tile[data-active] {
-  background: radial-gradient(
-    circle at 35% 30%,
-    color-mix(in oklab, var(--tile-hue) 55%, white),
-    color-mix(in oklab, var(--tile-hue) 82%, black)
-  );
+/* The sidebar's one gradient: the active tab wears Relish Pour with a
+   gloss cap, exactly as the guide draws it. */
+.nr-side__tab[data-active] {
+  background: linear-gradient(var(--nr-pour-a), var(--nr-pour-b));
+  box-shadow:
+    inset 0 1.5px 0 oklch(1 0 0 / 0.8),
+    0 3px 10px oklch(0.7 0.17 131 / 0.4);
+}
+
+.nr-side__tab[data-active]::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 55% 0;
+  background: linear-gradient(oklch(1 0 0 / 0.65), oklch(1 0 0 / 0.02));
+  pointer-events: none;
+}
+
+/* The sweep: tabs squeeze shut as they seal. The one signature motion. */
+.nr-side__tab[data-sealing] {
+  max-height: 0;
+  opacity: 0;
+}
+
+.nr-side__tab-main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 4px 8px 10px;
+  border: 0;
+  background: none;
+  color: var(--nr-text);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.nr-side__tab[data-active] .nr-side__tab-main {
+  color: var(--nr-ink-on-pour);
+  font-weight: 700;
+}
+
+.nr-side__tab-chip {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: oklch(1 0 0 / 0.85);
+  box-shadow: 0 1px 2px oklch(0.25 0.04 130 / 0.18);
+  font-size: 10px;
+  color: oklch(0.35 0.05 128);
+  flex-shrink: 0;
+}
+
+.nr-side__tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.nr-side__tab-pin,
+.nr-side__tab-close {
+  position: relative;
+  z-index: 1;
+  border: 0;
+  padding: 0 5px;
+  background: none;
+  color: var(--nr-text-faint);
+  font: inherit;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.nr-side__tab[data-active] .nr-side__tab-pin,
+.nr-side__tab[data-active] .nr-side__tab-close {
   color: var(--nr-ink-on-pour);
 }
 
+.nr-side__tab-pin[aria-pressed="true"] {
+  color: var(--nr-focus);
+}
+
+.nr-side__tab-close {
+  font-size: 14px;
+  padding-right: 9px;
+}
+
+.nr-side__pantry-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: var(--nr-text);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.nr-side__pantry-row:hover {
+  background: oklch(1 0 0 / 0.5);
+}
+
+.nr-side__pantry-row[data-active] {
+  background: oklch(1 0 0 / 0.7);
+  box-shadow: var(--nr-glass-highlight);
+}
+
+.nr-side__count {
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: 9px;
+  background: oklch(1 0 0 / 0.8);
+  font-family: var(--nr-font-mono);
+  font-size: 10px;
+  color: oklch(0.4 0.05 127);
+}
+
+.nr-side__foot {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid oklch(1 0 0 / 0.4);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nr-side__orbs {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+/* Jar orbs: the switcher. Idle orbs rest at 0.62; the open jar and a
+   hover come up to full and lift. Superellipse, as always. */
+.nr-side__orb {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: var(--nr-ink-on-pour);
+  font-family: var(--nr-font-display);
+  font-weight: 700;
+  font-size: 12px;
+  opacity: 0.62;
+  transition:
+    opacity 150ms ease-out,
+    transform 150ms ease-out;
+}
+
+.nr-side__orb:hover,
+.nr-side__orb[data-active] {
+  opacity: 1;
+  transform: translateY(-2px);
+}
+
+.nr-side__orb[data-active] {
+  box-shadow: 0 0 0 3px oklch(0.834 0.224 130.9 / 0.75);
+}
+
+.nr-side__orb--new {
+  background: oklch(1 0 0 / 0.3) !important;
+  border: 1.5px dashed oklch(1 0 0 / 0.6);
+  color: var(--nr-text-muted);
+  font-weight: 400;
+}
+
+.nr-side__caption {
+  margin-left: auto;
+  text-align: right;
+  font-family: var(--nr-font-mono);
+  font-size: 9.5px;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  color: oklch(0.5 0.04 122);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .nr-rail__tile {
+  .nr-side__tab,
+  .nr-side__orb {
     transition: none;
   }
-  .nr-rail__tile:hover {
+  .nr-side__orb:hover,
+  .nr-side__orb[data-active] {
     transform: none;
   }
 }
 
-.nr-rail__split {
-  width: 18px;
-  height: 1px;
-  margin: 2px 0;
-  border: 0;
-  background: var(--nr-chrome-line);
-}
-
-.nr-rail__tile--brine {
-  --tile-hue: var(--nr-hue-brine);
-  color: var(--nr-hue-brine);
-  font-size: 15px;
-}
-
-/* --- stage (the hole for the native webview) ------------------------------ */
+/* --- stage (the hole for the native webview) ------------------------------- */
 
 .nr-stage {
   flex: 1;
   min-width: 0;
   position: relative;
-  background: var(--nr-chrome-raised);
+  background: transparent; /* the Aurora shows until a surface covers it */
 }
 
 .nr-stage__empty {
@@ -228,183 +542,249 @@ body {
 .nr-stage__mark {
   margin: 0;
   font-family: var(--nr-font-display);
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 800;
   letter-spacing: -0.02em;
-  color: var(--nr-text-faint);
+  color: oklch(0.9 0.06 118 / 0.85);
 }
 
 .nr-stage__hint {
   margin: 0;
-  color: var(--nr-text-faint);
+  color: oklch(0.78 0.06 120 / 0.8);
 }
 
-.nr-titlebar__status {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 320px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--nr-text-muted);
-  font-size: 12px;
+/* Chrome surfaces that occupy the stage are panel-depth glass. */
+.nr-brine,
+.nr-jarview,
+.nr-note,
+.nr-newjar {
+  position: absolute;
+  inset: 0;
+  background: var(--nr-glass);
+  backdrop-filter: blur(var(--nr-blur-nested));
+  -webkit-backdrop-filter: blur(var(--nr-blur-nested));
 }
 
-.nr-titlebar__undo {
-  height: 22px;
-  padding: 0 9px;
-  border: 1px solid var(--nr-chrome-line);
-  border-radius: 6px;
-  background: var(--nr-chrome-raised);
+/* --- shared control styling on glass --------------------------------------- */
+
+.nr-brine__deny-toggle,
+.nr-brine__deny-actions button,
+.nr-brine__batch button,
+.nr-jarview__actions button,
+.nr-jarview__actions select,
+.nr-jarview__delete,
+.nr-jarview__shelf select,
+.nr-jarview__make button,
+.nr-jarview__task-add button,
+.nr-jarview__suggest-bar button,
+.nr-jarview__suggest-list button,
+.nr-recipes__bar button,
+.nr-recipes__row button,
+.nr-recipes__editor button,
+.nr-runner button,
+.nr-sweeps__row button,
+.nr-note__bar button,
+.nr-newjar__actions button {
+  height: 26px;
+  padding: 0 11px;
+  border: 1px solid var(--nr-glass-border);
+  border-radius: 12px;
+  background: var(--nr-glass-control);
+  box-shadow: var(--nr-glass-highlight);
   color: var(--nr-text);
   font: inherit;
   font-size: 12px;
-  cursor: default;
 }
 
-.nr-titlebar__undo:hover {
+.nr-brine__deny-toggle:hover,
+.nr-brine__batch button:hover:not(:disabled),
+.nr-jarview__delete:hover,
+.nr-runner button:hover:not(:disabled),
+.nr-sweeps__row button:hover {
   border-color: var(--nr-focus);
 }
 
-/* --- tab strip ------------------------------------------------------------- */
-
-.nr-tabstrip {
-  display: flex;
-  align-items: stretch;
-  gap: 4px;
-  height: 34px;
-  padding: 3px 8px;
-  border-bottom: 1px solid var(--nr-chrome-line-soft);
-  background: var(--nr-chrome-base);
-  overflow-x: auto;
-  flex-shrink: 0;
-}
-
-.nr-tab {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  max-width: 220px;
-  flex: 0 1 auto;
-  border: 1px solid transparent;
+.nr-brine__search,
+.nr-brine__deny-editor,
+.nr-brine__batch input,
+.nr-jarview__rename,
+.nr-jarview__task-add input,
+.nr-jarview__actions input,
+.nr-recipes__bar input,
+.nr-recipes__editor textarea,
+.nr-newjar__form input {
+  border: 1px solid oklch(1 0 0 / 0.65);
   border-radius: 12px;
-  background: none;
-  transition:
-    max-width 260ms ease,
-    opacity 260ms ease,
-    background 140ms ease;
+  background: oklch(1 0 0 / 0.75);
+  color: oklch(0.22 0.03 129);
+  font: inherit;
 }
 
-/* The strip's one gradient: the active tab wears Relish Pour. */
-.nr-tab[data-active] {
-  border-color: transparent;
-  background: linear-gradient(var(--nr-pour-a), var(--nr-pour-b));
-}
+/* --- Brine ----------------------------------------------------------------- */
 
-.nr-tab[data-active] .nr-tab__main,
-.nr-tab[data-active] .nr-tab__domain,
-.nr-tab[data-active] .nr-tab__pin,
-.nr-tab[data-active] .nr-tab__close {
-  color: var(--nr-ink-on-pour);
-}
-
-.nr-tab[data-active] .nr-tab__title {
-  font-weight: 700;
-}
-
-/* The sweep: tabs squeeze shut as they seal. The one signature motion. */
-.nr-tab[data-sealing] {
-  max-width: 0;
-  opacity: 0;
+.nr-brine {
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .nr-tab {
-    transition: none;
-  }
+.nr-brine__bar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid oklch(1 0 0 / 0.4);
+  flex-shrink: 0;
 }
 
-.nr-tab__main {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
+.nr-brine__search {
+  flex: 1;
   min-width: 0;
-  padding: 0 4px 0 10px;
+  height: 28px;
+  padding: 0 11px;
+}
+
+.nr-brine__search::placeholder {
+  color: var(--nr-text-faint);
+}
+
+.nr-brine__deny {
+  padding: 10px 14px;
+  border-bottom: 1px solid oklch(1 0 0 / 0.4);
+  flex-shrink: 0;
+}
+
+.nr-brine__deny-hint {
+  margin: 0 0 8px;
+  color: var(--nr-text-muted);
+}
+
+.nr-brine__deny-editor {
+  width: 100%;
+  resize: vertical;
+  padding: 8px 11px;
+  font-family: var(--nr-font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.nr-brine__deny-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  color: var(--nr-text-faint);
+}
+
+.nr-brine__batch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid oklch(1 0 0 / 0.4);
+  color: var(--nr-text-muted);
+  flex-shrink: 0;
+}
+
+.nr-brine__batch button:disabled {
+  color: var(--nr-text-faint);
+  box-shadow: none;
+}
+
+.nr-brine__empty {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--nr-text-muted);
+}
+
+.nr-brine__empty p {
+  margin: 0 auto;
+  max-width: 44ch;
+}
+
+.nr-brine__list {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px 0 14px;
+  list-style: none;
+}
+
+.nr-brine__item {
+  display: flex;
+  align-items: flex-start;
+}
+
+.nr-brine__pick {
+  margin: 12px 0 0 14px;
+  accent-color: var(--nr-focus);
+  flex-shrink: 0;
+}
+
+.nr-brine__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 8px 14px;
   border: 0;
   background: none;
-  color: var(--nr-text-muted);
-  font: inherit;
-  font-size: 12px;
-  cursor: default;
-}
-
-.nr-tab[data-active] .nr-tab__main {
   color: var(--nr-text);
+  font: inherit;
+  text-align: left;
 }
 
-.nr-tab__title {
+.nr-brine__row:hover {
+  background: oklch(1 0 0 / 0.45);
+}
+
+.nr-brine__row:focus-visible {
+  outline: 2px solid var(--nr-focus);
+  outline-offset: -2px;
+}
+
+.nr-brine__title {
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  min-width: 0;
+  color: oklch(0.24 0.035 129);
 }
 
-.nr-tab__domain {
+.nr-brine__domain {
+  color: var(--nr-text-faint);
+  font-family: var(--nr-font-mono);
+  font-size: 11px;
+  align-self: center;
+}
+
+.nr-brine__snippet {
+  grid-column: 1 / -1;
+  color: var(--nr-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.nr-brine__row--sealed .nr-brine__title::after {
+  content: " ● sealed";
   color: var(--nr-text-faint);
   font-size: 10px;
-  font-family: var(--nr-font-mono);
-  flex-shrink: 0;
+  font-weight: 400;
+  letter-spacing: 0.04em;
 }
 
-.nr-tab__pin,
-.nr-tab__close {
-  border: 0;
-  padding: 0 5px;
-  background: none;
+.nr-brine__row[data-done] .nr-brine__title {
+  text-decoration: line-through;
   color: var(--nr-text-faint);
-  font: inherit;
-  font-size: 11px;
-  cursor: default;
-  flex-shrink: 0;
 }
 
-.nr-tab__pin[aria-pressed="true"] {
-  color: var(--nr-hue-brine);
-}
-
-.nr-tab__pin:hover,
-.nr-tab__close:hover {
-  color: var(--nr-text);
-}
-
-.nr-tab__close {
-  font-size: 14px;
-  padding-right: 8px;
-}
-
-.nr-tabstrip__new {
-  flex-shrink: 0;
-  width: 28px;
-  border: 0;
-  border-radius: 10px;
-  background: none;
-  color: var(--nr-text-faint);
-  font-size: 15px;
-  cursor: default;
-}
-
-.nr-tabstrip__new:hover {
-  color: var(--nr-text);
-  background: var(--nr-chrome-raised);
-}
-
-/* --- sweeps (batches of one sweep, undoable) ------------------------------- */
+/* --- sweeps ---------------------------------------------------------------- */
 
 .nr-sweeps {
-  border-bottom: 1px solid var(--nr-chrome-line-soft);
+  border-bottom: 1px solid oklch(1 0 0 / 0.4);
   flex-shrink: 0;
   max-height: 200px;
   overflow-y: auto;
@@ -413,7 +793,7 @@ body {
 .nr-sweeps__none {
   margin: 0;
   padding: 12px 14px;
-  color: var(--nr-text-faint);
+  color: var(--nr-text-muted);
 }
 
 .nr-sweeps__list {
@@ -446,38 +826,23 @@ body {
   white-space: nowrap;
 }
 
-.nr-sweeps__row button {
-  height: 24px;
-  padding: 0 11px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text);
-  font: inherit;
-  font-size: 12px;
-  cursor: default;
-  flex-shrink: 0;
-}
-
-.nr-sweeps__row button:hover {
-  border-color: var(--nr-focus);
-}
-
-/* --- the recipe runner (a band of chrome, never an overlay) ---------------- */
+/* --- runner ---------------------------------------------------------------- */
 
 .nr-runner {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 36px;
+  height: 38px;
   padding: 0 14px;
-  border-bottom: 1px solid var(--nr-chrome-line-soft);
-  background: color-mix(in oklab, var(--nr-accent) 8%, var(--nr-chrome-base));
+  background: oklch(0.93 0.09 122 / 0.55);
+  backdrop-filter: blur(var(--nr-blur-nested));
+  -webkit-backdrop-filter: blur(var(--nr-blur-nested));
+  border-bottom: 1px solid oklch(1 0 0 / 0.4);
   flex-shrink: 0;
 }
 
 .nr-runner__which {
-  color: var(--nr-text-faint);
+  color: var(--nr-text-muted);
   font-family: var(--nr-font-mono);
   font-size: 11px;
   text-transform: uppercase;
@@ -494,35 +859,19 @@ body {
   color: var(--nr-text);
 }
 
-.nr-runner button {
-  height: 24px;
-  padding: 0 11px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text);
-  font: inherit;
-  font-size: 12px;
-  cursor: default;
-  flex-shrink: 0;
-}
-
 .nr-runner button:disabled {
   color: var(--nr-text-faint);
-}
-
-.nr-runner button:hover:not(:disabled) {
-  border-color: var(--nr-focus);
+  box-shadow: none;
 }
 
 .nr-runner__done {
-  border-color: color-mix(in oklab, var(--nr-accent) 45%, transparent) !important;
+  border-color: oklch(0.75 0.18 130 / 0.7) !important;
 }
 
-/* --- recipes panel --------------------------------------------------------- */
+/* --- recipes --------------------------------------------------------------- */
 
 .nr-recipes {
-  border-bottom: 1px solid var(--nr-chrome-line-soft);
+  border-bottom: 1px solid oklch(1 0 0 / 0.4);
   flex-shrink: 0;
 }
 
@@ -541,31 +890,6 @@ body {
 .nr-recipes__bar input {
   height: 26px;
   padding: 0 9px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text);
-  font: inherit;
-}
-
-.nr-recipes__bar button,
-.nr-recipes__row button,
-.nr-recipes__editor button {
-  height: 26px;
-  padding: 0 11px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text);
-  font: inherit;
-  font-size: 12px;
-  cursor: default;
-}
-
-.nr-recipes__bar button:hover,
-.nr-recipes__row button:hover,
-.nr-recipes__editor button:hover {
-  border-color: var(--nr-focus);
 }
 
 .nr-recipes__hint {
@@ -607,10 +931,6 @@ body {
   width: 100%;
   resize: vertical;
   padding: 8px 11px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text);
   font-family: var(--nr-font-mono);
   font-size: 11.5px;
   line-height: 1.5;
@@ -618,15 +938,15 @@ body {
 
 .nr-recipes__problem {
   margin: 0;
-  color: var(--nr-jar-3); /* Tomato Jam — the one destructive-adjacent hue */
+  color: var(--nr-jar-3);
   font-size: 12px;
 }
 
-/* --- the suggestion strip (the engine proposes; you approve) --------------- */
+/* --- the suggestion strip -------------------------------------------------- */
 
 .nr-jarview__suggest {
-  border-bottom: 1px solid var(--nr-chrome-line-soft);
-  background: color-mix(in oklab, var(--nr-accent) 7%, var(--nr-chrome-raised));
+  border-bottom: 1px solid oklch(1 0 0 / 0.4);
+  background: oklch(0.9 0.12 125 / 0.35);
   flex-shrink: 0;
 }
 
@@ -642,26 +962,8 @@ body {
   flex: 1;
 }
 
-.nr-jarview__suggest-bar button,
-.nr-jarview__suggest-list button {
-  height: 26px;
-  padding: 0 11px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text);
-  font: inherit;
-  cursor: default;
-  flex-shrink: 0;
-}
-
 .nr-jarview__suggest-bar button:first-of-type {
-  border-color: color-mix(in oklab, var(--nr-accent) 45%, transparent);
-}
-
-.nr-jarview__suggest-bar button:hover,
-.nr-jarview__suggest-list button:hover {
-  border-color: var(--nr-focus);
+  border-color: oklch(0.75 0.18 130 / 0.75);
 }
 
 .nr-jarview__suggest-list {
@@ -685,249 +987,12 @@ body {
   white-space: nowrap;
 }
 
-/* --- sealed rows & shelf life ---------------------------------------------- */
-
-.nr-brine__row--sealed .nr-brine__title::after {
-  content: " ● sealed";
-  color: var(--nr-text-faint);
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-}
-
-.nr-jarview__shelf {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--nr-text-faint);
-  font-size: 12px;
-}
-
-.nr-jarview__shelf select {
-  height: 26px;
-  padding: 0 6px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text);
-  font: inherit;
-  font-size: 12px;
-}
-
-/* --- Brine (everything browsed, not yet sorted) ---------------------------- */
-
-.nr-brine {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--nr-chrome-raised);
-}
-
-.nr-brine__bar {
-  display: flex;
-  gap: 8px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--nr-chrome-line-soft);
-  flex-shrink: 0;
-}
-
-.nr-brine__search {
-  flex: 1;
-  min-width: 0;
-  height: 28px;
-  padding: 0 11px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text);
-  font: inherit;
-}
-
-.nr-brine__search::placeholder {
-  color: var(--nr-text-faint);
-}
-
-.nr-brine__deny-toggle,
-.nr-brine__deny-actions button {
-  height: 28px;
-  padding: 0 11px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text-muted);
-  font: inherit;
-  white-space: nowrap;
-  cursor: default;
-}
-
-.nr-brine__deny-toggle:hover,
-.nr-brine__deny-actions button:hover {
-  color: var(--nr-text);
-  border-color: var(--nr-chrome-line);
-}
-
-.nr-brine__deny {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--nr-chrome-line-soft);
-  flex-shrink: 0;
-}
-
-.nr-brine__deny-hint {
-  margin: 0 0 8px;
-  color: var(--nr-text-muted);
-}
-
-.nr-brine__deny-editor {
-  width: 100%;
-  resize: vertical;
-  padding: 8px 11px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text);
-  font-family: var(--nr-font-mono);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.nr-brine__deny-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-  color: var(--nr-text-faint);
-}
-
-.nr-brine__empty {
-  padding: 40px 24px;
-  text-align: center;
-  color: var(--nr-text-faint);
-}
-
-.nr-brine__empty p {
-  margin: 0 auto;
-  max-width: 44ch;
-}
-
-.nr-brine__batch {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--nr-chrome-line-soft);
-  color: var(--nr-text-muted);
-  flex-shrink: 0;
-}
-
-.nr-brine__batch button,
-.nr-jarview__actions button,
-.nr-jarview__actions select,
-.nr-newjar__actions button {
-  height: 26px;
-  padding: 0 11px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text);
-  font: inherit;
-  cursor: default;
-}
-
-.nr-brine__batch button:disabled {
-  color: var(--nr-text-faint);
-}
-
-.nr-brine__list {
-  flex: 1;
-  overflow-y: auto;
-  margin: 0;
-  padding: 6px 0 14px;
-  list-style: none;
-}
-
-/* Row shell: subtle checkbox beside the clickable row. */
-.nr-brine__item {
-  display: flex;
-  align-items: flex-start;
-}
-
-.nr-brine__pick {
-  margin: 12px 0 0 14px;
-  accent-color: var(--nr-hue-brine);
-  flex-shrink: 0;
-}
-
-.nr-brine__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 2px 10px;
-  width: 100%;
-  padding: 8px 14px;
-  border: 0;
-  background: none;
-  color: var(--nr-text);
-  font: inherit;
-  text-align: left;
-  cursor: default;
-}
-
-.nr-brine__row:hover {
-  background: color-mix(in oklab, var(--nr-hue-brine) 8%, transparent);
-}
-
-.nr-brine__row:focus-visible {
-  outline: 2px solid var(--nr-focus);
-  outline-offset: -2px;
-}
-
-.nr-brine__title {
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.nr-brine__domain {
-  color: var(--nr-text-faint);
-  font-family: var(--nr-font-mono);
-  font-size: 11px;
-  align-self: center;
-}
-
-.nr-brine__snippet {
-  grid-column: 1 / -1;
-  color: var(--nr-text-muted);
-  font-size: 12px;
-  line-height: 1.45;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* --- rail: the + tile ------------------------------------------------------ */
-
-.nr-rail__tile--new {
-  color: var(--nr-text-faint);
-  font-size: 17px;
-  font-weight: 400;
-}
-
-.nr-rail__tile--new:hover {
-  color: var(--nr-text);
-}
-
-/* --- jar view (shares row styles with Brine) ------------------------------- */
+/* --- jar view -------------------------------------------------------------- */
 
 .nr-jarview {
-  position: absolute;
-  inset: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--nr-chrome-raised);
 }
 
 .nr-jarview__bar {
@@ -935,7 +1000,7 @@ body {
   align-items: center;
   gap: 9px;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--nr-chrome-line-soft);
+  border-bottom: 1px solid oklch(1 0 0 / 0.4);
   flex-shrink: 0;
 }
 
@@ -950,10 +1015,12 @@ body {
   border: 0;
   padding: 2px 4px;
   background: none;
-  color: var(--nr-text);
+  color: oklch(0.22 0.03 129);
   font: inherit;
-  font-weight: 600;
-  cursor: default;
+  font-family: var(--nr-font-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.02em;
 }
 
 .nr-jarview__name:hover {
@@ -963,11 +1030,6 @@ body {
 .nr-jarview__rename {
   height: 26px;
   padding: 0 8px;
-  border: 1px solid var(--nr-chrome-line);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text);
-  font: inherit;
   font-weight: 600;
 }
 
@@ -976,20 +1038,16 @@ body {
   flex: 1;
 }
 
-.nr-jarview__delete {
-  height: 26px;
-  padding: 0 11px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text-muted);
-  font: inherit;
-  cursor: default;
+.nr-jarview__shelf {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--nr-text-faint);
+  font-size: 12px;
 }
 
-.nr-jarview__delete:hover {
-  color: var(--nr-text);
-  border-color: var(--nr-chrome-line);
+.nr-jarview__shelf select {
+  font-size: 12px;
 }
 
 .nr-jarview__actions {
@@ -997,9 +1055,15 @@ body {
   align-items: center;
   gap: 10px;
   padding: 8px 14px;
-  border-bottom: 1px solid var(--nr-chrome-line-soft);
+  border-bottom: 1px solid oklch(1 0 0 / 0.4);
   color: var(--nr-text-muted);
   flex-shrink: 0;
+}
+
+.nr-jarview__actions input {
+  height: 26px;
+  padding: 0 9px;
+  font-size: 12px;
 }
 
 .nr-jarview__groups {
@@ -1009,9 +1073,10 @@ body {
 
 .nr-jarview__kind {
   margin: 14px 14px 2px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-family: var(--nr-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--nr-text-faint);
 }
@@ -1020,6 +1085,66 @@ body {
   flex: none;
   overflow: visible;
   padding-bottom: 4px;
+}
+
+.nr-jarview__make {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid oklch(1 0 0 / 0.4);
+  flex-shrink: 0;
+}
+
+.nr-jarview__task-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.nr-jarview__task-add input {
+  height: 26px;
+  padding: 0 9px;
+  font-size: 12px;
+}
+
+.nr-jarview__task-add input:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.nr-jarview__labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 14px;
+  border-bottom: 1px solid oklch(1 0 0 / 0.4);
+  flex-shrink: 0;
+}
+
+.nr-jarview__label-chip {
+  height: 22px;
+  padding: 0 10px;
+  border: 1px solid var(--nr-glass-border);
+  border-radius: 11px;
+  background: var(--nr-glass-control);
+  color: var(--nr-text-muted);
+  font: inherit;
+  font-family: var(--nr-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.nr-jarview__label-chip span {
+  color: var(--nr-text-faint);
+}
+
+.nr-jarview__label-chip[data-active] {
+  background: linear-gradient(var(--nr-pour-a), var(--nr-pour-b));
+  border-color: transparent;
+  color: var(--nr-ink-on-pour);
 }
 
 /* --- Ask the Pantry (⌘K) --------------------------------------------------- */
@@ -1035,8 +1160,9 @@ body {
   inset: 0;
   border: 0;
   padding: 0;
-  background: color-mix(in oklab, var(--nr-chrome-base) 62%, transparent);
-  cursor: default;
+  background: oklch(0.2 0.03 130 / 0.5);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .nr-palette__panel {
@@ -1046,25 +1172,30 @@ body {
   max-height: calc(100% - 96px);
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--nr-chrome-line);
+  border: 1px solid var(--nr-glass-border);
   border-radius: 20px;
-  background: var(--nr-chrome-raised);
+  background: var(--nr-glass);
+  backdrop-filter: blur(var(--nr-blur));
+  -webkit-backdrop-filter: blur(var(--nr-blur));
+  box-shadow:
+    var(--nr-glass-highlight),
+    0 18px 44px oklch(0 0 0 / 0.35);
   overflow: hidden;
 }
 
 .nr-palette__input {
-  height: 44px;
+  height: 46px;
   padding: 0 16px;
   border: 0;
-  border-bottom: 1px solid var(--nr-chrome-line-soft);
-  background: none;
-  color: var(--nr-text);
+  border-bottom: 1px solid oklch(1 0 0 / 0.4);
+  background: oklch(1 0 0 / 0.55);
+  color: oklch(0.22 0.03 129);
   font: inherit;
   font-size: 15px;
 }
 
 .nr-palette__input:focus-visible {
-  outline: none; /* the panel itself is the focus context */
+  outline: none;
 }
 
 .nr-palette__hint {
@@ -1077,9 +1208,10 @@ body {
 }
 
 .nr-palette__hint code {
-  padding: 1px 5px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 5px;
+  padding: 1px 6px;
+  border: 1px solid var(--nr-glass-border);
+  border-radius: 6px;
+  background: oklch(1 0 0 / 0.55);
   font-family: var(--nr-font-mono);
   font-size: 11px;
   color: var(--nr-text);
@@ -1108,11 +1240,19 @@ body {
   color: var(--nr-text);
   font: inherit;
   text-align: left;
-  cursor: default;
 }
 
 .nr-palette__row[data-selected] {
-  background: color-mix(in oklab, var(--nr-hue-brine) 12%, transparent);
+  background: linear-gradient(
+    oklch(0.909 0.183 124.4 / 0.85),
+    oklch(0.827 0.217 129.9 / 0.85)
+  );
+  color: var(--nr-ink-on-pour);
+}
+
+.nr-palette__row[data-selected] .nr-palette__where,
+.nr-palette__row[data-selected] .nr-palette__snippet {
+  color: oklch(0.32 0.07 130);
 }
 
 .nr-palette__title {
@@ -1125,6 +1265,7 @@ body {
 .nr-palette__where {
   color: var(--nr-text-faint);
   font-size: 11px;
+  font-family: var(--nr-font-mono);
   align-self: center;
   white-space: nowrap;
 }
@@ -1141,7 +1282,7 @@ body {
 }
 
 .nr-palette__snippet mark {
-  background: color-mix(in oklab, var(--nr-hue-brine) 28%, transparent);
+  background: oklch(0.85 0.2 129 / 0.5);
   color: inherit;
   border-radius: 3px;
 }
@@ -1152,19 +1293,48 @@ body {
 
 .nr-palette__keys {
   padding: 8px 16px;
-  border-top: 1px solid var(--nr-chrome-line-soft);
+  border-top: 1px solid oklch(1 0 0 / 0.4);
   color: var(--nr-text-faint);
   font-size: 11px;
+}
+
+/* --- shortcut sheet -------------------------------------------------------- */
+
+.nr-sheet {
+  padding: 18px 0 0;
+}
+
+.nr-sheet__title {
+  margin: 0 16px 12px;
+  font-family: var(--nr-font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: oklch(0.22 0.03 129);
+}
+
+.nr-sheet__table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 6px;
+}
+
+.nr-sheet__table td {
+  padding: 6px 16px;
+  border-top: 1px solid oklch(1 0 0 / 0.4);
+}
+
+.nr-sheet__keys {
+  font-family: var(--nr-font-mono);
+  white-space: nowrap;
+  color: var(--nr-text-muted);
+  width: 1%;
 }
 
 /* --- note editor ----------------------------------------------------------- */
 
 .nr-note {
-  position: absolute;
-  inset: 0;
   display: flex;
   flex-direction: column;
-  background: var(--nr-chrome-raised);
 }
 
 .nr-note__bar {
@@ -1172,7 +1342,7 @@ body {
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--nr-chrome-line-soft);
+  border-bottom: 1px solid oklch(1 0 0 / 0.4);
   flex-shrink: 0;
 }
 
@@ -1190,24 +1360,13 @@ body {
   font-size: 12px;
 }
 
-.nr-note__bar button {
-  height: 26px;
-  padding: 0 11px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text);
-  font: inherit;
-  cursor: default;
-}
-
 .nr-note__editor {
   flex: 1;
   padding: 18px 22px;
   border: 0;
   resize: none;
-  background: none;
-  color: var(--nr-text);
+  background: oklch(1 0 0 / 0.4);
+  color: oklch(0.22 0.03 129);
   font-family: var(--nr-font-mono);
   font-size: 13.5px;
   line-height: 1.65;
@@ -1217,143 +1376,12 @@ body {
   outline: none;
 }
 
-/* --- shortcut sheet -------------------------------------------------------- */
-
-.nr-sheet {
-  padding: 18px 0 0;
-}
-
-.nr-sheet__title {
-  margin: 0 16px 12px;
-  font-family: var(--nr-font-display);
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.nr-sheet__table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 6px;
-}
-
-.nr-sheet__table td {
-  padding: 6px 16px;
-  border-top: 1px solid var(--nr-chrome-line-soft);
-}
-
-.nr-sheet__keys {
-  font-family: var(--nr-font-mono);
-  white-space: nowrap;
-  color: var(--nr-text-muted);
-  width: 1%;
-}
-
-/* --- tasks, labels, makers ------------------------------------------------- */
-
-.nr-jarview__make {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--nr-chrome-line-soft);
-  flex-shrink: 0;
-}
-
-.nr-jarview__make button,
-.nr-jarview__task-add button {
-  height: 26px;
-  padding: 0 11px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text);
-  font: inherit;
-  font-size: 12px;
-  cursor: default;
-}
-
-.nr-jarview__make button:hover {
-  border-color: var(--nr-focus);
-}
-
-.nr-jarview__task-add {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-}
-
-.nr-jarview__task-add input {
-  height: 26px;
-  padding: 0 9px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text);
-  font: inherit;
-  font-size: 12px;
-}
-
-.nr-jarview__task-add input:first-child {
-  flex: 1;
-  min-width: 0;
-}
-
-.nr-jarview__labels {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--nr-chrome-line-soft);
-  flex-shrink: 0;
-}
-
-.nr-jarview__label-chip {
-  height: 22px;
-  padding: 0 9px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 11px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text-muted);
-  font: inherit;
-  font-size: 11px;
-  cursor: default;
-}
-
-.nr-jarview__label-chip span {
-  color: var(--nr-text-faint);
-}
-
-.nr-jarview__label-chip[data-active] {
-  border-color: color-mix(in oklab, var(--nr-accent) 50%, transparent);
-  color: var(--nr-text);
-}
-
-.nr-jarview__actions input {
-  height: 26px;
-  padding: 0 9px;
-  border: 1px solid var(--nr-chrome-line-soft);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text);
-  font: inherit;
-  font-size: 12px;
-}
-
-.nr-brine__row[data-done] .nr-brine__title {
-  text-decoration: line-through;
-  color: var(--nr-text-faint);
-}
-
 /* --- new jar form ---------------------------------------------------------- */
 
 .nr-newjar {
-  position: absolute;
-  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--nr-chrome-raised);
 }
 
 .nr-newjar__form {
@@ -1361,23 +1389,23 @@ body {
   flex-direction: column;
   gap: 10px;
   width: min(360px, 80%);
+  padding: 26px;
+  border-radius: 20px;
+  background: oklch(1 0 0 / 0.55);
+  border: 1px solid var(--nr-glass-border);
+  box-shadow: var(--nr-glass-highlight);
 }
 
 .nr-newjar__form label {
   font-family: var(--nr-font-display);
   font-size: 18px;
   font-weight: 700;
-  color: var(--nr-text);
+  color: oklch(0.22 0.03 129);
 }
 
 .nr-newjar__form input {
   height: 32px;
   padding: 0 11px;
-  border: 1px solid var(--nr-chrome-line);
-  border-radius: 10px;
-  background: var(--nr-chrome-base);
-  color: var(--nr-text);
-  font: inherit;
 }
 
 .nr-newjar__actions {
