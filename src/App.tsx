@@ -8,7 +8,11 @@ import Palette from "./components/Palette";
 import RunnerBar from "./components/RunnerBar";
 import ShortcutSheet from "./components/ShortcutSheet";
 import Sidebar from "./components/Sidebar";
-import TitleBar, { OMNIBOX_ID, type Status } from "./components/TitleBar";
+import TitleBar, {
+  OMNIBOX_ID,
+  type LoginProbe,
+  type Status,
+} from "./components/TitleBar";
 import { normalizeUrl, parseDenyList } from "./lib/format";
 import { interpolate, parseSteps, type RecipeStep } from "./lib/recipes";
 import {
@@ -99,6 +103,8 @@ export default function App() {
   runRef.current = run;
   const [noteId, setNoteId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // What the vault knows about the current page (hosts/usernames only).
+  const [login, setLogin] = useState<LoginProbe | null>(null);
   const statusTimer = useRef<number | undefined>(undefined);
   const returnView = useRef<View>("brine");
   // Scroll to restore once the pane reports the navigation finished.
@@ -613,6 +619,54 @@ export default function App() {
     };
   }, []);
 
+  // Saved logins. The chrome only ever sees hosts and usernames — the
+  // password's whole life is Keychain ↔ Rust ↔ page.
+  const saveLogin = useCallback(async () => {
+    try {
+      const saved = await invoke<{ host: string; username: string }>(
+        "credential_save_from_page",
+      );
+      showStatus({ text: `Saved login for ${saved.host} — ${saved.username}` });
+      void invoke<LoginProbe>("credential_probe").then(setLogin);
+    } catch (e) {
+      showStatus({ text: String(e) });
+    }
+  }, [showStatus]);
+
+  const fillLogin = useCallback(async () => {
+    try {
+      const who = await invoke<string>("credential_fill", { username: null });
+      showStatus({ text: `Filled ${who}` });
+    } catch (e) {
+      showStatus({ text: String(e) });
+    }
+  }, [showStatus]);
+
+  const saveLoginRef = useRef(saveLogin);
+  saveLoginRef.current = saveLogin;
+  const fillLoginRef = useRef(fillLogin);
+  fillLoginRef.current = fillLogin;
+  useEffect(() => {
+    const unlistens: (() => void)[] = [];
+    let disposed = false;
+    void listen("menu:save-login", () => void saveLoginRef.current()).then(
+      (f) => {
+        if (disposed) f();
+        else unlistens.push(f);
+      },
+    );
+    void listen("menu:fill-login", () => void fillLoginRef.current()).then(
+      (f) => {
+        if (disposed) f();
+        else unlistens.push(f);
+      },
+    );
+    return () => {
+      disposed = true;
+      unlistens.forEach((f) => f());
+    };
+  }, []);
+
   /* ------------------------------------------------------------------ */
   /* Startup & listeners                                                 */
 
@@ -671,6 +725,10 @@ export default function App() {
     if (activeTab) {
       void tabTouch(activeTab.id, target, activeTab.jar_id).then(refreshTabs);
     }
+    // Does this page have a login form, and do we hold a login for it?
+    void invoke<LoginProbe>("credential_probe")
+      .then(setLogin)
+      .catch(() => setLogin(null));
   };
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -1014,9 +1072,12 @@ export default function App() {
         url={url}
         status={status}
         canNavigate={loaded && !!activeTab?.url}
+        login={view === "page" ? login : null}
         onUrlChange={setUrl}
         onNavigate={() => void navigate()}
         onReleaseJar={() => void releaseJar()}
+        onFillLogin={() => void fillLogin()}
+        onSaveLogin={() => void saveLogin()}
       />
 
       {run && (

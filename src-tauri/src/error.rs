@@ -19,6 +19,16 @@ pub enum Error {
 
     #[error("engine: {0}")]
     Engine(String),
+
+    // Never carries credential material — hosts and OSStatus text only.
+    #[error("{0}")]
+    Keychain(String),
+}
+
+impl From<security_framework::base::Error> for Error {
+    fn from(e: security_framework::base::Error) -> Self {
+        Error::Keychain(format!("keychain: {e}"))
+    }
 }
 
 // Surface a plain string to the frontend rather than a serde-tagged enum.

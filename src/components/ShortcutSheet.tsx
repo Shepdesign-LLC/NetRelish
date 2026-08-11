@@ -9,6 +9,8 @@ const MAP: [string, string][] = [
   ["⌘T", "New tab"],
   ["⌘1–9", "Switch to a jar by shelf position"],
   ["⌘R", "Run the active jar's recipe"],
+  ["⌘⇧F", "Fill the saved login for this site"],
+  ["⌘⇧S", "Save the login you've typed on this page"],
   ["⌘/", "This sheet"],
   ["↩ / ⌘↩", "In the palette: open · open and keep searching"],
   ["Esc", "Close the palette or this sheet — typed input survives"],

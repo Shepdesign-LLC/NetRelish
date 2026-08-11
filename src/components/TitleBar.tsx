@@ -5,15 +5,26 @@ export interface Status {
   action?: { label: string; run(): void };
 }
 
+/** What the vault knows about the current page — hosts and usernames only,
+ *  never password material (see src-tauri/src/commands/credentials.rs). */
+export interface LoginProbe {
+  host: string;
+  has_login: boolean;
+  usernames: string[];
+}
+
 interface Props {
   jarName: string | null;
   jarHue: number | null; // 1..6, null = Brine
   url: string;
   status: Status | null;
   canNavigate: boolean;
+  login: LoginProbe | null;
   onUrlChange(value: string): void;
   onNavigate(): void;
   onReleaseJar(): void;
+  onFillLogin(): void;
+  onSaveLogin(): void;
 }
 
 /** The omnibox input id — App focuses it on ⌘L (menu:open-location). */
@@ -30,10 +41,14 @@ export default function TitleBar({
   url,
   status,
   canNavigate,
+  login,
   onUrlChange,
   onNavigate,
   onReleaseJar,
+  onFillLogin,
+  onSaveLogin,
 }: Props) {
+  const canFill = (login?.usernames.length ?? 0) > 0;
   return (
     <header className="nr-titlebar" data-tauri-drag-region>
       <div className="nr-titlebar__lead" />
@@ -88,6 +103,40 @@ export default function TitleBar({
           aria-label="Address"
           onChange={(event) => onUrlChange(event.target.value)}
         />
+        {login?.has_login && (
+          <button
+            type="button"
+            className="nr-omnibar__key"
+            data-can-fill={canFill || undefined}
+            title={
+              canFill
+                ? `Fill ${login.usernames[0]} — ⌘⇧F`
+                : "Save the login you've typed — ⌘⇧S"
+            }
+            onClick={canFill ? onFillLogin : onSaveLogin}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <circle
+                cx="4.5"
+                cy="7"
+                r="2.6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+              />
+              <path
+                d="M7 7 h5.5 M10.5 7 v2.4 M12.5 7 v1.6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+            </svg>
+            <span className="nr-visually-hidden">
+              {canFill ? "Fill saved login" : "Save typed login"}
+            </span>
+          </button>
+        )}
       </form>
 
       <button

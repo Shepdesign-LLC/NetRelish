@@ -2691,6 +2691,7 @@ dependencies = [
  "libsqlite3-sys",
  "ort",
  "regex",
+ "security-framework",
  "serde",
  "serde_json",
  "sqlite-vec",

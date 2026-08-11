@@ -1,3 +1,4 @@
+pub mod credentials;
 pub mod denylist;
 pub mod engine;
 pub mod files;

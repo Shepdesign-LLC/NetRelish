@@ -115,6 +115,19 @@ pub fn run() {
                 let run_recipe = MenuItemBuilder::with_id("run-recipe", "Run Recipe")
                     .accelerator("CmdOrCtrl+R")
                     .build(app)?;
+                // Credentials are user gestures with real key equivalents,
+                // reachable even while the page pane holds the keyboard.
+                let fill_login = MenuItemBuilder::with_id("fill-login", "Fill Login")
+                    .accelerator("CmdOrCtrl+Shift+F")
+                    .build(app)?;
+                let save_login =
+                    MenuItemBuilder::with_id("save-login", "Save Login for This Page")
+                        .accelerator("CmdOrCtrl+Shift+S")
+                        .build(app)?;
+                let passwords_menu = SubmenuBuilder::new(app, "Passwords")
+                    .item(&fill_login)
+                    .item(&save_login)
+                    .build()?;
                 let mut submenu_builder = SubmenuBuilder::new(app, "Jars")
                     .item(&jar_item)
                     .item(&run_recipe)
@@ -137,10 +150,14 @@ pub fn run() {
                 }
                 let submenu = submenu_builder.build()?;
                 match app.menu() {
-                    Some(menu) => menu.append(&submenu)?,
+                    Some(menu) => {
+                        menu.append(&submenu)?;
+                        menu.append(&passwords_menu)?;
+                    }
                     None => {
                         let menu = Menu::default(app.handle())?;
                         menu.append(&submenu)?;
+                        menu.append(&passwords_menu)?;
                         app.set_menu(menu)?;
                     }
                 }
@@ -227,6 +244,10 @@ pub fn run() {
                 let _ = app.emit_to("main", "menu:new-tab", ());
             } else if event.id() == "run-recipe" {
                 let _ = app.emit_to("main", "menu:run-recipe", ());
+            } else if event.id() == "fill-login" {
+                let _ = app.emit_to("main", "menu:fill-login", ());
+            } else if event.id() == "save-login" {
+                let _ = app.emit_to("main", "menu:save-login", ());
             } else if event.id() == "shortcuts" {
                 let _ = app.emit_to("main", "menu:shortcuts", ());
             } else if let Some(n) = event
@@ -275,6 +296,11 @@ pub fn run() {
             commands::engine::semantic_search,
             commands::files::read_text_file,
             commands::files::stat_files,
+            commands::credentials::credential_probe,
+            commands::credentials::credential_save_from_page,
+            commands::credentials::credential_fill,
+            commands::credentials::credential_list,
+            commands::credentials::credential_delete,
         ])
         .run(tauri::generate_context!())
         .expect("error while running NetRelish");
