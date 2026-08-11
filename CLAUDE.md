@@ -464,6 +464,12 @@ Each is a week or more, none is on the critical path.
 | Extensions | Enormous surface area. Probably never. |
 | Windows / Linux | Different webview, different signing, different bugs. Not until Mac is loved. |
 
+The business layer — positioning, target markets, pricing, and the
+future feature list — lives in `docs/ROADMAP.md`, which translates
+Ryan's working business plan (`docs/business-plan.md`) into this
+file's vocabulary and architecture. Where they conflict, this file
+wins.
+
 ---
 
 ## 13. Warnings
