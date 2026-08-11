@@ -17,7 +17,15 @@ public build — both need Ryan, neither needs a terminal beyond copy-paste.
    - `APPLE_ID`, `APPLE_PASSWORD` (app-specific password), `APPLE_TEAM_ID`
      — for notarization
    - `TAURI_SIGNING_PRIVATE_KEY` — contents of `~/.tauri/netrelish.key`
-   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — empty (key has no password)
+   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — leave this secret **unset**.
+     The key has no password, GitHub refuses empty-string secrets, and an
+     absent secret reaches the workflow as empty — which is correct.
+
+Status 2026-08-11: enrolment done (Individual, Team ID `D9QDJ44773`),
+certificate issued, and every secret above is set except
+`APPLE_PASSWORD` (the app-specific password only Ryan can create).
+Signing identity proven locally against the exact CI import path.
+Signing material backed up in iCloud Drive → NetRelish.
 
 ## ⚠️ The updater private key
 
