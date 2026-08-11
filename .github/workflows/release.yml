@@ -34,6 +34,8 @@ jobs:
       - name: Build, sign, notarize, staple
         uses: tauri-apps/tauri-action@v0
         env:
+          # Release upload
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Code signing
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
