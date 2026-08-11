@@ -19,9 +19,11 @@ jobs:
           node-version: 20
           cache: npm
 
+      # Apple Silicon only: ort ships no prebuilt onnxruntime for
+      # x86_64-apple-darwin, and CLAUDE.md §8 targets Apple Silicon.
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
+          targets: aarch64-apple-darwin
 
       - uses: swatinem/rust-cache@v2
         with:
@@ -44,7 +46,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          args: --target universal-apple-darwin
+          args: --target aarch64-apple-darwin
           tagName: ${{ github.ref_name }}
           releaseName: NetRelish ${{ github.ref_name }}
           releaseDraft: true
