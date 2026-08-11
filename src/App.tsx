@@ -1070,6 +1070,7 @@ export default function App() {
           <Palette
             query={paletteQuery}
             activeJarId={activeJarId}
+            activeJarHue={activeJar?.hue ?? null}
             onQueryChange={setPaletteQuery}
             onOpen={(target, keepOpen) => {
               void openUrl(target);

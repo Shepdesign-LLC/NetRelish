@@ -1,13 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  MARK_END,
-  MARK_START,
-  pantrySearch,
-  type PantryRow,
-} from "../lib/db";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { pantrySearch, type PantryRow } from "../lib/db";
 import { domainOf, looksLikeUrl, normalizeUrl } from "../lib/format";
 import { isEmptyQuery, parseQuery } from "../lib/query";
+import { renderSnippet } from "../lib/snippet";
+import { superellipseClip } from "../lib/superellipse";
 
 /** A row from semantic_search (src-tauri/src/commands/engine.rs). */
 interface SemanticRow {
@@ -28,28 +25,17 @@ const SEMANTIC_MAX_DISTANCE = 0.62;
 interface Props {
   query: string;
   activeJarId: string | null;
+  activeJarHue: number | null; // 1..6, null = Brine
   onQueryChange(query: string): void;
   onOpen(url: string, keepOpen: boolean): void;
   onClose(): void;
 }
 
-/** Split a snippet on the FTS5 highlight delimiters into safe React nodes —
- *  page text never becomes markup. */
-function renderSnippet(text: string) {
-  const nodes: React.ReactNode[] = [];
-  let rest = text;
-  let key = 0;
-  while (true) {
-    const start = rest.indexOf(MARK_START);
-    if (start === -1) break;
-    const end = rest.indexOf(MARK_END, start);
-    if (end === -1) break;
-    if (start > 0) nodes.push(rest.slice(0, start));
-    nodes.push(<mark key={key++}>{rest.slice(start + 1, end)}</mark>);
-    rest = rest.slice(end + 1);
-  }
-  nodes.push(rest);
-  return nodes;
+/** Which tier kicker a row sits under. */
+function rowGroup(row: Row, activeJarId: string | null): string {
+  if (row.jar_id === null) return "Brine";
+  if (activeJarId && row.jar_id === activeJarId) return row.jar_name ?? "This jar";
+  return "Other jars";
 }
 
 /**
@@ -60,6 +46,7 @@ function renderSnippet(text: string) {
 export default function Palette({
   query,
   activeJarId,
+  activeJarHue,
   onQueryChange,
   onOpen,
   onClose,
@@ -177,16 +164,29 @@ export default function Palette({
         onClick={onClose}
       />
       <div className="nr-palette__panel">
-        <input
-          className="nr-palette__input"
-          value={query}
-          placeholder="Ask the Pantry"
-          aria-label="Ask the Pantry"
-          autoFocus
-          spellCheck={false}
-          onChange={(event) => onQueryChange(event.target.value)}
-          onKeyDown={onKeyDown}
-        />
+        <div className="nr-palette__inputrow">
+          <span
+            className="nr-palette__orb"
+            style={{
+              clipPath: superellipseClip(26, 4),
+              background: `radial-gradient(circle at 35% 30%,
+                color-mix(in oklab, ${activeJarHue ? `var(--nr-jar-${activeJarHue})` : "var(--nr-hue-brine)"} 55%, white),
+                color-mix(in oklab, ${activeJarHue ? `var(--nr-jar-${activeJarHue})` : "var(--nr-hue-brine)"} 82%, black))`,
+            }}
+            aria-hidden="true"
+          />
+          <input
+            className="nr-palette__input"
+            value={query}
+            placeholder="Ask the Pantry"
+            aria-label="Ask the Pantry"
+            autoFocus
+            spellCheck={false}
+            onChange={(event) => onQueryChange(event.target.value)}
+            onKeyDown={onKeyDown}
+          />
+          <span className="nr-palette__kbd" aria-hidden="true">⌘K</span>
+        </div>
 
         {rows === null ? (
           <div className="nr-palette__hint">
@@ -202,29 +202,50 @@ export default function Palette({
             {localRows.length === 0 && (
               <li className="nr-palette__none">Nothing local matches.</li>
             )}
-            {localRows.map((row, i) => (
-              <li key={row.id}>
-                <button
-                  type="button"
-                  className="nr-palette__row"
-                  role="option"
-                  aria-selected={i === selected}
-                  data-selected={i === selected || undefined}
-                  onMouseEnter={() => setSelected(i)}
-                  onClick={(event) => openIndex(i, event.metaKey)}
-                >
-                  <span className="nr-palette__title">{row.title}</span>
-                  <span className="nr-palette__where">
-                    {row.semantic ? "similar · " : ""}
-                    {row.jar_name ?? (row.jar_id ? "" : "Brine")}
-                    {row.url ? ` · ${domainOf(row.url)}` : ""}
-                  </span>
-                  <span className="nr-palette__snippet">
-                    {renderSnippet(row.snippet)}
-                  </span>
-                </button>
-              </li>
-            ))}
+            {localRows.map((row, i) => {
+              const group = rowGroup(row, activeJarId);
+              const newGroup =
+                i === 0 || group !== rowGroup(localRows[i - 1], activeJarId);
+              return (
+                <Fragment key={row.id}>
+                  {newGroup && (
+                    <li
+                      className="nr-kicker nr-palette__kicker"
+                      aria-hidden="true"
+                    >
+                      {group}
+                    </li>
+                  )}
+                  <li>
+                    <button
+                      type="button"
+                      className="nr-palette__row"
+                      role="option"
+                      aria-selected={i === selected}
+                      data-selected={i === selected || undefined}
+                      onMouseEnter={() => setSelected(i)}
+                      onClick={(event) => openIndex(i, event.metaKey)}
+                    >
+                      <span className="nr-palette__toprow">
+                        <span className="nr-palette__title">{row.title}</span>
+                        <span className="nr-palette__where">
+                          {row.semantic && (
+                            <span className="nr-palette__similar">
+                              similar ·{" "}
+                            </span>
+                          )}
+                          {row.jar_name ?? (row.jar_id ? "" : "Brine")}
+                          {row.url ? ` · ${domainOf(row.url)}` : ""}
+                        </span>
+                      </span>
+                      <span className="nr-palette__snippet">
+                        {renderSnippet(row.snippet)}
+                      </span>
+                    </button>
+                  </li>
+                </Fragment>
+              );
+            })}
             {webTarget && (
               <li>
                 <button
@@ -245,7 +266,9 @@ export default function Palette({
         )}
 
         <footer className="nr-palette__keys" aria-hidden="true">
-          ↩ open&ensp;·&ensp;⌘↩ open and keep searching&ensp;·&ensp;esc close
+          {rows === null
+            ? "↩ OPEN · ⌘↩ OPEN AND KEEP SEARCHING · ESC CLOSE"
+            : "↩ OPEN · ⌘↩ OPEN AND KEEP SEARCHING · ESC CLOSE · FILTERS: jar:name kind:page is:sealed since:7d"}
         </footer>
       </div>
     </div>

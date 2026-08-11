@@ -1,9 +1,22 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { BRINE_CHANGED, brineSearch, type BrineRow } from "../lib/db";
 import { domainOf } from "../lib/format";
+import { renderSnippet } from "../lib/snippet";
 import SweepsPanel from "./SweepsPanel";
+
+/** TODAY / YESTERDAY / the date — the day kickers inside the list panel. */
+function dayLabel(ts: number): string {
+  const then = new Date(ts);
+  const now = new Date();
+  const startOf = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((startOf(now) - startOf(then)) / 86_400_000);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  return then.toLocaleDateString(undefined, { month: "long", day: "numeric" });
+}
 
 interface Props {
   activeJarName: string | null;
@@ -92,18 +105,21 @@ export default function BrineView({
   return (
     <section className="nr-brine" aria-label="Brine">
       <header className="nr-brine__bar">
-        <input
-          type="search"
-          className="nr-brine__search"
-          placeholder="Search everything you've read"
-          aria-label="Search Brine"
-          value={query}
-          autoFocus
-          spellCheck={false}
-          onChange={(event) => {
-            setQuery(event.target.value);
-          }}
-        />
+        <div className="nr-brine__searchwrap">
+          <span className="nr-brine__glyph" aria-hidden="true">⌕</span>
+          <input
+            type="search"
+            className="nr-brine__search"
+            placeholder="Search everything you've read"
+            aria-label="Search Brine"
+            value={query}
+            autoFocus
+            spellCheck={false}
+            onChange={(event) => {
+              setQuery(event.target.value);
+            }}
+          />
+        </div>
         <button
           type="button"
           className="nr-brine__deny-toggle"
@@ -151,25 +167,6 @@ export default function BrineView({
         </div>
       )}
 
-      {selection.length > 0 && (
-        <div className="nr-brine__batch">
-          <span>
-            {selection.length} selected
-          </span>
-          <button
-            type="button"
-            disabled={!activeJarName}
-            title={activeJarName ? "⌘J" : "Open a jar on the shelf first"}
-            onClick={onJarSelection}
-          >
-            {activeJarName ? `Jar into ${activeJarName}` : "No jar open"}
-          </button>
-          <button type="button" onClick={() => onSelectionChange([])}>
-            Clear
-          </button>
-        </div>
-      )}
-
       {rows !== null && rows.length === 0 && (
         <div className="nr-brine__empty">
           {query.trim() ? (
@@ -183,28 +180,70 @@ export default function BrineView({
         </div>
       )}
 
-      <ul className="nr-brine__list">
-        {(rows ?? []).map((row) => (
-          <li key={row.id} className="nr-brine__item">
-            <input
-              type="checkbox"
-              className="nr-brine__pick"
-              aria-label={`Select ${row.title}`}
-              checked={selection.includes(row.id)}
-              onChange={() => toggle(row.id)}
-            />
-            <button
-              type="button"
-              className="nr-brine__row"
-              onClick={() => row.url && onOpen(row.url)}
-            >
-              <span className="nr-brine__title">{row.title}</span>
-              <span className="nr-brine__domain">{domainOf(row.url)}</span>
-              <span className="nr-brine__snippet">{row.snippet}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      {rows !== null && rows.length > 0 && (
+        <ul className="nr-brine__list">
+          {rows.map((row, i) => {
+            const label = dayLabel(row.touched_at);
+            const newDay = i === 0 || label !== dayLabel(rows[i - 1].touched_at);
+            return (
+              <Fragment key={row.id}>
+                {newDay && (
+                  <li className="nr-kicker nr-brine__day" aria-hidden="true">
+                    {label}
+                  </li>
+                )}
+                <li className="nr-brine__item">
+                  <input
+                    type="checkbox"
+                    className="nr-brine__pick"
+                    aria-label={`Select ${row.title}`}
+                    checked={selection.includes(row.id)}
+                    onChange={() => toggle(row.id)}
+                  />
+                  <button
+                    type="button"
+                    className="nr-brine__row"
+                    onClick={() => row.url && onOpen(row.url)}
+                  >
+                    <span className="nr-brine__title">{row.title}</span>
+                    <span className="nr-brine__domain">{domainOf(row.url)}</span>
+                    <span className="nr-brine__snippet">
+                      {renderSnippet(row.snippet)}
+                    </span>
+                  </button>
+                </li>
+              </Fragment>
+            );
+          })}
+        </ul>
+      )}
+
+      {selection.length > 0 && (
+        <div className="nr-brine__batch">
+          <span className="nr-brine__batch-count">
+            {selection.length} selected
+          </span>
+          <button
+            type="button"
+            className="nr-brine__batch-jar"
+            disabled={!activeJarName}
+            title={activeJarName ? "⌘J" : "Open a jar on the shelf first"}
+            onClick={onJarSelection}
+          >
+            <span>
+              {activeJarName ? `Jar into ${activeJarName}` : "No jar open"}
+            </span>
+            {activeJarName && <span className="nr-kbd">⌘J</span>}
+          </button>
+          <button
+            type="button"
+            className="nr-brine__batch-clear"
+            onClick={() => onSelectionChange([])}
+          >
+            Clear
+          </button>
+        </div>
+      )}
     </section>
   );
 }

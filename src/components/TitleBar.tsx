@@ -66,7 +66,17 @@ export default function TitleBar({
           onNavigate();
         }}
       >
-        <span className="nr-omnibar__lock" aria-hidden="true">🔒</span>
+        <span className="nr-omnibar__lock" aria-hidden="true">
+          <svg width="12" height="14" viewBox="0 0 12 14">
+            <path
+              d="M2 6 V4 a4 4 0 0 1 8 0 V6"
+              fill="none"
+              stroke="oklch(0.58 0.133 132.4)"
+              strokeWidth="1.6"
+            />
+            <rect x="1" y="6" width="10" height="7" rx="2" fill="oklch(0.58 0.133 132.4)" />
+          </svg>
+        </span>
         <input
           id={OMNIBOX_ID}
           type="text"
@@ -94,7 +104,9 @@ export default function TitleBar({
         <span
           className="nr-jar-chip__dot"
           style={{
-            background: jarHue ? `var(--nr-jar-${jarHue})` : "var(--nr-hue-brine)",
+            background: `radial-gradient(circle at 35% 30%,
+              color-mix(in oklab, ${jarHue ? `var(--nr-jar-${jarHue})` : "var(--nr-hue-brine)"} 55%, white),
+              color-mix(in oklab, ${jarHue ? `var(--nr-jar-${jarHue})` : "var(--nr-hue-brine)"} 82%, black))`,
           }}
           aria-hidden="true"
         />

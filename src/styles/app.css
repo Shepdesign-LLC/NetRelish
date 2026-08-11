@@ -1,11 +1,13 @@
 /* ---------------------------------------------------------------------------
-   NetRelish app chrome — Aero Relish (brand system v2), the real thing.
+   NetRelish app chrome — Aero Relish redesign pass (Aug 2026 handoff).
 
-   The window floats on the Aurora. Every chrome surface is one glass
-   recipe at three depths (window / panel / control); text on glass never
-   lighter than the guide's floor; actives trade glass for Relish Pour
-   with a gloss cap. The native page pane stays opaque — the glass frames
-   the web, it never tints it. Never stack glass more than two deep.
+   The window floats on the Aurora, which reads near-black green — never
+   sage. Every chrome surface is the one glass recipe at its depth:
+   titlebar gradient .6→.34, sidebar .42, cards .55, content panels .68,
+   controls .7–.95 white. Actives trade glass for Relish Pour with a gloss
+   cap; one Pour per region. Ink never lighter than #33430F for readable
+   text on glass. Radii: 18 panel · 13–14 control · 38% superellipse orbs
+   · 50% round buttons. The native page pane stays opaque.
 --------------------------------------------------------------------------- */
 
 *,
@@ -46,9 +48,19 @@ body {
   outline-offset: 2px;
 }
 
-/* Shared control shape: a white-glass pill with ink. */
 :where(button, select) {
   cursor: default;
+}
+
+/* The kicker: Spline Mono 10, uppercase, wide-tracked, #5E6E48. One
+   voice for TODAY, PANTRY, PAGES · 14, BRINE, SHELF LIFE. */
+.nr-kicker {
+  font-family: var(--nr-font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--nr-text-soft);
 }
 
 /* --- shell: the Aurora ----------------------------------------------------- */
@@ -75,14 +87,14 @@ body {
   align-items: center;
   gap: 10px;
   height: var(--nr-titlebar-h);
-  padding-right: 14px;
+  padding-right: 16px;
   background: linear-gradient(
-    oklch(1 0 0 / 0.6),
-    oklch(1 0 0 / 0.22)
+    oklch(0.972 0.021 118.2 / 0.6),
+    oklch(0.972 0.021 118.2 / 0.34)
   );
   backdrop-filter: blur(var(--nr-blur));
   -webkit-backdrop-filter: blur(var(--nr-blur));
-  border-bottom: 1px solid oklch(1 0 0 / 0.35);
+  border-bottom: 1px solid oklch(1 0 0 / 0.5);
   flex-shrink: 0;
 }
 
@@ -100,41 +112,65 @@ body {
 .nr-navbtn {
   width: 32px;
   height: 32px;
-  border: 1px solid var(--nr-glass-border);
+  border: 0;
   border-radius: 50%;
-  background: var(--nr-glass-control);
-  box-shadow: var(--nr-glass-highlight);
-  color: var(--nr-text);
+  background: linear-gradient(oklch(1 0 0 / 0.9), oklch(1 0 0 / 0.4));
+  box-shadow:
+    0 1px 3px oklch(0.176 0.036 133.5 / 0.2),
+    inset 0 1px 0 oklch(1 0 0);
+  color: oklch(0.37 0.037 133.2);
   font-size: 17px;
+  font-weight: 700;
   line-height: 1;
   flex-shrink: 0;
 }
 
 .nr-navbtn:disabled {
-  background: oklch(1 0 0 / 0.35);
-  color: var(--nr-text-faint);
+  background: oklch(1 0 0 / 0.3);
+  color: var(--nr-text-ghost);
   box-shadow: none;
 }
 
 .nr-omnibar {
+  position: relative;
   flex: 1;
   min-width: 0;
   max-width: 560px;
   margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   height: 36px;
   padding: 0 14px;
   border-radius: 18px;
-  background: linear-gradient(oklch(1 0 0 / 0.95), oklch(1 0 0 / 0.8));
-  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.9);
-  border: 1px solid oklch(1 0 0 / 0.6);
+  background: linear-gradient(oklch(1 0 0 / 0.95), oklch(1 0 0 / 0.7));
+  border: 1px solid oklch(1 0 0 / 0.9);
+  box-shadow:
+    0 2px 8px oklch(0.176 0.036 133.5 / 0.14),
+    inset 0 1px 0 oklch(1 0 0);
+  overflow: hidden;
+}
+
+/* The omnibox's own gloss cap. */
+.nr-omnibar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 8px;
+  right: 8px;
+  height: 45%;
+  border-radius: 14px 14px 40px 40px;
+  background: linear-gradient(oklch(1 0 0 / 0.85), oklch(1 0 0 / 0.05));
+  pointer-events: none;
+}
+
+.nr-omnibar > * {
+  position: relative; /* rides above the gloss cap */
 }
 
 .nr-omnibar__lock {
-  font-size: 11px;
-  opacity: 0.7;
+  display: flex;
+  flex-shrink: 0;
 }
 
 .nr-omnibar input {
@@ -142,10 +178,10 @@ body {
   min-width: 0;
   border: 0;
   background: none;
-  color: oklch(0.22 0.03 129);
+  color: var(--nr-text-strong);
   font: inherit;
-  font-family: var(--nr-font-mono);
-  font-size: 12.5px;
+  font-size: 13.5px;
+  font-weight: 500;
 }
 
 .nr-omnibar input:focus-visible {
@@ -153,8 +189,7 @@ body {
 }
 
 .nr-omnibar input::placeholder {
-  color: var(--nr-text-faint);
-  font-family: var(--nr-font-ui);
+  color: var(--nr-text-ghost);
 }
 
 /* The jar chip: glass at rest, Relish Pour when a jar is open — the
@@ -164,28 +199,27 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  height: 28px;
-  padding: 0 12px;
+  height: 30px;
+  padding: 0 13px 0 9px;
   border: 1px solid var(--nr-glass-border);
-  border-radius: 12px;
+  border-radius: 15px;
   background: var(--nr-glass-control);
   box-shadow: var(--nr-glass-highlight);
   color: var(--nr-text);
   font: inherit;
-  font-family: var(--nr-font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-size: 12.5px;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .nr-jar-chip[data-jarred] {
-  border-color: transparent;
+  border: 0;
   background: linear-gradient(var(--nr-pour-a), var(--nr-pour-b));
   box-shadow:
-    inset 0 1.5px 0 oklch(1 0 0 / 0.8),
-    0 3px 10px oklch(0.7 0.17 131 / 0.5);
+    inset 0 1.5px 0 oklch(1 0 0 / 0.7),
+    0 2px 8px oklch(0.696 0.19 132.1 / 0.5);
   color: var(--nr-ink-on-pour);
   font-weight: 700;
 }
@@ -193,15 +227,24 @@ body {
 .nr-jar-chip[data-jarred]::before {
   content: "";
   position: absolute;
-  inset: 0 0 55% 0;
+  top: 0;
+  left: 4px;
+  right: 4px;
+  height: 45%;
+  border-radius: 11px 11px 24px 24px;
   background: linear-gradient(oklch(1 0 0 / 0.7), oklch(1 0 0 / 0.02));
   pointer-events: none;
 }
 
+.nr-jar-chip > * {
+  position: relative;
+}
+
 .nr-jar-chip__dot {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
+  box-shadow: inset 0 0.5px 0 oklch(1 0 0 / 0.8);
   flex-shrink: 0;
 }
 
@@ -214,23 +257,25 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--nr-text-muted);
-  font-size: 12px;
-}
-
-.nr-titlebar__undo {
-  height: 22px;
-  padding: 0 10px;
-  border: 1px solid var(--nr-glass-border);
-  border-radius: 8px;
-  background: var(--nr-glass-control);
-  box-shadow: var(--nr-glass-highlight);
   color: var(--nr-text);
-  font: inherit;
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 600;
 }
 
-/* --- sidebar (panel-depth glass) ------------------------------------------- */
+/* Undo is a link, not a pill. */
+.nr-titlebar__undo {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--nr-focus);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* --- sidebar (panel-depth glass, right hairline) ---------------------------- */
 
 .nr-side {
   display: flex;
@@ -241,63 +286,65 @@ body {
   background: var(--nr-glass-nested);
   backdrop-filter: blur(var(--nr-blur-nested));
   -webkit-backdrop-filter: blur(var(--nr-blur-nested));
-  border-right: 1px solid oklch(1 0 0 / 0.3);
+  border-right: 1px solid oklch(1 0 0 / 0.45);
   flex-shrink: 0;
 }
 
 .nr-side__head {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 2px 4px 12px;
+  gap: 10px;
+  padding: 6px 8px 12px;
 }
 
+/* 26px superellipse orb — the clip path comes from superellipse.ts. */
 .nr-side__jarorb {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  box-shadow: inset 0 1px 1px oklch(1 0 0 / 0.55);
+  width: 26px;
+  height: 26px;
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.8),
+    0 2px 5px oklch(0.176 0.036 133.5 / 0.3);
   flex-shrink: 0;
 }
 
 .nr-side__jarname {
   font-family: var(--nr-font-display);
   font-weight: 700;
-  font-size: 15px;
-  letter-spacing: -0.02em;
-  color: oklch(0.22 0.03 129);
+  font-size: 15.5px;
+  letter-spacing: -0.01em;
+  color: var(--nr-text-strong);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .nr-side__newtab {
-  height: 32px;
-  margin: 0 2px 6px;
+  height: 34px;
+  margin: 0 0 6px;
   border: 1px solid oklch(1 0 0 / 0.7);
-  border-radius: 14px;
-  background: var(--nr-glass-control);
-  box-shadow: var(--nr-glass-highlight);
-  color: var(--nr-text);
+  border-radius: 13px;
+  background: oklch(1 0 0 / 0.35);
+  color: var(--nr-text-muted);
   font: inherit;
   font-weight: 600;
   font-size: 13px;
 }
 
+.nr-side__newtab:hover {
+  background: oklch(1 0 0 / 0.6);
+}
+
 .nr-side__kicker {
-  margin: 10px 6px 5px;
-  font-family: var(--nr-font-mono);
-  font-weight: 500;
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: oklch(0.5 0.04 122);
+  margin: 10px 10px 6px;
 }
 
 .nr-side__tabs {
   margin: 0;
   padding: 0;
   list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   overflow-y: auto;
   min-height: 0;
 }
@@ -306,7 +353,7 @@ body {
   position: relative;
   display: flex;
   align-items: center;
-  border-radius: 14px;
+  border-radius: 13px;
   overflow: hidden;
   max-height: 60px;
   transition:
@@ -316,23 +363,26 @@ body {
 }
 
 .nr-side__tab:hover {
-  background: oklch(1 0 0 / 0.5);
+  background: oklch(1 0 0 / 0.45);
 }
 
-/* The sidebar's one gradient: the active tab wears Relish Pour with a
-   gloss cap, exactly as the guide draws it. */
+/* The sidebar's one Pour: the active tab, with a gloss cap. */
 .nr-side__tab[data-active] {
   background: linear-gradient(var(--nr-pour-a), var(--nr-pour-b));
   box-shadow:
     inset 0 1.5px 0 oklch(1 0 0 / 0.8),
-    0 3px 10px oklch(0.7 0.17 131 / 0.4);
+    0 3px 10px oklch(0.696 0.19 132.1 / 0.45);
 }
 
 .nr-side__tab[data-active]::before {
   content: "";
   position: absolute;
-  inset: 0 0 55% 0;
-  background: linear-gradient(oklch(1 0 0 / 0.65), oklch(1 0 0 / 0.02));
+  top: 0;
+  left: 6px;
+  right: 6px;
+  height: 42%;
+  border-radius: 9px 9px 26px 26px;
+  background: linear-gradient(oklch(1 0 0 / 0.7), oklch(1 0 0 / 0.02));
   pointer-events: none;
 }
 
@@ -350,7 +400,7 @@ body {
   gap: 9px;
   flex: 1;
   min-width: 0;
-  padding: 8px 4px 8px 10px;
+  padding: 9px 4px 9px 11px;
   border: 0;
   background: none;
   color: var(--nr-text);
@@ -365,17 +415,23 @@ body {
   font-weight: 700;
 }
 
+/* Domain-letter chip: dark ink square, white letter. */
 .nr-side__tab-chip {
   width: 18px;
   height: 18px;
   display: grid;
   place-items: center;
   border-radius: 6px;
-  background: oklch(1 0 0 / 0.85);
-  box-shadow: 0 1px 2px oklch(0.25 0.04 130 / 0.18);
+  background: var(--nr-ink-dark-chip);
+  color: oklch(1 0 0);
   font-size: 10px;
-  color: oklch(0.35 0.05 128);
+  font-weight: 700;
   flex-shrink: 0;
+}
+
+.nr-side__tab[data-active] .nr-side__tab-chip {
+  background: var(--nr-ink-on-pour);
+  color: var(--nr-pour-a);
 }
 
 .nr-side__tab-title {
@@ -392,90 +448,114 @@ body {
   border: 0;
   padding: 0 5px;
   background: none;
-  color: var(--nr-text-faint);
+  color: var(--nr-text-ghost);
   font: inherit;
   font-size: 11px;
   flex-shrink: 0;
 }
 
-.nr-side__tab[data-active] .nr-side__tab-pin,
-.nr-side__tab[data-active] .nr-side__tab-close {
-  color: var(--nr-ink-on-pour);
+.nr-side__tab-pin[aria-pressed="true"] {
+  color: oklch(0.458 0.116 132);
 }
 
-.nr-side__tab-pin[aria-pressed="true"] {
-  color: var(--nr-focus);
+.nr-side__tab[data-active] .nr-side__tab-pin,
+.nr-side__tab[data-active] .nr-side__tab-close {
+  color: oklch(0.458 0.116 132);
 }
 
 .nr-side__tab-close {
-  font-size: 14px;
-  padding-right: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  padding-right: 11px;
 }
 
 .nr-side__pantry-row {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 8px 10px;
+  padding: 9px 11px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 13px;
   background: none;
   color: var(--nr-text);
   font: inherit;
   font-size: 13.5px;
-  font-weight: 500;
+  font-weight: 600;
   text-align: left;
 }
 
 .nr-side__pantry-row:hover {
-  background: oklch(1 0 0 / 0.5);
+  background: oklch(1 0 0 / 0.45);
 }
 
+/* Brine active: bright glass with a Relish ring — never Pour (that's
+   reserved for the active tab). */
 .nr-side__pantry-row[data-active] {
-  background: oklch(1 0 0 / 0.7);
-  box-shadow: var(--nr-glass-highlight);
+  background: oklch(1 0 0 / 0.65);
+  border: 0;
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0),
+    0 0 0 2px oklch(0.834 0.224 130.9 / 0.55);
+  color: var(--nr-text-strong);
+  font-weight: 700;
+}
+
+.nr-side__brine-orb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 30%,
+    oklch(0.925 0.056 118.4),
+    oklch(0.704 0.082 121.8)
+  );
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.7);
+  flex-shrink: 0;
 }
 
 .nr-side__count {
   margin-left: auto;
-  padding: 1px 8px;
-  border-radius: 9px;
-  background: oklch(1 0 0 / 0.8);
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: oklch(1 0 0 / 0.85);
+  box-shadow: inset 0 1px 0 oklch(1 0 0);
   font-family: var(--nr-font-mono);
   font-size: 10px;
-  color: oklch(0.4 0.05 127);
+  color: oklch(0.494 0.037 129.3);
 }
 
 .nr-side__foot {
   margin-top: auto;
   padding-top: 12px;
-  border-top: 1px solid oklch(1 0 0 / 0.4);
+  border-top: 1px solid oklch(1 0 0 / 0.55);
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 10px;
 }
 
 .nr-side__orbs {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-/* Jar orbs: the switcher. Idle orbs rest at 0.62; the open jar and a
+/* Jar orbs: the switcher. Idle orbs rest at 0.72; the open jar and a
    hover come up to full and lift. Superellipse, as always. */
 .nr-side__orb {
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border: 0;
   padding: 0;
   display: grid;
   place-items: center;
-  color: var(--nr-ink-on-pour);
   font-family: var(--nr-font-display);
-  font-weight: 700;
-  font-size: 12px;
-  opacity: 0.62;
+  font-weight: 800;
+  font-size: 14px;
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.8),
+    0 2px 6px oklch(0.176 0.036 133.5 / 0.35);
+  opacity: 0.72;
   transition:
     opacity 150ms ease-out,
     transform 150ms ease-out;
@@ -488,24 +568,33 @@ body {
 }
 
 .nr-side__orb[data-active] {
-  box-shadow: 0 0 0 3px oklch(0.834 0.224 130.9 / 0.75);
+  transform: none;
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.8),
+    0 2px 6px oklch(0.176 0.036 133.5 / 0.35),
+    0 0 0 2px oklch(0.834 0.224 130.9 / 0.7);
 }
 
 .nr-side__orb--new {
-  background: oklch(1 0 0 / 0.3) !important;
-  border: 1.5px dashed oklch(1 0 0 / 0.6);
-  color: var(--nr-text-muted);
+  background: none !important;
+  border: 1.5px dashed oklch(0.438 0.078 127.4 / 0.5);
+  box-shadow: none;
+  color: var(--nr-text-soft);
   font-weight: 400;
+  font-size: 15px;
+  opacity: 1;
+}
+
+.nr-side__orb--new:hover {
+  background: oklch(1 0 0 / 0.45) !important;
+  transform: none;
 }
 
 .nr-side__caption {
-  margin-left: auto;
-  text-align: right;
   font-family: var(--nr-font-mono);
   font-size: 9.5px;
   line-height: 1.5;
-  letter-spacing: 0.04em;
-  color: oklch(0.5 0.04 122);
+  color: var(--nr-text-soft);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -553,13 +642,18 @@ body {
   color: oklch(0.78 0.06 120 / 0.8);
 }
 
-/* Chrome surfaces that occupy the stage are panel-depth glass. */
+/* Brine and the jar view float their glass cards directly on the Aurora;
+   the note editor and new-jar form stay full panels. */
 .nr-brine,
 .nr-jarview,
 .nr-note,
 .nr-newjar {
   position: absolute;
   inset: 0;
+}
+
+.nr-note,
+.nr-newjar {
   background: var(--nr-glass);
   backdrop-filter: blur(var(--nr-blur-nested));
   -webkit-backdrop-filter: blur(var(--nr-blur-nested));
@@ -567,44 +661,38 @@ body {
 
 /* --- shared control styling on glass --------------------------------------- */
 
-.nr-brine__deny-toggle,
 .nr-brine__deny-actions button,
-.nr-brine__batch button,
-.nr-jarview__actions button,
-.nr-jarview__actions select,
-.nr-jarview__delete,
-.nr-jarview__shelf select,
 .nr-jarview__make button,
 .nr-jarview__task-add button,
-.nr-jarview__suggest-bar button,
+.nr-jarview__actions button,
+.nr-jarview__actions select,
 .nr-jarview__suggest-list button,
-.nr-recipes__bar button,
+.nr-jarview__shelf select,
+.nr-jarview__delete,
 .nr-recipes__row button,
+.nr-recipes__bar button,
 .nr-recipes__editor button,
 .nr-runner button,
-.nr-sweeps__row button,
 .nr-note__bar button,
 .nr-newjar__actions button {
-  height: 26px;
-  padding: 0 11px;
-  border: 1px solid var(--nr-glass-border);
-  border-radius: 12px;
-  background: var(--nr-glass-control);
-  box-shadow: var(--nr-glass-highlight);
+  height: 28px;
+  padding: 0 13px;
+  border: 1px solid oklch(1 0 0 / 0.9);
+  border-radius: 14px;
+  background: oklch(1 0 0 / 0.7);
+  box-shadow: inset 0 1px 0 oklch(1 0 0);
   color: var(--nr-text);
   font: inherit;
   font-size: 12px;
+  font-weight: 600;
 }
 
-.nr-brine__deny-toggle:hover,
-.nr-brine__batch button:hover:not(:disabled),
+.nr-brine__deny-actions button:hover,
 .nr-jarview__delete:hover,
-.nr-runner button:hover:not(:disabled),
-.nr-sweeps__row button:hover {
-  border-color: var(--nr-focus);
+.nr-runner button:hover:not(:disabled) {
+  background: oklch(1 0 0 / 0.95);
 }
 
-.nr-brine__search,
 .nr-brine__deny-editor,
 .nr-brine__batch input,
 .nr-jarview__rename,
@@ -613,10 +701,10 @@ body {
 .nr-recipes__bar input,
 .nr-recipes__editor textarea,
 .nr-newjar__form input {
-  border: 1px solid oklch(1 0 0 / 0.65);
-  border-radius: 12px;
+  border: 1px solid oklch(1 0 0 / 0.9);
+  border-radius: 13px;
   background: oklch(1 0 0 / 0.75);
-  color: oklch(0.22 0.03 129);
+  color: var(--nr-text-strong);
   font: inherit;
 }
 
@@ -625,43 +713,112 @@ body {
 .nr-brine {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 26px 40px 0;
   overflow: hidden;
+}
+
+.nr-brine > * {
+  width: 100%;
+  max-width: 860px;
+  flex-shrink: 0;
 }
 
 .nr-brine__bar {
   display: flex;
-  gap: 8px;
-  padding: 10px 14px;
-  border-bottom: 1px solid oklch(1 0 0 / 0.4);
+  gap: 10px;
+  align-items: center;
+}
+
+/* The search pill: near-opaque white, ⌕ prefix. */
+.nr-brine__searchwrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 20px;
+  background: linear-gradient(oklch(1 0 0 / 0.95), oklch(1 0 0 / 0.72));
+  border: 1px solid oklch(1 0 0 / 0.9);
+  box-shadow:
+    0 2px 10px oklch(0.176 0.036 133.5 / 0.2),
+    inset 0 1px 0 oklch(1 0 0);
+}
+
+.nr-brine__glyph {
+  color: oklch(0.612 0.055 125.2);
+  font-size: 15px;
   flex-shrink: 0;
 }
 
 .nr-brine__search {
   flex: 1;
   min-width: 0;
-  height: 28px;
-  padding: 0 11px;
+  border: 0;
+  background: none;
+  color: var(--nr-text-strong);
+  font: inherit;
+  font-size: 13.5px;
+}
+
+.nr-brine__search:focus-visible {
+  outline: none; /* the pill is the focus context */
 }
 
 .nr-brine__search::placeholder {
-  color: var(--nr-text-faint);
+  color: oklch(0.612 0.055 125.2);
 }
 
-.nr-brine__deny {
-  padding: 10px 14px;
-  border-bottom: 1px solid oklch(1 0 0 / 0.4);
+/* Sweeps / Deny list toggles: glass pills; expanded = brighter + darker. */
+.nr-brine__deny-toggle {
+  height: 34px;
+  padding: 0 15px;
+  border: 1px solid oklch(1 0 0 / 0.65);
+  border-radius: 17px;
+  background: oklch(1 0 0 / 0.4);
+  color: var(--nr-text-muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
   flex-shrink: 0;
+}
+
+.nr-brine__deny-toggle:hover {
+  background: oklch(1 0 0 / 0.65);
+}
+
+.nr-brine__deny-toggle[aria-expanded="true"] {
+  background: oklch(1 0 0 / 0.72);
+  border-color: oklch(1 0 0 / 0.95);
+  box-shadow: inset 0 1px 0 oklch(1 0 0);
+  color: var(--nr-text-strong);
+  font-weight: 700;
+}
+
+/* The deny list editor: a card at the same depth as a sweep card. */
+.nr-brine__deny {
+  background: var(--nr-glass-card);
+  backdrop-filter: blur(var(--nr-blur-nested));
+  -webkit-backdrop-filter: blur(var(--nr-blur-nested));
+  border: 1px solid oklch(1 0 0 / 0.7);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.8);
+  padding: 12px 16px;
 }
 
 .nr-brine__deny-hint {
   margin: 0 0 8px;
   color: var(--nr-text-muted);
+  font-size: 12.5px;
 }
 
 .nr-brine__deny-editor {
   width: 100%;
   resize: vertical;
-  padding: 8px 11px;
+  padding: 8px 12px;
   font-family: var(--nr-font-mono);
   font-size: 12px;
   line-height: 1.5;
@@ -672,28 +829,19 @@ body {
   align-items: center;
   gap: 10px;
   margin-top: 8px;
-  color: var(--nr-text-faint);
-}
-
-.nr-brine__batch {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  border-bottom: 1px solid oklch(1 0 0 / 0.4);
-  color: var(--nr-text-muted);
-  flex-shrink: 0;
-}
-
-.nr-brine__batch button:disabled {
-  color: var(--nr-text-faint);
-  box-shadow: none;
+  color: var(--nr-text-soft);
 }
 
 .nr-brine__empty {
-  padding: 40px 24px;
+  padding: 24px;
   text-align: center;
   color: var(--nr-text-muted);
+  background: var(--nr-glass-card);
+  backdrop-filter: blur(var(--nr-blur-nested));
+  -webkit-backdrop-filter: blur(var(--nr-blur-nested));
+  border: 1px solid oklch(1 0 0 / 0.7);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.8);
 }
 
 .nr-brine__empty p {
@@ -701,40 +849,97 @@ body {
   max-width: 44ch;
 }
 
+/* ONE glass panel holds every row; day kickers live inside it. */
 .nr-brine__list {
-  flex: 1;
+  flex-shrink: 1;
+  min-height: 0;
   overflow-y: auto;
   margin: 0;
-  padding: 6px 0 14px;
+  padding: 0 0 4px;
   list-style: none;
+  background: var(--nr-glass);
+  backdrop-filter: blur(var(--nr-blur));
+  -webkit-backdrop-filter: blur(var(--nr-blur));
+  border: 1px solid oklch(1 0 0 / 0.65);
+  border-radius: 18px;
+  box-shadow:
+    var(--nr-shadow-panel),
+    inset 0 1px 0 oklch(1 0 0 / 0.85);
+}
+
+.nr-brine__list {
+  margin-bottom: 18px;
+}
+
+.nr-brine__day {
+  padding: 14px 18px 6px;
+}
+
+.nr-brine__day + .nr-brine__day,
+.nr-brine__item + .nr-brine__day {
+  border-top: 1px solid oklch(1 0 0 / 0.5);
 }
 
 .nr-brine__item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  gap: 13px;
+  padding: 0 18px;
 }
 
+.nr-brine__item + .nr-brine__item {
+  border-top: 1px solid oklch(1 0 0 / 0.5);
+}
+
+.nr-brine__item:hover {
+  background: oklch(1 0 0 / 0.5);
+}
+
+/* A picked row soaks in Relish. */
+.nr-brine__item:has(.nr-brine__pick:checked) {
+  background: oklch(0.909 0.183 124.4 / 0.28);
+}
+
+/* The pick square: white glass unchecked, Pour with a ✓ when checked. */
 .nr-brine__pick {
-  margin: 12px 0 0 14px;
-  accent-color: var(--nr-focus);
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1px solid oklch(0.509 0.077 126.8 / 0.4);
+  border-radius: 6px;
+  background: oklch(1 0 0 / 0.75);
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
+}
+
+.nr-brine__pick:checked {
+  border: 0;
+  background: linear-gradient(var(--nr-pour-a), var(--nr-pour-b));
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.7);
+}
+
+.nr-brine__pick:checked::after {
+  content: "✓";
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--nr-ink-on-pour);
 }
 
 .nr-brine__row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 2px 10px;
-  width: 100%;
-  padding: 8px 14px;
+  gap: 1px 13px;
+  flex: 1;
+  min-width: 0;
+  padding: 11px 0;
   border: 0;
   background: none;
   color: var(--nr-text);
   font: inherit;
   text-align: left;
-}
-
-.nr-brine__row:hover {
-  background: oklch(1 0 0 / 0.45);
 }
 
 .nr-brine__row:focus-visible {
@@ -743,70 +948,187 @@ body {
 }
 
 .nr-brine__title {
-  font-weight: 500;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--nr-text-strong);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: oklch(0.24 0.035 129);
 }
 
 .nr-brine__domain {
+  grid-row: 1 / 3;
+  grid-column: 2;
+  align-self: center;
   color: var(--nr-text-faint);
   font-family: var(--nr-font-mono);
-  font-size: 11px;
-  align-self: center;
+  font-size: 10.5px;
 }
 
 .nr-brine__snippet {
-  grid-column: 1 / -1;
-  color: var(--nr-text-muted);
-  font-size: 12px;
-  line-height: 1.45;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  color: var(--nr-text-soft);
+  font-size: 12.5px;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.nr-brine__row--sealed .nr-brine__title::after {
-  content: " ● sealed";
-  color: var(--nr-text-faint);
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.04em;
+.nr-brine__snippet mark {
+  background: none;
+  color: var(--nr-focus);
+  font-weight: 700;
 }
 
 .nr-brine__row[data-done] .nr-brine__title {
   text-decoration: line-through;
+  font-weight: 500;
   color: var(--nr-text-faint);
+}
+
+/* The batch bar floats bottom-center, near-opaque, big shadow. */
+.nr-brine__batch {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
+  max-width: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 10px 9px 18px;
+  border: 1px solid oklch(1 0 0 / 0.95);
+  border-radius: 18px;
+  background: linear-gradient(oklch(1 0 0 / 0.96), oklch(1 0 0 / 0.82));
+  box-shadow:
+    var(--nr-shadow-float),
+    inset 0 1px 0 oklch(1 0 0);
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.nr-brine__batch-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--nr-text-strong);
+}
+
+.nr-brine__batch-jar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(var(--nr-pour-a), var(--nr-pour-b));
+  box-shadow:
+    inset 0 1.5px 0 oklch(1 0 0 / 0.8),
+    var(--nr-pour-glow);
+  color: var(--nr-ink-on-pour);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.nr-brine__batch-jar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 5px;
+  right: 5px;
+  height: 45%;
+  border-radius: 10px 10px 22px 22px;
+  background: linear-gradient(oklch(1 0 0 / 0.7), oklch(1 0 0 / 0.02));
+  pointer-events: none;
+}
+
+.nr-brine__batch-jar > * {
+  position: relative;
+}
+
+.nr-brine__batch-jar:disabled {
+  background: oklch(1 0 0 / 0.5);
+  box-shadow: none;
+  color: var(--nr-text-ghost);
+}
+
+.nr-brine__batch-jar:disabled::before {
+  content: none;
+}
+
+.nr-kbd {
+  font-family: var(--nr-font-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: oklch(0.298 0.077 133.1 / 0.16);
+}
+
+.nr-brine__batch-clear {
+  border: 0;
+  padding: 0 8px 0 0;
+  background: none;
+  color: var(--nr-text-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 /* --- sweeps ---------------------------------------------------------------- */
 
 .nr-sweeps {
-  border-bottom: 1px solid oklch(1 0 0 / 0.4);
-  flex-shrink: 0;
-  max-height: 200px;
+  max-height: 220px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .nr-sweeps__none {
   margin: 0;
-  padding: 12px 14px;
+  padding: 12px 16px;
   color: var(--nr-text-muted);
+  background: var(--nr-glass-card);
+  border: 1px solid oklch(1 0 0 / 0.7);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.8);
 }
 
 .nr-sweeps__list {
   margin: 0;
-  padding: 4px 0;
+  padding: 0;
   list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
+/* One glass card per batch, a Pour seal-icon circle on the left. */
 .nr-sweeps__row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 7px 14px;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--nr-glass-card);
+  backdrop-filter: blur(var(--nr-blur-nested));
+  -webkit-backdrop-filter: blur(var(--nr-blur-nested));
+  border: 1px solid oklch(1 0 0 / 0.7);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.8);
+}
+
+.nr-sweeps__icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(var(--nr-pour-a), var(--nr-pour-b));
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.7);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
 }
 
 .nr-sweeps__what {
@@ -815,15 +1137,36 @@ body {
   gap: 1px;
   min-width: 0;
   flex: 1;
-  color: var(--nr-text);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--nr-text-strong);
 }
 
 .nr-sweeps__titles {
-  color: var(--nr-text-faint);
-  font-size: 11px;
+  color: var(--nr-text-soft);
+  font-size: 12px;
+  font-weight: 400;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.nr-sweeps__row button {
+  height: 28px;
+  padding: 0 14px;
+  border: 1px solid oklch(1 0 0 / 0.95);
+  border-radius: 14px;
+  background: oklch(1 0 0 / 0.8);
+  box-shadow: inset 0 1px 0 oklch(1 0 0);
+  color: var(--nr-focus);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.nr-sweeps__row button:hover {
+  background: oklch(1 0 0);
 }
 
 /* --- runner ---------------------------------------------------------------- */
@@ -860,7 +1203,7 @@ body {
 }
 
 .nr-runner button:disabled {
-  color: var(--nr-text-faint);
+  color: var(--nr-text-ghost);
   box-shadow: none;
 }
 
@@ -868,107 +1211,241 @@ body {
   border-color: oklch(0.75 0.18 130 / 0.7) !important;
 }
 
-/* --- recipes --------------------------------------------------------------- */
+/* --- jar view -------------------------------------------------------------- */
 
-.nr-recipes {
-  border-bottom: 1px solid oklch(1 0 0 / 0.4);
+.nr-jarview {
+  display: flex;
+  gap: 20px;
+  padding: 26px 32px 0;
+  overflow: hidden;
+}
+
+.nr-jarview__main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* The header floats directly on the Aurora — light ink, no panel. */
+.nr-jarview__bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   flex-shrink: 0;
 }
 
-.nr-recipes__bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
+.nr-jarview__orb {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  box-shadow:
+    inset 0 2px 0 oklch(1 0 0 / 0.8),
+    0 5px 14px oklch(0.176 0.036 133.5 / 0.4);
+  font-family: var(--nr-font-display);
+  font-weight: 800;
+  font-size: 22px;
+  flex-shrink: 0;
 }
 
-.nr-recipes__bar .nr-jarview__kind {
-  margin: 0;
+.nr-jarview__title-block {
   flex: 1;
+  min-width: 0;
 }
 
-.nr-recipes__bar input {
-  height: 26px;
-  padding: 0 9px;
+.nr-jarview__name {
+  display: block;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--nr-ink-light);
+  text-shadow: 0 1px 3px oklch(0 0 0 / 0.3);
+  font: inherit;
+  font-family: var(--nr-font-display);
+  font-weight: 800;
+  font-size: 27px;
+  letter-spacing: -0.02em;
+  text-align: left;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.nr-recipes__hint {
-  margin: 0;
-  padding: 0 14px 8px;
-  color: var(--nr-text-muted);
-  font-size: 12px;
+.nr-jarview__name:hover {
+  color: oklch(1 0 0);
 }
 
-.nr-recipes__list {
-  margin: 0;
-  padding: 0 14px 10px;
-  list-style: none;
+.nr-jarview__rename {
+  height: 36px;
+  padding: 0 10px;
+  font-family: var(--nr-font-display);
+  font-weight: 800;
+  font-size: 20px;
 }
 
-.nr-recipes__row {
+.nr-jarview__meta {
   display: flex;
+  gap: 10px;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 4px 0;
-}
-
-.nr-recipes__name {
-  flex: 1;
-  min-width: 120px;
-  font-weight: 500;
-}
-
-.nr-recipes__editor {
-  flex-basis: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 6px 0 8px;
-}
-
-.nr-recipes__editor textarea {
-  width: 100%;
-  resize: vertical;
-  padding: 8px 11px;
   font-family: var(--nr-font-mono);
-  font-size: 11.5px;
-  line-height: 1.5;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nr-ink-light-meta);
 }
 
-.nr-recipes__problem {
-  margin: 0;
-  color: var(--nr-jar-3);
-  font-size: 12px;
+/* Label chips live in the meta line — glass, light ink. */
+.nr-jarview__label-chip {
+  padding: 2px 8px;
+  border: 1px solid oklch(1 0 0 / 0.25);
+  border-radius: 7px;
+  background: oklch(0.972 0.021 118.2 / 0.2);
+  color: var(--nr-ink-light-chip);
+  font: inherit;
+  font-family: var(--nr-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: none;
 }
 
-/* --- the suggestion strip -------------------------------------------------- */
+.nr-jarview__label-chip span {
+  color: var(--nr-ink-light-meta);
+}
 
+.nr-jarview__label-chip[data-active] {
+  background: linear-gradient(var(--nr-pour-a), var(--nr-pour-b));
+  border-color: transparent;
+  color: var(--nr-ink-on-pour);
+}
+
+.nr-jarview__label-chip[data-active] span {
+  color: var(--nr-ink-on-pour);
+}
+
+/* Record recipe: a glass pill with the red dot. */
+.nr-jarview__record {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 15px;
+  border: 1px solid oklch(1 0 0 / 0.75);
+  border-radius: 15px;
+  background: oklch(0.972 0.021 118.2 / 0.7);
+  backdrop-filter: blur(var(--nr-blur-nested));
+  -webkit-backdrop-filter: blur(var(--nr-blur-nested));
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.9);
+  color: var(--nr-text-strong);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.nr-jarview__record:hover:not(:disabled) {
+  background: oklch(0.972 0.021 118.2 / 0.9);
+}
+
+.nr-jarview__record:disabled {
+  color: var(--nr-text-muted);
+}
+
+.nr-jarview__record-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nr-jar-3);
+  flex-shrink: 0;
+}
+
+/* The suggestion strip: a glass card, the engine's ✦ in a Pour circle. */
 .nr-jarview__suggest {
-  border-bottom: 1px solid oklch(1 0 0 / 0.4);
-  background: oklch(0.9 0.12 125 / 0.35);
+  background: var(--nr-glass-card);
+  backdrop-filter: blur(var(--nr-blur-nested));
+  -webkit-backdrop-filter: blur(var(--nr-blur-nested));
+  border: 1px solid oklch(1 0 0 / 0.7);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.8);
   flex-shrink: 0;
 }
 
 .nr-jarview__suggest-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  color: var(--nr-text);
+  gap: 14px;
+  padding: 12px 16px;
 }
 
-.nr-jarview__suggest-bar span {
+.nr-jarview__suggest-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(var(--nr-pour-a), var(--nr-pour-b));
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.7);
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  color: var(--nr-ink-on-pour);
+  flex-shrink: 0;
+}
+
+.nr-jarview__suggest-text {
   flex: 1;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--nr-text-strong);
 }
 
-.nr-jarview__suggest-bar button:first-of-type {
-  border-color: oklch(0.75 0.18 130 / 0.75);
+.nr-jarview__suggest-review {
+  height: 28px;
+  padding: 0 14px;
+  border: 1px solid oklch(1 0 0 / 0.95);
+  border-radius: 14px;
+  background: oklch(1 0 0 / 0.7);
+  color: var(--nr-text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.nr-jarview__suggest-review:hover {
+  background: oklch(1 0 0 / 0.95);
+}
+
+.nr-jarview__suggest-accept {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(var(--nr-pour-a), var(--nr-pour-b));
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.7),
+    0 2px 6px oklch(0.696 0.19 132.1 / 0.45);
+  color: var(--nr-ink-on-pour);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.nr-jarview__suggest-accept .nr-kbd {
+  font-size: 9.5px;
+  padding: 1px 5px;
+  border-radius: 5px;
 }
 
 .nr-jarview__suggest-list {
   margin: 0;
-  padding: 0 14px 10px;
+  padding: 0 16px 12px;
   list-style: none;
 }
 
@@ -987,112 +1464,18 @@ body {
   white-space: nowrap;
 }
 
-/* --- jar view -------------------------------------------------------------- */
-
-.nr-jarview {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.nr-jarview__bar {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 10px 14px;
-  border-bottom: 1px solid oklch(1 0 0 / 0.4);
-  flex-shrink: 0;
-}
-
-.nr-jarview__dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.nr-jarview__name {
-  border: 0;
-  padding: 2px 4px;
-  background: none;
-  color: oklch(0.22 0.03 129);
-  font: inherit;
-  font-family: var(--nr-font-display);
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: -0.02em;
-}
-
-.nr-jarview__name:hover {
-  color: var(--nr-text-muted);
-}
-
-.nr-jarview__rename {
-  height: 26px;
-  padding: 0 8px;
-  font-weight: 600;
-}
-
-.nr-jarview__count {
-  color: var(--nr-text-faint);
-  flex: 1;
-}
-
-.nr-jarview__shelf {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--nr-text-faint);
-  font-size: 12px;
-}
-
-.nr-jarview__shelf select {
-  font-size: 12px;
-}
-
-.nr-jarview__actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  border-bottom: 1px solid oklch(1 0 0 / 0.4);
-  color: var(--nr-text-muted);
-  flex-shrink: 0;
-}
-
-.nr-jarview__actions input {
-  height: 26px;
-  padding: 0 9px;
-  font-size: 12px;
-}
-
-.nr-jarview__groups {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.nr-jarview__kind {
-  margin: 14px 14px 2px;
-  font-family: var(--nr-font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--nr-text-faint);
-}
-
-.nr-jarview__groups .nr-brine__list {
-  flex: none;
-  overflow: visible;
-  padding-bottom: 4px;
-}
-
+/* New note / add task: a quiet control card. */
 .nr-jarview__make {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 14px;
-  border-bottom: 1px solid oklch(1 0 0 / 0.4);
+  padding: 10px 14px;
+  background: var(--nr-glass-card);
+  backdrop-filter: blur(var(--nr-blur-nested));
+  -webkit-backdrop-filter: blur(var(--nr-blur-nested));
+  border: 1px solid oklch(1 0 0 / 0.7);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.8);
   flex-shrink: 0;
 }
 
@@ -1104,8 +1487,8 @@ body {
 }
 
 .nr-jarview__task-add input {
-  height: 26px;
-  padding: 0 9px;
+  height: 28px;
+  padding: 0 11px;
   font-size: 12px;
 }
 
@@ -1114,37 +1497,337 @@ body {
   min-width: 0;
 }
 
-.nr-jarview__labels {
+/* The items panel: one sheet of glass, kind kickers inside. */
+.nr-jarview__groups {
+  flex-shrink: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-bottom: 18px;
+  background: var(--nr-glass);
+  backdrop-filter: blur(var(--nr-blur));
+  -webkit-backdrop-filter: blur(var(--nr-blur));
+  border: 1px solid oklch(1 0 0 / 0.65);
+  border-radius: 18px;
+  box-shadow:
+    var(--nr-shadow-panel),
+    inset 0 1px 0 oklch(1 0 0 / 0.85);
+}
+
+.nr-jarview__kind {
+  margin: 0;
+  padding: 14px 18px 6px;
+}
+
+.nr-jarview__groups section + section .nr-jarview__kind {
+  border-top: 1px solid oklch(1 0 0 / 0.5);
+}
+
+.nr-jarview__groups .nr-brine__list {
+  min-height: auto;
+  overflow: visible;
+  padding: 0;
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.nr-jarview__groups .nr-brine__title {
+  font-size: 14px;
+}
+
+/* Jar rows carry no snippet — one line, chips inline. */
+.nr-jarview__row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px 14px;
-  border-bottom: 1px solid oklch(1 0 0 / 0.4);
+  align-items: center;
+  gap: 13px;
+  padding: 10px 0;
+}
+
+.nr-jarview__row .nr-brine__title {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Kind chips: 18px, one per kind's voice. */
+.nr-jarview__chip {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
   flex-shrink: 0;
 }
 
-.nr-jarview__label-chip {
-  height: 22px;
-  padding: 0 10px;
-  border: 1px solid var(--nr-glass-border);
-  border-radius: 11px;
-  background: var(--nr-glass-control);
-  color: var(--nr-text-muted);
-  font: inherit;
-  font-family: var(--nr-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.nr-jarview__chip--page {
+  background: var(--nr-ink-dark-chip);
+  color: oklch(1 0 0);
 }
 
-.nr-jarview__label-chip span {
+.nr-jarview__chip--note {
+  background: oklch(0.803 0.159 85.1 / 0.3);
+  border: 1px solid oklch(0.803 0.159 85.1 / 0.6);
+  color: var(--nr-text-strong);
+}
+
+.nr-jarview__chip--task {
+  border-radius: 50%;
+  background: oklch(1 0 0 / 0.75);
+  border: 1.5px solid oklch(0.509 0.077 126.8 / 0.5);
+}
+
+.nr-jarview__chip--task[data-done] {
+  border: 0;
+  background: linear-gradient(var(--nr-pour-a), var(--nr-pour-b));
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.7);
+  color: var(--nr-ink-on-pour);
+  font-weight: 800;
+}
+
+.nr-jarview__chip--file {
+  background: oklch(0.438 0.078 127.4 / 0.15);
+  border: 1px solid oklch(0.438 0.078 127.4 / 0.3);
+  color: var(--nr-text);
+  font-size: 9px;
+}
+
+/* SEALED: a mono chip with the lock glyph. */
+.nr-jarview__sealed-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 7px;
+  background: oklch(1 0 0 / 0.6);
+  font-family: var(--nr-font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nr-text-soft);
+  flex-shrink: 0;
+}
+
+/* DUE FRI: mustard. */
+.nr-jarview__due {
+  padding: 2px 8px;
+  border-radius: 7px;
+  background: oklch(0.803 0.159 85.1 / 0.22);
+  font-family: var(--nr-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--nr-mustard-ink);
+  flex-shrink: 0;
+}
+
+/* The right rail. */
+.nr-jarview__rail {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 66px;
+  padding-bottom: 20px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.nr-jarview__railcard {
+  background: var(--nr-glass-card);
+  backdrop-filter: blur(var(--nr-blur-nested));
+  -webkit-backdrop-filter: blur(var(--nr-blur-nested));
+  border: 1px solid oklch(1 0 0 / 0.6);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.8);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.nr-jarview__shelf {
+  color: var(--nr-text);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.nr-jarview__shelf select {
+  margin: 0 2px;
+  font-size: 12px;
+}
+
+.nr-jarview__delete {
+  align-self: flex-start;
+}
+
+/* Selection actions float bottom-center, like the Brine batch bar. */
+.nr-jarview__actions {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border: 1px solid oklch(1 0 0 / 0.95);
+  border-radius: 18px;
+  background: linear-gradient(oklch(1 0 0 / 0.96), oklch(1 0 0 / 0.82));
+  box-shadow:
+    var(--nr-shadow-float),
+    inset 0 1px 0 oklch(1 0 0);
+  color: var(--nr-text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.nr-jarview__actions input {
+  height: 28px;
+  padding: 0 11px;
+  font-size: 12px;
+  width: 130px;
+}
+
+.nr-jarview .nr-brine__empty {
+  width: auto;
+}
+
+/* --- recipes (right-rail card) --------------------------------------------- */
+
+.nr-recipes {
+  background: var(--nr-glass);
+  backdrop-filter: blur(var(--nr-blur));
+  -webkit-backdrop-filter: blur(var(--nr-blur));
+  border: 1px solid oklch(1 0 0 / 0.65);
+  border-radius: 18px;
+  box-shadow:
+    var(--nr-shadow-panel),
+    inset 0 1px 0 oklch(1 0 0 / 0.85);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.nr-recipes__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nr-recipes__title {
+  flex: 1;
+  font-family: var(--nr-font-display);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--nr-text-strong);
+}
+
+.nr-recipes__runs {
+  font-family: var(--nr-font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
   color: var(--nr-text-faint);
 }
 
-.nr-jarview__label-chip[data-active] {
+.nr-recipes__bar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.nr-recipes__bar input {
+  height: 28px;
+  padding: 0 11px;
+}
+
+.nr-recipes__hint {
+  margin: 0;
+  color: var(--nr-text-soft);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.nr-recipes__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* One bright card per recipe. */
+.nr-recipes__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 14px;
+  background: oklch(1 0 0 / 0.6);
+  border: 1px solid oklch(1 0 0 / 0.9);
+  border-radius: 13px;
+  box-shadow: inset 0 1px 0 oklch(1 0 0);
+}
+
+.nr-recipes__name {
+  flex-basis: 100%;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--nr-text-strong);
+}
+
+.nr-recipes__row button:first-of-type {
+  height: 27px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 13px;
   background: linear-gradient(var(--nr-pour-a), var(--nr-pour-b));
-  border-color: transparent;
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.7),
+    0 2px 6px oklch(0.696 0.19 132.1 / 0.45);
   color: var(--nr-ink-on-pour);
+  font-weight: 700;
+}
+
+.nr-recipes__steps {
+  font-family: var(--nr-font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--nr-text-faint);
+  margin-right: auto;
+}
+
+.nr-recipes__editor {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 0 2px;
+}
+
+.nr-recipes__editor textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 8px 11px;
+  font-family: var(--nr-font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.nr-recipes__problem {
+  margin: 0;
+  color: var(--nr-jar-3);
+  font-size: 12px;
 }
 
 /* --- Ask the Pantry (⌘K) --------------------------------------------------- */
@@ -1160,46 +1843,78 @@ body {
   inset: 0;
   border: 0;
   padding: 0;
-  background: oklch(0.2 0.03 130 / 0.5);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: oklch(0.162 0.028 128.7 / 0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 .nr-palette__panel {
   position: relative;
-  margin: 48px auto 0;
-  width: min(560px, calc(100% - 48px));
-  max-height: calc(100% - 96px);
+  margin: min(130px, 12%) auto 0;
+  width: min(640px, calc(100% - 48px));
+  max-height: calc(100% - 160px);
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--nr-glass-border);
-  border-radius: 20px;
-  background: var(--nr-glass);
+  border: 1px solid oklch(1 0 0 / 0.7);
+  border-radius: 22px;
+  background: oklch(0.972 0.021 118.2 / 0.82);
   backdrop-filter: blur(var(--nr-blur));
   -webkit-backdrop-filter: blur(var(--nr-blur));
   box-shadow:
-    var(--nr-glass-highlight),
-    0 18px 44px oklch(0 0 0 / 0.35);
+    0 40px 90px oklch(0 0 0 / 0.6),
+    inset 0 1px 0 oklch(1 0 0 / 0.9);
   overflow: hidden;
 }
 
+.nr-palette__inputrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid oklch(0.438 0.078 127.4 / 0.14);
+  flex-shrink: 0;
+}
+
+.nr-palette__orb {
+  width: 26px;
+  height: 26px;
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.8);
+  flex-shrink: 0;
+}
+
 .nr-palette__input {
-  height: 46px;
-  padding: 0 16px;
+  flex: 1;
+  min-width: 0;
   border: 0;
-  border-bottom: 1px solid oklch(1 0 0 / 0.4);
-  background: oklch(1 0 0 / 0.55);
-  color: oklch(0.22 0.03 129);
+  background: none;
+  color: var(--nr-text-strong);
   font: inherit;
-  font-size: 15px;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .nr-palette__input:focus-visible {
   outline: none;
 }
 
+.nr-palette__input::placeholder {
+  color: var(--nr-text-ghost);
+  font-weight: 500;
+}
+
+.nr-palette__kbd {
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: oklch(1 0 0 / 0.6);
+  font-family: var(--nr-font-mono);
+  font-size: 10px;
+  color: var(--nr-text-faint);
+  flex-shrink: 0;
+}
+
 .nr-palette__hint {
-  padding: 18px 16px 22px;
+  padding: 18px 20px 22px;
   color: var(--nr-text-muted);
 }
 
@@ -1219,83 +1934,141 @@ body {
 
 .nr-palette__list {
   margin: 0;
-  padding: 6px 0;
+  padding: 0 0 6px;
   list-style: none;
   overflow-y: auto;
 }
 
 .nr-palette__none {
-  padding: 10px 16px;
+  padding: 12px 20px;
   color: var(--nr-text-faint);
 }
 
+/* Tier kickers: the active jar's name, OTHER JARS, BRINE. */
+.nr-palette__kicker {
+  padding: 12px 20px 4px;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+}
+
 .nr-palette__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1px 10px;
-  width: 100%;
-  padding: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: calc(100% - 20px);
+  margin: 0 10px 4px;
+  padding: 10px;
   border: 0;
+  border-radius: 13px;
   background: none;
   color: var(--nr-text);
   font: inherit;
   text-align: left;
 }
 
-.nr-palette__row[data-selected] {
-  background: linear-gradient(
-    oklch(0.909 0.183 124.4 / 0.85),
-    oklch(0.827 0.217 129.9 / 0.85)
-  );
-  color: var(--nr-ink-on-pour);
+.nr-palette__row:hover {
+  background: oklch(1 0 0 / 0.55);
 }
 
-.nr-palette__row[data-selected] .nr-palette__where,
-.nr-palette__row[data-selected] .nr-palette__snippet {
-  color: oklch(0.32 0.07 130);
+.nr-palette__row[data-selected] {
+  background: linear-gradient(
+    oklch(0.909 0.183 124.4 / 0.55),
+    oklch(0.827 0.217 129.9 / 0.45)
+  );
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.6);
+}
+
+.nr-palette__toprow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
 }
 
 .nr-palette__title {
-  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--nr-text-strong);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.nr-palette__row[data-selected] .nr-palette__title {
+  font-weight: 700;
+  color: var(--nr-ink-on-pour);
+}
+
 .nr-palette__where {
   color: var(--nr-text-faint);
-  font-size: 11px;
+  font-size: 10px;
   font-family: var(--nr-font-mono);
-  align-self: center;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.nr-palette__row[data-selected] .nr-palette__where {
+  color: oklch(0.458 0.116 132);
+}
+
+.nr-palette__similar {
+  color: var(--nr-mustard-ink);
 }
 
 .nr-palette__snippet {
-  grid-column: 1 / -1;
-  color: var(--nr-text-muted);
-  font-size: 12px;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  color: var(--nr-text-soft);
+  font-size: 12.5px;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+.nr-palette__row[data-selected] .nr-palette__snippet {
+  color: var(--nr-text);
+}
+
+/* Marks: Rind-green bold at rest; a white pill on the selected row. */
 .nr-palette__snippet mark {
-  background: oklch(0.85 0.2 129 / 0.5);
-  color: inherit;
+  background: none;
+  color: var(--nr-focus);
+  font-weight: 700;
   border-radius: 3px;
 }
 
+.nr-palette__row[data-selected] .nr-palette__snippet mark {
+  background: oklch(1 0 0 / 0.55);
+  color: inherit;
+  padding: 0 2px;
+}
+
+/* The web fallback: last, above a hairline. */
+.nr-palette__row--web {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  border-top: 1px solid oklch(0.438 0.078 127.4 / 0.14);
+  border-radius: 0 0 13px 13px;
+}
+
 .nr-palette__row--web .nr-palette__title {
-  color: var(--nr-text-muted);
+  font-size: 14px;
+  color: var(--nr-text);
+}
+
+.nr-palette__row--web[data-selected] .nr-palette__title {
+  color: var(--nr-ink-on-pour);
 }
 
 .nr-palette__keys {
-  padding: 8px 16px;
-  border-top: 1px solid oklch(1 0 0 / 0.4);
+  padding: 12px 20px 14px;
+  border-top: 1px solid oklch(0.438 0.078 127.4 / 0.14);
   color: var(--nr-text-faint);
-  font-size: 11px;
+  font-family: var(--nr-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
 }
 
 /* --- shortcut sheet -------------------------------------------------------- */
@@ -1305,11 +2078,11 @@ body {
 }
 
 .nr-sheet__title {
-  margin: 0 16px 12px;
+  margin: 0 20px 12px;
   font-family: var(--nr-font-display);
   font-size: 18px;
-  font-weight: 700;
-  color: oklch(0.22 0.03 129);
+  font-weight: 800;
+  color: var(--nr-text-strong);
 }
 
 .nr-sheet__table {
@@ -1319,8 +2092,8 @@ body {
 }
 
 .nr-sheet__table td {
-  padding: 6px 16px;
-  border-top: 1px solid oklch(1 0 0 / 0.4);
+  padding: 6px 20px;
+  border-top: 1px solid oklch(0.438 0.078 127.4 / 0.14);
 }
 
 .nr-sheet__keys {
@@ -1366,7 +2139,7 @@ body {
   border: 0;
   resize: none;
   background: oklch(1 0 0 / 0.4);
-  color: oklch(0.22 0.03 129);
+  color: var(--nr-text-strong);
   font-family: var(--nr-font-mono);
   font-size: 13.5px;
   line-height: 1.65;
@@ -1390,7 +2163,7 @@ body {
   gap: 10px;
   width: min(360px, 80%);
   padding: 26px;
-  border-radius: 20px;
+  border-radius: 18px;
   background: oklch(1 0 0 / 0.55);
   border: 1px solid var(--nr-glass-border);
   box-shadow: var(--nr-glass-highlight);
@@ -1399,13 +2172,13 @@ body {
 .nr-newjar__form label {
   font-family: var(--nr-font-display);
   font-size: 18px;
-  font-weight: 700;
-  color: oklch(0.22 0.03 129);
+  font-weight: 800;
+  color: var(--nr-text-strong);
 }
 
 .nr-newjar__form input {
-  height: 32px;
-  padding: 0 11px;
+  height: 34px;
+  padding: 0 12px;
 }
 
 .nr-newjar__actions {

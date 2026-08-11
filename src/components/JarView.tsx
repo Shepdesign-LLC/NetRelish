@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
 import { domainOf } from "../lib/format";
+import { superellipseClip } from "../lib/superellipse";
 import { openPath } from "@tauri-apps/plugin-opener";
 import {
   assignLabel,
@@ -52,6 +53,36 @@ const KIND_ORDER: JarItemRow["kind"][] = [
   "message",
 ];
 
+const startOfDay = (d: Date) =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+/** DUE FRI within the week, DUE AUG 21 beyond it. */
+function dueLabel(due: number): string {
+  const d = new Date(due);
+  const days = Math.round((startOfDay(d) - startOfDay(new Date())) / 86_400_000);
+  const style: Intl.DateTimeFormatOptions =
+    days >= 0 && days < 7
+      ? { weekday: "short" }
+      : { month: "short", day: "numeric" };
+  return `DUE ${d.toLocaleDateString("en-US", style).toUpperCase()}`;
+}
+
+function agoLabel(ts: number): string {
+  const mins = Math.max(1, Math.round((Date.now() - ts) / 60_000));
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
+/** file:///Users/you/Clients/X -> ~/Clients/X */
+function fileLabel(url: string | null): string {
+  if (!url) return "";
+  return decodeURI(url)
+    .replace(/^file:\/\//, "")
+    .replace(/^\/Users\/[^/]+/, "~");
+}
+
 interface Props {
   jar: Jar;
   jars: Jar[];
@@ -68,8 +99,10 @@ interface Props {
 }
 
 /**
- * One jar's contents, grouped by kind, newest first. Rendered in the stage
- * while the native pane is hidden.
+ * One jar's contents. The header floats directly on the Aurora in light
+ * ink; the items live in one glass panel, grouped by kind with sealed
+ * pages inline wearing a SEALED chip; recipes and the sealing contract
+ * sit in the right rail.
  */
 export default function JarView({
   jar,
@@ -187,6 +220,33 @@ export default function JarView({
     [jar.id, refresh, onChanged],
   );
 
+  // The one key that accepts them all — A, when no field has focus.
+  useEffect(() => {
+    if (suggestions.length === 0) return;
+    const onKey = (event: KeyboardEvent) => {
+      const t = event.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.tagName === "SELECT" ||
+          t.isContentEditable)
+      )
+        return;
+      if (
+        event.key === "a" &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
+      ) {
+        event.preventDefault();
+        void acceptSuggestions(suggestions.map((s) => s.item_id));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [suggestions, acceptSuggestions]);
+
   const rejectSuggestion = useCallback(
     async (id: string) => {
       await invoke("suggestion_feedback", {
@@ -238,10 +298,8 @@ export default function JarView({
   const visible = (rows ?? []).filter(
     (r) => labelledIds === null || labelledIds.includes(r.id),
   );
-  const live = visible.filter((r) => r.sealed_at === null);
-  const sealed = visible.filter((r) => r.sealed_at !== null);
   const grouped = KIND_ORDER.map(
-    (kind) => [kind, live.filter((r) => r.kind === kind)] as const,
+    (kind) => [kind, visible.filter((r) => r.kind === kind)] as const,
   ).filter(([, list]) => list.length > 0);
 
   const taskState = (row: JarItemRow): { done: boolean; due: number | null } => {
@@ -253,66 +311,340 @@ export default function JarView({
     }
   };
 
+  const shelfLabel =
+    SHELF_LIVES.find((s) => s.hours === (jar.shelf_life_hours ?? 72))?.label ??
+    `${jar.shelf_life_hours}h`;
+  const usedLabels = labels.filter((l) => l.uses > 0);
+
+  const kindChip = (row: JarItemRow, task: { done: boolean } | null) => {
+    if (row.kind === "note")
+      return (
+        <span className="nr-jarview__chip nr-jarview__chip--note" aria-hidden="true">
+          ≡
+        </span>
+      );
+    if (row.kind === "task")
+      return (
+        <span
+          className="nr-jarview__chip nr-jarview__chip--task"
+          data-done={task?.done || undefined}
+          aria-hidden="true"
+        >
+          {task?.done ? "✓" : ""}
+        </span>
+      );
+    if (row.kind === "file")
+      return (
+        <span className="nr-jarview__chip nr-jarview__chip--file" aria-hidden="true">
+          ▤
+        </span>
+      );
+    return (
+      <span className="nr-jarview__chip nr-jarview__chip--page" aria-hidden="true">
+        {(domainOf(row.url)[0] ?? "•").toUpperCase()}
+      </span>
+    );
+  };
+
+  const rowMeta = (row: JarItemRow, task: { due: number | null } | null) => {
+    if (row.kind === "task")
+      return task?.due ? (
+        <span className="nr-jarview__due">{dueLabel(task.due)}</span>
+      ) : null;
+    if (row.kind === "note")
+      return (
+        <span className="nr-brine__domain">edited {agoLabel(row.touched_at)}</span>
+      );
+    if (row.kind === "file")
+      return <span className="nr-brine__domain">{fileLabel(row.url)}</span>;
+    return <span className="nr-brine__domain">{domainOf(row.url)}</span>;
+  };
+
   return (
     <section className="nr-jarview" aria-label={`Jar: ${jar.name}`}>
-      <header className="nr-jarview__bar">
-        <span
-          className="nr-jarview__dot"
-          style={{ background: `var(--nr-jar-${jar.hue})` }}
-          aria-hidden="true"
-        />
-        {renaming ? (
-          <input
-            className="nr-jarview__rename"
-            value={draftName}
-            aria-label="Jar name"
-            autoFocus
-            onChange={(e) => setDraftName(e.target.value)}
-            onBlur={() => void commitRename()}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void commitRename();
-              if (e.key === "Escape") {
-                setDraftName(jar.name);
-                setRenaming(false);
-              }
+      <div className="nr-jarview__main">
+        <header className="nr-jarview__bar">
+          <span
+            className="nr-jarview__orb"
+            style={{
+              clipPath: superellipseClip(52, 4),
+              background: `radial-gradient(circle at 35% 30%,
+                color-mix(in oklab, var(--nr-jar-${jar.hue}) 55%, white),
+                color-mix(in oklab, var(--nr-jar-${jar.hue}) 82%, black))`,
+              color: `color-mix(in oklab, var(--nr-jar-${jar.hue}) 42%, black)`,
             }}
-          />
-        ) : (
+            aria-hidden="true"
+          >
+            {jar.name[0]?.toUpperCase()}
+          </span>
+          <div className="nr-jarview__title-block">
+            {renaming ? (
+              <input
+                className="nr-jarview__rename"
+                value={draftName}
+                aria-label="Jar name"
+                autoFocus
+                onChange={(e) => setDraftName(e.target.value)}
+                onBlur={() => void commitRename()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void commitRename();
+                  if (e.key === "Escape") {
+                    setDraftName(jar.name);
+                    setRenaming(false);
+                  }
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                className="nr-jarview__name"
+                title="Rename jar"
+                onClick={() => {
+                  setDraftName(jar.name);
+                  setRenaming(true);
+                }}
+              >
+                {jar.name}
+              </button>
+            )}
+            <div className="nr-jarview__meta">
+              <span>
+                {rows === null
+                  ? ""
+                  : `${rows.length} item${rows.length === 1 ? "" : "s"} · shelf life ${shelfLabel}`}
+              </span>
+              {usedLabels.map((l) => (
+                <button
+                  key={l.id}
+                  type="button"
+                  className="nr-jarview__label-chip"
+                  aria-pressed={labelFilter === l.name}
+                  data-active={labelFilter === l.name || undefined}
+                  onClick={() =>
+                    setLabelFilter((f) => (f === l.name ? null : l.name))
+                  }
+                >
+                  {l.name} <span>{l.uses}</span>
+                </button>
+              ))}
+            </div>
+          </div>
           <button
             type="button"
-            className="nr-jarview__name"
-            title="Rename jar"
-            onClick={() => {
-              setDraftName(jar.name);
-              setRenaming(true);
-            }}
+            className="nr-jarview__record"
+            disabled={recording}
+            onClick={onStartRecording}
           >
-            {jar.name}
+            <span className="nr-jarview__record-dot" aria-hidden="true" />
+            {recording ? "Recording" : "Record recipe"}
           </button>
+        </header>
+
+        {suggestions.length > 0 && (
+          <div className="nr-jarview__suggest">
+            <div className="nr-jarview__suggest-bar">
+              <span className="nr-jarview__suggest-icon" aria-hidden="true">
+                ✦
+              </span>
+              <span className="nr-jarview__suggest-text">
+                {suggestions.length} thing{suggestions.length === 1 ? "" : "s"} in
+                Brine look{suggestions.length === 1 ? "s" : ""} like{" "}
+                {suggestions.length === 1 ? "it belongs" : "they belong"} here
+              </span>
+              <button
+                type="button"
+                className="nr-jarview__suggest-review"
+                aria-expanded={reviewing}
+                onClick={() => setReviewing((r) => !r)}
+              >
+                Review
+              </button>
+              <button
+                type="button"
+                className="nr-jarview__suggest-accept"
+                onClick={() =>
+                  void acceptSuggestions(suggestions.map((s) => s.item_id))
+                }
+              >
+                Add all
+                <span className="nr-kbd" aria-hidden="true">A</span>
+              </button>
+            </div>
+            {reviewing && (
+              <ul className="nr-jarview__suggest-list">
+                {suggestions.map((s) => (
+                  <li key={s.item_id}>
+                    <span className="nr-jarview__suggest-title">{s.title}</span>
+                    <span className="nr-brine__domain">{domainOf(s.url)}</span>
+                    <button
+                      type="button"
+                      onClick={() => void acceptSuggestions([s.item_id])}
+                    >
+                      Add
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void rejectSuggestion(s.item_id)}
+                    >
+                      Not this jar
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
-        <span className="nr-jarview__count">
-          {rows === null
-            ? ""
-            : `${rows.length} item${rows.length === 1 ? "" : "s"}`}
-        </span>
-        <label className="nr-jarview__shelf">
-          Shelf life
-          <select
-            aria-label="Shelf life — how long this jar's tabs stay open"
-            value={jar.shelf_life_hours ?? 72}
-            onChange={(e) => {
-              void setJarShelfLife(jar.id, Number(e.target.value)).then(
-                onChanged,
-              );
+
+        <div className="nr-jarview__make">
+          <button type="button" onClick={() => void newNote()}>
+            New note
+          </button>
+          <form
+            className="nr-jarview__task-add"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void addTask();
             }}
           >
-            {SHELF_LIVES.map((s) => (
-              <option key={s.hours} value={s.hours}>
-                {s.label}
-              </option>
+            <input
+              placeholder="Add a task"
+              aria-label="New task"
+              value={taskDraft}
+              onChange={(e) => setTaskDraft(e.target.value)}
+            />
+            <input
+              type="date"
+              aria-label="Due date"
+              value={taskDue}
+              onChange={(e) => setTaskDue(e.target.value)}
+            />
+            <button type="submit" disabled={!taskDraft.trim()}>
+              Add
+            </button>
+          </form>
+        </div>
+
+        {rows !== null && rows.length === 0 && (
+          <div className="nr-brine__empty">
+            <p>
+              An empty jar. Browse with it open, or jar pages from Brine with
+              ⌘J — everything you put here stays searchable together.
+            </p>
+          </div>
+        )}
+
+        {grouped.length > 0 && (
+          <div className="nr-jarview__groups">
+            {grouped.map(([kind, list]) => (
+              <section key={kind} aria-label={KIND_LABELS[kind]}>
+                <h2 className="nr-kicker nr-jarview__kind">
+                  {KIND_LABELS[kind]} · {list.length}
+                </h2>
+                <ul className="nr-brine__list">
+                  {list.map((row) => {
+                    const task = row.kind === "task" ? taskState(row) : null;
+                    return (
+                      <li key={row.id} className="nr-brine__item">
+                        <input
+                          type="checkbox"
+                          className="nr-brine__pick"
+                          aria-label={`Select ${row.title}`}
+                          checked={selection.includes(row.id)}
+                          onChange={() => toggle(row.id)}
+                        />
+                        <button
+                          type="button"
+                          className="nr-brine__row nr-jarview__row"
+                          data-done={task?.done || undefined}
+                          title={
+                            row.kind === "task"
+                              ? "Toggle done"
+                              : row.kind === "note"
+                                ? "Edit note"
+                                : row.kind === "file"
+                                  ? "Open file"
+                                  : row.sealed_at !== null
+                                    ? "Reopen — restores the page where you left it"
+                                    : undefined
+                          }
+                          onClick={() => openRow(row)}
+                        >
+                          {kindChip(row, task)}
+                          <span className="nr-brine__title">{row.title}</span>
+                          {row.sealed_at !== null && (
+                            <span
+                              className="nr-jarview__sealed-chip"
+                              title="Sealed — reopens exactly where you left it"
+                            >
+                              <svg
+                                width="8"
+                                height="10"
+                                viewBox="0 0 10 12"
+                                aria-hidden="true"
+                              >
+                                <path
+                                  d="M2 5 V3.5 a3 3 0 0 1 6 0 V5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="1.4"
+                                />
+                                <rect
+                                  x="1"
+                                  y="5"
+                                  width="8"
+                                  height="6"
+                                  rx="1.5"
+                                  fill="currentColor"
+                                />
+                              </svg>
+                              sealed
+                            </span>
+                          )}
+                          {rowMeta(row, task)}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
             ))}
-          </select>
-        </label>
+          </div>
+        )}
+      </div>
+
+      <aside className="nr-jarview__rail" aria-label="Jar tools">
+        <RecipesPanel
+          jarId={jar.id}
+          refreshToken={refreshToken}
+          recording={recording}
+          onSaveRecording={onSaveRecording}
+          onDiscardRecording={onDiscardRecording}
+          onRun={onRunRecipe}
+        />
+
+        <div className="nr-jarview__railcard">
+          <span className="nr-kicker">Shelf life</span>
+          <label className="nr-jarview__shelf">
+            Untouched tabs seal into this jar after{" "}
+            <select
+              aria-label="Shelf life — how long this jar's tabs stay open"
+              value={jar.shelf_life_hours ?? 72}
+              onChange={(e) => {
+                void setJarShelfLife(jar.id, Number(e.target.value)).then(
+                  onChanged,
+                );
+              }}
+            >
+              {SHELF_LIVES.map((s) => (
+                <option key={s.hours} value={s.hours}>
+                  {s.label}
+                </option>
+              ))}
+            </select>{" "}
+            and close. Pinned tabs never seal. Nothing is ever lost by tidying.
+          </label>
+        </div>
+
         <button
           type="button"
           className="nr-jarview__delete"
@@ -320,122 +652,11 @@ export default function JarView({
         >
           Delete jar
         </button>
-      </header>
-
-      <div className="nr-jarview__make">
-        <button type="button" onClick={() => void newNote()}>
-          New note
-        </button>
-        <form
-          className="nr-jarview__task-add"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void addTask();
-          }}
-        >
-          <input
-            placeholder="Add a task"
-            aria-label="New task"
-            value={taskDraft}
-            onChange={(e) => setTaskDraft(e.target.value)}
-          />
-          <input
-            type="date"
-            aria-label="Due date"
-            value={taskDue}
-            onChange={(e) => setTaskDue(e.target.value)}
-          />
-          <button type="submit" disabled={!taskDraft.trim()}>
-            Add
-          </button>
-        </form>
-      </div>
-
-      {labels.filter((l) => l.uses > 0).length > 0 && (
-        <div className="nr-jarview__labels" role="group" aria-label="Filter by label">
-          {labels
-            .filter((l) => l.uses > 0)
-            .map((l) => (
-              <button
-                key={l.id}
-                type="button"
-                className="nr-jarview__label-chip"
-                aria-pressed={labelFilter === l.name}
-                data-active={labelFilter === l.name || undefined}
-                onClick={() =>
-                  setLabelFilter((f) => (f === l.name ? null : l.name))
-                }
-              >
-                {l.name} <span>{l.uses}</span>
-              </button>
-            ))}
-        </div>
-      )}
-
-      <RecipesPanel
-        jarId={jar.id}
-        refreshToken={refreshToken}
-        recording={recording}
-        onStartRecording={onStartRecording}
-        onSaveRecording={onSaveRecording}
-        onDiscardRecording={onDiscardRecording}
-        onRun={onRunRecipe}
-      />
-
-      {suggestions.length > 0 && (
-        <div className="nr-jarview__suggest">
-          <div className="nr-jarview__suggest-bar">
-            <span>
-              {suggestions.length} thing{suggestions.length === 1 ? "" : "s"} in
-              Brine look{suggestions.length === 1 ? "s" : ""} like{" "}
-              {suggestions.length === 1 ? "it belongs" : "they belong"} here
-            </span>
-            <button
-              type="button"
-              onClick={() =>
-                void acceptSuggestions(suggestions.map((s) => s.item_id))
-              }
-            >
-              Add all
-            </button>
-            <button
-              type="button"
-              aria-expanded={reviewing}
-              onClick={() => setReviewing((r) => !r)}
-            >
-              Review
-            </button>
-          </div>
-          {reviewing && (
-            <ul className="nr-jarview__suggest-list">
-              {suggestions.map((s) => (
-                <li key={s.item_id}>
-                  <span className="nr-jarview__suggest-title">{s.title}</span>
-                  <span className="nr-brine__domain">{domainOf(s.url)}</span>
-                  <button
-                    type="button"
-                    onClick={() => void acceptSuggestions([s.item_id])}
-                  >
-                    Add
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void rejectSuggestion(s.item_id)}
-                  >
-                    Not this jar
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+      </aside>
 
       {selection.length > 0 && (
         <div className="nr-jarview__actions">
-          <span>
-            {selection.length} selected — move to
-          </span>
+          <span>{selection.length} selected — move to</span>
           <select
             aria-label="Move destination"
             value={moveTarget}
@@ -468,96 +689,6 @@ export default function JarView({
           </button>
         </div>
       )}
-
-      {rows !== null && rows.length === 0 && (
-        <div className="nr-brine__empty">
-          <p>
-            An empty jar. Browse with it open, or jar pages from Brine with
-            ⌘J — everything you put here stays searchable together.
-          </p>
-        </div>
-      )}
-
-      <div className="nr-jarview__groups">
-        {grouped.map(([kind, list]) => (
-          <section key={kind} aria-label={KIND_LABELS[kind]}>
-            <h2 className="nr-jarview__kind">{KIND_LABELS[kind]}</h2>
-            <ul className="nr-brine__list">
-              {list.map((row) => {
-                const task = row.kind === "task" ? taskState(row) : null;
-                return (
-                  <li key={row.id} className="nr-brine__item">
-                    <input
-                      type="checkbox"
-                      className="nr-brine__pick"
-                      aria-label={`Select ${row.title}`}
-                      checked={selection.includes(row.id)}
-                      onChange={() => toggle(row.id)}
-                    />
-                    <button
-                      type="button"
-                      className="nr-brine__row"
-                      data-done={task?.done || undefined}
-                      title={
-                        row.kind === "task"
-                          ? "Toggle done"
-                          : row.kind === "note"
-                            ? "Edit note"
-                            : row.kind === "file"
-                              ? "Open file"
-                              : undefined
-                      }
-                      onClick={() => openRow(row)}
-                    >
-                      <span className="nr-brine__title">
-                        {task ? (task.done ? "☑ " : "☐ ") : ""}
-                        {row.title}
-                      </span>
-                      <span className="nr-brine__domain">
-                        {task?.due
-                          ? `due ${new Date(task.due).toLocaleDateString("en-CA")}`
-                          : domainOf(row.url)}
-                      </span>
-                      <span className="nr-brine__snippet">{row.snippet}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))}
-
-        {sealed.length > 0 && (
-          <section aria-label="Sealed">
-            <h2 className="nr-jarview__kind">
-              Sealed — preserved exactly as left
-            </h2>
-            <ul className="nr-brine__list">
-              {sealed.map((row) => (
-                <li key={row.id} className="nr-brine__item">
-                  <input
-                    type="checkbox"
-                    className="nr-brine__pick"
-                    aria-label={`Select ${row.title}`}
-                    checked={selection.includes(row.id)}
-                    onChange={() => toggle(row.id)}
-                  />
-                  <button
-                    type="button"
-                    className="nr-brine__row nr-brine__row--sealed"
-                    title="Reopen — restores the page where you left it"
-                    onClick={() => row.url && onOpen(row.url)}
-                  >
-                    <span className="nr-brine__title">{row.title}</span>
-                    <span className="nr-brine__domain">{domainOf(row.url)}</span>
-                    <span className="nr-brine__snippet">{row.snippet}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-      </div>
     </section>
   );
 }

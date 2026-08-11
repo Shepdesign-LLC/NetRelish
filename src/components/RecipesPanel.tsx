@@ -11,19 +11,27 @@ interface Props {
   jarId: string;
   refreshToken: number;
   recording: boolean;
-  onStartRecording(): void;
   onSaveRecording(name: string): Promise<void>;
   onDiscardRecording(): void;
   onRun(recipe: Recipe): void;
 }
 
-/** A jar's recipes: run them, read their JSON, edit it by hand (§11 says
- *  the JSON must stay readable and hand-editable — so it's right here). */
+function stepCount(recipe: Recipe): number {
+  try {
+    const parsed = JSON.parse(recipe.steps) as unknown;
+    return Array.isArray(parsed) ? parsed.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** The right-rail Recipes card: run them, read their JSON, edit it by hand
+ *  (§11 says the JSON must stay readable and hand-editable — so it's right
+ *  here). Recording starts from the jar header's pill. */
 export default function RecipesPanel({
   jarId,
   refreshToken,
   recording,
-  onStartRecording,
   onSaveRecording,
   onDiscardRecording,
   onRun,
@@ -59,10 +67,18 @@ export default function RecipesPanel({
 
   return (
     <div className="nr-recipes">
-      <div className="nr-recipes__bar">
-        <span className="nr-jarview__kind">Recipes</span>
-        {recording ? (
-          <>
+      <div className="nr-recipes__head">
+        <span className="nr-recipes__title">Recipes</span>
+        <span className="nr-recipes__runs">⌘R runs</span>
+      </div>
+
+      {recording && (
+        <>
+          <p className="nr-recipes__hint">
+            Recording. Work normally — new tabs, addresses you enter, and ⌘J
+            become steps. Save from here when the shape is right.
+          </p>
+          <div className="nr-recipes__bar">
             <input
               placeholder="Name this recipe"
               aria-label="Recipe name"
@@ -84,18 +100,8 @@ export default function RecipesPanel({
             <button type="button" onClick={onDiscardRecording}>
               Discard
             </button>
-          </>
-        ) : (
-          <button type="button" onClick={onStartRecording}>
-            Record a recipe
-          </button>
-        )}
-      </div>
-      {recording && (
-        <p className="nr-recipes__hint">
-          Recording. Work normally — new tabs, addresses you enter, and ⌘J
-          become steps. Save from here when the shape is right.
-        </p>
+          </div>
+        </>
       )}
 
       {recipes.length > 0 && (
@@ -106,6 +112,9 @@ export default function RecipesPanel({
               <button type="button" onClick={() => onRun(r)}>
                 Run
               </button>
+              <span className="nr-recipes__steps">
+                {stepCount(r)} step{stepCount(r) === 1 ? "" : "s"}
+              </span>
               <button
                 type="button"
                 aria-expanded={editing === r.id}
@@ -148,6 +157,11 @@ export default function RecipesPanel({
           ))}
         </ul>
       )}
+
+      <p className="nr-recipes__hint">
+        Recipes are recorded, not authored — work normally, then Save as
+        Recipe.
+      </p>
     </div>
   );
 }

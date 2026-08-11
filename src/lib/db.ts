@@ -73,7 +73,7 @@ export async function brineSearch(
 
   return db().select<BrineRow[]>(
     `SELECT items.id, items.url, items.title, items.touched_at,
-            snippet(items_fts, 1, '', '', ' … ', 16) AS snippet
+            snippet(items_fts, 1, '${MARK_START}', '${MARK_END}', ' … ', 16) AS snippet
      FROM items_fts
      JOIN items ON items.rowid = items_fts.rowid
      WHERE items_fts MATCH $1

@@ -44,7 +44,7 @@ export default function Sidebar({
   onNewJar,
 }: Props) {
   const activeJar = jars.find((j) => j.id === activeJarId) ?? null;
-  const orbClip = superellipseClip(30, 4);
+  const orbClip = superellipseClip(34, 4);
 
   return (
     <nav className="nr-side" aria-label="Sidebar">
@@ -52,6 +52,7 @@ export default function Sidebar({
         <span
           className="nr-side__jarorb"
           style={{
+            clipPath: superellipseClip(26, 4),
             background: activeJar
               ? `radial-gradient(circle at 35% 30%,
                   color-mix(in oklab, var(--nr-jar-${activeJar.hue}) 55%, white),
@@ -71,7 +72,7 @@ export default function Sidebar({
         ＋ New tab
       </button>
 
-      <span className="nr-side__kicker">Today</span>
+      <span className="nr-kicker nr-side__kicker">Today</span>
       <ul className="nr-side__tabs" role="tablist" aria-label="Tabs">
         {tabs.map((tab) => {
           const active = tab.id === activeTabId;
@@ -122,7 +123,7 @@ export default function Sidebar({
         })}
       </ul>
 
-      <span className="nr-side__kicker">Pantry</span>
+      <span className="nr-kicker nr-side__kicker">Pantry</span>
       <button
         type="button"
         className="nr-side__pantry-row"
@@ -130,7 +131,7 @@ export default function Sidebar({
         aria-pressed={brineActive}
         onClick={onOpenBrine}
       >
-        <span className="nr-side__tab-chip" aria-hidden="true">◍</span>
+        <span className="nr-side__brine-orb" aria-hidden="true" />
         <span className="nr-side__tab-title">Brine</span>
         <span className="nr-side__count">{brineCount}</span>
       </button>
@@ -148,6 +149,7 @@ export default function Sidebar({
                 background: `radial-gradient(circle at 35% 30%,
                   color-mix(in oklab, var(--nr-jar-${jar.hue}) 55%, white),
                   color-mix(in oklab, var(--nr-jar-${jar.hue}) 82%, black))`,
+                color: `color-mix(in oklab, var(--nr-jar-${jar.hue}) 42%, black)`,
               }}
               title={`${jar.name} — ${jar.item_count} item${jar.item_count === 1 ? "" : "s"}`}
               onClick={() => onSelectJar(jar.id)}
