@@ -86,6 +86,13 @@ notarized release pipeline. Aero Relish design system.
 
 ### Next — post-launch, all local
 
+- **Passwords** — save and fill logins, vaulted in the **macOS
+  Keychain** — never in `netrelish.db`, never near FTS or the engine.
+  The fill path runs Rust→page; the UI layer only ever sees usernames.
+  Detection is a suggestion, saving and filling are user gestures
+  (suggest-never-silently applies to credentials most of all). Import
+  from Safari/Chrome via their CSV export. Requested by Ryan
+  2026-08-11 — the daily-driver feature.
 - **Gap analysis** — the plan's "What am I missing?" (§11). A fifth
   engine layer: cluster a jar's items by topic, name the clusters,
   report thin coverage. Same rules as every engine output: on-device,
