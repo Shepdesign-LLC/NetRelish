@@ -1072,6 +1072,10 @@ export default function App() {
         url={url}
         status={status}
         canNavigate={loaded && !!activeTab?.url}
+        // Reload needs the page pane actually showing, not just a loaded tab:
+        // reloading a webview you've navigated away from does something the
+        // reader can't see, which reads as a dead button.
+        canReload={view === "page" && !!activeTab?.url}
         login={view === "page" ? login : null}
         onUrlChange={setUrl}
         onNavigate={() => void navigate()}

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import BrandMark from "./BrandMark";
 
 export interface Status {
   text: string;
@@ -19,6 +20,7 @@ interface Props {
   url: string;
   status: Status | null;
   canNavigate: boolean;
+  canReload: boolean;
   login: LoginProbe | null;
   onUrlChange(value: string): void;
   onNavigate(): void;
@@ -31,9 +33,9 @@ interface Props {
 export const OMNIBOX_ID = "nr-omnibox";
 
 /**
- * The titlebar, per the design system's main window: round glass
- * back/forward (real ones), the centered address pill, and the jar chip —
- * Relish Pour when a jar is open, since it's the active thing.
+ * The titlebar, per the design system's main window: the mark, round glass
+ * back/forward/reload (real ones), the centered address pill, and the jar
+ * chip — Relish Pour when a jar is open, since it's the active thing.
  */
 export default function TitleBar({
   jarName,
@@ -41,6 +43,7 @@ export default function TitleBar({
   url,
   status,
   canNavigate,
+  canReload,
   login,
   onUrlChange,
   onNavigate,
@@ -52,6 +55,13 @@ export default function TitleBar({
   return (
     <header className="nr-titlebar" data-tauri-drag-region>
       <div className="nr-titlebar__lead" />
+
+      {/* The mark. Not a control — it does nothing, so it stays a drag
+          region like the rest of the bar. No wordmark: the mark carries the
+          brand on its own, so it's sized to be seen. */}
+      <div className="nr-brand" data-tauri-drag-region>
+        <BrandMark size={30} />
+      </div>
 
       <button
         type="button"
@@ -72,6 +82,29 @@ export default function TitleBar({
       >
         <span aria-hidden="true">›</span>
         <span className="nr-visually-hidden">Forward</span>
+      </button>
+
+      {/* Reload has no key equivalent — ⌘R is Run Recipe. This button is the
+          only way in, so it never hides. */}
+      <button
+        type="button"
+        className="nr-navbtn"
+        title="Reload"
+        disabled={!canReload}
+        onClick={() => void invoke("preview_reload")}
+      >
+        {/* r=5 about (7.5,7.5): a 330° sweep clockwise from the upper right,
+            with the head pointing into the 30° gap it leaves. */}
+        <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
+          <path
+            d="M10.71 3.67A5 5 0 1 1 8.37 2.58"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+          />
+          <path d="M10.93 3.03 8.09 4.16 8.65 1Z" fill="currentColor" />
+        </svg>
+        <span className="nr-visually-hidden">Reload</span>
       </button>
 
       <form

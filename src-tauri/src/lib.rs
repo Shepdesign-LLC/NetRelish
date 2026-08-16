@@ -115,6 +115,10 @@ pub fn run() {
                 let run_recipe = MenuItemBuilder::with_id("run-recipe", "Run Recipe")
                     .accelerator("CmdOrCtrl+R")
                     .build(app)?;
+                // TODO: reload has no key equivalent — CmdOrCtrl+R is taken,
+                // above, and Run Recipe keeps it. A future reload accelerator
+                // (CmdOrCtrl+Shift+R, say) belongs here, emitting
+                // "menu:reload" for App to forward to preview_reload.
                 // Credentials are user gestures with real key equivalents,
                 // reachable even while the page pane holds the keyboard.
                 let fill_login = MenuItemBuilder::with_id("fill-login", "Fill Login")
@@ -287,6 +291,7 @@ pub fn run() {
             commands::preview::preview_unsplit,
             commands::preview::preview_back,
             commands::preview::preview_forward,
+            commands::preview::preview_reload,
             commands::denylist::denylist_get,
             commands::denylist::denylist_set,
             commands::jars::set_active_jar,

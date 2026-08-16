@@ -255,6 +255,18 @@ pub async fn preview_forward(window: Window) -> Result<()> {
     Ok(())
 }
 
+/// Reload the page in the preview pane.
+///
+/// No keyboard shortcut: `CmdOrCtrl+R` is Run Recipe (see `lib.rs`). The
+/// titlebar button is the only way in.
+#[tauri::command]
+pub async fn preview_reload(window: Window) -> Result<()> {
+    if let Some(webview) = window.get_webview(PREVIEW_LABEL) {
+        webview.eval("location.reload();")?;
+    }
+    Ok(())
+}
+
 /// Read the page's scroll position, for preserving a tab's exact state
 /// before switching away from it or sealing it.
 #[tauri::command]

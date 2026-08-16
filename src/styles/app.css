@@ -108,8 +108,20 @@ body {
   flex-shrink: 0;
 }
 
+/* The mark, sitting after the traffic lights. No wordmark — at this size
+   the gear reads on its own, and the bar keeps the room for the omnibox. */
+.nr-brand {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding-right: 2px;
+  user-select: none;
+}
+
 /* Round glass nav buttons — and they really navigate. */
 .nr-navbtn {
+  display: grid;
+  place-items: center; /* the chevrons are text, reload is an svg */
   width: 32px;
   height: 32px;
   border: 0;
