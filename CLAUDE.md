@@ -482,9 +482,13 @@ Each is a week or more, none is on the critical path.
 
 The business layer — positioning, target markets, pricing, and the
 future feature list — lives in `docs/ROADMAP.md`, which translates
-Ryan's working business plan (`docs/business-plan.md`) into this
-file's vocabulary and architecture. Where they conflict, this file
-wins.
+Ryan's working business plan into this file's vocabulary and
+architecture. Where they conflict, this file wins.
+
+The plan itself is **not in this repo** and never should be: it was
+purged from history when the repo went public (Aug 2026). It lives at
+`/Volumes/WORK/New Projects/NetRelish/business-plan.md`, beside the
+brand assets.
 
 ---
 

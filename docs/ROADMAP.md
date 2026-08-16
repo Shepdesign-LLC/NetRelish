@@ -1,15 +1,17 @@
 # Roadmap & positioning
 
 The business layer of NetRelish, translated from Ryan's working business
-plan ([business-plan.md](business-plan.md), v1.0, Aug 2026) into the
-vocabulary and architecture of the shipped product.
+plan (v1.0, Aug 2026) into the vocabulary and architecture of the
+shipped product. The plan itself is deliberately **not in this repo** —
+it lives at `/Volumes/WORK/New Projects/NetRelish/business-plan.md`.
 
 **Ground rules.** CLAUDE.md remains law. Where the plan says Workspace,
 the product says **Jar**; where it says Ingredient, the product says
 item; where it describes cloud SaaS mechanics, the local-first
 architecture wins. The plan's *vision* is adopted; its *mechanics* are
-translated. This repo is private; if it ever goes public, pull
-`business-plan.md` first.
+translated. The repo went public in Aug 2026 and `business-plan.md` was
+purged from its history first, as this note had asked. Keep it that way:
+strategy stays off the public record.
 
 ---
 
