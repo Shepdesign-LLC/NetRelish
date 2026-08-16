@@ -19,8 +19,9 @@ interface Props {
   jarHue: number | null; // 1..6, null = Brine
   url: string;
   status: Status | null;
+  /** A page is live in the preview webview. Back, forward and reload all
+   *  act on that webview directly, so one flag arms all three. */
   canNavigate: boolean;
-  canReload: boolean;
   login: LoginProbe | null;
   onUrlChange(value: string): void;
   onNavigate(): void;
@@ -43,7 +44,6 @@ export default function TitleBar({
   url,
   status,
   canNavigate,
-  canReload,
   login,
   onUrlChange,
   onNavigate,
@@ -90,7 +90,7 @@ export default function TitleBar({
         type="button"
         className="nr-navbtn"
         title="Reload"
-        disabled={!canReload}
+        disabled={!canNavigate}
         onClick={() => void invoke("preview_reload")}
       >
         {/* r=5 about (7.5,7.5): a 330° sweep clockwise from the upper right,

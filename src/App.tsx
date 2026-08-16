@@ -1077,7 +1077,6 @@ export default function App() {
         url={url}
         status={status}
         canNavigate={hasLivePage}
-        canReload={hasLivePage}
         login={view === "page" ? login : null}
         onUrlChange={setUrl}
         onNavigate={() => void navigate()}
