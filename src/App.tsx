@@ -8,6 +8,7 @@ import Palette from "./components/Palette";
 import RunnerBar from "./components/RunnerBar";
 import ShortcutSheet from "./components/ShortcutSheet";
 import Sidebar from "./components/Sidebar";
+import HomeView from "./components/HomeView";
 import TitleBar, {
   OMNIBOX_ID,
   type LoginProbe,
@@ -37,6 +38,7 @@ import {
   tabSetScroll,
   tabTouch,
   tabsList,
+  preservedThisWeek,
   totalItemCount,
   undoSweep,
   unsealUrl,
@@ -84,6 +86,7 @@ export default function App() {
   const [jars, setJars] = useState<Jar[]>([]);
   const [count, setCount] = useState(0);
   const [totalPreserved, setTotalPreserved] = useState(0);
+  const [weekCount, setWeekCount] = useState(0);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [sealingIds, setSealingIds] = useState<string[]>([]);
@@ -126,14 +129,16 @@ export default function App() {
   }, []);
 
   const refreshShelf = useCallback(async () => {
-    const [jarRows, n, total] = await Promise.all([
+    const [jarRows, n, total, week] = await Promise.all([
       listJars(),
       brineCount(),
       totalItemCount(),
+      preservedThisWeek(),
     ]);
     setJars(jarRows);
     setCount(n);
     setTotalPreserved(total);
+    setWeekCount(week);
   }, []);
 
   const refreshTabs = useCallback(async () => {
@@ -1056,14 +1061,24 @@ export default function App() {
         </div>
       );
     }
+    /* No page loaded means the native webview is hidden, so this is the one
+       moment something may safely render inside .nr-stage (§5). It's the
+       new-tab surface. */
     if (!activeTab?.url) {
       return (
-        <div className="nr-stage__empty">
-          <p className="nr-stage__mark">NetRelish</p>
-          <p className="nr-stage__hint">
-            Enter an address. Everything you read lands in Brine.
-          </p>
-        </div>
+        <HomeView
+          jars={jars}
+          activeJarId={activeJarId}
+          weekCount={weekCount}
+          totalPreserved={totalPreserved}
+          onOpenBrine={() => setView("brine")}
+          onSelectJar={(id) => void activateJar(id)}
+          onNewJar={() => {
+            // The "create" branch returned above, so `view` can't be it here.
+            returnView.current = view;
+            setView("create");
+          }}
+        />
       );
     }
     return null;

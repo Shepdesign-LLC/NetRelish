@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
 import { domainOf } from "../lib/format";
-import { superellipseClip } from "../lib/superellipse";
+import MasonJar from "./MasonJar";
 import { openPath } from "@tauri-apps/plugin-opener";
 import {
   assignLabel,
@@ -16,11 +16,13 @@ import {
   renameJar,
   setJarShelfLife,
   toggleTaskDone,
+  unassignLabel,
   type Jar,
   type JarItemRow,
   type Label,
   type Recipe,
 } from "../lib/db";
+import PantryLogic from "./PantryLogic";
 import RecipesPanel from "./RecipesPanel";
 
 const SHELF_LIVES: { hours: number; label: string }[] = [
@@ -177,6 +179,20 @@ export default function JarView({
     await refresh();
     onChanged();
   }, [labelDraft, selection, refresh, onChanged]);
+
+  /** Strip a label off every item in this jar. Labels only season items —
+   *  removing one never touches the items themselves, so this needs no
+   *  confirmation and stays consistent with "closing is free". */
+  const removeLabel = useCallback(
+    async (name: string) => {
+      const ids = await itemIdsWithLabel(name);
+      await unassignLabel(name, ids);
+      setLabelFilter((f) => (f === name ? null : f));
+      await refresh();
+      onChanged();
+    },
+    [refresh, onChanged],
+  );
 
   /** What clicking a row means depends on what the row is. */
   const openRow = useCallback(
@@ -364,19 +380,7 @@ export default function JarView({
     <section className="nr-jarview" aria-label={`Jar: ${jar.name}`}>
       <div className="nr-jarview__main">
         <header className="nr-jarview__bar">
-          <span
-            className="nr-jarview__orb"
-            style={{
-              clipPath: superellipseClip(52, 4),
-              background: `radial-gradient(circle at 35% 30%,
-                color-mix(in oklab, var(--nr-jar-${jar.hue}) 55%, white),
-                color-mix(in oklab, var(--nr-jar-${jar.hue}) 82%, black))`,
-              color: `color-mix(in oklab, var(--nr-jar-${jar.hue}) 42%, black)`,
-            }}
-            aria-hidden="true"
-          >
-            {jar.name[0]?.toUpperCase()}
-          </span>
+          <MasonJar hue={jar.hue} initial={jar.name[0]?.toUpperCase()} />
           <div className="nr-jarview__title-block">
             {renaming ? (
               <input
@@ -414,18 +418,33 @@ export default function JarView({
                   : `${rows.length} item${rows.length === 1 ? "" : "s"} · shelf life ${shelfLabel}`}
               </span>
               {usedLabels.map((l) => (
-                <button
-                  key={l.id}
-                  type="button"
-                  className="nr-jarview__label-chip"
-                  aria-pressed={labelFilter === l.name}
-                  data-active={labelFilter === l.name || undefined}
-                  onClick={() =>
-                    setLabelFilter((f) => (f === l.name ? null : l.name))
-                  }
-                >
-                  {l.name} <span>{l.uses}</span>
-                </button>
+                /* Two controls, side by side rather than nested — a button
+                   inside a button is invalid and the inner one stops being
+                   reachable. The wrapper only draws the chip. */
+                <span key={l.id} className="nr-jarview__label-chip">
+                  <button
+                    type="button"
+                    className="nr-jarview__label-name"
+                    aria-pressed={labelFilter === l.name}
+                    data-active={labelFilter === l.name || undefined}
+                    onClick={() =>
+                      setLabelFilter((f) => (f === l.name ? null : l.name))
+                    }
+                  >
+                    {l.name} <span>{l.uses}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="nr-jarview__label-remove"
+                    title={`Remove ${l.name} from every item in this jar`}
+                    onClick={() => void removeLabel(l.name)}
+                  >
+                    <span aria-hidden="true">✕</span>
+                    <span className="nr-visually-hidden">
+                      Remove label {l.name}
+                    </span>
+                  </button>
+                </span>
               ))}
             </div>
           </div>
@@ -644,6 +663,8 @@ export default function JarView({
             and close. Pinned tabs never seal. Nothing is ever lost by tidying.
           </label>
         </div>
+
+        <PantryLogic shelfLabel={shelfLabel} />
 
         <button
           type="button"

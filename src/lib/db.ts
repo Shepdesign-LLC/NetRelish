@@ -102,6 +102,18 @@ export async function brineCount(): Promise<number> {
   return rows[0]?.n ?? 0;
 }
 
+/** Everything preserved in the last seven days — what Home's Brine pill
+ *  counts. Scoped to a week deliberately: the pill says "this week", and a
+ *  running total would make that line untrue. */
+export async function preservedThisWeek(): Promise<number> {
+  const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const rows = await db().select<{ n: number }[]>(
+    `SELECT count(*) AS n FROM items WHERE created_at >= $1`,
+    [since],
+  );
+  return rows[0]?.n ?? 0;
+}
+
 /** A jar with its live item count, as the shelf rail shows it. */
 export interface Jar {
   id: string;

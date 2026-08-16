@@ -82,19 +82,21 @@ body {
 
 /* --- titlebar (window-depth glass) ----------------------------------------- */
 
+/* Dark green glass — the one chrome surface that isn't light glass. Its
+   controls are light-on-dark; everything else in the app stays light. */
 .nr-titlebar {
   display: flex;
   align-items: center;
   gap: 10px;
   height: var(--nr-titlebar-h);
   padding-right: 16px;
-  background: linear-gradient(
-    oklch(0.972 0.021 118.2 / 0.6),
-    oklch(0.972 0.021 118.2 / 0.34)
-  );
+  background: linear-gradient(var(--nr-bar-hi), var(--nr-bar-lo));
   backdrop-filter: blur(var(--nr-blur));
   -webkit-backdrop-filter: blur(var(--nr-blur));
-  border-bottom: 1px solid oklch(1 0 0 / 0.5);
+  border-bottom: 1px solid var(--nr-bar-hairline);
+  box-shadow: inset 0 1px 0 var(--nr-bar-highlight);
+  position: relative;
+  z-index: 2;
   flex-shrink: 0;
 }
 
@@ -108,38 +110,73 @@ body {
   flex-shrink: 0;
 }
 
-/* The mark, sitting after the traffic lights. No wordmark — at this size
-   the gear reads on its own, and the bar keeps the room for the omnibox. */
+/* Back / forward / reload sit in one group; the mark closes it. */
+.nr-navgroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* The mark, closing the control group — 36px with an electric glow, per
+   the redesign. No wordmark: the tile carries the brand on its own. */
 .nr-brand {
   display: flex;
   align-items: center;
+  margin-left: 4px;
   flex-shrink: 0;
-  padding-right: 2px;
+  filter: drop-shadow(0 2px 6px oklch(0.834 0.224 130.9 / 0.5));
   user-select: none;
 }
 
-/* Round glass nav buttons — and they really navigate. */
+/* Round controls on the dark bar: a sliver of white, an electric hairline,
+   and electric ink. Disabled loses the hairline and dims the ink. */
 .nr-navbtn {
   display: grid;
   place-items: center; /* the chevrons are text, reload is an svg */
   width: 32px;
   height: 32px;
-  border: 0;
+  box-sizing: border-box;
+  border: 1px solid oklch(0.902 0.170 125.4 / 0.25);
   border-radius: 50%;
-  background: linear-gradient(oklch(1 0 0 / 0.9), oklch(1 0 0 / 0.4));
-  box-shadow:
-    0 1px 3px oklch(0.176 0.036 133.5 / 0.2),
-    inset 0 1px 0 oklch(1 0 0);
-  color: oklch(0.37 0.037 133.2);
+  background: oklch(1 0 0 / 0.12);
+  color: var(--nr-electric);
   font-size: 17px;
   font-weight: 700;
   line-height: 1;
   flex-shrink: 0;
 }
 
+.nr-navbtn:hover:not(:disabled) {
+  background: oklch(1 0 0 / 0.22);
+}
+
 .nr-navbtn:disabled {
-  background: oklch(1 0 0 / 0.3);
-  color: var(--nr-text-ghost);
+  border-color: transparent;
+  background: oklch(1 0 0 / 0.06);
+  color: var(--nr-electric-dim);
+}
+
+/* Reload is the one lit control — it carries a Pour-tinted fill so the
+   action reads as available at a glance. */
+.nr-navbtn--reload {
+  border-color: oklch(0.902 0.170 125.4 / 0.4);
+  background: linear-gradient(
+    oklch(0.909 0.183 124.4 / 0.35),
+    oklch(0.834 0.224 130.9 / 0.18)
+  );
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.35);
+}
+
+.nr-navbtn--reload:hover:not(:disabled) {
+  background: linear-gradient(
+    oklch(0.909 0.183 124.4 / 0.55),
+    oklch(0.834 0.224 130.9 / 0.3)
+  );
+}
+
+.nr-navbtn--reload:disabled {
+  background: oklch(1 0 0 / 0.06);
   box-shadow: none;
 }
 
@@ -161,6 +198,16 @@ body {
     0 2px 8px oklch(0.176 0.036 133.5 / 0.14),
     inset 0 1px 0 oklch(1 0 0);
   overflow: hidden;
+}
+
+/* Electric is the brand's focus colour — so it rings the pill when the
+   omnibox has the caret, rather than sitting on it permanently. */
+.nr-omnibar:focus-within {
+  border-color: oklch(0.902 0.170 125.4 / 0.6);
+  box-shadow:
+    0 2px 8px oklch(0.176 0.036 133.5 / 0.14),
+    0 0 0 3px oklch(0.834 0.224 130.9 / 0.12),
+    inset 0 1px 0 oklch(1 0 0);
 }
 
 /* The omnibox's own gloss cap. */
@@ -292,7 +339,9 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--nr-text);
+  /* Light, not the olive the handoff specifies: #33430F measures 1.5:1 on
+     this bar. Light ink is 14.5:1 and keeps the quality floor. */
+  color: var(--nr-ink-light);
   font-size: 12.5px;
   font-weight: 600;
 }
@@ -302,7 +351,8 @@ body {
   border: 0;
   padding: 0;
   background: none;
-  color: var(--nr-focus);
+  /* Same reason as the status text: the handoff's #2C6E12 is 2.5:1 here. */
+  color: var(--nr-electric);
   font: inherit;
   font-size: 12.5px;
   font-weight: 700;
@@ -1335,26 +1385,72 @@ body {
 }
 
 /* Label chips live in the meta line — glass, light ink. */
+/* The chip is now a shell holding two controls: filter by the label, and
+   remove it. The shell draws the pill; neither child has a border. */
 .nr-jarview__label-chip {
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 8px;
   border: 1px solid oklch(1 0 0 / 0.25);
   border-radius: 7px;
   background: oklch(0.972 0.021 118.2 / 0.2);
   color: var(--nr-ink-light-chip);
-  font: inherit;
   font-family: var(--nr-font-mono);
   font-size: 10.5px;
   letter-spacing: 0.06em;
-  text-transform: none;
 }
 
-.nr-jarview__label-chip span {
+.nr-jarview__label-name {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.nr-jarview__label-name span {
   color: var(--nr-ink-light-meta);
 }
 
-.nr-jarview__label-chip[data-active] {
+/* Quiet until you go looking for it — the ✕ only resolves on hover or
+   keyboard focus, so a jar of labels doesn't read as a row of delete
+   buttons. Focus-visible keeps it reachable without a mouse. */
+.nr-jarview__label-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: none;
+  color: var(--nr-ink-light-chip);
+  font-size: 8.5px;
+  line-height: 1;
+  opacity: 0.4;
+  transition:
+    opacity 120ms ease-out,
+    background 120ms ease-out;
+}
+
+.nr-jarview__label-chip:hover .nr-jarview__label-remove,
+.nr-jarview__label-remove:focus-visible {
+  opacity: 1;
+  background: oklch(1 0 0 / 0.22);
+}
+
+.nr-jarview__label-chip:has(.nr-jarview__label-name[data-active]) {
   background: linear-gradient(var(--nr-pour-a), var(--nr-pour-b));
   border-color: transparent;
+  color: var(--nr-ink-on-pour);
+}
+
+.nr-jarview__label-chip:has(.nr-jarview__label-name[data-active])
+  .nr-jarview__label-name span,
+.nr-jarview__label-chip:has(.nr-jarview__label-name[data-active])
+  .nr-jarview__label-remove {
   color: var(--nr-ink-on-pour);
 }
 
@@ -2219,4 +2315,316 @@ body {
 .nr-newjar__actions {
   display: flex;
   gap: 8px;
+}
+
+/* --- pantry logic legend (jar rail) ---------------------------------------- */
+
+/* Lighter than the rail's other cards (α .55 vs .68) — it explains, it
+   doesn't act, so it should sit back. */
+.nr-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 16px;
+  border: 1px solid oklch(1 0 0 / 0.6);
+  border-radius: 18px;
+  background: var(--nr-glass-card);
+  backdrop-filter: blur(var(--nr-blur-nested));
+  -webkit-backdrop-filter: blur(var(--nr-blur-nested));
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.8);
+}
+
+.nr-legend__row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.nr-legend__icon {
+  display: flex;
+  justify-content: center;
+  width: 18px;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+
+.nr-legend__row p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--nr-text);
+}
+
+.nr-legend__row b {
+  font-weight: 700;
+}
+
+/* --- home / new tab -------------------------------------------------------- */
+
+/* The one surface with no glass panel under it: it floats straight on the
+   Aurora, so its ink comes from the light scale, not the olive one. */
+.nr-home {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 44px 60px 32px;
+}
+
+.nr-home__hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.nr-home__wordmark {
+  margin: 0;
+  font-family: var(--nr-font-display);
+  font-weight: 800;
+  font-size: 71px;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  /* Gradient ink — the wordmark is the one place the brand shouts. */
+  background: linear-gradient(var(--nr-ink-light) 30%, var(--nr-accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.nr-home__tagline {
+  margin: 8px 0 0;
+  font-family: var(--nr-font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--nr-ink-light-meta);
+}
+
+/* The explainer panel — content-depth glass with an electric hairline. */
+.nr-home__panel {
+  position: relative;
+  width: 100%;
+  max-width: 1060px;
+  border: 1px solid oklch(1 0 0 / 0.7);
+  border-radius: 22px;
+  background: linear-gradient(
+    oklch(0.972 0.021 118.2 / 0.72),
+    oklch(0.930 0.043 116.6 / 0.55)
+  );
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  box-shadow:
+    0 24px 60px oklch(0 0 0 / 0.45),
+    0 0 0 1px oklch(0.834 0.224 130.9 / 0.2),
+    inset 0 1.5px 0 oklch(1 0 0 / 0.95);
+  overflow: hidden;
+}
+
+.nr-home__panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 14px;
+  right: 14px;
+  height: 34%;
+  border-radius: 16px 16px 60px 60px;
+  background: linear-gradient(oklch(1 0 0 / 0.65), oklch(1 0 0 / 0.02));
+  pointer-events: none;
+}
+
+.nr-home__panel-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 24px 4px;
+}
+
+.nr-home__rule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    oklch(0.586 0.155 133.5 / 0.4),
+    transparent
+  );
+}
+
+.nr-home__cols {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 12px 12px 18px;
+}
+
+.nr-home__col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px;
+  border-right: 1px solid oklch(0.586 0.155 133.5 / 0.18);
+}
+
+.nr-home__col:last-child {
+  border-right: 0;
+}
+
+.nr-home__col-icon {
+  display: flex;
+  align-items: flex-end;
+  height: 42px;
+}
+
+.nr-home__col h2 {
+  margin: 0;
+  font-family: var(--nr-font-display);
+  font-weight: 800;
+  font-size: 16.5px;
+  color: var(--nr-text-strong);
+}
+
+.nr-home__col p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--nr-text-muted);
+}
+
+.nr-home__foot-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  width: 100%;
+  max-width: 1060px;
+}
+
+.nr-home__shelf,
+.nr-home__brine {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.nr-home__brine {
+  align-items: flex-end;
+}
+
+/* Kickers on the Aurora need the light scale, not the olive one. */
+.nr-kicker--light {
+  color: var(--nr-ink-light-meta);
+}
+
+.nr-kicker--electric {
+  color: var(--nr-accent);
+}
+
+.nr-home__jars {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.nr-home__jar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  padding: 0;
+  background: none;
+  font-family: var(--nr-font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--nr-ink-light-meta);
+  opacity: 0.8;
+  transition:
+    opacity 140ms ease-out,
+    transform 140ms ease-out;
+}
+
+.nr-home__jar:hover,
+.nr-home__jar[data-active] {
+  opacity: 1;
+  transform: translateY(-2px);
+}
+
+.nr-home__jar[data-active] {
+  color: var(--nr-ink-light);
+}
+
+/* The hero mark carries the mock's double shadow: a deep drop to lift it
+   off the Aurora, and an electric bloom so it glows rather than sits. */
+.nr-home__mark {
+  display: flex;
+  filter:
+    drop-shadow(0 10px 26px oklch(0 0 0 / 0.55))
+    drop-shadow(0 0 22px oklch(0.834 0.224 130.9 / 0.4));
+}
+
+/* The empty jar slot: the silhouette, with the ＋ centred in the glass. */
+.nr-home__jar-new {
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: oklch(0.902 0.170 125.4 / 0.45);
+}
+
+.nr-home__jar-plus {
+  position: absolute;
+  font-size: 18px;
+  color: var(--nr-ink-light-meta);
+}
+
+/* The Brine link is dark glass — it belongs to the Aurora, not the panel. */
+.nr-home__brine-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 46px;
+  padding: 0 20px;
+  border: 1px solid oklch(0.902 0.170 125.4 / 0.35);
+  border-radius: 23px;
+  background: linear-gradient(
+    oklch(0.357 0.075 130.9 / 0.9),
+    oklch(0.248 0.050 131.9 / 0.9)
+  );
+  box-shadow:
+    inset 0 1px 0 var(--nr-bar-highlight),
+    0 6px 18px oklch(0 0 0 / 0.4);
+  font: inherit;
+  transition:
+    border-color 140ms ease-out,
+    box-shadow 140ms ease-out;
+}
+
+.nr-home__brine-pill:hover {
+  border-color: oklch(0.902 0.170 125.4 / 0.7);
+  box-shadow:
+    inset 0 1px 0 var(--nr-bar-highlight),
+    0 6px 18px oklch(0 0 0 / 0.4),
+    0 0 14px oklch(0.834 0.224 130.9 / 0.35);
+}
+
+.nr-home__brine-text {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--nr-ink-light);
+}
+
+.nr-home__brine-open {
+  font-family: var(--nr-font-mono);
+  font-size: 10px;
+  color: var(--nr-accent);
+}
+
+.nr-home__caption {
+  margin: 0;
+  font-family: var(--nr-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--nr-text-soft);
 }

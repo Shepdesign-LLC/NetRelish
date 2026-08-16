@@ -281,6 +281,21 @@ here"* — accepted with one key. Never applied automatically.
   pane stays opaque — the glass frames the web, it never tints it.
   *(Re-amended Aug 2026: Ryan saw the glass live on netrelish.com and
   chose it for the app, reversing the earlier flat-chrome decision.)*
+- **Two surfaces are exceptions to the light glass, and take light ink.**
+  Both float on the Aurora rather than sitting on glass, so the
+  `#33430F` floor above does not apply to them — it is a rule about ink
+  *on glass*, and olive on either of these measures ~1.5:1.
+  1. **The titlebar** is dark green glass: `rgba(46,68,22,.85)` →
+     `rgba(24,38,11,.85)`, blur 28, hairline `rgba(196,242,107,.28)`,
+     inset highlight `rgba(220,250,160,.22)`, 58px. Its controls are
+     light-on-dark, its ink is Electric `#C4F26B` (`--nr-electric`), and
+     disabled ink is `#6D8050`. The jar chip keeps Relish Pour.
+  2. **The Home / new-tab screen**, which has no panel under it at all
+     and uses the light-ink scale (`--nr-ink-light`, `…-meta`, `…-chip`).
+  Everywhere else, the light glass and the `#33430F` floor still hold.
+  *(Amended Aug 2026, "Aero Relish" handoff — the redesign's TitleBar
+  revision. The handoff itself kept olive status text on the new dark
+  bar; that was a defect and is not reproduced.)*
 - The one signature move is the **superellipse** tile shape
   (`src/lib/superellipse.ts`). Not `border-radius`. Don't replace it. The
   guide's flavor-jar orb gradients render *inside* the superellipse.

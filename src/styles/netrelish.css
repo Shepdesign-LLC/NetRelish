@@ -43,10 +43,23 @@
   --nr-pour-b: oklch(0.827 0.217 129.9);      /* Relish Pour dark */
   --nr-ink-on-pour: oklch(0.301 0.070 132);   /* #1D3506 */
 
-  /* The Aurora the glass floats on (Aurora Sweep + glow blobs). */
-  --nr-aurora-hi: oklch(0.375 0.086 132.1);   /* #2F4A14 */
-  --nr-aurora-lo: oklch(0.172 0.026 129.6);   /* #0C1206 */
-  --nr-glow: oklch(0.834 0.224 130.9 / 0.26);
+  /* The Aurora the glass floats on (Aurora Sweep + glow blobs).
+     Deepened for the Aero Relish pass — three stops at 170°, per the
+     redesign mocks, which all render #22380D → #14240A → #070C03. */
+  --nr-aurora-hi: oklch(0.312 0.072 132.5);   /* #22380D */
+  --nr-aurora-mid: oklch(0.238 0.050 134.9);  /* #14240A */
+  --nr-aurora-lo: oklch(0.145 0.024 129.4);   /* #070C03 */
+  --nr-glow: oklch(0.834 0.224 130.9 / 0.3);
+
+  /* The titlebar is its own surface: dark green glass, not the light glass
+     the rest of the chrome uses. Its ink is electric, not olive — olive on
+     this bar measures 1.5:1. See §9. */
+  --nr-bar-hi: oklch(0.357 0.075 130.9 / 0.85);      /* rgba(46,68,22,.85) */
+  --nr-bar-lo: oklch(0.248 0.050 131.9 / 0.85);      /* rgba(24,38,11,.85) */
+  --nr-bar-hairline: oklch(0.902 0.170 125.4 / 0.28);
+  --nr-bar-highlight: oklch(0.943 0.119 123.7 / 0.22);
+  --nr-electric: oklch(0.902 0.170 125.4);           /* #C4F26B ink on bar */
+  --nr-electric-dim: oklch(0.572 0.073 126.2);       /* #6D8050 disabled */
 
   /* The glass recipe. One fill (#F4F8E8), alphas by depth: content
      panels .68, cards .55, sidebar .42; controls ride white at .7–.95. */
@@ -100,7 +113,7 @@
 
   /* Spacing */
   --nr-sidebar-w: 264px;
-  --nr-titlebar-h: 54px;
+  --nr-titlebar-h: 58px;
   --nr-traffic-inset: 78px;
 }
 
@@ -111,5 +124,10 @@
   --nr-app-backdrop:
     radial-gradient(circle at 18% 10%, var(--nr-glow), transparent 62%),
     radial-gradient(circle at 85% 85%, oklch(0.834 0.224 130.9 / 0.18), transparent 60%),
-    linear-gradient(160deg, var(--nr-aurora-hi), var(--nr-aurora-lo));
+    linear-gradient(
+      170deg,
+      var(--nr-aurora-hi) 0%,
+      var(--nr-aurora-mid) 45%,
+      var(--nr-aurora-lo) 100%
+    );
 }
