@@ -460,8 +460,8 @@ on a machine that has never been online.
 - [x] Labels: create, assign, filter
 - [x] Full keyboard map + shortcut sheet
 - [x] Light theme parity pass
-- [x] Updater wired (keys generated, pipeline ready — public build waits
-      on Apple Developer enrolment, see docs/RELEASING.md)
+- [x] Updater wired (keys generated, pipeline ready; enrolment done and
+      every CI secret set as of Aug 2026 — see docs/RELEASING.md)
 
 ---
 
@@ -490,9 +490,12 @@ wins.
 ## 13. Warnings
 
 - **Apple Developer enrolment blocks everything.** $99/yr, 24–48h approval,
-  and every signing step waits on it.
+  and every signing step waits on it. *(Done Aug 2026 — Team ID
+  `D9QDJ44773`. Kept here because it gates any fresh machine or account.)*
 - **Back up the updater private key.** Lose it and you can never push an
-  update to an installed copy. There is no recovery path.
+  update to an installed copy. There is no recovery path. *(Verified
+  Aug 2026: retrievable copies in iCloud Drive → NetRelish and
+  `~/.tauri/`, plus a write-only GitHub secret for CI.)*
 - **Week 2's schema is load-bearing.** Weeks 3–8 all read from `items`.
   Changing `kind` or the FTS setup later means migrating real user data.
 - **Never seal before extracting.** A sealed tab whose content didn't reach

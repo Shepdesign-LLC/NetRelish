@@ -21,18 +21,57 @@ public build — both need Ryan, neither needs a terminal beyond copy-paste.
      The key has no password, GitHub refuses empty-string secrets, and an
      absent secret reaches the workflow as empty — which is correct.
 
-Status 2026-08-11: enrolment done (Individual, Team ID `D9QDJ44773`),
-certificate issued, and every secret above is set except
-`APPLE_PASSWORD` (the app-specific password only Ryan can create).
+Status 2026-08-16: enrolment done (Individual, Team ID `D9QDJ44773`),
+certificate issued, and **all seven secrets above are now set** —
+`APPLE_PASSWORD` landed 2026-08-11, so nothing is outstanding.
 Signing identity proven locally against the exact CI import path.
-Signing material backed up in iCloud Drive → NetRelish.
+Signing material backed up in iCloud Drive → NetRelish (the Developer ID
+`.p12`/`.key`, and the updater key — see below).
 
-## ⚠️ The updater private key
+Note the *local* machine has no codesigning identity in its login
+keychain (`security find-identity -p codesigning` returns none), so a
+local `npm run app:build` produces an **ad-hoc signed** app: fine to run
+here, refused by Gatekeeper anywhere else. Real signing happens in CI,
+which imports the `.p12` from the secrets above.
 
-`~/.tauri/netrelish.key` signs every future update. **Back it up now**
-(password manager, printed copy, anywhere safe). Lose it and no installed
-copy can ever update again — there is no recovery path (§13). The matching
-public key is already baked into `tauri.conf.json`.
+## The updater private key — backed up
+
+`~/.tauri/netrelish.key` signs every future update. Lose it and no
+installed copy can ever update again — there is no recovery path (§13),
+and a fresh key cannot sign for apps already out there, because the
+matching public key is baked into `tauri.conf.json` at build time.
+
+**Verified 2026-08-16.** Three copies exist:
+
+| Where | Retrievable? | For |
+| :-- | :-- | :-- |
+| `~/.tauri/netrelish.key` | yes | local `npm run app:build` |
+| **iCloud Drive → NetRelish/netrelish.key** | **yes** | disaster recovery |
+| GitHub secret `TAURI_SIGNING_PRIVATE_KEY` | no — write-only | CI signing |
+
+The iCloud copy is the one that matters: it is byte-identical to
+`~/.tauri/netrelish.key`, fully downloaded rather than an evicted
+`.icloud` stub, and it is the only off-machine copy you can actually get
+*back*. A GitHub secret can be overwritten but never read, so it protects
+CI's ability to ship — not your ability to restore a new Mac.
+
+Checked by comparing hashes, never contents; and the key on disk is
+confirmed to be the right one — its public half matches the `pubkey` in
+`tauri.conf.json`.
+
+The key has no passphrase (see `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+above), so anyone holding the file can sign updates as NetRelish. Treat
+the iCloud folder accordingly.
+
+To make a local build produce the signed updater artifacts too:
+
+```bash
+export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/netrelish.key)"
+```
+
+Without it, `npm run app:build` still produces `.app` and `.dmg`, then
+fails at the last step with *"A public key has been found, but no private
+key"* — the bundles are fine, only `NetRelish.app.tar.gz` goes unsigned.
 
 ## Each release
 
