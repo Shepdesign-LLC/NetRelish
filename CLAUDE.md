@@ -461,7 +461,8 @@ on a machine that has never been online.
 - [x] Full keyboard map + shortcut sheet
 - [x] Light theme parity pass
 - [x] Updater wired (keys generated, pipeline ready; enrolment done and
-      every CI secret set as of Aug 2026 — see docs/RELEASING.md)
+      CI signing proven Aug 2026 — but notarization still fails 401 on an
+      invalid `APPLE_PASSWORD`, see docs/RELEASING.md)
 
 ---
 

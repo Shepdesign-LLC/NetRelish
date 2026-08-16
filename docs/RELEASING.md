@@ -22,9 +22,32 @@ public build — both need Ryan, neither needs a terminal beyond copy-paste.
      absent secret reaches the workflow as empty — which is correct.
 
 Status 2026-08-16: enrolment done (Individual, Team ID `D9QDJ44773`),
-certificate issued, and **all seven secrets above are now set** —
-`APPLE_PASSWORD` landed 2026-08-11, so nothing is outstanding.
-Signing identity proven locally against the exact CI import path.
+certificate issued, all seven secrets above exist, and **signing is
+proven in CI** — run 31951456481 imported the cert ("Ryan Shepherd") and
+signed the binary and the .app successfully.
+
+**⚠️ Notarization is NOT yet proven. `APPLE_PASSWORD` is present but
+invalid.** That same run died at the notarize step:
+
+```
+failed to notarize app: HTTP status code: 401. Invalid credentials.
+Username or password is incorrect. Use the app-specific password
+generated at appleid.apple.com.
+```
+
+A secret existing is not the same as a secret working — presence was
+mistaken for validity here once already. Notarization authenticates to
+Apple over the network with `APPLE_ID` + `APPLE_PASSWORD` +
+`APPLE_TEAM_ID`, which is a *different* credential path from signing, so
+a build can sign perfectly and still be refused. A 401 is nearly always
+`APPLE_PASSWORD` holding a normal Apple ID password: the notary service
+requires an **app-specific** one.
+
+Only Ryan can generate it — appleid.apple.com → Sign-In and Security →
+App-Specific Passwords. Then `gh secret set APPLE_PASSWORD` (prompts, so
+the value never lands in shell history) and re-run the release. Mark this
+section proven once a run gets past notarize and staple.
+
 Signing material backed up in iCloud Drive → NetRelish (the Developer ID
 `.p12`/`.key`, and the updater key — see below).
 
