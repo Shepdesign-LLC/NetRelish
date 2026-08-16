@@ -114,6 +114,11 @@ export default function App() {
   const activeJar = jars.find((j) => j.id === activeJarId) ?? null;
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? null;
 
+  /** A page is live in the preview webview — whether or not it's the surface
+   *  currently on screen. Back, forward and reload all act on that webview
+   *  directly, so they stay armed from Brine and jar views too. */
+  const hasLivePage = loaded && !!activeTab?.url;
+
   const showStatus = useCallback((s: Status, holdMs = 3500) => {
     setStatus(s);
     window.clearTimeout(statusTimer.current);
@@ -1071,11 +1076,8 @@ export default function App() {
         jarHue={activeJar?.hue ?? null}
         url={url}
         status={status}
-        canNavigate={loaded && !!activeTab?.url}
-        // Reload needs the page pane actually showing, not just a loaded tab:
-        // reloading a webview you've navigated away from does something the
-        // reader can't see, which reads as a dead button.
-        canReload={view === "page" && !!activeTab?.url}
+        canNavigate={hasLivePage}
+        canReload={hasLivePage}
         login={view === "page" ? login : null}
         onUrlChange={setUrl}
         onNavigate={() => void navigate()}
