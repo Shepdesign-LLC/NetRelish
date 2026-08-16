@@ -1,7 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Analytics } from "@vercel/analytics/react";
 import BrineView from "./components/BrineView";
 import JarView from "./components/JarView";
 import NoteView from "./components/NoteView";
@@ -1162,7 +1161,6 @@ export default function App() {
           />
         )}
       </div>
-      <Analytics />
     </div>
   );
 }
