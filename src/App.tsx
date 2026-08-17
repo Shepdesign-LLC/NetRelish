@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import BrineView from "./components/BrineView";
 import JarView from "./components/JarView";
 import NoteView from "./components/NoteView";
@@ -1085,82 +1086,85 @@ export default function App() {
   };
 
   return (
-    <div className="nr-app" data-nr-theme={theme}>
-      <TitleBar
-        jarName={activeJar?.name ?? null}
-        jarHue={activeJar?.hue ?? null}
-        url={url}
-        status={status}
-        canNavigate={hasLivePage}
-        login={view === "page" ? login : null}
-        onUrlChange={setUrl}
-        onNavigate={() => void navigate()}
-        onReleaseJar={() => void releaseJar()}
-        onFillLogin={() => void fillLogin()}
-        onSaveLogin={() => void saveLogin()}
-      />
-
-      {run && (
-        <RunnerBar
-          recipeName={run.recipe.name}
-          steps={run.steps}
-          index={Math.max(run.index, 0)}
-          finished={run.finished}
-          onBack={runnerBack}
-          onSkip={() => void runnerDone()}
-          onDone={() => void runnerDone()}
-          onFinish={() => void finishRun()}
-          onCancel={() => void cancelRun()}
-        />
-      )}
-
-      <div className="nr-body">
-        <Sidebar
-          jars={jars}
-          activeJarId={activeJarId}
-          tabs={tabs}
-          activeTabId={activeTabId}
-          sealingIds={sealingIds}
-          brineCount={count}
-          totalPreserved={totalPreserved}
-          brineActive={view === "brine"}
-          onSelectTab={(id) => void switchTab(id)}
-          onCloseTab={(id) => void closeTab(id)}
-          onTogglePin={(tab) => void togglePin(tab)}
-          onNewTab={() => void newTab()}
-          onOpenBrine={toggleBrine}
-          onSelectJar={(id) => void activateJar(id)}
-          onNewJar={() => {
-            returnView.current = view === "create" ? "brine" : view;
-            setView("create");
-          }}
+    <>
+      <Analytics />
+      <div className="nr-app" data-nr-theme={theme}>
+        <TitleBar
+          jarName={activeJar?.name ?? null}
+          jarHue={activeJar?.hue ?? null}
+          url={url}
+          status={status}
+          canNavigate={hasLivePage}
+          login={view === "page" ? login : null}
+          onUrlChange={setUrl}
+          onNavigate={() => void navigate()}
+          onReleaseJar={() => void releaseJar()}
+          onFillLogin={() => void fillLogin()}
+          onSaveLogin={() => void saveLogin()}
         />
 
-        {/* The hole. The native WKWebView is positioned over this rect —
-            nothing rendered inside it survives once a page loads. Chrome
-            surfaces only ever show while that webview is hidden. */}
-        <div className="nr-stage" ref={holeRef}>
-          {stageContent()}
-        </div>
-
-        {sheetOpen && <ShortcutSheet onClose={() => setSheetOpen(false)} />}
-
-        {/* Sibling of .nr-stage by design (§11): it must never render
-            inside the hole the native pane covers. */}
-        {paletteOpen && (
-          <Palette
-            query={paletteQuery}
-            activeJarId={activeJarId}
-            activeJarHue={activeJar?.hue ?? null}
-            onQueryChange={setPaletteQuery}
-            onOpen={(target, keepOpen) => {
-              void openUrl(target);
-              if (!keepOpen) setPaletteOpen(false);
-            }}
-            onClose={() => setPaletteOpen(false)}
+        {run && (
+          <RunnerBar
+            recipeName={run.recipe.name}
+            steps={run.steps}
+            index={Math.max(run.index, 0)}
+            finished={run.finished}
+            onBack={runnerBack}
+            onSkip={() => void runnerDone()}
+            onDone={() => void runnerDone()}
+            onFinish={() => void finishRun()}
+            onCancel={() => void cancelRun()}
           />
         )}
+
+        <div className="nr-body">
+          <Sidebar
+            jars={jars}
+            activeJarId={activeJarId}
+            tabs={tabs}
+            activeTabId={activeTabId}
+            sealingIds={sealingIds}
+            brineCount={count}
+            totalPreserved={totalPreserved}
+            brineActive={view === "brine"}
+            onSelectTab={(id) => void switchTab(id)}
+            onCloseTab={(id) => void closeTab(id)}
+            onTogglePin={(tab) => void togglePin(tab)}
+            onNewTab={() => void newTab()}
+            onOpenBrine={toggleBrine}
+            onSelectJar={(id) => void activateJar(id)}
+            onNewJar={() => {
+              returnView.current = view === "create" ? "brine" : view;
+              setView("create");
+            }}
+          />
+
+          {/* The hole. The native WKWebView is positioned over this rect —
+              nothing rendered inside it survives once a page loads. Chrome
+              surfaces only ever show while that webview is hidden. */}
+          <div className="nr-stage" ref={holeRef}>
+            {stageContent()}
+          </div>
+
+          {sheetOpen && <ShortcutSheet onClose={() => setSheetOpen(false)} />}
+
+          {/* Sibling of .nr-stage by design (§11): it must never render
+              inside the hole the native pane covers. */}
+          {paletteOpen && (
+            <Palette
+              query={paletteQuery}
+              activeJarId={activeJarId}
+              activeJarHue={activeJar?.hue ?? null}
+              onQueryChange={setPaletteQuery}
+              onOpen={(target, keepOpen) => {
+                void openUrl(target);
+                if (!keepOpen) setPaletteOpen(false);
+              }}
+              onClose={() => setPaletteOpen(false)}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
