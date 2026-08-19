@@ -21,6 +21,9 @@
 
 import Database from "@tauri-apps/plugin-sql";
 import { createNetRelishClient, type NetRelishClient } from "@netrelish/core";
+import {
+  decryptBody, encryptBody, ENCRYPTED_KINDS, isEncrypted,
+} from "./crypto";
 
 const DB_URL = "sqlite:netrelish.db";
 
@@ -44,6 +47,42 @@ export function remote(): NetRelishClient {
     _remote = createNetRelishClient(url, key);
   }
   return _remote;
+}
+
+/**
+ * The note key for this session, or null.
+ *
+ * Null means one of two very different things, and the UI must not conflate
+ * them: either the keyring is locked (a password account, not yet unlocked),
+ * or this is an OAuth account that HAS no keyring and stores notes as
+ * plaintext (CLAUDE.md §4a). `tier` says which.
+ */
+let noteKey: Uint8Array | null = null;
+let tier: "encrypted" | "plaintext" | "locked" = "locked";
+
+export function keyringTier(): typeof tier {
+  return tier;
+}
+
+/** Called after sign-in once the note key has been unwrapped. */
+export function unlockKeyring(key: Uint8Array): void {
+  noteKey = key;
+  tier = "encrypted";
+}
+
+/**
+ * Declare this an OAuth account: no password, so no wrapping key, so notes
+ * sync as plaintext. §4a requires the UI to say so plainly — this is the flag
+ * it reads.
+ */
+export function usePlaintextNotes(): void {
+  noteKey = null;
+  tier = "plaintext";
+}
+
+export function lockKeyring(): void {
+  noteKey = null;
+  tier = "locked";
 }
 
 // --- table specs ----------------------------------------------------------
@@ -151,7 +190,7 @@ function stampsIn(obj: unknown): string {
 
 type Row = Record<string, unknown>;
 
-function toRemote(spec: Spec, row: Row): Row {
+async function toRemote(spec: Spec, row: Row): Promise<Row> {
   const out: Row = {};
   for (const c of spec.cols) {
     const v = row[c];
@@ -159,6 +198,24 @@ function toRemote(spec: Spec, row: Row): Row {
     else if (spec.json.includes(c)) out[c] = v ? JSON.parse(String(v)) : null;
     else out[c] = v ?? null;
   }
+  // Your own writing is encrypted before it leaves; a page is a copy of
+  // something already public and stays readable so Relish AI can work (§4a).
+  // Local storage stays plaintext either way — FTS5 indexes `body`, and
+  // ciphertext on disk would break ⌘K for notes.
+  if (
+    spec.table === "items" &&
+    ENCRYPTED_KINDS.has(String(row.kind)) &&
+    typeof out.body === "string" &&
+    out.body.length > 0
+  ) {
+    if (noteKey) out.body = await encryptBody(out.body, noteKey);
+    else if (tier === "locked") {
+      throw new Error("Refusing to push notes: the keyring is locked.");
+    }
+    // tier === "plaintext" (OAuth): leave it, and §4a requires the UI to
+    // have said so.
+  }
+
   out.deleted_at = iso(row.deleted_at as number | null);
   if (spec.mode === "field") {
     out.field_ts = stampsOut(row.field_ts as string | null);
@@ -171,7 +228,7 @@ function toRemote(spec: Spec, row: Row): Row {
   return out;
 }
 
-function toLocal(spec: Spec, row: Row): Row {
+async function toLocal(spec: Spec, row: Row): Promise<Row> {
   const out: Row = {};
   for (const c of spec.cols) {
     const v = row[c];
@@ -179,6 +236,10 @@ function toLocal(spec: Spec, row: Row): Row {
     else if (spec.json.includes(c)) out[c] = v === null || v === undefined ? null : JSON.stringify(v);
     else out[c] = v ?? null;
   }
+  if (spec.table === "items" && isEncrypted(out.body as string | null)) {
+    out.body = await decryptBody(out.body as string, noteKey);
+  }
+
   out.deleted_at = ms(row.deleted_at as string | null);
   out.updated_at = ms(row.updated_at as string | null);
   if (spec.mode === "field") out.field_ts = stampsIn(row.field_ts);
@@ -234,7 +295,7 @@ async function pushTable(spec: Spec): Promise<number> {
   );
   if (rows.length === 0) return 0;
 
-  const payload = rows.map((r) => toRemote(spec, r));
+  const payload = await Promise.all(rows.map((r) => toRemote(spec, r)));
   const args: Record<string, unknown> = { payload };
   // Only items forks prose, and only it needs to know when the client last
   // agreed with the server.
@@ -269,7 +330,7 @@ async function pullTable(spec: Spec): Promise<number> {
   const d = await db();
   let high = since;
   for (const remoteRow of data as Row[]) {
-    const local = toLocal(spec, remoteRow);
+    const local = await toLocal(spec, remoteRow);
     const cols = Object.keys(local);
     const ph = cols.map((_, i) => `$${i + 1}`).join(", ");
     const set = cols
