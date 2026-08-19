@@ -21,32 +21,57 @@ public build — both need Ryan, neither needs a terminal beyond copy-paste.
      The key has no password, GitHub refuses empty-string secrets, and an
      absent secret reaches the workflow as empty — which is correct.
 
-Status 2026-08-16: enrolment done (Individual, Team ID `D9QDJ44773`),
-certificate issued, all seven secrets above exist, and **signing is
-proven in CI** — run 31951456481 imported the cert ("Ryan Shepherd") and
-signed the binary and the .app successfully.
+Status 2026-08-19: enrolment done (Individual, Team ID `D9QDJ44773`) and
+the certificate is issued.
 
-**⚠️ Notarization is NOT yet proven. `APPLE_PASSWORD` is present but
-invalid.** That same run died at the notarize step:
+**Correction — the run history this section used to cite belongs to a
+different repository.** `Shepdesign/NetRelish` was **created 2026-08-16**
+when the project went public. The old private repo's secrets, workflow
+runs, and the v0.1.0 draft release did not come with it; only the `v0.1.0`
+tag rode along with the history. As of 2026-08-19 this repo had **0
+secrets, 0 workflow runs, 0 releases**.
+
+So the long-standing story here — "`APPLE_PASSWORD` is present but
+invalid, notarization fails 401" — was never true of *this* repo. The
+secrets were simply absent. Two lessons survive the correction, and both
+are worth keeping:
+
+- A secret existing is not the same as a secret working. (And a secret
+  you remember setting is not the same as a secret that is there.)
+- Notarization authenticates to Apple over the network with `APPLE_ID` +
+  `APPLE_PASSWORD` + `APPLE_TEAM_ID` — a *different* credential path from
+  signing. A build can sign perfectly and still be refused. A 401 is
+  nearly always `APPLE_PASSWORD` holding a normal Apple ID password
+  where the notary service requires an **app-specific** one.
+
+Ryan re-added all seven secrets on 2026-08-19: six piped from the local
+key material in `~/.tauri/`, plus a fresh app-specific password from
+appleid.apple.com. The Apple ID is **ryanshepherd93@gmail.com**, not
+ryan@shepdesign.com — an earlier attempt failed with "account does not
+exist" on exactly that.
+
+**Notarization is proven — 2026-08-19.** Run 32229611836 built, signed,
+notarized and stapled from the new `apps/desktop` layout. Verified on the
+artifact itself rather than on a green checkmark:
 
 ```
-failed to notarize app: HTTP status code: 401. Invalid credentials.
-Username or password is incorrect. Use the app-specific password
-generated at appleid.apple.com.
+$ spctl -a -vvv -t install /Volumes/.../NetRelish.app
+accepted
+source=Notarized Developer ID
+origin=Developer ID Application: Ryan Shepherd (D9QDJ44773)
+
+$ xcrun stapler validate /Volumes/.../NetRelish.app
+The validate action worked!
 ```
 
-A secret existing is not the same as a secret working — presence was
-mistaken for validity here once already. Notarization authenticates to
-Apple over the network with `APPLE_ID` + `APPLE_PASSWORD` +
-`APPLE_TEAM_ID`, which is a *different* credential path from signing, so
-a build can sign perfectly and still be refused. A 401 is nearly always
-`APPLE_PASSWORD` holding a normal Apple ID password: the notary service
-requires an **app-specific** one.
+The stapled ticket is what makes it work offline — Gatekeeper does not
+need to reach Apple on first launch.
 
-Only Ryan can generate it — appleid.apple.com → Sign-In and Security →
-App-Specific Passwords. Then `gh secret set APPLE_PASSWORD` (prompts, so
-the value never lands in shell history) and re-run the release. Mark this
-section proven once a run gets past notarize and staple.
+A note for next time: the CI log shows **no** "Notarizing" or "Stapling"
+line. What it does show is `Signing …/NetRelish.zip` followed by a ~53s
+gap before the DMG is signed — that gap *is* the notary submission. Do not
+read the missing log line as a skipped step, and equally, do not read a
+green step as proof. Check the artifact.
 
 Signing material backed up in iCloud Drive → NetRelish (the Developer ID
 `.p12`/`.key`, and the updater key — see below).
