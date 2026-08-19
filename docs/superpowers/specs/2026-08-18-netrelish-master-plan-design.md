@@ -319,6 +319,68 @@ and nothing depends on it.
 
 ---
 
+## 4a. Amendments — 2026-08-19
+
+Three changes after the Workstation/iOS design pass (`docs/design/`) and
+Ryan's rulings. This section supersedes §5's original ordering.
+
+### New projects
+
+| # | Project | Why it exists |
+| :-- | :-- | :-- |
+| **P13** | **iPhone app** — native SwiftUI | Ryan's call, 2026-08-19. §12's stated blocker was wrong: Guideline 2.5.6 forces WKWebView, which the Mac app already uses, so it costs nothing. Five screens already designed. |
+| **P14** | **Multi-profile** — "Who's cooking?", passcode-locked profiles, Guest | Appears throughout the Workstation mock and in no plan. Uncosted; needs its own spec before it is scheduled. |
+| **P15** | **Flavors** — theme system (Aurora / Deli Light / Beet Candy) | Small, but touches every surface, so it is cheaper before the web and iPhone clients exist than after. |
+
+### Phase order, revised
+
+Ryan pulled **P4 (sync) ahead of P2 (web)** on 2026-08-19, knowing it is the
+riskiest component and is now built against an API no client has exercised in
+production. The reason is sound: without it, one account has two disconnected
+Pantries, and the first user — who has 90 real items on a Mac — cannot dogfood
+anything.
+
+| Phase | Was | Now |
+| :-- | :-- | :-- |
+| 1 Foundation | P0 · P1 | **done** |
+| 2 Clients | P2 · P3 · P5 | **P4 sync → P13 iPhone → P2 web → P3 extension** |
+| 3 Intelligence | — | P5 hosted AI · P15 Flavors |
+| 4 Business | P6 · P7 | P6 billing · P7 public Relishes |
+| 5 Premium | P8 · P9 | unchanged |
+| 6 Scale | P10 · P11 · P12 | plus P14 multi-profile |
+
+**Two safeguards attach to P4 because of the reordering**, and they are not
+optional. Ryan's `netrelish.db` is 90 items and 4 jars of real work and is the
+only copy: (1) a verified backup, with a checked hash, before sync writes to it
+once; (2) sync is developed against a throwaway account and database first —
+the real Pantry is the last thing it touches.
+
+The comfort is that P1's conflict design fails toward duplication, not loss.
+Worst realistic case is a jar with doubled items.
+
+### The mocks are the destination
+
+`docs/design/Workstation Desktop.dc.html` and `NetRelish iOS.dc.html` are now
+the agreed target for P5, P7, P8 and P10. Build toward them; they are not a
+next-task list.
+
+**Their privacy copy must not be implemented as drawn.** Both promise
+"end-to-end encrypted — we can't read your Pantry" on screens that also show
+AI reading those items. CLAUDE.md §4a and §10 now carry the resolution — notes
+encrypted client-side, page text readable — and `docs/design/README.md` has the
+exact copy to ship instead.
+
+### iPhone is native SwiftUI, deliberately
+
+Ryan chose SwiftUI over sharing the Rust core through Tauri v2. The cost is a
+second implementation of the local store, extraction, and the query grammar.
+The cost it does **not** carry is a second merge rule: `sync_push` lives in
+Postgres, so every client submits and the database decides. P1 built that to
+stop three TypeScript clients drifting; it is what makes a fourth client in
+another language safe.
+
+---
+
 ## 5. Phase order
 
 **Phase 1 — Foundation.** P0 → P1.
