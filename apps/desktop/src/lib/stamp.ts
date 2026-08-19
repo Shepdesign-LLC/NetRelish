@@ -8,8 +8,16 @@
  * fields will look infinitely old and always lose the merge.
  */
 
-/** Columns that are sync metadata, never themselves stamped. */
-const META = new Set(["id", "updated_at", "deleted_at", "field_ts"]);
+/**
+ * Columns that are sync metadata, never themselves stamped.
+ *
+ * `deleted_at` is deliberately NOT here. It is a real, mergeable field: the
+ * server's merge loop iterates only the keys present in `field_ts`, so a
+ * tombstone that does not stamp `deleted_at` is never applied and the delete
+ * silently never propagates. Its stamp is also what settles a delete-vs-edit
+ * race — delete at T2 beats an edit at T1 because its timestamp is newer.
+ */
+const META = new Set(["id", "updated_at", "field_ts"]);
 
 export interface Write {
   cols: string[];
