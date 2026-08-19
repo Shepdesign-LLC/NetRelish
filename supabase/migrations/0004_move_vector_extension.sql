@@ -1,0 +1,14 @@
+-- Supabase's security linter flags extensions living in `public` (lint 0014):
+-- anything there is reachable through PostgREST and widens the search_path
+-- attack surface. The `extensions` schema already exists and is already on
+-- the search_path, so the vector(1024) type and vector_cosine_ops operator
+-- class continue to resolve unqualified.
+--
+-- Done now, deliberately: there is no data and no client code yet. The same
+-- move after P2 ships would mean coordinating a type relocation with three
+-- clients.
+--
+-- A separate migration rather than an edit to 0001, because 0001 is already
+-- applied and applied migrations are not rewritten. Fresh-apply order is
+-- "create in public, then move", which converges on the same end state.
+alter extension vector set schema extensions;
