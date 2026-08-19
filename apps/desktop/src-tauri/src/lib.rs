@@ -118,6 +118,9 @@ pub fn run() {
                 let shortcuts = MenuItemBuilder::with_id("shortcuts", "Keyboard Shortcuts")
                     .accelerator("CmdOrCtrl+/")
                     .build(app)?;
+                let account = MenuItemBuilder::with_id("account", "NetRelish ID…")
+                    .accelerator("CmdOrCtrl+Shift+A")
+                    .build(app)?;
                 let ask_pantry = MenuItemBuilder::with_id("ask-pantry", "Ask the Pantry")
                     .accelerator("CmdOrCtrl+K")
                     .build(app)?;
@@ -152,6 +155,7 @@ pub fn run() {
                     .item(&ask_pantry)
                     .item(&open_location)
                     .item(&shortcuts)
+                    .item(&account)
                     .separator();
                 // ⌘1–⌘9 switch jars by shelf position, even while the page
                 // pane holds the keyboard.
@@ -266,6 +270,8 @@ pub fn run() {
                 let _ = app.emit_to("main", "menu:save-login", ());
             } else if event.id() == "shortcuts" {
                 let _ = app.emit_to("main", "menu:shortcuts", ());
+            } else if event.id() == "account" {
+                let _ = app.emit_to("main", "menu:account", ());
             } else if let Some(n) = event
                 .id()
                 .as_ref()

@@ -2628,3 +2628,125 @@ body {
   text-transform: uppercase;
   color: var(--nr-text-soft);
 }
+
+/* --- NetRelish ID (P4 Stage E) -------------------------------------------
+   Light glass panel on the Aurora, the one-glass recipe at content depth.
+   The tier sentence is a first-class element, not fine print: §4a requires
+   the account's privacy tier to be stated in words, and a user who cannot
+   see it cannot have consented to it. */
+.nr-account {
+  max-width: 30rem;
+  margin: 2.5rem auto;
+  padding: 1.75rem 1.9rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  background: var(--nr-glass);
+  backdrop-filter: blur(var(--nr-blur));
+  -webkit-backdrop-filter: blur(var(--nr-blur));
+  border: 1px solid var(--nr-glass-border);
+  box-shadow: var(--nr-shadow-panel), var(--nr-glass-highlight);
+  border-radius: 20px;
+  color: var(--nr-text);
+}
+.nr-account__head { display: flex; align-items: baseline; gap: 1rem; }
+.nr-account__head h1 {
+  flex: 1; margin: 0;
+  font-family: var(--nr-font-display);
+  font-size: 1.5rem; font-weight: 700;
+  color: var(--nr-text-strong);
+}
+.nr-account__close,
+.nr-account__link {
+  background: none; border: none; cursor: pointer;
+  font-family: var(--nr-font-mono);
+  font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--nr-text-soft);
+}
+.nr-account__tier {
+  margin: 0; padding: 0.8rem 0.95rem;
+  font-size: 0.92rem; line-height: 1.5;
+  border-radius: 12px;
+  background: var(--nr-glass-card);
+  border-left: 3px solid var(--nr-focus);
+  color: var(--nr-text);
+}
+/* A weaker guarantee reads differently from a stronger one — Tomato Jam,
+   the same hue the plan uses for anything the user should notice. */
+.nr-account__tier[data-tier="plaintext"] { border-left-color: var(--nr-jar-3); }
+.nr-account__tier[data-tier="locked"]    { border-left-color: var(--nr-jar-2); }
+
+.nr-account__tabs { display: flex; gap: 0.5rem; }
+.nr-account__tabs button {
+  flex: 1; padding: 0.5rem; cursor: pointer;
+  border-radius: 10px; border: 1px solid var(--nr-glass-border);
+  background: var(--nr-glass-control);
+  font-family: var(--nr-font-ui); font-size: 0.88rem; font-weight: 600;
+  color: var(--nr-text-muted);
+}
+.nr-account__tabs button[aria-selected="true"] {
+  background: linear-gradient(180deg, var(--nr-pour-a), var(--nr-pour-b));
+  color: var(--nr-ink-on-pour);
+  box-shadow: var(--nr-pour-glow);
+}
+.nr-account__field { display: flex; flex-direction: column; gap: 0.3rem; }
+.nr-account__field span {
+  font-family: var(--nr-font-mono); font-size: 0.7rem;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--nr-text-soft);
+}
+.nr-account__field input {
+  padding: 0.55rem 0.7rem; border-radius: 10px;
+  border: 1px solid var(--nr-glass-border);
+  background: var(--nr-glass-control);
+  font-family: var(--nr-font-ui); font-size: 0.95rem;
+  color: var(--nr-text-strong);
+}
+.nr-account__field input:focus-visible,
+.nr-account__tabs button:focus-visible,
+.nr-account__go:focus-visible,
+.nr-account__github:focus-visible,
+.nr-account__link:focus-visible,
+.nr-account__close:focus-visible {
+  outline: 2px solid var(--nr-focus); outline-offset: 2px;
+}
+.nr-account__go {
+  padding: 0.6rem; cursor: pointer; border: none; border-radius: 12px;
+  background: linear-gradient(180deg, var(--nr-pour-a), var(--nr-pour-b));
+  box-shadow: var(--nr-pour-glow);
+  font-family: var(--nr-font-ui); font-size: 0.95rem; font-weight: 700;
+  color: var(--nr-ink-on-pour);
+}
+.nr-account__go:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
+.nr-account__github {
+  padding: 0.55rem; cursor: pointer; border-radius: 12px;
+  border: 1px solid var(--nr-glass-border);
+  background: var(--nr-glass-control);
+  font-family: var(--nr-font-ui); font-size: 0.92rem; font-weight: 600;
+  color: var(--nr-text-strong);
+}
+.nr-account__who { margin: 0; font-size: 0.95rem; color: var(--nr-text-strong); }
+.nr-account__provider {
+  margin-left: 0.5rem; font-family: var(--nr-font-mono);
+  font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--nr-text-faint);
+}
+.nr-account__signed { display: flex; flex-direction: column; gap: 0.7rem; }
+.nr-account__recovery {
+  padding: 0.9rem 1rem; border-radius: 12px;
+  background: var(--nr-glass-card);
+  border: 1px solid var(--nr-jar-2);
+  display: flex; flex-direction: column; gap: 0.6rem;
+  font-size: 0.9rem; line-height: 1.5;
+}
+.nr-account__recovery code {
+  font-family: var(--nr-font-mono); font-size: 1.05rem; letter-spacing: 0.08em;
+  padding: 0.5rem; border-radius: 8px; text-align: center;
+  background: var(--nr-glass-control); color: var(--nr-text-strong);
+}
+.nr-account__result { margin: 0; font-size: 0.88rem; color: var(--nr-text-muted); }
+.nr-account__error  { margin: 0; font-size: 0.88rem; color: var(--nr-jar-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  .nr-account * { transition: none !important; animation: none !important; }
+}

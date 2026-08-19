@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import BrineView from "./components/BrineView";
 import JarView from "./components/JarView";
 import NoteView from "./components/NoteView";
+import AccountView from "./components/AccountView";
 import Palette from "./components/Palette";
 import RunnerBar from "./components/RunnerBar";
 import ShortcutSheet from "./components/ShortcutSheet";
@@ -55,7 +56,7 @@ import {
 
 /** What the stage shows. Independent of which jar is active — you can look
  *  at Brine while a jar stays open for ⌘J and new pages. */
-type View = "page" | "brine" | "jar" | "create" | "note";
+type View = "page" | "brine" | "jar" | "create" | "note" | "account";
 
 /** A recipe run in progress. */
 interface RunState {
@@ -629,6 +630,20 @@ export default function App() {
     };
   }, []);
 
+  // ⌘⇧A — NetRelish ID.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    void listen("menu:account", () => setView("account")).then((f) => {
+      if (disposed) f();
+      else unlisten = f;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
+
   // Saved logins. The chrome only ever sees hosts and usernames — the
   // password's whole life is Keychain ↔ Rust ↔ page.
   const saveLogin = useCallback(async () => {
@@ -991,6 +1006,10 @@ export default function App() {
         />
       );
     }
+    if (view === "account") {
+      return <AccountView onClose={() => setView("brine")} />;
+    }
+
     if (view === "note" && noteId) {
       return (
         <NoteView
