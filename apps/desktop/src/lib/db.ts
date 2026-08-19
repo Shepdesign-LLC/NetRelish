@@ -632,15 +632,25 @@ export async function createRecipe(
   steps: string,
 ): Promise<Recipe> {
   const recipe: Recipe = { id: crypto.randomUUID(), jar_id: jarId, name, steps };
+  const w = insertWrite({
+    id: recipe.id,
+    jar_id: recipe.jar_id,
+    name: recipe.name,
+    steps: recipe.steps,
+  });
   await db().execute(
-    `INSERT INTO recipes (id, jar_id, name, steps) VALUES ($1, $2, $3, $4)`,
-    [recipe.id, recipe.jar_id, recipe.name, recipe.steps],
+    `INSERT INTO recipes (${w.cols.join(", ")}) VALUES (${w.placeholders})`,
+    w.vals,
   );
   return recipe;
 }
 
 export async function updateRecipeSteps(id: string, steps: string): Promise<void> {
-  await db().execute(`UPDATE recipes SET steps = $1 WHERE id = $2`, [steps, id]);
+  const w = updateWrite({ steps }, await prevTs("recipes", id));
+  await db().execute(
+    `UPDATE recipes SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
+  );
 }
 
 export async function deleteRecipe(id: string): Promise<void> {
@@ -835,15 +845,19 @@ export async function assignLabel(
 ): Promise<void> {
   const clean = name.trim().toLowerCase();
   if (!clean || itemIds.length === 0) return;
+  const w = insertWrite({ id: crypto.randomUUID(), name: clean });
   await db().execute(
-    `INSERT OR IGNORE INTO labels (id, name) VALUES ($1, $2)`,
-    [crypto.randomUUID(), clean],
+    `INSERT OR IGNORE INTO labels (${w.cols.join(", ")}) VALUES (${w.placeholders})`,
+    w.vals,
   );
+  // item_labels is a pure join table and 004 gives it no field_ts: presence
+  // is the only fact, so there is nothing to merge field by field. It still
+  // carries updated_at, which is what the sync cursor reads.
   for (const itemId of itemIds) {
     await db().execute(
-      `INSERT OR IGNORE INTO item_labels (item_id, label_id)
-       SELECT $1, id FROM labels WHERE name = $2`,
-      [itemId, clean],
+      `INSERT OR IGNORE INTO item_labels (item_id, label_id, updated_at)
+       SELECT $1, id, $3 FROM labels WHERE name = $2`,
+      [itemId, clean, Date.now()],
     );
   }
 }
