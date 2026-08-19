@@ -110,7 +110,8 @@ to it is a decision, not an implementation detail.
 | :-- | :-- | :-- |
 | Jars, items, labels, recipes, tabs | Sync | The user's own content, under their account |
 | Extracted page text | Sync + hosted AI | Same rows as above; §7 still governs extraction |
-| Item text sent for analysis | Summaries, gap analysis, reports | Per-request, cached server-side, shown in the UI while it happens. The model is a **third party** — this text leaves NetRelish's infrastructure too |
+| Item text sent for analysis | Summaries, gap analysis, reports | Per-request, cached server-side, shown in the UI while it happens. **Two third parties** receive item text: Anthropic for prose and Voyage AI for embeddings. Both sit outside NetRelish's infrastructure. Neither receives anything yet — P1 built the schema, P5 turns them on |
+| Account credentials | Sign-in | Email + password, or an OAuth token, to Supabase Auth. This is the account you sign in *with* — not the logins NetRelish stores *for* you, which never leave (below) |
 | Licence + subscription state | Billing | |
 
 **Never leaves, under any feature:**
@@ -284,7 +285,13 @@ Rules:
 
 ## 8. The organization engine (week 6)
 
-Four layers, all on-device:
+Four layers, all on-device. The on-device engine is not replaced by the
+cloud track — it is what keeps ranking and clustering working with the
+network unplugged (§4.1). P5 adds a **fifth, hosted layer** for the things
+a 90MB local model cannot do: prose, gap analysis, reports. The two are
+complementary, and what may be sent to the hosted one is bounded by §4a.
+
+The four local layers:
 
 1. **Sessions** — pages visited within a time window, with referrer chains
    between them, are one working session. Cheap, and it catches most cases.
