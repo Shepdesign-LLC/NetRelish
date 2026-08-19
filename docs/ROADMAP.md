@@ -7,11 +7,12 @@ it lives at `/Volumes/WORK/New Projects/NetRelish/business-plan.md`.
 
 **Ground rules.** CLAUDE.md remains law. Where the plan says Workspace,
 the product says **Jar**; where it says Ingredient, the product says
-item; where it describes cloud SaaS mechanics, the local-first
-architecture wins. The plan's *vision* is adopted; its *mechanics* are
-translated. The repo went public in Aug 2026 and `business-plan.md` was
-purged from its history first, as this note had asked. Keep it that way:
-strategy stays off the public record.
+item; where it describes cloud SaaS mechanics, those are now
+**adopted** rather than translated — see "Reversed on 2026-08-18" below.
+The vocabulary translation still holds absolutely. The repo went public
+in Aug 2026 and `business-plan.md` was purged from its history first, as
+this note had asked. Keep it that way: strategy stays off the public
+record.
 
 ---
 
@@ -68,15 +69,16 @@ their public output attracts 2–4.
 | AI categorization / related resources | on-device embeddings + entities (§8) | shipped |
 | Repeatable workflow / Recipe | **Recipe** — recorded, not authored | shipped |
 | Web clipper | `⌘J` on a selection | shipped (page-level); element-level is future |
-| "What am I missing?" gap analysis | future engine layer — see below | next |
-| Relish Report (website analysis) | future feature; naming is Ryan's call when scheduled | later |
-| Knowledge graph | entities + embeddings exist; a visual surface is future | later |
-| Public collections / marketplace / teams | out until ~1,000 users (CLAUDE.md §12) | later |
-| Accounts, cloud backend, LLM API | **not translated** — see "Out by design" | — |
+| "What am I missing?" gap analysis | hosted intelligence, a fifth engine layer | **P5** |
+| Relish Report (website analysis) | naming is Ryan's call when scheduled | **P8** |
+| Knowledge graph | entities + embeddings exist; the visual surface is scheduled | **P12** |
+| Public collections / marketplace / teams | scheduled — no longer gated on user count | **P7, P10, P11** |
+| Accounts, cloud backend, LLM API | **adopted**, not translated — see "Reversed on 2026-08-18" | **P1, P4, P5** |
 
 The plan's own thesis — *"NetRelish should live inside the browser"* —
-is fulfilled beyond what it asked: the plan wanted an extension riding
-in Chrome. NetRelish **is** the browser.
+is now fulfilled twice over: on the Mac, NetRelish **is** the browser;
+everywhere else, the extension rides in Chrome exactly as the plan
+first imagined (P3).
 
 ## Roadmap
 
@@ -86,61 +88,56 @@ The eight weeks of CLAUDE.md §11: shell, Brine, Jars, Ask the Pantry,
 Sealing, the engine, Recipes, notes/tasks/files/labels. Signed +
 notarized release pipeline. Aero Relish design system.
 
-### Next — post-launch, all local
+### Now — the master plan
 
-- **Passwords** — save and fill logins, vaulted in the **macOS
-  Keychain** — never in `netrelish.db`, never near FTS or the engine.
-  The fill path runs Rust→page; the UI layer only ever sees usernames.
-  Detection is a suggestion, saving and filling are user gestures
-  (suggest-never-silently applies to credentials most of all). Import
-  from Safari/Chrome via their CSV export. Requested by Ryan
-  2026-08-11 — the daily-driver feature.
-- **Gap analysis** — the plan's "What am I missing?" (§11). A fifth
-  engine layer: cluster a jar's items by topic, name the clusters,
-  report thin coverage. Same rules as every engine output: on-device,
-  a suggestion, never auto-applied.
-- **Element-level clipping** — `⌘J` on a selection already preserves
-  the page; promote selections to first-class snippets on the item.
-- **Email** — `kind='message'` via IMAP (CLAUDE.md §12; the schema has
-  been waiting since week 2).
-- **PWA companion** for reading your Pantry from a phone (§12).
-- **netrelish.com** on the real domain; download page feeds the ladder.
+Twelve projects, six phases. Summarised here; the spec is authoritative.
 
-### Later — at scale
+| Phase | Projects |
+| :-- | :-- |
+| 1 Foundation | P0 constitution + monorepo + notarization · P1 backend |
+| 2 MVP | P2 web app · P3 extension · P5 hosted intelligence |
+| 3 Business | P6 billing · P7 public jars and growth |
+| 4 Mac home | P4 sync |
+| 5 Premium | P8 Relish Reports · P9 competitive research |
+| 6 Scale | P10 teams · P11 marketplace · P12 knowledge graph |
 
-- **Billing** — freemium per the plan's §19: free tier generous enough
-  to live in, Pro ~$15/mo. License keys via Supabase (§10) — a table
-  with four columns, still no user data in the cloud.
-- **Website reports** — the plan's Relish Report (§15), built as local
-  analysis of a URL you visit. Transparent scoring. Premium candidate.
-  Ryan names it when it's scheduled.
-- **Knowledge-graph surface** — a visual map over the entity and
-  embedding data the engine already keeps.
-- **Sharing / public collections / marketplace** — the plan's growth
-  loop (§14, §17, §27). Revisit at 1,000 users per CLAUDE.md §12;
-  publishing is opt-in export, never sync-by-default.
-- **Teams / agency tier** — client jars, roles, white-label reports
-  (plan §18). A different product; earns its way in only after
-  individuals retain.
+Already shipped and not re-listed above: the eight weeks of CLAUDE.md §11,
+and **passwords** (2026-08-11) — save and fill logins vaulted in the macOS
+Keychain, never in `netrelish.db`, never near FTS or the engine. The fill
+path runs Rust→page; the UI layer only ever sees usernames. Detection is a
+suggestion; saving and filling are user gestures. Still wanted: a management
+panel, CSV import from Safari/Chrome, a multi-account picker, Touch ID on
+reveal, and subdomain matching.
 
-### Out by design
+Still unscheduled, still wanted: element-level clipping, email via IMAP, a
+PWA companion.
 
-From CLAUDE.md §4, restated because the plan contradicts them:
+### Reversed on 2026-08-18
 
-- **No accounts, no cloud backend, no telemetry.** Local is the
-  engineering moat — instant search, offline everything, privacy as a
-  consequence. Sync, if ever, is end-to-end encrypted blobs (§10).
-- **No LLM API in the product.** The AI layer is on-device (§8). The
-  plan's "AI should support the product, not become it" survives
-  translation; its cloud mechanics don't.
-- **No extension as the product.** The product is the browser.
-- **No plan vocabulary in the UI.** Jar, Brine, Seal, Batch, Recipe,
-  Pantry — CLAUDE.md §2 is the only dictionary.
+This section used to list what the plan asked for and the architecture
+refused. Ryan reversed all four. Kept rather than deleted — the reversal
+should stay legible:
+
+| Was out | Now | Where |
+| :-- | :-- | :-- |
+| Accounts, cloud backend | **In** — Supabase, full account sync | P1, P4 |
+| LLM API in the product | **In** — hosted, metered by plan | P5 |
+| Extension as a capture surface | **In** — MV3, Chrome + Edge | P3 |
+| Public collections, marketplace, teams | **In** — scheduled, phases 3 and 6 | P7, P10, P11 |
+
+What survives: the on-device embedding model stays (it does ranking and
+clustering offline, and the hosted model does prose — they are
+complementary); offline remains the floor; the vocabulary in CLAUDE.md §2 is
+unchanged; and §4a now bounds what may leave the machine.
+
+The full decomposition is
+`docs/superpowers/specs/2026-08-18-netrelish-master-plan-design.md`.
 
 ## Metrics that matter (plan §30, kept)
 
 Activation (first item preserved), time-to-value, second-jar creation,
 weekly actives, items per active user, suggestion acceptance rate,
-recipe reuse, retention. No telemetry means these are measured through
-opt-in feedback and download/update counts, not spyware — the
-constraint is the brand.
+recipe reuse, retention. Accounts make server-side measurement possible
+for the first time. What gets measured is not yet decided, and per
+§4a nothing is collected until it is written down. Until then: opt-in
+feedback and download counts.

@@ -72,14 +72,18 @@ jokes. The vocabulary does the work.
 
 ## 4. Non-negotiables
 
-1. **Everything is local.** SQLite on disk. No network calls except page
-   loads, the updater check, and (later) a license check. No telemetry, no
-   analytics, no account.
+1. **Offline is the floor.** SQLite on disk stays the source of truth on the
+   Mac, and every feature must work with the network unplugged. Sync is
+   additive: it makes the Pantry reachable elsewhere, it never becomes the
+   thing the app needs in order to function.
 
-   This is an engineering constraint, not a marketing position. Local is why
-   `⌘K` returns in under 50ms, and cutting sync is why this ships in eight
-   weeks instead of five months. Privacy is a consequence — a good line for
-   the website, but not the reason it's in the architecture.
+   This is what survives of local-first, and it is the part worth keeping.
+   Local is still why `⌘K` returns in under 50ms — that is a read against
+   a file on disk, and it must stay one.
+
+   *(Amended 2026-08-18. This clause previously read "Everything is local /
+   no network calls except page loads". Ryan reversed it — see §4a and
+   `docs/superpowers/specs/2026-08-18-netrelish-master-plan-design.md`.)*
 
 2. **Suggest, never file silently.** The organization engine proposes; the
    user approves with one key. Auto-filing that's wrong 15% of the time
@@ -91,13 +95,56 @@ jokes. The vocabulary does the work.
 
 4. **The preview is a native child webview, not an iframe.** See §5.
 
-5. **No cloud in v1.** Not Supabase, not anything. If a task seems to need a
-   server, an account, or a network call, stop and say so. It's out of scope
-   by design, not by oversight.
+5. **The cloud is a co-equal track.** Supabase is the backend, the web app is
+   a first-class client, and the extension is a real capture surface. What
+   this does *not* license is drift: a server feature ships against the
+   schema in §6 and the vocabulary in §2, or it doesn't ship.
+
+### 4a. What may leave the machine
+
+Full account sync was chosen deliberately, which makes this list the
+replacement for the old "nothing leaves" promise. It is exhaustive; adding
+to it is a decision, not an implementation detail.
+
+| Leaves | Why | Note |
+| :-- | :-- | :-- |
+| Jars, items, labels, recipes, tabs | Sync | The user's own content, under their account |
+| Extracted page text | Sync + hosted AI | Same rows as above; §7 still governs extraction |
+| Item text sent for analysis | Summaries, gap analysis, reports | Per-request, cached server-side, shown in the UI while it happens. The model is a **third party** — this text leaves NetRelish's infrastructure too |
+| Licence + subscription state | Billing | |
+
+**Never leaves, under any feature:**
+
+- **Saved website credentials.** Passwords live in the macOS Keychain and are not rows in
+  `netrelish.db`. They do not sync, they are never sent for analysis, and no
+  server-side feature may read them. Shipped 2026-08-11: the fill path runs
+  Rust→page, and the UI layer only ever sees usernames.
+- **Private-window browsing.** §7 already forbids extracting it; it therefore
+  has nothing to sync. §7 governs the desktop preview webview, so this is
+  also a requirement on every other client: the extension must not capture
+  in a private or incognito window.
+- **Denied URLs.** The deny list is applied before a row exists, so denied
+  pages never reach the server for the same reason. Same requirement: the
+  extension enforces the list locally, before anything is sent.
+- **Telemetry.** There is still none. Accounts make it possible; that is not
+  the same as deciding to. Until it is written here, it does not exist.
 
 ---
 
 ## 5. Architecture
+
+NetRelish is three clients over one backend. The Mac app below is the
+premium native client and the only one with a native page pane; the web app
+and the extension are P2 and P3 of the master plan.
+
+```
+Supabase           Postgres + Auth + RLS + Edge Functions
+├── apps/desktop   the Tauri app below — offline-capable, syncs
+├── apps/web       Next.js on Vercel — full product + public pages
+└── apps/extension MV3 — capture only
+```
+
+The rest of this section describes the desktop client specifically.
 
 ```
 NetRelish.app
@@ -130,6 +177,9 @@ database at
 
 Migrations live in `src-tauri/migrations/NNN_name.sql`, applied in order at
 startup, never edited once shipped.
+
+Desktop paths in this file are relative to `apps/desktop/`. The repo is an
+npm-workspaces monorepo; `npm run app` from the root still works.
 
 ---
 
@@ -313,17 +363,29 @@ in light and dark.
 
 | Service | When | For |
 | :-- | :-- | :-- |
-| **GitHub Releases** | Week 8 | Binaries + signed updater manifest. Free. |
-| **Vercel** | Week 8+ | netrelish.com, download page. Updater endpoint moves here when you want nicer URLs. |
-| **Supabase** | When billing starts | License keys, Stripe webhooks. A table with four columns. |
-| **Supabase (E2E sync)** | Post-launch, if asked for | Encrypted blobs the server can't read. Optional, paid, never default. |
+| **GitHub Releases** | shipped | Binaries + signed updater manifest. Free. |
+| **Supabase** | P1 | Postgres + Auth + RLS + Edge Functions — sync, accounts, hosted AI, licence state. Bounded by §4a. |
+| **Vercel** | P2 | netrelish.com and the web client. |
+| **Stripe** | P6 | Plans, metering, licence keys. |
 
-None of this is on the critical path, and none of it touches browsing data.
-The updater endpoint is already configured in `tauri.conf.json`.
+End-to-end encrypted sync — "blobs the server can't read" — was the earlier
+plan and is **abandoned**. It is incompatible with a hosted model that has to
+read item text (§4a). Reviving it would mean giving up server-side
+intelligence, which is what Pro sells.
+
+As of 2026-08-18 this table is the critical path, not a someday. Supabase is
+the backend for sync, auth and the hosted AI layer; Vercel hosts the web app;
+Stripe handles billing. The updater endpoint is already configured in
+`tauri.conf.json`. What each of these may hold is bounded by §4a.
 
 ---
 
 ## 11. Build order
+
+The eight weeks below are **done** and describe the shipped desktop app. The
+work that follows them is the master plan:
+`docs/superpowers/specs/2026-08-18-netrelish-master-plan-design.md` — twelve
+projects, six phases. Read it before starting anything new.
 
 Eight weeks. Each has a **demo** — the one thing you can show someone when
 it's done. If the demo doesn't work, the week isn't finished.
@@ -358,8 +420,9 @@ phrase from its body text. Offline.
 - [x] Click a Brine row → reopens in the preview pane
 
 **Acceptance:** extraction under 50ms p95 · 1,000 items → FTS under 10ms ·
-quit mid-navigation and relaunch with nothing corrupt · nothing leaves the
-machine (verify with `lsof -i` or Little Snitch).
+quit mid-navigation and relaunch with nothing corrupt · works fully offline
+(verify by pulling the network — extraction, `⌘K` and Brine must all still
+work).
 
 ### Week 3 — Jars ✅
 
@@ -472,13 +535,14 @@ Each is a week or more, none is on the critical path.
 
 | | Why not now |
 | :-- | :-- |
-| Email (`kind='message'`) | Schema already supports it. Gmail API needs Google's security review — money and a month of calendar time. Start with IMAP, after launch. |
-| Cloud sync | Needs accounts and a server. Do it encrypted-on-device or not at all. |
-| iOS | App Store only, and Guideline 2.5.6 forces WKWebView. Ship a PWA companion after Mac lands. |
-| Sharing / teams | A different product. Revisit at 1,000 users. |
-| Billing | Free during beta. Gate once there's something worth paying for. |
-| Extensions | Enormous surface area. Probably never. |
+| Email (`kind='message'`) | Schema already supports it. Gmail API needs Google's security review — money and a month of calendar time. Start with IMAP, after the cloud track lands. |
+| iOS | App Store only, and Guideline 2.5.6 forces WKWebView. Ship a PWA companion after the web app lands. |
+| Extensions *for* NetRelish | Enormous surface area. Probably never. (NetRelish's own capture extension is P3 and is a different thing.) |
 | Windows / Linux | Different webview, different signing, different bugs. Not until Mac is loved. |
+
+**Moved out of this section on 2026-08-18** — cloud sync (P4), sharing and
+teams (P7, P10), and billing (P6) are now scheduled work in the master plan,
+not deferred ideas.
 
 The business layer — positioning, target markets, pricing, and the
 future feature list — lives in `docs/ROADMAP.md`, which translates
@@ -512,16 +576,17 @@ brand assets.
 ## 14. Commands
 
 ```bash
+npm install         # once, at the root — installs every workspace
 npm run app         # dev, hot reload, devtools
 npm run app:build   # local release build
-npm run typecheck   # frontend types
-cargo check --manifest-path src-tauri/Cargo.toml
-npm run tauri icon <1024px.png>   # regenerate the app icon set
+npm run typecheck   # types, all workspaces
+cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
+npm run tauri -w @netrelish/desktop icon <1024px.png>   # regenerate icons
 ```
 
 Requires Rust stable, Xcode Command Line Tools, Node 20+.
 
-See `docs/notarization.md` before touching anything in `src-tauri/`.
+See `docs/notarization.md` before touching anything in `apps/desktop/src-tauri/`.
 
 ---
 
