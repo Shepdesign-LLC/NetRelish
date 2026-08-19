@@ -3,33 +3,15 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
-    "tauri": "tauri",
-    "app": "tauri dev",
-    "app:build": "tauri build",
-    "typecheck": "tsc --noEmit",
-    "predev": "node scripts/ensure-model.mjs",
-    "prebuild": "node scripts/ensure-model.mjs"
-  },
-  "dependencies": {
-    "@tauri-apps/api": "^2.1.1",
-    "@tauri-apps/plugin-dialog": "^2.2.0",
-    "@tauri-apps/plugin-opener": "^2.2.5",
-    "@tauri-apps/plugin-sql": "^2.4.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "@mozilla/readability": "^0.6.0",
-    "@tauri-apps/cli": "^2.1.0",
-    "@types/node": "^26.2.0",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.4",
-    "typescript": "^5.7.2",
-    "vite": "^6.0.3"
+    "dev": "npm run dev -w @netrelish/desktop",
+    "app": "npm run app -w @netrelish/desktop",
+    "app:build": "npm run app:build -w @netrelish/desktop",
+    "tauri": "npm run tauri -w @netrelish/desktop",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   }
 }
