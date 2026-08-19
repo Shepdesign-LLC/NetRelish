@@ -238,6 +238,15 @@ export async function deleteJar(id: string): Promise<void> {
      WHERE jar_id = $1 AND deleted_at IS NULL`,
     [id, now],
   );
+  // suggestion_feedback is the fourth ON DELETE CASCADE on jar_id (003), and
+  // is easy to miss because the engine writes it, not the UI. Left behind, a
+  // deleted jar's feedback rows would sync forever and outlive the jar.
+  await db().execute(
+    `UPDATE suggestion_feedback SET deleted_at = $2, updated_at = $2,
+       field_ts = json_patch(field_ts, json_object('deleted_at', $2))
+     WHERE jar_id = $1 AND deleted_at IS NULL`,
+    [id, now],
+  );
   const w = tombstone(await prevTs("jars", id), now);
   await db().execute(
     `UPDATE jars SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
