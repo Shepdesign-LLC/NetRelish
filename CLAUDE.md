@@ -130,6 +130,19 @@ to it is a decision, not an implementation detail.
 
 ## 5. Architecture
 
+NetRelish is three clients over one backend. The Mac app below is the
+premium native client and the only one with a native page pane; the web app
+and the extension are P2 and P3 of the master plan.
+
+```
+Supabase           Postgres + Auth + RLS + Edge Functions
+├── apps/desktop   the Tauri app below — offline-capable, syncs
+├── apps/web       Next.js on Vercel — full product + public pages
+└── apps/extension MV3 — capture only
+```
+
+The rest of this section describes the desktop client specifically.
+
 ```
 NetRelish.app
 ├── Chrome UI            React 18 + Vite + TypeScript, ships in the bundle
@@ -161,6 +174,9 @@ database at
 
 Migrations live in `src-tauri/migrations/NNN_name.sql`, applied in order at
 startup, never edited once shipped.
+
+Desktop paths in this file are relative to `apps/desktop/`. The repo is an
+npm-workspaces monorepo; `npm run app` from the root still works.
 
 ---
 
@@ -349,12 +365,19 @@ in light and dark.
 | **Supabase** | When billing starts | License keys, Stripe webhooks. A table with four columns. |
 | **Supabase (E2E sync)** | Post-launch, if asked for | Encrypted blobs the server can't read. Optional, paid, never default. |
 
-None of this is on the critical path, and none of it touches browsing data.
-The updater endpoint is already configured in `tauri.conf.json`.
+As of 2026-08-18 this table is the critical path, not a someday. Supabase is
+the backend for sync, auth and the hosted AI layer; Vercel hosts the web app;
+Stripe handles billing. The updater endpoint is already configured in
+`tauri.conf.json`. What each of these may hold is bounded by §4a.
 
 ---
 
 ## 11. Build order
+
+The eight weeks below are **done** and describe the shipped desktop app. The
+work that follows them is the master plan:
+`docs/superpowers/specs/2026-08-18-netrelish-master-plan-design.md` — twelve
+projects, six phases. Read it before starting anything new.
 
 Eight weeks. Each has a **demo** — the one thing you can show someone when
 it's done. If the demo doesn't work, the week isn't finished.
@@ -389,8 +412,9 @@ phrase from its body text. Offline.
 - [x] Click a Brine row → reopens in the preview pane
 
 **Acceptance:** extraction under 50ms p95 · 1,000 items → FTS under 10ms ·
-quit mid-navigation and relaunch with nothing corrupt · nothing leaves the
-machine (verify with `lsof -i` or Little Snitch).
+quit mid-navigation and relaunch with nothing corrupt · works fully offline
+(verify by pulling the network — extraction, `⌘K` and Brine must all still
+work).
 
 ### Week 3 — Jars ✅
 
@@ -503,13 +527,14 @@ Each is a week or more, none is on the critical path.
 
 | | Why not now |
 | :-- | :-- |
-| Email (`kind='message'`) | Schema already supports it. Gmail API needs Google's security review — money and a month of calendar time. Start with IMAP, after launch. |
-| Cloud sync | Needs accounts and a server. Do it encrypted-on-device or not at all. |
-| iOS | App Store only, and Guideline 2.5.6 forces WKWebView. Ship a PWA companion after Mac lands. |
-| Sharing / teams | A different product. Revisit at 1,000 users. |
-| Billing | Free during beta. Gate once there's something worth paying for. |
-| Extensions | Enormous surface area. Probably never. |
+| Email (`kind='message'`) | Schema already supports it. Gmail API needs Google's security review — money and a month of calendar time. Start with IMAP, after the cloud track lands. |
+| iOS | App Store only, and Guideline 2.5.6 forces WKWebView. Ship a PWA companion after the web app lands. |
+| Extensions *for* NetRelish | Enormous surface area. Probably never. (NetRelish's own capture extension is P3 and is a different thing.) |
 | Windows / Linux | Different webview, different signing, different bugs. Not until Mac is loved. |
+
+**Moved out of this section on 2026-08-18** — cloud sync (P4), sharing and
+teams (P7, P10), and billing (P6) are now scheduled work in the master plan,
+not deferred ideas.
 
 The business layer — positioning, target markets, pricing, and the
 future feature list — lives in `docs/ROADMAP.md`, which translates
@@ -543,16 +568,17 @@ brand assets.
 ## 14. Commands
 
 ```bash
+npm install         # once, at the root — installs every workspace
 npm run app         # dev, hot reload, devtools
 npm run app:build   # local release build
-npm run typecheck   # frontend types
-cargo check --manifest-path src-tauri/Cargo.toml
-npm run tauri icon <1024px.png>   # regenerate the app icon set
+npm run typecheck   # types, all workspaces
+cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
+npm run tauri -w @netrelish/desktop icon <1024px.png>   # regenerate icons
 ```
 
 Requires Rust stable, Xcode Command Line Tools, Node 20+.
 
-See `docs/notarization.md` before touching anything in `src-tauri/`.
+See `docs/notarization.md` before touching anything in `apps/desktop/src-tauri/`.
 
 ---
 
