@@ -620,10 +620,18 @@ export async function createNoteItem(
 ): Promise<string> {
   const now = Date.now();
   const id = crypto.randomUUID();
+  const w = insertWrite({
+    id,
+    jar_id: jarId,
+    kind: "note",
+    title: text.split("\n")[0].slice(0, 120) || "Note",
+    body: text,
+    created_at: now,
+    touched_at: now,
+  });
   await db().execute(
-    `INSERT INTO items (id, jar_id, kind, title, body, created_at, touched_at)
-     VALUES ($1, $2, 'note', $3, $4, $5, $5)`,
-    [id, jarId, text.split("\n")[0].slice(0, 120) || "Note", text, now],
+    `INSERT INTO items (${w.cols.join(", ")}) VALUES (${w.placeholders})`,
+    w.vals,
   );
   return id;
 }
@@ -635,9 +643,17 @@ export async function createNoteItem(
 --------------------------------------------------------------------------- */
 
 export async function updateNote(id: string, text: string): Promise<void> {
+  const w = updateWrite(
+    {
+      title: text.split("\n")[0].slice(0, 120) || "Note",
+      body: text,
+      touched_at: Date.now(),
+    },
+    await prevTs("items", id),
+  );
   await db().execute(
-    `UPDATE items SET title = $1, body = $2, touched_at = $3 WHERE id = $4`,
-    [text.split("\n")[0].slice(0, 120) || "Note", text, Date.now(), id],
+    `UPDATE items SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
   );
 }
 
@@ -656,19 +672,33 @@ export async function createTask(
   due: number | null,
 ): Promise<void> {
   const now = Date.now();
+  const w = insertWrite({
+    id: crypto.randomUUID(),
+    jar_id: jarId,
+    kind: "task",
+    title,
+    meta: JSON.stringify({ due, done: false }),
+    created_at: now,
+    touched_at: now,
+  });
   await db().execute(
-    `INSERT INTO items (id, jar_id, kind, title, meta, created_at, touched_at)
-     VALUES ($1, $2, 'task', $3, $4, $5, $5)`,
-    [crypto.randomUUID(), jarId, title, JSON.stringify({ due, done: false }), now],
+    `INSERT INTO items (${w.cols.join(", ")}) VALUES (${w.placeholders})`,
+    w.vals,
   );
 }
 
 export async function toggleTaskDone(id: string): Promise<void> {
+  // The new meta is computed by SQLite, not by us — reading it back into JS
+  // would change `done` from the integer json_set writes to a JSON boolean.
+  // So the stamps merge inline with json_patch rather than via updateWrite.
   await db().execute(
     `UPDATE items SET
        meta = json_set(coalesce(meta, '{}'), '$.done',
                        NOT coalesce(json_extract(meta, '$.done'), 0)),
-       touched_at = $1
+       touched_at = $1,
+       updated_at = $1,
+       field_ts = json_patch(field_ts,
+                    json_object('meta', $1, 'touched_at', $1))
      WHERE id = $2`,
     [Date.now(), id],
   );
@@ -694,13 +724,30 @@ export async function createFileItem(
   const now = Date.now();
   const name = path.split("/").pop() ?? path;
   const url = `file://${path}`;
+  const w = insertWrite({
+    id: crypto.randomUUID(),
+    jar_id: jarId,
+    kind: "file",
+    url,
+    title: name,
+    body,
+    meta: JSON.stringify({ path }),
+    created_at: now,
+    touched_at: now,
+  });
+  // The conflict branch rewrites only four of those columns, so it cannot
+  // take excluded.field_ts wholesale — that would forge stamps for title
+  // and created_at, which it never touches. json_patch merges just the four.
   await db().execute(
-    `INSERT INTO items (id, jar_id, kind, url, title, body, meta, created_at, touched_at)
-     VALUES ($1, $2, 'file', $3, $4, $5, $6, $7, $7)
+    `INSERT INTO items (${w.cols.join(", ")}) VALUES (${w.placeholders})
      ON CONFLICT(url) WHERE url IS NOT NULL DO UPDATE SET
        jar_id = excluded.jar_id, body = excluded.body,
-       meta = excluded.meta, touched_at = excluded.touched_at`,
-    [crypto.randomUUID(), jarId, url, name, body, JSON.stringify({ path }), now],
+       meta = excluded.meta, touched_at = excluded.touched_at,
+       updated_at = excluded.updated_at,
+       field_ts = json_patch(items.field_ts, json_object(
+         'jar_id', excluded.updated_at, 'body', excluded.updated_at,
+         'meta', excluded.updated_at, 'touched_at', excluded.updated_at))`,
+    w.vals,
   );
 }
 
@@ -709,10 +756,15 @@ export async function markFileStatus(
   id: string,
   missing: boolean,
 ): Promise<void> {
+  // Same reason as toggleTaskDone: json_set builds the new meta in SQLite,
+  // so the stamp merges inline instead of through updateWrite.
   await db().execute(
-    `UPDATE items SET meta = json_set(coalesce(meta, '{}'), '$.missing', $1)
-     WHERE id = $2`,
-    [missing, id],
+    `UPDATE items SET
+       meta = json_set(coalesce(meta, '{}'), '$.missing', $1),
+       updated_at = $2,
+       field_ts = json_patch(field_ts, json_object('meta', $2))
+     WHERE id = $3`,
+    [missing, Date.now(), id],
   );
 }
 
@@ -791,9 +843,13 @@ export async function moveItems(
   jarId: string | null,
 ): Promise<void> {
   if (ids.length === 0) return;
-  const slots = ids.map((_, i) => `$${i + 2}`).join(", ");
+  const slots = ids.map((_, i) => `$${i + 3}`).join(", ");
+  // One statement, many rows: there is no single previous field_ts to read,
+  // so json_patch merges the one stamp this write owns and leaves the rest.
   await db().execute(
-    `UPDATE items SET jar_id = $1 WHERE id IN (${slots})`,
-    [jarId, ...ids],
+    `UPDATE items SET jar_id = $1, updated_at = $2,
+       field_ts = json_patch(field_ts, json_object('jar_id', $2))
+     WHERE id IN (${slots})`,
+    [jarId, Date.now(), ...ids],
   );
 }
