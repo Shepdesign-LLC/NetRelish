@@ -98,7 +98,10 @@ key"* — the bundles are fine, only `NetRelish.app.tar.gz` goes unsigned.
 
 ## Each release
 
-1. Bump `version` in `apps/desktop/src-tauri/tauri.conf.json` and `package.json`.
+1. Bump `version` in `apps/desktop/src-tauri/tauri.conf.json` and
+   `apps/desktop/package.json`. The **root** `package.json` carries a version
+   too, but it is the workspace root, not the app — the shipped version is the
+   one in `tauri.conf.json`, and the two under `apps/desktop/` should agree.
 2. Commit, then tag: `git tag v0.1.0 && git push origin v0.1.0`.
 3. CI (`.github/workflows/release.yml`) builds, signs, notarizes, staples,
    and drafts a GitHub Release with the .dmg + updater artifacts.
