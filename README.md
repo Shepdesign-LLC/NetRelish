@@ -12,7 +12,8 @@ be run as a **Recipe**.
 Everything you browse is preserved into **Brine** automatically — extracted,
 full-text searchable, offline, forever. Closing a tab stops meaning losing it.
 
-Everything lives on your machine — no account, no server, no sync.
+Works fully offline — your Pantry is a file on your Mac. Sign in and it
+follows you to the web.
 
 Direct download, Developer ID signed and notarized. Not on the App Store.
 
@@ -20,10 +21,13 @@ Direct download, Developer ID signed and notarized. Not on the App Store.
 
 ## Status
 
-Week 1 of 8. The shell runs and renders pages in a native WKWebView. It is not
-yet a browser you'd use.
+All eight weeks of the desktop app are complete: Brine, Jars, `⌘K`, sealing,
+the suggestion engine, Recipes, and notes/tasks/files/labels. v0.1.0 is
+signed and notarized.
 
-See the build order in [`CLAUDE.md`](CLAUDE.md#11-build-order).
+Next is the cloud track — a web app, a capture extension, and sync. See
+[`CLAUDE.md`](CLAUDE.md#11-build-order) and the master plan in
+[`docs/superpowers/specs/`](docs/superpowers/specs/).
 
 ---
 
