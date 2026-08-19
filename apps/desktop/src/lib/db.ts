@@ -9,7 +9,7 @@
  */
 import Database from "@tauri-apps/plugin-sql";
 import { type ParsedQuery } from "./query";
-import { insertWrite, updateWrite } from "./stamp";
+import { insertWrite, tombstone, updateWrite } from "./stamp";
 
 /** Must match DB_URL in src-tauri/src/db.rs — it is the pool's lookup key. */
 const DB_URL = "sqlite:netrelish.db";
@@ -189,11 +189,47 @@ export async function renameJar(id: string, name: string): Promise<void> {
 }
 
 /**
- * Delete a jar. Its items return to Brine via the schema's ON DELETE SET
- * NULL — nothing the user preserved is ever deleted by tidying.
+ * Delete a jar. The row stays, tombstoned — an absent row cannot replicate.
+ *
+ * A tombstone fires none of the schema's foreign-key actions, so everything
+ * the jar held is handled here in SQL instead:
+ *
+ *   items    ON DELETE SET NULL — back to Brine. Nothing the user preserved
+ *            is ever deleted by tidying, and that promise now rests on this
+ *            statement rather than on the constraint.
+ *   tabs     ON DELETE CASCADE — the jar's tabs left the strip with it, so
+ *            they tombstone with it.
+ *   recipes  ON DELETE CASCADE — a recipe is attached to one jar and has
+ *            nowhere to live without it.
  */
 export async function deleteJar(id: string): Promise<void> {
-  await db().execute(`DELETE FROM jars WHERE id = $1`, [id]);
+  const now = Date.now();
+  // All three are set-based: one statement, many rows, so there is no single
+  // previous field_ts to read and the stamps merge with json_patch instead —
+  // see moveItems.
+  await db().execute(
+    `UPDATE items SET jar_id = NULL, updated_at = $2,
+       field_ts = json_patch(field_ts, json_object('jar_id', $2))
+     WHERE jar_id = $1 AND deleted_at IS NULL`,
+    [id, now],
+  );
+  await db().execute(
+    `UPDATE tabs SET deleted_at = $2, updated_at = $2,
+       field_ts = json_patch(field_ts, json_object('deleted_at', $2))
+     WHERE jar_id = $1 AND deleted_at IS NULL`,
+    [id, now],
+  );
+  await db().execute(
+    `UPDATE recipes SET deleted_at = $2, updated_at = $2,
+       field_ts = json_patch(field_ts, json_object('deleted_at', $2))
+     WHERE jar_id = $1 AND deleted_at IS NULL`,
+    [id, now],
+  );
+  const w = tombstone(await prevTs("jars", id), now);
+  await db().execute(
+    `UPDATE jars SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
+  );
 }
 
 /** An item row as the jar view lists it. */
@@ -422,9 +458,15 @@ export async function tabSetScroll(id: string, y: number): Promise<void> {
   );
 }
 
-/** Plain close (⌘W-style): the page is already preserved; the tab just goes. */
+/** Plain close (⌘W-style): the page is already preserved; the tab just goes.
+ *  Goes as a tombstone — a row deleted outright would come back on the next
+ *  pull, because absence is indistinguishable from never-having-known. */
 export async function tabClose(id: string): Promise<void> {
-  await db().execute(`DELETE FROM tabs WHERE id = $1`, [id]);
+  const w = tombstone(await prevTs("tabs", id));
+  await db().execute(
+    `UPDATE tabs SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
+  );
 }
 
 /** Pin = seal_after NULL, the schema's own idiom for "never seals". */
@@ -588,7 +630,22 @@ export async function listSweeps(): Promise<SweepBatch[]> {
   );
 }
 
-/** Sealed tab rows older than the undo window have served their purpose. */
+/**
+ * Sealed tab rows older than the undo window have served their purpose.
+ *
+ * Deliberately still a hard DELETE, and the only one left in this module.
+ * Every other delete became a tombstone because it is a user deleting
+ * something, and that has to replicate. This one is not: it is local
+ * housekeeping of expired undo history. The user pressed nothing, and no
+ * other device needs to be told that an undo window lapsed here — every
+ * device reaches the same conclusion from the same `sealed_at`, 24 hours
+ * after the same sweep, without being told.
+ *
+ * The one cost of a hard delete is that a full re-sync can pull these rows
+ * back down. Nothing user-visible survives it: the tab strip filters sealed
+ * rows out, and App.tsx purges before every sweep, so the next pass removes
+ * them again on exactly the same clock.
+ */
 export async function purgeExpiredSweeps(): Promise<void> {
   await db().execute(
     `DELETE FROM tabs WHERE sealed_batch IS NOT NULL AND sealed_at < $1`,
@@ -654,7 +711,11 @@ export async function updateRecipeSteps(id: string, steps: string): Promise<void
 }
 
 export async function deleteRecipe(id: string): Promise<void> {
-  await db().execute(`DELETE FROM recipes WHERE id = $1`, [id]);
+  const w = tombstone(await prevTs("recipes", id));
+  await db().execute(
+    `UPDATE recipes SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
+  );
 }
 
 /** A markdown note in a jar; returns the new item's id. */
@@ -853,10 +914,17 @@ export async function assignLabel(
   // item_labels is a pure join table and 004 gives it no field_ts: presence
   // is the only fact, so there is nothing to merge field by field. It still
   // carries updated_at, which is what the sync cursor reads.
+  //
+  // This must be an upsert, not INSERT OR IGNORE. unassignLabel tombstones
+  // the join row rather than removing it, so the pair still exists and an
+  // OR IGNORE would silently do nothing — removing a label would be
+  // permanent, with no error. DO UPDATE clears the tombstone instead.
   for (const itemId of itemIds) {
     await db().execute(
-      `INSERT OR IGNORE INTO item_labels (item_id, label_id, updated_at)
-       SELECT $1, id, $3 FROM labels WHERE name = $2`,
+      `INSERT INTO item_labels (item_id, label_id, updated_at)
+       SELECT $1, id, $3 FROM labels WHERE name = $2
+       ON CONFLICT(item_id, label_id) DO UPDATE SET
+         deleted_at = NULL, updated_at = excluded.updated_at`,
       [itemId, clean, Date.now()],
     );
   }
@@ -866,11 +934,16 @@ export async function unassignLabel(
   name: string,
   itemIds: string[],
 ): Promise<void> {
+  // A tombstone, not a delete: a removed label that left no trace would come
+  // back from any device that never heard about the removal. No field_ts to
+  // merge here (see assignLabel), so this writes the columns directly rather
+  // than going through the stamp helpers.
   for (const itemId of itemIds) {
     await db().execute(
-      `DELETE FROM item_labels WHERE item_id = $1
-       AND label_id IN (SELECT id FROM labels WHERE name = $2)`,
-      [itemId, name.trim().toLowerCase()],
+      `UPDATE item_labels SET deleted_at = $3, updated_at = $3
+       WHERE item_id = $1
+         AND label_id IN (SELECT id FROM labels WHERE name = $2)`,
+      [itemId, name.trim().toLowerCase(), Date.now()],
     );
   }
 }
