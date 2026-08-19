@@ -4,6 +4,18 @@
 //! see `tauri.conf.json > plugins > sql > preload`). The frontend reaches it
 //! through the plugin's JS API via `src/lib/db.ts`; Rust borrows the same
 //! pool here. One database, one schema, two doors.
+//!
+//! WHICH database is decided by the bundle identifier, not by this file.
+//! Tauri derives the app-support directory from it, so `npm run app:test`
+//! (identifier `com.netrelish.app.test`) writes to a wholly separate
+//! directory and cannot touch a real Pantry.
+//!
+//! That separation exists because it was missing once, on 2026-08-19: a
+//! release test build applied a new migration to the installed app's
+//! database, and the installed app — which knew nothing of that migration —
+//! then aborted in sqlx on every launch. Migrations are one-way and shared;
+//! the blast radius of "just testing a migration" is every copy on the
+//! machine. Never point a test build at the real identifier.
 
 use sqlx::{Pool, Sqlite};
 use tauri::{AppHandle, Manager, Runtime};

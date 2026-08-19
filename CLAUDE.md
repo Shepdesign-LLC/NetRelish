@@ -615,6 +615,12 @@ brand assets.
   Changing `kind` or the FTS setup later means migrating real user data.
 - **Never seal before extracting.** A sealed tab whose content didn't reach
   `items` is exactly the data loss this product exists to prevent.
+- **Never point a test build at the real identifier.** Migrations are one-way
+  and shared by every build on the machine. On 2026-08-19 a release test
+  build applied a new migration to the installed app's database; the
+  installed app knew nothing of that migration and then aborted in sqlx on
+  every launch — a crash dialog, not a degraded feature. `npm run app:test`
+  exists for this and costs nothing.
 - **Don't render overlays inside `.nr-stage`.** The native webview covers it.
 
 ---
@@ -624,13 +630,19 @@ brand assets.
 ```bash
 npm install         # once, at the root — installs every workspace
 npm run app         # dev, hot reload, devtools
-npm run app:build   # local release build
+npm run app:build   # local release build — WRITES THE REAL PANTRY
+npm run app:test    # isolated build: own identifier, own database
 npm run typecheck   # types, all workspaces
 cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
 npm run tauri -w @netrelish/desktop icon <1024px.png>   # regenerate icons
 ```
 
 Requires Rust stable, Xcode Command Line Tools, Node 20+.
+
+**Never test a migration with `app:build`.** It carries the real identifier,
+so it opens the real Pantry — and migrations are one-way and shared. Use
+`app:test`, which builds "NetRelish Test" under `com.netrelish.app.test`
+and gets its own Application Support directory.
 
 See `docs/notarization.md` before touching anything in `apps/desktop/src-tauri/`.
 

@@ -12,6 +12,7 @@
     "app": "npm run app -w @netrelish/desktop",
     "app:build": "npm run app:build -w @netrelish/desktop",
     "tauri": "npm run tauri -w @netrelish/desktop",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "app:test": "npm run app:test -w @netrelish/desktop"
   }
 }

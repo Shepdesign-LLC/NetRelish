@@ -12,7 +12,8 @@
     "app:build": "tauri build",
     "typecheck": "tsc --noEmit",
     "predev": "node scripts/ensure-model.mjs",
-    "prebuild": "node scripts/ensure-model.mjs"
+    "prebuild": "node scripts/ensure-model.mjs",
+    "app:test": "tauri build --config src-tauri/tauri.test.conf.json"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.1.1",
