@@ -110,7 +110,7 @@ to it is a decision, not an implementation detail.
 | :-- | :-- | :-- |
 | Jars, items, labels, recipes, tabs | Sync | The user's own content, under their account |
 | Extracted page text | Sync + hosted AI | Same rows as above; §7 still governs extraction |
-| Item text sent for analysis | Summaries, gap analysis, reports | Per-request, cached server-side, shown in the UI while it happens. The model is a **third party** — this text leaves NetRelish's infrastructure too |
+| Item text sent for analysis | Summaries, gap analysis, reports | Per-request, cached server-side, shown in the UI while it happens. **Two third parties** receive item text: Anthropic for prose (P5) and Voyage AI for embeddings (P1 onward). Both sit outside NetRelish's infrastructure |
 | Licence + subscription state | Billing | |
 
 **Never leaves, under any feature:**
