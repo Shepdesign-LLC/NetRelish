@@ -12,8 +12,8 @@ be run as a **Recipe**.
 Everything you browse is preserved into **Brine** automatically — extracted,
 full-text searchable, offline, forever. Closing a tab stops meaning losing it.
 
-Works fully offline — your Pantry is a file on your Mac. Sign in and it
-follows you to the web.
+Works fully offline — your Pantry is a file on your Mac. Sync and a web
+client are next.
 
 Direct download, Developer ID signed and notarized. Not on the App Store.
 
@@ -44,7 +44,7 @@ Requires Rust stable, Xcode Command Line Tools, Node 20+.
 | :-- | :-- |
 | `npm run app` | Dev build, hot reload, devtools |
 | `npm run app:build` | Local release build |
-| `npm run typecheck` | Frontend types |
+| `npm run typecheck` | Types, all workspaces |
 
 ---
 

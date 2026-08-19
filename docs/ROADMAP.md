@@ -115,8 +115,8 @@ PWA companion.
 ### Reversed on 2026-08-18
 
 This section used to list what the plan asked for and the architecture
-refused. Ryan reversed all four. Kept here rather than deleted, because the
-reversal is the single most consequential decision in the project:
+refused. Ryan reversed all four. Kept rather than deleted — the reversal
+should stay legible:
 
 | Was out | Now | Where |
 | :-- | :-- | :-- |

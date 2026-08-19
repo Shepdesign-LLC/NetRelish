@@ -102,7 +102,7 @@ jokes. The vocabulary does the work.
 
 ### 4a. What may leave the machine
 
-Full account sync was chosen deliberately, which makes this list the honest
+Full account sync was chosen deliberately, which makes this list the
 replacement for the old "nothing leaves" promise. It is exhaustive; adding
 to it is a decision, not an implementation detail.
 
@@ -110,19 +110,22 @@ to it is a decision, not an implementation detail.
 | :-- | :-- | :-- |
 | Jars, items, labels, recipes, tabs | Sync | The user's own content, under their account |
 | Extracted page text | Sync + hosted AI | Same rows as above; §7 still governs extraction |
-| Item text sent for analysis | Summaries, gap analysis, reports | Per-request, cached server-side, shown in the UI while it happens |
+| Item text sent for analysis | Summaries, gap analysis, reports | Per-request, cached server-side, shown in the UI while it happens. The model is a **third party** — this text leaves NetRelish's infrastructure too |
 | Licence + subscription state | Billing | |
 
 **Never leaves, under any feature:**
 
-- **Credentials.** Passwords live in the macOS Keychain and are not rows in
+- **Saved website credentials.** Passwords live in the macOS Keychain and are not rows in
   `netrelish.db`. They do not sync, they are never sent for analysis, and no
   server-side feature may read them. Shipped 2026-08-11: the fill path runs
   Rust→page, and the UI layer only ever sees usernames.
 - **Private-window browsing.** §7 already forbids extracting it; it therefore
-  has nothing to sync.
+  has nothing to sync. §7 governs the desktop preview webview, so this is
+  also a requirement on every other client: the extension must not capture
+  in a private or incognito window.
 - **Denied URLs.** The deny list is applied before a row exists, so denied
-  pages never reach the server for the same reason.
+  pages never reach the server for the same reason. Same requirement: the
+  extension enforces the list locally, before anything is sent.
 - **Telemetry.** There is still none. Accounts make it possible; that is not
   the same as deciding to. Until it is written here, it does not exist.
 
@@ -360,10 +363,15 @@ in light and dark.
 
 | Service | When | For |
 | :-- | :-- | :-- |
-| **GitHub Releases** | Week 8 | Binaries + signed updater manifest. Free. |
-| **Vercel** | Week 8+ | netrelish.com, download page. Updater endpoint moves here when you want nicer URLs. |
-| **Supabase** | When billing starts | License keys, Stripe webhooks. A table with four columns. |
-| **Supabase (E2E sync)** | Post-launch, if asked for | Encrypted blobs the server can't read. Optional, paid, never default. |
+| **GitHub Releases** | shipped | Binaries + signed updater manifest. Free. |
+| **Supabase** | P1 | Postgres + Auth + RLS + Edge Functions — sync, accounts, hosted AI, licence state. Bounded by §4a. |
+| **Vercel** | P2 | netrelish.com and the web client. |
+| **Stripe** | P6 | Plans, metering, licence keys. |
+
+End-to-end encrypted sync — "blobs the server can't read" — was the earlier
+plan and is **abandoned**. It is incompatible with a hosted model that has to
+read item text (§4a). Reviving it would mean giving up server-side
+intelligence, which is what Pro sells.
 
 As of 2026-08-18 this table is the critical path, not a someday. Supabase is
 the backend for sync, auth and the hosted AI layer; Vercel hosts the web app;

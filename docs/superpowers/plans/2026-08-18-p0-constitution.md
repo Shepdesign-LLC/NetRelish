@@ -930,6 +930,25 @@ MSG
 
 ---
 
+## Carried forward — not P0's job
+
+Found during the Tasks 1–3 review, real, and deliberately out of scope here:
+
+- **`site/index.html` still promises "Everything is local. Everything." /
+  "No account · No cloud · No telemetry."** This is not false *today* — the
+  shipped v0.1.0 genuinely has no account and no cloud — but it becomes false
+  the moment P2 or P4 ships. Rewriting live marketing copy is a brand decision
+  and Ryan's call, not a side effect of a constitution task. **Must be settled
+  before P2 ships.**
+- **§8 says the engine has "Four layers, all on-device".** P5 adds a fifth
+  that is hosted. §8 gains that layer when P5 starts, not before.
+- **Path convention in CLAUDE.md.** §5 and §9 use bare `src-tauri/`; §14 uses
+  `apps/desktop/src-tauri/`. Task 4's move makes §14 correct; §5 and §9 are
+  scoped by the note added under §5's Storage subsection. Revisit only if that
+  note proves too subtle.
+
+---
+
 ## Done when
 
 - [ ] CLAUDE.md contains no sentence asserting that nothing leaves the machine, and §4a bounds what does.
