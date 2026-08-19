@@ -51,6 +51,10 @@ function db(): Database {
  * Single-row updates only. A statement that touches many rows has no one
  * previous stamp to read, so those merge inline with SQLite's json_patch
  * instead — see the comments at each such statement.
+ *
+ * The one read in this module that must NOT filter tombstones: it is what a
+ * tombstone write itself calls, and a delete of an already-tombstoned row
+ * would otherwise lose every stamp the row carried.
  */
 async function prevTs(table: string, id: string): Promise<string | null> {
   const r = await db().select<{ field_ts: string }[]>(
@@ -67,6 +71,7 @@ export async function brineList(limit = 200): Promise<BrineRow[]> {
             substr(coalesce(body, ''), 1, 240) AS snippet
      FROM items
      WHERE jar_id IS NULL AND kind = 'page' AND sealed_at IS NULL
+       AND deleted_at IS NULL
      ORDER BY touched_at DESC
      LIMIT $1`,
     [limit],
@@ -76,6 +81,10 @@ export async function brineList(limit = 200): Promise<BrineRow[]> {
 /**
  * Full-text search over Brine. Terms are quoted before they reach FTS5 so
  * user input can never be query syntax, and every term must match (AND).
+ *
+ * The tombstone filter is on `items`, not on the index: 004's trigger keeps
+ * items_fts clean, but the index is written by a trigger and read here, and
+ * a row tombstoned in between would otherwise surface.
  */
 export async function brineSearch(
   query: string,
@@ -95,7 +104,7 @@ export async function brineSearch(
      JOIN items ON items.rowid = items_fts.rowid
      WHERE items_fts MATCH $1
        AND items.jar_id IS NULL AND items.kind = 'page'
-       AND items.sealed_at IS NULL
+       AND items.sealed_at IS NULL AND items.deleted_at IS NULL
      ORDER BY rank
      LIMIT $2`,
     [match, limit],
@@ -105,7 +114,7 @@ export async function brineSearch(
 /** Everything ever preserved — the sidebar footer's honest number. */
 export async function totalItemCount(): Promise<number> {
   const rows = await db().select<{ n: number }[]>(
-    `SELECT count(*) AS n FROM items`,
+    `SELECT count(*) AS n FROM items WHERE deleted_at IS NULL`,
   );
   return rows[0]?.n ?? 0;
 }
@@ -114,7 +123,8 @@ export async function totalItemCount(): Promise<number> {
 export async function brineCount(): Promise<number> {
   const rows = await db().select<{ n: number }[]>(
     `SELECT count(*) AS n FROM items
-     WHERE jar_id IS NULL AND kind = 'page' AND sealed_at IS NULL`,
+     WHERE jar_id IS NULL AND kind = 'page' AND sealed_at IS NULL
+       AND deleted_at IS NULL`,
   );
   return rows[0]?.n ?? 0;
 }
@@ -125,7 +135,8 @@ export async function brineCount(): Promise<number> {
 export async function preservedThisWeek(): Promise<number> {
   const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const rows = await db().select<{ n: number }[]>(
-    `SELECT count(*) AS n FROM items WHERE created_at >= $1`,
+    `SELECT count(*) AS n FROM items
+     WHERE created_at >= $1 AND deleted_at IS NULL`,
     [since],
   );
   return rows[0]?.n ?? 0;
@@ -147,8 +158,8 @@ export async function listJars(): Promise<Jar[]> {
     `SELECT j.id, j.name, j.hue, j.created_at, j.shelf_life_hours,
             count(i.id) AS item_count
      FROM jars j
-     LEFT JOIN items i ON i.jar_id = j.id
-     WHERE j.sealed_at IS NULL
+     LEFT JOIN items i ON i.jar_id = j.id AND i.deleted_at IS NULL
+     WHERE j.sealed_at IS NULL AND j.deleted_at IS NULL
      GROUP BY j.id
      ORDER BY j.created_at`,
   );
@@ -156,8 +167,10 @@ export async function listJars(): Promise<Jar[]> {
 
 /** Create a jar; the hue rotates through --nr-jar-1..6 in creation order. */
 export async function createJar(name: string): Promise<Jar> {
+  // Live jars only: the hue rotates through the shelf the user can see, so
+  // a deleted jar must not push the next one's colour along.
   const counted = await db().select<{ n: number }[]>(
-    `SELECT count(*) AS n FROM jars`,
+    `SELECT count(*) AS n FROM jars WHERE deleted_at IS NULL`,
   );
   const jar: Jar = {
     id: crypto.randomUUID(),
@@ -252,7 +265,7 @@ export async function jarItems(jarId: string): Promise<JarItemRow[]> {
     `SELECT id, kind, url, title, touched_at, sealed_at, meta,
             substr(coalesce(body, ''), 1, 240) AS snippet
      FROM items
-     WHERE jar_id = $1
+     WHERE jar_id = $1 AND deleted_at IS NULL
      ORDER BY touched_at DESC
      LIMIT 500`,
   [jarId],
@@ -298,20 +311,24 @@ export async function pantrySearch(
       WHEN items.jar_id IS NOT NULL THEN 1
       ELSE 2 END`;
 
+  where.push(`items.deleted_at IS NULL`);
   where.push(`items.sealed_at IS ${q.sealed ? "NOT NULL" : "NULL"}`);
   if (q.kind) where.push(`items.kind = ${bind(q.kind)}`);
   if (q.jar === "brine") {
     where.push(`items.jar_id IS NULL`);
   } else if (q.jar) {
     where.push(
-      `items.jar_id IN (SELECT id FROM jars WHERE name LIKE ${bind(q.jar + "%")})`,
+      `items.jar_id IN (SELECT id FROM jars
+        WHERE name LIKE ${bind(q.jar + "%")} AND deleted_at IS NULL)`,
     );
   }
   if (q.sinceMs !== null) where.push(`items.touched_at >= ${bind(q.sinceMs)}`);
   if (q.label) {
     where.push(
       `items.id IN (SELECT il.item_id FROM item_labels il
-        JOIN labels l ON l.id = il.label_id WHERE l.name = ${bind(q.label)})`,
+        JOIN labels l ON l.id = il.label_id
+        WHERE l.name = ${bind(q.label)}
+          AND il.deleted_at IS NULL AND l.deleted_at IS NULL)`,
     );
   }
 
@@ -327,7 +344,7 @@ export async function pantrySearch(
               snippet(items_fts, 1, '${MARK_START}', '${MARK_END}', ' … ', 14) AS snippet
        FROM items_fts
        JOIN items ON items.rowid = items_fts.rowid
-       LEFT JOIN jars ON jars.id = items.jar_id
+       LEFT JOIN jars ON jars.id = items.jar_id AND jars.deleted_at IS NULL
        WHERE items_fts MATCH ${bind(match)} AND ${where.join(" AND ")}
        ORDER BY tier, rank
        LIMIT ${bind(limit)}`,
@@ -341,7 +358,7 @@ export async function pantrySearch(
             jars.name AS jar_name, ${tier} AS tier,
             substr(coalesce(items.body, ''), 1, 200) AS snippet
      FROM items
-     LEFT JOIN jars ON jars.id = items.jar_id
+     LEFT JOIN jars ON jars.id = items.jar_id AND jars.deleted_at IS NULL
      WHERE ${where.join(" AND ")}
      ORDER BY tier, items.touched_at DESC
      LIMIT ${bind(limit)}`,
@@ -374,8 +391,8 @@ export async function tabsList(): Promise<Tab[]> {
     `SELECT t.id, t.jar_id, t.url, t.scroll_y, t.position, t.touched_at,
             t.seal_after, coalesce(i.title, t.url, 'New tab') AS title
      FROM tabs t
-     LEFT JOIN items i ON i.url = t.url
-     WHERE t.sealed_batch IS NULL
+     LEFT JOIN items i ON i.url = t.url AND i.deleted_at IS NULL
+     WHERE t.sealed_batch IS NULL AND t.deleted_at IS NULL
      ORDER BY t.position`,
   );
 }
@@ -384,7 +401,8 @@ export async function tabsList(): Promise<Tab[]> {
 async function shelfLifeMs(jarId: string | null): Promise<number> {
   if (jarId) {
     const rows = await db().select<{ h: number | null }[]>(
-      `SELECT shelf_life_hours AS h FROM jars WHERE id = $1`,
+      `SELECT shelf_life_hours AS h FROM jars
+       WHERE id = $1 AND deleted_at IS NULL`,
       [jarId],
     );
     if (rows[0]?.h) return rows[0].h * 3_600_000;
@@ -488,7 +506,7 @@ export async function tabSetPinned(
 export async function lastSealedScroll(url: string): Promise<number> {
   const rows = await db().select<{ scroll_y: number }[]>(
     `SELECT scroll_y FROM tabs
-     WHERE url = $1 AND sealed_batch IS NOT NULL
+     WHERE url = $1 AND sealed_batch IS NOT NULL AND deleted_at IS NULL
      ORDER BY sealed_at DESC LIMIT 1`,
     [url],
   );
@@ -501,7 +519,7 @@ export async function unsealUrl(url: string): Promise<void> {
   await db().execute(
     `UPDATE items SET sealed_at = NULL, updated_at = $2,
        field_ts = json_patch(field_ts, json_object('sealed_at', $2))
-     WHERE url = $1`,
+     WHERE url = $1 AND deleted_at IS NULL`,
     [url, Date.now()],
   );
 }
@@ -530,8 +548,8 @@ export async function sweepDue(denyPatterns: string[]): Promise<SweepResult | nu
     { id: string; url: string | null; jar_id: string | null; jar_name: string | null }[]
   >(
     `SELECT t.id, t.url, t.jar_id, j.name AS jar_name
-     FROM tabs t LEFT JOIN jars j ON j.id = t.jar_id
-     WHERE t.sealed_batch IS NULL
+     FROM tabs t LEFT JOIN jars j ON j.id = t.jar_id AND j.deleted_at IS NULL
+     WHERE t.sealed_batch IS NULL AND t.deleted_at IS NULL
        AND t.seal_after IS NOT NULL AND t.seal_after < $1`,
     [now],
   );
@@ -542,8 +560,10 @@ export async function sweepDue(denyPatterns: string[]): Promise<SweepResult | nu
     return denyPatterns.some((p) => lower.includes(p));
   };
   const preserved = await db().select<{ url: string }[]>(
-    `SELECT url FROM items WHERE url IN (SELECT url FROM tabs
-       WHERE sealed_batch IS NULL AND seal_after IS NOT NULL AND seal_after < $1)`,
+    `SELECT url FROM items WHERE deleted_at IS NULL AND url IN (
+       SELECT url FROM tabs
+       WHERE sealed_batch IS NULL AND deleted_at IS NULL
+         AND seal_after IS NOT NULL AND seal_after < $1)`,
     [now],
   );
   const inItems = new Set(preserved.map((r) => r.url));
@@ -563,7 +583,7 @@ export async function sweepDue(denyPatterns: string[]): Promise<SweepResult | nu
     `UPDATE tabs SET sealed_batch = $1, sealed_at = $2, updated_at = $2,
        field_ts = json_patch(field_ts,
          json_object('sealed_batch', $2, 'sealed_at', $2))
-     WHERE id IN (${slots})`,
+     WHERE deleted_at IS NULL AND id IN (${slots})`,
     [batchId, now, ...ids],
   );
   // Seal the items, and file Brine items into their tab's jar — that is
@@ -576,11 +596,13 @@ export async function sweepDue(denyPatterns: string[]): Promise<SweepResult | nu
        jar_id = coalesce(jar_id,
          (SELECT t.jar_id FROM tabs t
           WHERE t.url = items.url AND t.sealed_batch = $2
+            AND t.deleted_at IS NULL
           ORDER BY t.sealed_at DESC LIMIT 1)),
        updated_at = $1,
        field_ts = json_patch(field_ts,
          json_object('sealed_at', $1, 'jar_id', $1))
-     WHERE url IN (SELECT url FROM tabs WHERE sealed_batch = $2)`,
+     WHERE deleted_at IS NULL AND url IN (
+       SELECT url FROM tabs WHERE sealed_batch = $2 AND deleted_at IS NULL)`,
     [now, batchId],
   );
 
@@ -596,7 +618,8 @@ export async function undoSweep(batchId: string): Promise<number> {
   await db().execute(
     `UPDATE items SET sealed_at = NULL, updated_at = $2,
        field_ts = json_patch(field_ts, json_object('sealed_at', $2))
-     WHERE url IN (SELECT url FROM tabs WHERE sealed_batch = $1)`,
+     WHERE deleted_at IS NULL AND url IN (
+       SELECT url FROM tabs WHERE sealed_batch = $1 AND deleted_at IS NULL)`,
     [batchId, now],
   );
   const result = await db().execute(
@@ -604,7 +627,7 @@ export async function undoSweep(batchId: string): Promise<number> {
        seal_after = $1, updated_at = $3,
        field_ts = json_patch(field_ts, json_object(
          'sealed_batch', $3, 'sealed_at', $3, 'seal_after', $3))
-     WHERE sealed_batch = $2`,
+     WHERE sealed_batch = $2 AND deleted_at IS NULL`,
     [now + DEFAULT_SHELF_LIFE_HOURS * 3_600_000, batchId, now],
   );
   return result.rowsAffected;
@@ -623,8 +646,8 @@ export async function listSweeps(): Promise<SweepBatch[]> {
     `SELECT t.sealed_batch AS batch_id, max(t.sealed_at) AS sealed_at,
             count(*) AS count,
             group_concat(coalesce(i.title, t.url), ' · ') AS titles
-     FROM tabs t LEFT JOIN items i ON i.url = t.url
-     WHERE t.sealed_batch IS NOT NULL
+     FROM tabs t LEFT JOIN items i ON i.url = t.url AND i.deleted_at IS NULL
+     WHERE t.sealed_batch IS NOT NULL AND t.deleted_at IS NULL
      GROUP BY t.sealed_batch
      ORDER BY sealed_at DESC`,
   );
@@ -678,7 +701,8 @@ export interface Recipe {
 
 export async function listRecipes(jarId: string): Promise<Recipe[]> {
   return db().select<Recipe[]>(
-    `SELECT id, jar_id, name, steps FROM recipes WHERE jar_id = $1 ORDER BY name`,
+    `SELECT id, jar_id, name, steps FROM recipes
+     WHERE jar_id = $1 AND deleted_at IS NULL ORDER BY name`,
     [jarId],
   );
 }
@@ -764,7 +788,7 @@ export async function updateNote(id: string, text: string): Promise<void> {
 
 export async function getItem(id: string): Promise<Item | null> {
   const rows = await db().select<Item[]>(
-    `SELECT * FROM items WHERE id = $1`,
+    `SELECT * FROM items WHERE id = $1 AND deleted_at IS NULL`,
     [id],
   );
   return rows[0] ?? null;
@@ -878,7 +902,8 @@ export async function listFileItems(): Promise<
 > {
   return db().select<{ id: string; path: string }[]>(
     `SELECT id, json_extract(meta, '$.path') AS path
-     FROM items WHERE kind = 'file' AND path IS NOT NULL`,
+     FROM items
+     WHERE kind = 'file' AND path IS NOT NULL AND deleted_at IS NULL`,
   );
 }
 
@@ -894,7 +919,9 @@ export interface Label {
 export async function listLabels(): Promise<Label[]> {
   return db().select<Label[]>(
     `SELECT l.id, l.name, count(il.item_id) AS uses
-     FROM labels l LEFT JOIN item_labels il ON il.label_id = l.id
+     FROM labels l
+     LEFT JOIN item_labels il ON il.label_id = l.id AND il.deleted_at IS NULL
+     WHERE l.deleted_at IS NULL
      GROUP BY l.id ORDER BY l.name`,
   );
 }
@@ -911,6 +938,11 @@ export async function assignLabel(
     `INSERT OR IGNORE INTO labels (${w.cols.join(", ")}) VALUES (${w.placeholders})`,
     w.vals,
   );
+  // The lookup below deliberately does not filter tombstoned labels: nothing
+  // in the app deletes a label, and filtering one out here would make the
+  // assignment a silent no-op (OR IGNORE keeps the name, the SELECT finds
+  // nothing). Whoever adds a label delete owes this the same reviving upsert
+  // item_labels gets.
   // item_labels is a pure join table and 004 gives it no field_ts: presence
   // is the only fact, so there is nothing to merge field by field. It still
   // carries updated_at, which is what the sync cursor reads.
@@ -952,7 +984,8 @@ export async function unassignLabel(
 export async function itemIdsWithLabel(name: string): Promise<string[]> {
   const rows = await db().select<{ item_id: string }[]>(
     `SELECT il.item_id FROM item_labels il
-     JOIN labels l ON l.id = il.label_id WHERE l.name = $1`,
+     JOIN labels l ON l.id = il.label_id
+     WHERE l.name = $1 AND il.deleted_at IS NULL AND l.deleted_at IS NULL`,
     [name.trim().toLowerCase()],
   );
   return rows.map((r) => r.item_id);
@@ -970,7 +1003,7 @@ export async function moveItems(
   await db().execute(
     `UPDATE items SET jar_id = $1, updated_at = $2,
        field_ts = json_patch(field_ts, json_object('jar_id', $2))
-     WHERE id IN (${slots})`,
+     WHERE deleted_at IS NULL AND id IN (${slots})`,
     [jarId, Date.now(), ...ids],
   );
 }
