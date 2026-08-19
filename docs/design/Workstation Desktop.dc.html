@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+body { margin: 0; background: #0D1107; font-family: 'Instrument Sans', sans-serif; color: #22300F; }
+a { color: #C4F26B; text-decoration: none; } a:hover { color: #EFFCCB; }
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; gap: 30px; padding: 28px 40px 60px; box-sizing: border-box;">
+  <svg width="0" height="0" style="position: absolute;"><defs>
+    <linearGradient id="lidG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FDFEF8"></stop><stop offset="1" stop-color="#AEBC97"></stop></linearGradient>
+    <linearGradient id="jarGreen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EFFCCB"></stop><stop offset="1" stop-color="#5FA30C"></stop></linearGradient>
+    <linearGradient id="jarAmber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A3"></stop><stop offset="1" stop-color="#D89B0A"></stop></linearGradient>
+    <linearGradient id="jarRed" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB39A"></stop><stop offset="1" stop-color="#C93A16"></stop></linearGradient>
+    <linearGradient id="jarBlue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B7E3F5"></stop><stop offset="1" stop-color="#2277A8"></stop></linearGradient>
+    <linearGradient id="bowlG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C9D8A4"></stop><stop offset="1" stop-color="#8B9C63"></stop></linearGradient>
+  </defs></svg>
+  <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; position: sticky; top: 12px; z-index: 50; background: rgba(13,17,7,0.85); backdrop-filter: blur(12px); border: 1px solid rgba(196,242,107,0.18); border-radius: 14px; padding: 8px 10px;">
+    <a href="#home" style="font-family: 'Spline Sans Mono', monospace; font-size: 10.5px; letter-spacing: 0.1em; background: rgba(255,255,255,0.1); border-radius: 9px; padding: 5px 13px;">HOME</a>
+    <a href="#onboard" style="font-family: 'Spline Sans Mono', monospace; font-size: 10.5px; letter-spacing: 0.1em; background: rgba(255,255,255,0.1); border-radius: 9px; padding: 5px 13px;">MAKE A PROFILE</a>
+    <a href="#switch" style="font-family: 'Spline Sans Mono', monospace; font-size: 10.5px; letter-spacing: 0.1em; background: rgba(255,255,255,0.1); border-radius: 9px; padding: 5px 13px;">SWITCH USER</a>
+    <a href="#share" style="font-family: 'Spline Sans Mono', monospace; font-size: 10.5px; letter-spacing: 0.1em; background: rgba(255,255,255,0.1); border-radius: 9px; padding: 5px 13px;">SHARE</a>
+    <a href="#ask" style="font-family: 'Spline Sans Mono', monospace; font-size: 10.5px; letter-spacing: 0.1em; background: rgba(255,255,255,0.1); border-radius: 9px; padding: 5px 13px;">AI PANEL</a>
+    <a href="#jar" style="font-family: 'Spline Sans Mono', monospace; font-size: 10.5px; letter-spacing: 0.1em; background: rgba(255,255,255,0.1); border-radius: 9px; padding: 5px 13px;">JAR</a>
+    <a href="NetRelish iOS.dc.html" style="font-family: 'Spline Sans Mono', monospace; font-size: 10.5px; letter-spacing: 0.1em; background: #93E413; color: #1D3506; border-radius: 9px; padding: 5px 13px;">iOS →</a>
+  </div>
+
+  <!-- ============ 1 · WORKSTATION HOME ============ -->
+  <div id="home" data-screen-label="Workstation Home" style="width: 1440px; height: 870px; flex-shrink: 0; border-radius: 14px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.7); border: 1px solid rgba(196,242,107,0.22); display: flex; flex-direction: column; background: radial-gradient(circle at 50% -10%, rgba(147,228,19,0.3), transparent 55%), radial-gradient(circle at 12% 85%, rgba(93,160,15,0.2), transparent 50%), linear-gradient(170deg, #22380D 0%, #14240A 45%, #070C03 100%);">
+    <div style="height: 84px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 0 20px; background: linear-gradient(rgba(46,68,22,0.85), rgba(24,38,11,0.85)); backdrop-filter: blur(28px); border-bottom: 1px solid rgba(196,242,107,0.28); box-shadow: inset 0 1px 0 rgba(220,250,160,0.22); position: relative; z-index: 2;">
+      <div style="display: flex; gap: 8px; width: 62px; flex-shrink: 0;">
+        <div style="width: 13px; height: 13px; border-radius: 50%; background: linear-gradient(#FF8A80, #E2422F);"></div>
+        <div style="width: 13px; height: 13px; border-radius: 50%; background: linear-gradient(#FFDD67, #EDA90E);"></div>
+        <div style="width: 13px; height: 13px; border-radius: 50%; background: linear-gradient(#8CE96B, #2FA815);"></div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(255,255,255,0.12); border: 1px solid rgba(196,242,107,0.32); box-sizing: border-box; display: flex; align-items: center; justify-content: center; color: #C4F26B; font-size: 20px; font-weight: 700;">‹</div>
+        <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(196,242,107,0.14); box-sizing: border-box; display: flex; align-items: center; justify-content: center; color: #6D8050; font-size: 20px; font-weight: 700;">›</div>
+        <div title="Refresh" style="width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(rgba(199,245,94,0.35), rgba(147,228,19,0.18)); border: 1px solid rgba(196,242,107,0.4); box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
+          <svg width="18" height="18" viewBox="0 0 16 16"><path d="M13.5 8 A5.5 5.5 0 1 1 11 3.4" fill="none" stroke="#C4F26B" stroke-width="1.9" stroke-linecap="round"></path><path d="M11.4 0.8 L11.4 4.2 L8 4.2" fill="none" stroke="#C4F26B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+        <img src="uploads/app-icon.svg" width="62" height="62" style="margin-left: 6px; filter: drop-shadow(0 3px 12px rgba(147,228,19,0.55));">
+      </div>
+      <div style="flex: 1; display: flex; justify-content: center;">
+        <div style="width: 720px; height: 52px; background: linear-gradient(rgba(255,255,255,0.97), rgba(255,255,255,0.78)); border: 1px solid rgba(196,242,107,0.65); border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.35), 0 0 0 3px rgba(147,228,19,0.12), inset 0 1px 0 #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <svg width="12" height="14" viewBox="0 0 12 14"><path d="M2 6 V4 a4 4 0 0 1 8 0 V6" fill="none" stroke="#5B8A2E" stroke-width="1.6"></path><rect x="1" y="6" width="10" height="7" rx="2" fill="#5B8A2E"></rect></svg>
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 14.5px; color: #4A5A38;">netrelish://pantry</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; width: 220px; flex-shrink: 0; justify-content: flex-end;">
+        <div title="Synced just now" style="display: flex; align-items: center; gap: 6px; font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #A9BD8A;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #93E413; box-shadow: 0 0 6px rgba(147,228,19,0.8);"></span>SYNCED</div>
+        <div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px 0 12px; border-radius: 12px; background: linear-gradient(#C7F55E, #96E018); box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.7), 0 2px 8px rgba(110,180,15,0.5); font-size: 12.5px; font-weight: 700; color: #1D3506;">
+          <svg width="12" height="15" viewBox="0 0 36 44"><rect x="8.5" y="1" width="19" height="7" rx="3" fill="url(#lidG)"></rect><path d="M10 8 H26 V11 C30.5 12.8 33 16 33 20 V36 A7 7 0 0 1 26 43 H10 A7 7 0 0 1 3 36 V20 C3 16 5.5 12.8 10 11 Z" fill="url(#jarGreen)"></path></svg>Meridian Rebuild
+        </div>
+        <div title="Ryan Shepherd — switch profile" style="width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #C7F55E, #5FA30C); border: 1.5px solid rgba(255,255,255,0.5); box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: #1D3506; box-shadow: 0 0 8px rgba(147,228,19,0.4);">RS</div>
+      </div>
+    </div>
+    <div style="flex: 1; min-height: 0; display: flex;">
+      <div style="width: 258px; flex-shrink: 0; background: rgba(244,248,232,0.42); backdrop-filter: blur(20px); border-right: 1px solid rgba(255,255,255,0.45); display: flex; flex-direction: column; padding: 14px 12px 12px; box-sizing: border-box; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px; background: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.8); box-shadow: inset 0 1px 0 #FFFFFF; margin-bottom: 6px;">
+          <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #C7F55E, #5FA30C); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: #1D3506; flex-shrink: 0;">RS</div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 13.5px; font-weight: 700; color: #22300F;">Ryan Shepherd</div>
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 9px; color: #5E6E48; letter-spacing: 0.08em;">PRO · 3 DEVICES</div>
+          </div>
+          <div style="font-size: 13px; color: #748360;">⌄</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 9px; padding: 9px 11px; border-radius: 10px; background: linear-gradient(#C7F55E, #96E018); box-shadow: inset 0 1px 0 rgba(255,255,255,0.7); font-size: 13.5px; font-weight: 700; color: #1D3506;">
+          <svg width="15" height="15" viewBox="0 0 20 18"><rect x="1" y="5.5" width="18" height="3" rx="1.5" fill="#3A4B1B"></rect><path d="M3 8.5 H17 V9.5 A7 7 0 0 1 3 9.5 Z" fill="#3A4B1B"></path></svg>Pantry
+        </div>
+        <div style="display: flex; align-items: center; gap: 9px; padding: 9px 11px; border-radius: 10px; font-size: 13.5px; font-weight: 600; color: #33430F;" style-hover="background: rgba(255,255,255,0.45);">
+          <svg width="15" height="13" viewBox="0 0 20 18"><rect x="1" y="5.5" width="18" height="3" rx="1.5" fill="#E2ECC2"></rect><path d="M3 8.5 H17 V9.5 A7 7 0 0 1 3 9.5 Z" fill="url(#bowlG)"></path></svg><span style="flex: 1;">Brine</span>
+          <span style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; background: rgba(255,255,255,0.85); border-radius: 8px; padding: 2px 8px; color: #5B6650;">36</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 9px; padding: 9px 11px; border-radius: 10px; font-size: 13.5px; font-weight: 600; color: #33430F;" style-hover="background: rgba(255,255,255,0.45);">
+          <svg width="15" height="15" viewBox="0 0 16 16"><circle cx="5" cy="5" r="3" fill="none" stroke="#5B8A2E" stroke-width="1.8"></circle><circle cx="11" cy="11" r="3" fill="none" stroke="#5B8A2E" stroke-width="1.8"></circle><path d="M7.2 7.2 L8.8 8.8" stroke="#5B8A2E" stroke-width="1.8"></path></svg><span style="flex: 1;">Shared</span>
+          <span style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; background: rgba(255,255,255,0.85); border-radius: 8px; padding: 2px 8px; color: #5B6650;">3</span>
+        </div>
+        <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #5E6E48; letter-spacing: 0.13em; padding: 12px 10px 4px;">YOUR SHELF</div>
+        <div style="display: flex; align-items: center; gap: 9px; padding: 7px 11px; border-radius: 10px;" style-hover="background: rgba(255,255,255,0.45);">
+          <svg width="17" height="21" viewBox="0 0 36 44"><rect x="8.5" y="1" width="19" height="7" rx="3" fill="url(#lidG)"></rect><path d="M10 8 H26 V11 C30.5 12.8 33 16 33 20 V36 A7 7 0 0 1 26 43 H10 A7 7 0 0 1 3 36 V20 C3 16 5.5 12.8 10 11 Z" fill="url(#jarGreen)"></path></svg>
+          <span style="flex: 1; font-size: 13px; font-weight: 600; color: #33430F;">Meridian Rebuild</span><span style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #748360;">24</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 9px; padding: 7px 11px; border-radius: 10px;" style-hover="background: rgba(255,255,255,0.45);">
+          <svg width="17" height="21" viewBox="0 0 36 44"><rect x="8.5" y="1" width="19" height="7" rx="3" fill="url(#lidG)"></rect><path d="M10 8 H26 V11 C30.5 12.8 33 16 33 20 V36 A7 7 0 0 1 26 43 H10 A7 7 0 0 1 3 36 V20 C3 16 5.5 12.8 10 11 Z" fill="url(#jarAmber)"></path></svg>
+          <span style="flex: 1; font-size: 13px; font-weight: 600; color: #33430F;">Pickle Research</span><span style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #748360;">11</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 9px; padding: 7px 11px; border-radius: 10px;" style-hover="background: rgba(255,255,255,0.45);">
+          <svg width="17" height="21" viewBox="0 0 36 44"><rect x="8.5" y="1" width="19" height="7" rx="3" fill="url(#lidG)"></rect><path d="M10 8 H26 V11 C30.5 12.8 33 16 33 20 V36 A7 7 0 0 1 26 43 H10 A7 7 0 0 1 3 36 V20 C3 16 5.5 12.8 10 11 Z" fill="url(#jarRed)"></path></svg>
+          <span style="flex: 1; font-size: 13px; font-weight: 600; color: #33430F;">Client Outreach</span><span style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #748360;">7</span>
+        </div>
+        <div style="flex: 1;"></div>
+        <div style="border-top: 1px solid rgba(255,255,255,0.55); padding-top: 10px; font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #5E6E48; line-height: 1.6;">412 things preserved<br>Encrypted sync · MacBook, iPhone, Studio</div>
+      </div>
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 26px 32px; overflow: hidden;">
+        <div style="display: flex; align-items: flex-end; justify-content: space-between;">
+          <div>
+            <div style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 31px; letter-spacing: -0.02em; color: #F1F7E0;">Evening, Ryan</div>
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10.5px; letter-spacing: 0.1em; color: #A9BD8A; margin-top: 5px;">TUE AUG 18 · 12 SEALED TODAY · 3 JARS WORKING</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <div style="height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 15px; border-radius: 10px; background: rgba(244,248,232,0.7); border: 1px solid rgba(255,255,255,0.75); font-size: 12.5px; font-weight: 700; color: #22300F;">⌘K Ask the Pantry</div>
+            <div style="height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 15px; border-radius: 10px; background: linear-gradient(#C7F55E, #96E018); box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.7), 0 2px 8px rgba(110,180,15,0.5); font-size: 12.5px; font-weight: 700; color: #1D3506;">＋ New jar</div>
+          </div>
+        </div>
+        <div style="background: linear-gradient(rgba(199,245,94,0.16), rgba(147,228,19,0.08)); backdrop-filter: blur(20px); border: 1px solid rgba(196,242,107,0.4); border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; box-shadow: inset 0 1px 0 rgba(220,250,160,0.3);">
+          <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(#C7F55E, #96E018); box-shadow: inset 0 1px 0 rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: center; font-size: 15px; color: #1D3506; flex-shrink: 0;">✦</div>
+          <div style="flex: 1;">
+            <div style="font-size: 13.5px; font-weight: 700; color: #EFFCCB;">Meridian Rebuild has a gap: strong design research, almost nothing on local SEO.</div>
+            <div style="font-size: 12px; color: #A9BD8A; margin-top: 2px;">40 items analyzed on-device · 12 design · 8 competitors · 2 local SEO · 1 accessibility</div>
+          </div>
+          <div style="height: 30px; display: flex; align-items: center; padding: 0 14px; border-radius: 10px; background: rgba(255,255,255,0.14); border: 1px solid rgba(196,242,107,0.4); font-size: 12px; font-weight: 700; color: #C4F26B;">See gaps</div>
+          <div style="height: 30px; display: flex; align-items: center; padding: 0 14px; border-radius: 10px; background: linear-gradient(#C7F55E, #96E018); box-shadow: inset 0 1px 0 rgba(255,255,255,0.7); font-size: 12px; font-weight: 700; color: #1D3506;">Research it</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 14px; flex: 1; min-height: 0;">
+          <div style="background: rgba(244,248,232,0.68); backdrop-filter: blur(28px); border: 1px solid rgba(255,255,255,0.65); border-radius: 12px; box-shadow: 0 14px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.85); padding: 16px; display: flex; flex-direction: column; gap: 4px; overflow: hidden;">
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #5E6E48; letter-spacing: 0.13em; padding-bottom: 8px;">PICK UP WHERE YOU LEFT OFF</div>
+            <div style="display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: 12px;" style-hover="background: rgba(255,255,255,0.55);">
+              <div style="width: 18px; height: 18px; border-radius: 6px; background: #141B0C; color: #FFF; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">B</div>
+              <div style="flex: 1; min-width: 0;"><div style="font-size: 13.5px; font-weight: 600; color: #22300F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Bricks conditions and query loops</div><div style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #748360;">MERIDIAN · 20 MIN AGO · SCROLLED 60%</div></div>
+              <div style="font-size: 11px; color: #5B8A2E;">→</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: 12px;" style-hover="background: rgba(255,255,255,0.55);">
+              <div style="width: 18px; height: 18px; border-radius: 6px; background: rgba(237,181,30,0.3); border: 1px solid rgba(237,181,30,0.6); box-sizing: border-box; font-size: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">≡</div>
+              <div style="flex: 1; min-width: 0;"><div style="font-size: 13.5px; font-weight: 600; color: #22300F;">Kickoff call — sitemap decisions</div><div style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #748360;">NOTE · EDITED 2H AGO</div></div>
+              <div style="font-size: 11px; color: #5B8A2E;">→</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: 12px;" style-hover="background: rgba(255,255,255,0.55);">
+              <div style="width: 18px; height: 18px; border-radius: 50%; background: rgba(255,255,255,0.75); border: 1.5px solid rgba(90,110,60,0.5); box-sizing: border-box; flex-shrink: 0;"></div>
+              <div style="flex: 1; min-width: 0;"><div style="font-size: 13.5px; font-weight: 600; color: #22300F;">Send sitemap for approval</div><div style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #B0651B;">TASK · DUE FRI</div></div>
+              <div style="font-size: 11px; color: #5B8A2E;">→</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: 12px;" style-hover="background: rgba(255,255,255,0.55);">
+              <div style="width: 18px; height: 18px; border-radius: 6px; background: #2271B1; color: #FFF; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">A</div>
+              <div style="flex: 1; min-width: 0;"><div style="font-size: 13.5px; font-weight: 600; color: #22300F;">ACF repeater field documentation</div><div style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #748360;">SEALED YESTERDAY · REOPENS WHERE YOU LEFT IT</div></div>
+              <div style="font-size: 11px; color: #5B8A2E;">→</div>
+            </div>
+          </div>
+          <div style="background: rgba(244,248,232,0.68); backdrop-filter: blur(28px); border: 1px solid rgba(255,255,255,0.65); border-radius: 12px; box-shadow: 0 14px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.85); padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #5E6E48; letter-spacing: 0.13em;">RECIPES · ⌘R</div>
+            <div style="background: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.9); border-radius: 12px; padding: 10px 12px;">
+              <div style="font-size: 13px; font-weight: 700; color: #22300F;">Client kickoff</div>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px;">
+                <span style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #748360;">5 STEPS · RAN 8×</span>
+                <span style="height: 24px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 12px; background: linear-gradient(#C7F55E, #96E018); font-size: 11px; font-weight: 700; color: #1D3506;">Run</span>
+              </div>
+            </div>
+            <div style="background: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.9); border-radius: 12px; padding: 10px 12px;">
+              <div style="font-size: 13px; font-weight: 700; color: #22300F;">Weekly SEO audit</div>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px;">
+                <span style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #748360;">7 STEPS · RAN 3×</span>
+                <span style="height: 24px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 12px; background: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.95); font-size: 11px; font-weight: 700; color: #4A5A38;">Run</span>
+              </div>
+            </div>
+            <div style="font-size: 11.5px; color: #5E6E48; line-height: 1.5; margin-top: auto;">Work normally, then Save as Recipe — recorded, not authored.</div>
+          </div>
+          <div style="background: rgba(244,248,232,0.68); backdrop-filter: blur(28px); border: 1px solid rgba(255,255,255,0.65); border-radius: 12px; box-shadow: 0 14px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.85); padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #5E6E48; letter-spacing: 0.13em;">SHARED WITH YOU</div>
+            <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,0.5);" style-hover="background: rgba(255,255,255,0.75);">
+              <div style="width: 28px; height: 28px; border-radius: 10px; background: linear-gradient(135deg, #FFE9A3, #D89B0A); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #4A3405; flex-shrink: 0;">DK</div>
+              <div style="flex: 1; min-width: 0;"><div style="font-size: 12.5px; font-weight: 700; color: #22300F;">Dana's WP toolkit</div><div style="font-family: 'Spline Sans Mono', monospace; font-size: 9px; color: #748360;">47 ITEMS · UPDATED TODAY</div></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,0.5);" style-hover="background: rgba(255,255,255,0.75);">
+              <div style="width: 28px; height: 28px; border-radius: 10px; background: linear-gradient(135deg, #B7E3F5, #2277A8); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #0A2A3D; flex-shrink: 0;">AM</div>
+              <div style="flex: 1; min-width: 0;"><div style="font-size: 12.5px; font-weight: 700; color: #22300F;">Acme launch research</div><div style="font-family: 'Spline Sans Mono', monospace; font-size: 9px; color: #748360;">CLIENT JAR · YOU: EDITOR</div></div>
+            </div>
+            <div style="font-size: 11.5px; color: #5E6E48; line-height: 1.5; margin-top: auto;">Shared jars sync end-to-end encrypted. Owners choose what leaves the machine.</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; background: rgba(24,38,11,0.6); border: 1px solid rgba(196,242,107,0.25); border-radius: 12px; padding: 11px 16px;">
+          <svg width="20" height="17" viewBox="0 0 20 18"><rect x="1" y="5.5" width="18" height="3" rx="1.5" fill="#E2ECC2"></rect><path d="M3 8.5 H17 V9.5 A7 7 0 0 1 3 9.5 Z" fill="url(#bowlG)"></path></svg>
+          <div style="flex: 1; font-size: 13px; font-weight: 600; color: #EFFCCB;">Brine caught 9 pages this morning — mostly Tauri docs and two pricing pages.</div>
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #93E413;">REVIEW →</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 2 · MAKE A PROFILE ============ -->
+  <div id="onboard" data-screen-label="Make a profile" style="width: 1440px; height: 870px; flex-shrink: 0; border-radius: 14px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.7); border: 1px solid rgba(196,242,107,0.22); display: flex; align-items: center; justify-content: center; position: relative; background: radial-gradient(circle at 50% -10%, rgba(147,228,19,0.32), transparent 55%), radial-gradient(circle at 12% 85%, rgba(93,160,15,0.22), transparent 50%), linear-gradient(170deg, #22380D 0%, #14240A 45%, #070C03 100%);">
+    <div style="position: absolute; top: 30px; left: 0; right: 0; display: flex; justify-content: center;">
+      <img src="uploads/app-icon.svg" width="52" height="52" style="filter: drop-shadow(0 6px 16px rgba(147,228,19,0.4));">
+    </div>
+    <div style="width: 860px; display: flex; flex-direction: column; gap: 18px;">
+      <div style="text-align: center;">
+        <div style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 40px; letter-spacing: -0.02em; background: linear-gradient(#F4FBDD 30%, #93E413); -webkit-background-clip: text; background-clip: text; color: transparent;">Make your profile</div>
+        <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10.5px; letter-spacing: 0.14em; color: #A9BD8A; margin-top: 8px;">STEP 1 OF 3 — PROFILE · FLAVOR · NETRELISH ID</div>
+      </div>
+      <div style="background: linear-gradient(rgba(244,248,232,0.72), rgba(228,238,204,0.55)); backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,0.7); border-radius: 12px; box-shadow: 0 24px 60px rgba(0,0,0,0.45), 0 0 0 1px rgba(147,228,19,0.2), inset 0 1.5px 0 rgba(255,255,255,0.95); padding: 26px 30px; display: flex; gap: 28px;">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 16px;">
+          <div>
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #5E6E48; letter-spacing: 0.13em; margin-bottom: 9px;">PICK YOUR JAR</div>
+            <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;">
+              <div style="aspect-ratio: 1; border-radius: 24% / 24%; background: linear-gradient(135deg, #C7F55E, #5FA30C); box-shadow: 0 0 0 3px rgba(147,228,19,0.7), 0 4px 12px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; color: #1D3506;">R</div>
+              <div style="aspect-ratio: 1; border-radius: 24% / 24%; background: linear-gradient(135deg, #FFE9A3, #D89B0A); opacity: 0.75;" style-hover="opacity: 1;"></div>
+              <div style="aspect-ratio: 1; border-radius: 24% / 24%; background: linear-gradient(135deg, #FFB39A, #C93A16); opacity: 0.75;" style-hover="opacity: 1;"></div>
+              <div style="aspect-ratio: 1; border-radius: 24% / 24%; background: linear-gradient(135deg, #B7E3F5, #2277A8); opacity: 0.75;" style-hover="opacity: 1;"></div>
+              <div style="aspect-ratio: 1; border-radius: 24% / 24%; background: linear-gradient(135deg, #E8C7F5, #8A3AB8); opacity: 0.75;" style-hover="opacity: 1;"></div>
+              <div style="aspect-ratio: 1; border-radius: 24% / 24%; border: 1.5px dashed rgba(70,90,40,0.5); box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 15px; color: #5E6E48;">↑</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #5E6E48; letter-spacing: 0.13em; margin-bottom: 9px;">YOUR NAME</div>
+            <div style="height: 44px; background: rgba(255,255,255,0.85); border: 1px solid rgba(196,242,107,0.7); border-radius: 14px; box-shadow: inset 0 1px 0 #FFFFFF, 0 0 0 3px rgba(147,228,19,0.12); display: flex; align-items: center; padding: 0 16px; font-size: 15px; font-weight: 600; color: #22300F;">Ryan Shepherd<span style="width: 2px; height: 18px; background: #93E413; margin-left: 2px;"></span></div>
+          </div>
+          <div>
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #5E6E48; letter-spacing: 0.13em; margin-bottom: 9px;">PICK YOUR FLAVOR</div>
+            <div style="display: flex; gap: 10px;">
+              <div style="flex: 1; border-radius: 14px; border: 2px solid #93E413; box-shadow: 0 0 10px rgba(147,228,19,0.3); overflow: hidden;">
+                <div style="height: 52px; background: radial-gradient(circle at 30% 20%, rgba(147,228,19,0.4), transparent 60%), linear-gradient(170deg, #22380D, #070C03);"></div>
+                <div style="padding: 7px 10px; background: rgba(255,255,255,0.7); font-size: 11.5px; font-weight: 700; color: #22300F;">Aurora <span style="font-family: 'Spline Sans Mono', monospace; font-size: 8.5px; color: #5B8A2E;">DEFAULT</span></div>
+              </div>
+              <div style="flex: 1; border-radius: 14px; border: 1px solid rgba(255,255,255,0.7); overflow: hidden; opacity: 0.8;" style-hover="opacity: 1;">
+                <div style="height: 52px; background: linear-gradient(170deg, #F4F8E8, #D9E4C0);"></div>
+                <div style="padding: 7px 10px; background: rgba(255,255,255,0.7); font-size: 11.5px; font-weight: 700; color: #22300F;">Deli Light</div>
+              </div>
+              <div style="flex: 1; border-radius: 14px; border: 1px solid rgba(255,255,255,0.7); overflow: hidden; opacity: 0.8;" style-hover="opacity: 1;">
+                <div style="height: 52px; background: linear-gradient(170deg, #3D1436, #12040F);"></div>
+                <div style="padding: 7px 10px; background: rgba(255,255,255,0.7); font-size: 11.5px; font-weight: 700; color: #22300F;">Beet Candy</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="width: 1px; background: linear-gradient(rgba(93,160,15,0.3), transparent);"></div>
+        <div style="width: 270px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #5E6E48; letter-spacing: 0.13em;">PREVIEW</div>
+          <div style="border-radius: 12px; background: radial-gradient(circle at 30% 10%, rgba(147,228,19,0.35), transparent 60%), linear-gradient(170deg, #22380D, #0A1105); border: 1px solid rgba(196,242,107,0.3); padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+            <div style="width: 58px; height: 58px; border-radius: 24%; background: linear-gradient(135deg, #C7F55E, #5FA30C); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: #1D3506; box-shadow: 0 0 16px rgba(147,228,19,0.5);">R</div>
+            <div style="font-size: 15px; font-weight: 700; color: #EFFCCB;">Ryan Shepherd</div>
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 9px; color: #A9BD8A; letter-spacing: 0.1em;">AURORA · 0 JARS · DAY ONE</div>
+          </div>
+          <div style="font-size: 12px; color: #4A5A38; line-height: 1.6;">Your profile keeps its own Pantry, history, recipes and flavor. Everything syncs end-to-end encrypted — <b>we can't read your Pantry.</b></div>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 12.5px; color: #A9BD8A;">Already preserving? <a href="#switch" style="font-weight: 700;">Sign in</a></div>
+        <div style="height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 26px; border-radius: 12px; background: linear-gradient(#C7F55E, #96E018); box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.7), 0 4px 16px rgba(147,228,19,0.5); font-size: 15px; font-weight: 700; color: #1D3506;">Continue → Flavor</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3 · SWITCH USER ============ -->
+  <div id="switch" data-screen-label="Switch user" style="width: 1440px; height: 870px; flex-shrink: 0; border-radius: 14px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.7); border: 1px solid rgba(196,242,107,0.22); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 44px; position: relative; background: radial-gradient(circle at 50% 110%, rgba(147,228,19,0.28), transparent 55%), radial-gradient(circle at 80% 10%, rgba(93,160,15,0.2), transparent 50%), linear-gradient(170deg, #1C300B 0%, #101C07 45%, #070C03 100%);">
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 14px;">
+      <img src="uploads/app-icon.svg" width="64" height="64" style="filter: drop-shadow(0 8px 20px rgba(147,228,19,0.45));">
+      <div style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 46px; letter-spacing: -0.02em; color: #F1F7E0;">Who's cooking?</div>
+      <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10.5px; letter-spacing: 0.14em; color: #A9BD8A;">EACH PROFILE KEEPS ITS OWN PANTRY, HISTORY AND SYNC</div>
+    </div>
+    <div style="display: flex; gap: 28px; align-items: flex-start;">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 13px;">
+        <div style="width: 128px; height: 128px; border-radius: 26%; background: linear-gradient(135deg, #C7F55E, #5FA30C); display: flex; align-items: center; justify-content: center; font-size: 44px; font-weight: 800; color: #1D3506; box-shadow: 0 0 0 4px rgba(147,228,19,0.55), 0 16px 40px rgba(0,0,0,0.5), 0 0 30px rgba(147,228,19,0.35);" style-hover="transform: translateY(-4px);">RS</div>
+        <div style="text-align: center;">
+          <div style="font-size: 17px; font-weight: 700; color: #EFFCCB;">Ryan</div>
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #93E413; letter-spacing: 0.1em;">PRO · 3 JARS · SYNCED</div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 13px; opacity: 0.85;">
+        <div style="width: 128px; height: 128px; border-radius: 26%; background: linear-gradient(135deg, #FFE9A3, #D89B0A); display: flex; align-items: center; justify-content: center; font-size: 44px; font-weight: 800; color: #4A3405; box-shadow: 0 16px 40px rgba(0,0,0,0.5); position: relative;" style-hover="transform: translateY(-4px);">
+          SD
+          <div style="position: absolute; bottom: -7px; right: -7px; width: 34px; height: 34px; border-radius: 50%; background: rgba(24,38,11,0.95); border: 1px solid rgba(196,242,107,0.4); display: flex; align-items: center; justify-content: center;">
+            <svg width="13" height="15" viewBox="0 0 12 14"><path d="M2 6 V4 a4 4 0 0 1 8 0 V6" fill="none" stroke="#C4F26B" stroke-width="1.6"></path><rect x="1" y="6" width="10" height="7" rx="2" fill="#C4F26B"></rect></svg>
+          </div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 17px; font-weight: 700; color: #EFFCCB;">Sam</div>
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #A9BD8A; letter-spacing: 0.1em;">PASSCODE LOCKED</div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 13px; opacity: 0.85;">
+        <div style="width: 128px; height: 128px; border-radius: 26%; background: rgba(255,255,255,0.08); border: 1px solid rgba(196,242,107,0.25); box-sizing: border-box; display: flex; align-items: center; justify-content: center; box-shadow: 0 16px 40px rgba(0,0,0,0.5);" style-hover="transform: translateY(-4px);">
+          <svg width="46" height="46" viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="none" stroke="#A9BD8A" stroke-width="1.8"></circle><path d="M4.5 20 C5.5 15.8 8.4 14 12 14 C15.6 14 18.5 15.8 19.5 20" fill="none" stroke="#A9BD8A" stroke-width="1.8" stroke-linecap="round"></path></svg>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 17px; font-weight: 700; color: #EFFCCB;">Guest</div>
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #A9BD8A; letter-spacing: 0.1em;">NOTHING PRESERVED</div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 13px; opacity: 0.7;" style-hover="opacity: 1;">
+        <a href="#onboard" style="width: 128px; height: 128px; border-radius: 26%; border: 2px dashed rgba(196,242,107,0.45); box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 46px; font-weight: 300; color: #C4F26B;">＋</a>
+        <div style="text-align: center;">
+          <div style="font-size: 17px; font-weight: 700; color: #EFFCCB;">Add user</div>
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #A9BD8A; letter-spacing: 0.1em;">NEW PROFILE OR SIGN IN</div>
+        </div>
+      </div>
+    </div>
+    <div style="position: absolute; bottom: 30px; font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #5E6E48; letter-spacing: 0.1em;">⌘⇧P SWITCHES PROFILES ANYTIME · PROFILES NEVER SEE EACH OTHER'S PANTRY</div>
+  </div>
+
+  <!-- ============ 4 · SHARE / PUBLISH ============ -->
+  <div id="share" data-screen-label="Share a jar" style="width: 1440px; height: 870px; flex-shrink: 0; border-radius: 14px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.7); border: 1px solid rgba(196,242,107,0.22); display: flex; align-items: center; justify-content: center; position: relative; background: linear-gradient(170deg, #22380D 0%, #14240A 45%, #070C03 100%);">
+    <div style="position: absolute; inset: 0; background: radial-gradient(circle at 18% 10%, rgba(147,228,19,0.25), transparent 62%); filter: blur(3px); opacity: 0.55; display: flex; flex-direction: column;">
+      <div style="height: 58px; background: linear-gradient(rgba(46,68,22,0.85), rgba(24,38,11,0.85)); border-bottom: 1px solid rgba(196,242,107,0.28);"></div>
+      <div style="flex: 1; display: flex;"><div style="width: 258px; background: rgba(244,248,232,0.3);"></div><div style="flex: 1; padding: 40px;"><div style="width: 70%; height: 30px; background: rgba(244,248,232,0.2); border-radius: 10px;"></div><div style="width: 90%; height: 380px; background: rgba(244,248,232,0.25); border-radius: 12px; margin-top: 20px;"></div></div></div>
+    </div>
+    <div style="position: absolute; inset: 0; background: rgba(7,12,3,0.5);"></div>
+    <div style="width: 620px; background: linear-gradient(rgba(244,248,232,0.85), rgba(228,238,204,0.72)); backdrop-filter: blur(34px); border: 1px solid rgba(255,255,255,0.75); border-radius: 12px; box-shadow: 0 40px 90px rgba(0,0,0,0.6), 0 0 0 1px rgba(147,228,19,0.25), inset 0 1.5px 0 rgba(255,255,255,0.95); padding: 24px 26px; display: flex; flex-direction: column; gap: 16px; position: relative;">
+      <div style="display: flex; align-items: center; gap: 13px;">
+        <svg width="34" height="42" viewBox="0 0 36 44" style="filter: drop-shadow(0 3px 7px rgba(10,20,4,0.35));"><rect x="8.5" y="1" width="19" height="7" rx="3" fill="url(#lidG)"></rect><path d="M10 8 H26 V11 C30.5 12.8 33 16 33 20 V36 A7 7 0 0 1 26 43 H10 A7 7 0 0 1 3 36 V20 C3 16 5.5 12.8 10 11 Z" fill="url(#jarGreen)"></path><text x="18" y="31" text-anchor="middle" font-family="Bricolage Grotesque, sans-serif" font-weight="800" font-size="13" fill="#1D3506">M</text></svg>
+        <div style="flex: 1;">
+          <div style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 21px; color: #22300F;">Share Meridian Rebuild</div>
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #748360; letter-spacing: 0.08em;">24 ITEMS · NOTES STAY PRIVATE UNLESS YOU INCLUDE THEM</div>
+        </div>
+        <div style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; font-size: 12px; color: #5E6E48;">✕</div>
+      </div>
+      <div style="display: flex; background: rgba(24,38,11,0.12); border-radius: 14px; padding: 4px; gap: 4px;">
+        <div style="flex: 1; text-align: center; padding: 8px 0; border-radius: 11px; font-size: 12.5px; font-weight: 700; color: #4A5A38;">Private</div>
+        <div style="flex: 1; text-align: center; padding: 8px 0; border-radius: 11px; font-size: 12.5px; font-weight: 700; color: #4A5A38;">Invite only</div>
+        <div style="flex: 1; text-align: center; padding: 8px 0; border-radius: 11px; background: linear-gradient(#C7F55E, #96E018); box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 2px 6px rgba(110,180,15,0.4); font-size: 12.5px; font-weight: 700; color: #1D3506;">Public Relish</div>
+      </div>
+      <div style="border-radius: 12px; background: radial-gradient(circle at 25% 0%, rgba(147,228,19,0.3), transparent 60%), linear-gradient(170deg, #22380D, #0A1105); border: 1px solid rgba(196,242,107,0.35); padding: 15px 17px; display: flex; align-items: center; gap: 14px;">
+        <svg width="30" height="37" viewBox="0 0 36 44" style="filter: drop-shadow(0 0 8px rgba(147,228,19,0.6));"><rect x="8.5" y="1" width="19" height="7" rx="3" fill="url(#lidG)"></rect><path d="M10 8 H26 V11 C30.5 12.8 33 16 33 20 V36 A7 7 0 0 1 26 43 H10 A7 7 0 0 1 3 36 V20 C3 16 5.5 12.8 10 11 Z" fill="url(#jarGreen)"></path></svg>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 14px; font-weight: 700; color: #EFFCCB;">Meridian Rebuild — a Relish by Ryan</div>
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10.5px; color: #93E413; margin-top: 3px;">netrelish.com/@ryan/meridian-rebuild</div>
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 9px; color: #A9BD8A; margin-top: 5px; letter-spacing: 0.08em;">14 PAGES · 5 TASKS · 2 FILES · FOLLOWABLE · FORKABLE</div>
+        </div>
+        <div style="height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 13px; border-radius: 10px; background: rgba(255,255,255,0.12); border: 1px solid rgba(196,242,107,0.4); font-size: 11.5px; font-weight: 700; color: #C4F26B; flex-shrink: 0;">Copy link</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 3px;">
+        <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #5E6E48; letter-spacing: 0.13em; padding-bottom: 5px;">PEOPLE</div>
+        <div style="display: flex; align-items: center; gap: 11px; padding: 7px 4px;">
+          <div style="width: 30px; height: 30px; border-radius: 11px; background: linear-gradient(135deg, #C7F55E, #5FA30C); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #1D3506;">RS</div>
+          <div style="flex: 1; font-size: 13.5px; font-weight: 600; color: #22300F;">Ryan Shepherd <span style="color: #748360; font-weight: 500;">(you)</span></div>
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #748360;">OWNER</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 11px; padding: 7px 4px;">
+          <div style="width: 30px; height: 30px; border-radius: 11px; background: linear-gradient(135deg, #FFE9A3, #D89B0A); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #4A3405;">DK</div>
+          <div style="flex: 1; font-size: 13.5px; font-weight: 600; color: #22300F;">Dana Kim</div>
+          <div style="height: 26px; display: flex; align-items: center; gap: 5px; padding: 0 11px; border-radius: 10px; background: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.95); font-size: 11.5px; font-weight: 700; color: #4A5A38;">Editor ⌄</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 11px; padding: 7px 4px;">
+          <div style="width: 30px; height: 30px; border-radius: 11px; background: linear-gradient(135deg, #B7E3F5, #2277A8); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #0A2A3D;">AM</div>
+          <div style="flex: 1; font-size: 13.5px; font-weight: 600; color: #22300F;">alex@meridianaz.com <span style="font-family: 'Spline Sans Mono', monospace; font-size: 9px; background: rgba(237,181,30,0.25); border-radius: 6px; padding: 2px 6px; color: #B0651B;">CLIENT</span></div>
+          <div style="height: 26px; display: flex; align-items: center; gap: 5px; padding: 0 11px; border-radius: 10px; background: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.95); font-size: 11.5px; font-weight: 700; color: #4A5A38;">Viewer ⌄</div>
+        </div>
+        <div style="height: 38px; margin-top: 4px; background: rgba(255,255,255,0.7); border: 1px dashed rgba(93,160,15,0.4); border-radius: 12px; display: flex; align-items: center; padding: 0 14px; font-size: 12.5px; color: #748360;">Invite by email…</div>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(93,160,15,0.2); padding-top: 14px;">
+        <div style="font-size: 11.5px; color: #5E6E48; max-width: 300px; line-height: 1.5;">Publishing shares titles, links and structure. Sync stays end-to-end encrypted.</div>
+        <div style="height: 40px; display: flex; align-items: center; padding: 0 22px; border-radius: 12px; background: linear-gradient(#C7F55E, #96E018); box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.7), 0 4px 14px rgba(147,228,19,0.5); font-size: 14px; font-weight: 700; color: #1D3506;">Publish Relish</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 5 · AI PANEL ============ -->
+  <div id="ask" data-screen-label="AI panel" style="width: 1440px; height: 870px; flex-shrink: 0; border-radius: 14px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.7); border: 1px solid rgba(196,242,107,0.22); display: flex; align-items: flex-start; justify-content: center; padding-top: 90px; box-sizing: border-box; position: relative; background: linear-gradient(170deg, #22380D 0%, #14240A 45%, #070C03 100%);">
+    <div style="position: absolute; inset: 0; background: radial-gradient(circle at 50% -10%, rgba(147,228,19,0.28), transparent 55%); opacity: 0.7;"></div>
+    <div style="position: absolute; inset: 0; background: rgba(7,12,3,0.35);"></div>
+    <div style="width: 780px; background: linear-gradient(rgba(244,248,232,0.85), rgba(228,238,204,0.72)); backdrop-filter: blur(34px); border: 1px solid rgba(255,255,255,0.75); border-radius: 12px; box-shadow: 0 40px 90px rgba(0,0,0,0.6), 0 0 0 1px rgba(147,228,19,0.25), inset 0 1.5px 0 rgba(255,255,255,0.95); position: relative; overflow: hidden;">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 16px 20px 12px;">
+        <svg width="16" height="16" viewBox="0 0 15 15"><path d="M8.8 8.8 L13 13" stroke="#5B8A2E" stroke-width="2.2" stroke-linecap="round"></path><ellipse cx="5" cy="5" rx="3" ry="3.9" transform="rotate(-45 5 5)" fill="#5B8A2E"></ellipse></svg>
+        <div style="flex: 1; font-size: 16px; font-weight: 600; color: #22300F;">Which competitor has the strongest mobile nav?</div>
+        <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #748360;">ESC</div>
+      </div>
+      <div style="display: flex; gap: 6px; padding: 0 20px 12px; border-bottom: 1px solid rgba(93,160,15,0.2);">
+        <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; letter-spacing: 0.1em; padding: 5px 12px; border-radius: 9px; color: #5E6E48;">SEARCH</div>
+        <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; letter-spacing: 0.1em; padding: 5px 12px; border-radius: 9px; background: linear-gradient(#C7F55E, #96E018); color: #1D3506; font-weight: 600;">ASK ✦</div>
+        <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; letter-spacing: 0.1em; padding: 5px 12px; border-radius: 9px; color: #5E6E48;">GAPS</div>
+        <div style="flex: 1;"></div>
+        <div style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; padding: 5px 10px; color: #748360;">ANSWERS FROM YOUR PANTRY · MERIDIAN REBUILD</div>
+      </div>
+      <div style="padding: 16px 20px; display: flex; flex-direction: column; gap: 13px;">
+        <div style="font-size: 14px; color: #33430F; line-height: 1.65;">Of the 8 competitor sites in this jar, <b>Verde Kitchen</b> has the strongest mobile nav — a single-thumb bottom bar with the reservation CTA persistent. Two others hide primary actions behind a hamburger; your kickoff note flags that as the pattern to avoid.</div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #5E6E48; letter-spacing: 0.13em;">CITED FROM YOUR JAR</div>
+          <div style="display: flex; align-items: center; gap: 11px; padding: 8px 10px; border-radius: 11px; background: rgba(255,255,255,0.55);" style-hover="background: rgba(255,255,255,0.8);">
+            <span style="font-family: 'Spline Sans Mono', monospace; font-size: 9px; background: linear-gradient(#C7F55E, #96E018); border-radius: 6px; padding: 2px 7px; color: #1D3506; font-weight: 600;">1</span>
+            <span style="flex: 1; font-size: 13px; font-weight: 600; color: #22300F;">Verde Kitchen — mobile teardown</span>
+            <span style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #748360;">verdekitchen.com</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 11px; padding: 8px 10px; border-radius: 11px; background: rgba(255,255,255,0.55);" style-hover="background: rgba(255,255,255,0.8);">
+            <span style="font-family: 'Spline Sans Mono', monospace; font-size: 9px; background: linear-gradient(#C7F55E, #96E018); border-radius: 6px; padding: 2px 7px; color: #1D3506; font-weight: 600;">2</span>
+            <span style="flex: 1; font-size: 13px; font-weight: 600; color: #22300F;">Kickoff call — sitemap decisions</span>
+            <span style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #748360;">your note</span>
+          </div>
+        </div>
+        <div style="border-radius: 14px; background: rgba(24,38,11,0.85); border: 1px solid rgba(196,242,107,0.3); padding: 13px 16px; display: flex; flex-direction: column; gap: 9px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #93E413; letter-spacing: 0.13em;">WHAT'S MISSING IN THIS JAR</span>
+            <div style="flex: 1; height: 1px; background: rgba(196,242,107,0.2);"></div>
+          </div>
+          <div style="display: grid; grid-template-columns: 92px 1fr 30px; gap: 7px 10px; align-items: center;">
+            <span style="font-size: 11.5px; font-weight: 600; color: #D9EDB4;">Design</span><div style="height: 7px; border-radius: 4px; background: rgba(255,255,255,0.1);"><div style="width: 86%; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #96E018, #C7F55E);"></div></div><span style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #A9BD8A;">12</span>
+            <span style="font-size: 11.5px; font-weight: 600; color: #D9EDB4;">Competitors</span><div style="height: 7px; border-radius: 4px; background: rgba(255,255,255,0.1);"><div style="width: 60%; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #96E018, #C7F55E);"></div></div><span style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #A9BD8A;">8</span>
+            <span style="font-size: 11.5px; font-weight: 600; color: #FFD7A3;">Local SEO</span><div style="height: 7px; border-radius: 4px; background: rgba(255,255,255,0.1);"><div style="width: 15%; height: 100%; border-radius: 4px; background: #EDA90E;"></div></div><span style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #EDA90E;">2</span>
+            <span style="font-size: 11.5px; font-weight: 600; color: #FFC2B0;">Accessibility</span><div style="height: 7px; border-radius: 4px; background: rgba(255,255,255,0.1);"><div style="width: 8%; height: 100%; border-radius: 4px; background: #E2422F;"></div></div><span style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #FF8A80;">1</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="height: 26px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; background: linear-gradient(#C7F55E, #96E018); font-size: 11px; font-weight: 700; color: #1D3506;">Research local SEO</div>
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 9px; color: #5E6E48;">OPENS A GUIDED SESSION · SAVES BACK TO THIS JAR</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.8);">
+          <div style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 21px; color: #3E6413;">84</div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12.5px; font-weight: 700; color: #22300F;">Relish Report — meridianaz.com</div>
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 9px; color: #748360; letter-spacing: 0.06em;">DESIGN 91 · SEO 78 · PERF 81 · A11Y 88 · TRANSPARENT SCORING</div>
+          </div>
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #5B8A2E; font-weight: 600;">VIEW →</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px; padding: 11px 20px; border-top: 1px solid rgba(93,160,15,0.2); background: rgba(255,255,255,0.35);">
+        <span style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #748360;">↑↓ MOVE · ↵ OPEN · ⌘↵ KEEP OPEN</span>
+        <div style="flex: 1;"></div>
+        <span style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #5B8A2E;">SEARCH IS LOCAL & INSTANT · ASK USES RELISH AI ON YOUR ITEMS ONLY</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 6 · JAR REFRESH ============ -->
+  <div id="jar" data-screen-label="Jar workspace" style="width: 1440px; height: 870px; flex-shrink: 0; border-radius: 14px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.7); border: 1px solid rgba(196,242,107,0.22); display: flex; flex-direction: column; background: radial-gradient(circle at 18% 10%, rgba(147,228,19,0.3), transparent 62%), linear-gradient(170deg, #22380D 0%, #14240A 45%, #070C03 100%);">
+    <div style="height: 84px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 0 20px; background: linear-gradient(rgba(46,68,22,0.85), rgba(24,38,11,0.85)); backdrop-filter: blur(28px); border-bottom: 1px solid rgba(196,242,107,0.28); box-shadow: inset 0 1px 0 rgba(220,250,160,0.22);">
+      <div style="display: flex; gap: 8px; width: 62px; flex-shrink: 0;">
+        <div style="width: 13px; height: 13px; border-radius: 50%; background: linear-gradient(#FF8A80, #E2422F);"></div>
+        <div style="width: 13px; height: 13px; border-radius: 50%; background: linear-gradient(#FFDD67, #EDA90E);"></div>
+        <div style="width: 13px; height: 13px; border-radius: 50%; background: linear-gradient(#8CE96B, #2FA815);"></div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(255,255,255,0.12); border: 1px solid rgba(196,242,107,0.32); box-sizing: border-box; display: flex; align-items: center; justify-content: center; color: #C4F26B; font-size: 20px; font-weight: 700;">‹</div>
+        <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(196,242,107,0.14); box-sizing: border-box; display: flex; align-items: center; justify-content: center; color: #6D8050; font-size: 20px; font-weight: 700;">›</div>
+        <div style="width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(rgba(199,245,94,0.35), rgba(147,228,19,0.18)); border: 1px solid rgba(196,242,107,0.4); box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
+          <svg width="18" height="18" viewBox="0 0 16 16"><path d="M13.5 8 A5.5 5.5 0 1 1 11 3.4" fill="none" stroke="#C4F26B" stroke-width="1.9" stroke-linecap="round"></path><path d="M11.4 0.8 L11.4 4.2 L8 4.2" fill="none" stroke="#C4F26B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+        <img src="uploads/app-icon.svg" width="62" height="62" style="margin-left: 6px; filter: drop-shadow(0 3px 12px rgba(147,228,19,0.55));">
+      </div>
+      <div style="flex: 1; display: flex; justify-content: center;">
+        <div style="width: 720px; height: 52px; background: linear-gradient(rgba(255,255,255,0.97), rgba(255,255,255,0.78)); border: 1px solid rgba(196,242,107,0.65); border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.35), 0 0 0 3px rgba(147,228,19,0.12), inset 0 1px 0 #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 14.5px; color: #4A5A38;">Search your Pantry, or enter an address</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; width: 220px; flex-shrink: 0; justify-content: flex-end;">
+        <div style="display: flex;">
+          <div style="width: 28px; height: 28px; border-radius: 10px; background: linear-gradient(135deg, #FFE9A3, #D89B0A); border: 2px solid rgba(24,38,11,0.9); box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #4A3405;" title="Dana is viewing">DK</div>
+          <div style="width: 28px; height: 28px; border-radius: 10px; background: linear-gradient(135deg, #C7F55E, #5FA30C); border: 2px solid rgba(24,38,11,0.9); box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #1D3506; margin-left: -8px;">RS</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px 0 12px; border-radius: 12px; background: linear-gradient(#C7F55E, #96E018); box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.7), 0 2px 8px rgba(110,180,15,0.5); font-size: 12.5px; font-weight: 700; color: #1D3506;">
+          <svg width="12" height="15" viewBox="0 0 36 44"><rect x="8.5" y="1" width="19" height="7" rx="3" fill="url(#lidG)"></rect><path d="M10 8 H26 V11 C30.5 12.8 33 16 33 20 V36 A7 7 0 0 1 26 43 H10 A7 7 0 0 1 3 36 V20 C3 16 5.5 12.8 10 11 Z" fill="url(#jarGreen)"></path></svg>Meridian Rebuild
+        </div>
+      </div>
+    </div>
+    <div style="flex: 1; min-height: 0; display: flex; gap: 20px; padding: 26px 32px 24px; box-sizing: border-box;">
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <svg width="46" height="56" viewBox="0 0 36 44" style="filter: drop-shadow(0 5px 10px rgba(10,20,4,0.45));"><rect x="8.5" y="1" width="19" height="7" rx="3" fill="url(#lidG)"></rect><path d="M10 8 H26 V11 C30.5 12.8 33 16 33 20 V36 A7 7 0 0 1 26 43 H10 A7 7 0 0 1 3 36 V20 C3 16 5.5 12.8 10 11 Z" fill="url(#jarGreen)"></path><text x="18" y="32" text-anchor="middle" font-family="Bricolage Grotesque, sans-serif" font-weight="800" font-size="14" fill="#1D3506">M</text></svg>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 27px; letter-spacing: -0.02em; color: #F1F7E0;">Meridian Rebuild</div>
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10.5px; color: #A9BD8A; letter-spacing: 0.06em; margin-top: 3px;">24 ITEMS · SHELF LIFE 3 DAYS · SHARED WITH 2</div>
+          </div>
+          <div style="height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 15px; border-radius: 10px; background: rgba(244,248,232,0.7); border: 1px solid rgba(255,255,255,0.75); font-size: 12.5px; font-weight: 700; color: #22300F;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #E24B2C;"></span>Record recipe</div>
+          <div style="height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 15px; border-radius: 10px; background: linear-gradient(#C7F55E, #96E018); box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.7), 0 2px 8px rgba(110,180,15,0.5); font-size: 12.5px; font-weight: 700; color: #1D3506;">
+            <svg width="13" height="13" viewBox="0 0 16 16"><circle cx="5" cy="5" r="3" fill="none" stroke="#1D3506" stroke-width="1.8"></circle><circle cx="11" cy="11" r="3" fill="none" stroke="#1D3506" stroke-width="1.8"></circle><path d="M7.2 7.2 L8.8 8.8" stroke="#1D3506" stroke-width="1.8"></path></svg>Share
+          </div>
+        </div>
+        <div style="background: rgba(244,248,232,0.55); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.7); border-radius: 12px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.8); padding: 12px 16px; display: flex; align-items: center; gap: 14px;">
+          <div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(#C7F55E, #96E018); box-shadow: inset 0 1px 0 rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: center; font-size: 14px; color: #1D3506; flex-shrink: 0;">✦</div>
+          <div style="flex: 1; font-size: 13.5px; font-weight: 600; color: #22300F;">6 things in Brine look like they belong here.</div>
+          <div style="height: 28px; display: flex; align-items: center; padding: 0 14px; border-radius: 14px; background: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.95); font-size: 12px; font-weight: 700; color: #4A5A38;">Review</div>
+          <div style="height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 14px; border-radius: 14px; background: linear-gradient(#C7F55E, #96E018); box-shadow: inset 0 1px 0 rgba(255,255,255,0.7); font-size: 12px; font-weight: 700; color: #1D3506;">Add all<span style="font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; background: rgba(29,53,6,0.16); border-radius: 5px; padding: 1px 5px;">A</span></div>
+        </div>
+        <div style="background: rgba(244,248,232,0.68); backdrop-filter: blur(28px); border: 1px solid rgba(255,255,255,0.65); border-radius: 12px; box-shadow: 0 14px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.85); overflow: hidden; flex: 1; min-height: 0;">
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #5E6E48; letter-spacing: 0.13em; padding: 14px 18px 6px;">PAGES · 14</div>
+          <div style="display: flex; align-items: center; gap: 13px; padding: 10px 18px;" style-hover="background: rgba(255,255,255,0.5);">
+            <div style="width: 18px; height: 18px; border-radius: 6px; background: #141B0C; color: #FFF; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">B</div>
+            <div style="flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: #22300F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Bricks Builder — conditions and query loops</div>
+            <div style="display: flex; align-items: center; gap: 4px; font-family: 'Spline Sans Mono', monospace; font-size: 9px; color: #3E6413; background: rgba(199,245,94,0.35); border-radius: 7px; padding: 2px 8px; flex-shrink: 0;" title="Relish AI summary ready">✦ SUMMARY</div>
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10.5px; color: #748360; flex-shrink: 0;">academy.bricksbuilder.io</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 13px; padding: 10px 18px; border-top: 1px solid rgba(255,255,255,0.5);" style-hover="background: rgba(255,255,255,0.5);">
+            <div style="width: 18px; height: 18px; border-radius: 6px; background: #2271B1; color: #FFF; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">A</div>
+            <div style="flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: #22300F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">ACF — repeater field documentation</div>
+            <div style="display: flex; align-items: center; gap: 5px; font-family: 'Spline Sans Mono', monospace; font-size: 9.5px; color: #5E6E48; background: rgba(255,255,255,0.6); border-radius: 7px; padding: 2px 8px; flex-shrink: 0;"><svg width="8" height="10" viewBox="0 0 10 12"><path d="M2 5 V3.5 a3 3 0 0 1 6 0 V5" fill="none" stroke="#5E6E48" stroke-width="1.4"></path><rect x="1" y="5" width="8" height="6" rx="1.5" fill="#5E6E48"></rect></svg>SEALED</div>
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10.5px; color: #748360; flex-shrink: 0;">advancedcustomfields.com</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 13px; padding: 10px 18px; border-top: 1px solid rgba(255,255,255,0.5); background: rgba(199,245,94,0.14);">
+            <div style="width: 18px; height: 18px; border-radius: 6px; background: #E24B2C; color: #FFF; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">M</div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 14px; font-weight: 600; color: #22300F;">Meridian current site — homepage teardown</div>
+              <div style="font-size: 12px; color: #4A5A38; margin-top: 3px; line-height: 1.5;"><span style="color: #3E6413; font-weight: 700;">✦</span> Slow LCP from a 4MB hero video; nav buries the phone number; no schema markup. Three fixes cover 80% of it.</div>
+            </div>
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10.5px; color: #748360; flex-shrink: 0;">meridianaz.com</div>
+          </div>
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #5E6E48; letter-spacing: 0.13em; padding: 14px 18px 6px; border-top: 1px solid rgba(255,255,255,0.5);">TASKS · 5</div>
+          <div style="display: flex; align-items: center; gap: 13px; padding: 10px 18px;" style-hover="background: rgba(255,255,255,0.5);">
+            <div style="width: 18px; height: 18px; border-radius: 50%; background: rgba(255,255,255,0.75); border: 1.5px solid rgba(90,110,60,0.5); box-sizing: border-box; flex-shrink: 0;"></div>
+            <div style="flex: 1; font-size: 14px; font-weight: 600; color: #22300F;">Send sitemap for approval</div>
+            <div style="width: 22px; height: 22px; border-radius: 8px; background: linear-gradient(135deg, #FFE9A3, #D89B0A); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 800; color: #4A3405; flex-shrink: 0;" title="Assigned to Dana">DK</div>
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #B0651B; background: rgba(237,181,30,0.22); border-radius: 7px; padding: 2px 8px; flex-shrink: 0;">DUE FRI</div>
+          </div>
+        </div>
+      </div>
+      <div style="width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; padding-top: 70px;">
+        <div style="background: rgba(244,248,232,0.68); backdrop-filter: blur(28px); border: 1px solid rgba(255,255,255,0.65); border-radius: 12px; box-shadow: 0 14px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.85); padding: 16px; display: flex; flex-direction: column; gap: 11px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="flex: 1; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 16px; color: #22300F;">Recipes</div>
+            <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #748360;">⌘R RUNS</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.9); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="font-size: 13.5px; font-weight: 700; color: #22300F;">Client kickoff</div>
+            <div style="font-size: 12px; color: #5E6E48; line-height: 1.5;">Opens the brief and the current site split-screen, walks 3 steps, files the notes back here.</div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="height: 27px; display: flex; align-items: center; padding: 0 14px; border-radius: 10px; background: linear-gradient(#C7F55E, #96E018); box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 2px 6px rgba(110,180,15,0.45); font-size: 12px; font-weight: 700; color: #1D3506;">Run</div>
+              <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #748360;">5 STEPS</div>
+            </div>
+          </div>
+        </div>
+        <div style="border-radius: 12px; background: rgba(24,38,11,0.85); border: 1px solid rgba(196,242,107,0.3); padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #93E413; letter-spacing: 0.13em;">WHAT'S MISSING</div>
+          <div style="font-size: 12.5px; color: #D9EDB4; line-height: 1.55;">Thin on <b>local SEO</b> (2) and <b>accessibility</b> (1). Everything else is well covered.</div>
+          <div style="height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 14px; background: rgba(255,255,255,0.12); border: 1px solid rgba(196,242,107,0.4); font-size: 12px; font-weight: 700; color: #C4F26B;">Open gap analysis</div>
+        </div>
+        <div style="background: rgba(244,248,232,0.55); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.6); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="font-family: 'Spline Sans Mono', monospace; font-size: 10px; color: #5E6E48; letter-spacing: 0.13em;">ACTIVITY</div>
+          <div style="font-size: 12px; color: #33430F; line-height: 1.5;"><b>Dana</b> added 3 pages and finished <i>Collect brand assets</i> — 40 min ago.</div>
+          <div style="font-size: 12px; color: #33430F; line-height: 1.5;"><b>You</b> sealed 12 tabs yesterday. <a href="#jar" style="color: #3E6413; font-weight: 700;">Undo window: 22h</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

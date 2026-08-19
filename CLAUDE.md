@@ -43,6 +43,14 @@ Use these words in UI copy, docs and commit messages.
 | **Seal** | Preserve an untouched tab into its jar and close it. | Never "archive", never "compost". |
 | **Label** | A tag on a jar or item. | |
 | **Batch** | Everything jarred or sealed in one go. | |
+| **Relish** | A jar published for other people. | Followable, forkable. |
+| **Flavor** | A theme. Aurora is the default. | Never "skin", never "mode". |
+| **NetRelish ID** | The account. | Never "profile" for the account itself. |
+
+The last three were approved 2026-08-19 by the Workstation/iOS design pass
+(`docs/design/`). They are the only brand words added since v1, and they were
+added because accounts and publishing gave the product concepts it genuinely
+did not have a name for.
 
 **Rules**
 
@@ -110,12 +118,25 @@ to it is a decision, not an implementation detail.
 | :-- | :-- | :-- |
 | Jars, items, labels, recipes, tabs | Sync | The user's own content, under their account |
 | Extracted page text | Sync + hosted AI | Same rows as above; §7 still governs extraction |
-| Item text sent for analysis | Summaries, gap analysis, reports | Per-request, cached server-side, shown in the UI while it happens. **Two third parties** receive item text: Anthropic for prose and Voyage AI for embeddings. Both sit outside NetRelish's infrastructure. Neither receives anything yet — P1 built the schema, P5 turns them on |
+| Page text sent for analysis | Summaries, gap analysis, reports | Extracted **page** bodies only — never notes (below). Per-request, cached server-side, shown in the UI while it happens. **Two third parties** receive it: Anthropic for prose and Voyage AI for embeddings. Neither receives anything yet — P1 built the schema, P5 turns them on |
 | Account credentials | Sign-in | Email + password, or an OAuth token, to Supabase Auth. This is the account you sign in *with* — not the logins NetRelish stores *for* you, which never leave (below) |
 | Licence + subscription state | Billing | |
 
 **Never leaves, under any feature:**
 
+- **Your own writing.** Note bodies, and the bodies of tasks, are encrypted
+  **client-side** before they sync. The server stores ciphertext it cannot
+  read, no AI feature may be given them, and publishing a Relish excludes
+  them unless the user explicitly includes one.
+
+  The line is principled, not arbitrary: a note is something you wrote, a
+  page is a copy of something already public. That is why pages can be
+  analysed and notes cannot, and why the product can honestly say *your
+  notes are private, even from us* without pretending the whole Pantry is.
+
+  *(Decided 2026-08-19. The design mocks said sync was end-to-end encrypted
+  while showing AI that reads your items; both could not be true. This is
+  the resolution — see `docs/design/`.)*
 - **Saved website credentials.** Passwords live in the macOS Keychain and are not rows in
   `netrelish.db`. They do not sync, they are never sent for analysis, and no
   server-side feature may read them. Shipped 2026-08-11: the fill path runs
@@ -375,10 +396,14 @@ in light and dark.
 | **Vercel** | P2 | netrelish.com and the web client. |
 | **Stripe** | P6 | Plans, metering, licence keys. |
 
-End-to-end encrypted sync — "blobs the server can't read" — was the earlier
-plan and is **abandoned**. It is incompatible with a hosted model that has to
-read item text (§4a). Reviving it would mean giving up server-side
-intelligence, which is what Pro sells.
+End-to-end encryption is **partial, by design**. Whole-Pantry E2E — "blobs
+the server can't read" — stays abandoned: it is incompatible with a hosted
+model that has to read page text, and giving that up would mean giving up
+what Pro sells. But **notes and task bodies are encrypted client-side**
+(§4a), because nothing on the server needs to read them.
+
+Say it precisely in UI copy. "End-to-end encrypted" without qualification is
+false and must not ship; "your notes are private, even from us" is true.
 
 As of 2026-08-18 this table is the critical path, not a someday. Supabase is
 the backend for sync, auth and the hosted AI layer; Vercel hosts the web app;

@@ -33,6 +33,18 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/003_engine.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "sync_columns",
+            sql: include_str!("../migrations/004_sync_columns.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 5,
+            description: "sync_state",
+            sql: include_str!("../migrations/005_sync_state.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 

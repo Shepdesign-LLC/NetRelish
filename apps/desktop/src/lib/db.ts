@@ -9,6 +9,7 @@
  */
 import Database from "@tauri-apps/plugin-sql";
 import { type ParsedQuery } from "./query";
+import { insertWrite, tombstone, updateWrite } from "./stamp";
 
 /** Must match DB_URL in src-tauri/src/db.rs — it is the pool's lookup key. */
 const DB_URL = "sqlite:netrelish.db";
@@ -43,6 +44,26 @@ function db(): Database {
   return Database.get(DB_URL);
 }
 
+/**
+ * Read a row's current field_ts so updateWrite can preserve untouched stamps.
+ * `table` is a literal at every call site, never user input.
+ *
+ * Single-row updates only. A statement that touches many rows has no one
+ * previous stamp to read, so those merge inline with SQLite's json_patch
+ * instead — see the comments at each such statement.
+ *
+ * The one read in this module that must NOT filter tombstones: it is what a
+ * tombstone write itself calls, and a delete of an already-tombstoned row
+ * would otherwise lose every stamp the row carried.
+ */
+async function prevTs(table: string, id: string): Promise<string | null> {
+  const r = await db().select<{ field_ts: string }[]>(
+    `SELECT field_ts FROM ${table} WHERE id = $1`,
+    [id],
+  );
+  return r[0]?.field_ts ?? null;
+}
+
 /** Everything browsed but not yet sorted, newest touch first. */
 export async function brineList(limit = 200): Promise<BrineRow[]> {
   return db().select<BrineRow[]>(
@@ -50,6 +71,7 @@ export async function brineList(limit = 200): Promise<BrineRow[]> {
             substr(coalesce(body, ''), 1, 240) AS snippet
      FROM items
      WHERE jar_id IS NULL AND kind = 'page' AND sealed_at IS NULL
+       AND deleted_at IS NULL
      ORDER BY touched_at DESC
      LIMIT $1`,
     [limit],
@@ -59,6 +81,10 @@ export async function brineList(limit = 200): Promise<BrineRow[]> {
 /**
  * Full-text search over Brine. Terms are quoted before they reach FTS5 so
  * user input can never be query syntax, and every term must match (AND).
+ *
+ * The tombstone filter is on `items`, not on the index: 004's trigger keeps
+ * items_fts clean, but the index is written by a trigger and read here, and
+ * a row tombstoned in between would otherwise surface.
  */
 export async function brineSearch(
   query: string,
@@ -78,7 +104,7 @@ export async function brineSearch(
      JOIN items ON items.rowid = items_fts.rowid
      WHERE items_fts MATCH $1
        AND items.jar_id IS NULL AND items.kind = 'page'
-       AND items.sealed_at IS NULL
+       AND items.sealed_at IS NULL AND items.deleted_at IS NULL
      ORDER BY rank
      LIMIT $2`,
     [match, limit],
@@ -88,7 +114,7 @@ export async function brineSearch(
 /** Everything ever preserved — the sidebar footer's honest number. */
 export async function totalItemCount(): Promise<number> {
   const rows = await db().select<{ n: number }[]>(
-    `SELECT count(*) AS n FROM items`,
+    `SELECT count(*) AS n FROM items WHERE deleted_at IS NULL`,
   );
   return rows[0]?.n ?? 0;
 }
@@ -97,7 +123,8 @@ export async function totalItemCount(): Promise<number> {
 export async function brineCount(): Promise<number> {
   const rows = await db().select<{ n: number }[]>(
     `SELECT count(*) AS n FROM items
-     WHERE jar_id IS NULL AND kind = 'page' AND sealed_at IS NULL`,
+     WHERE jar_id IS NULL AND kind = 'page' AND sealed_at IS NULL
+       AND deleted_at IS NULL`,
   );
   return rows[0]?.n ?? 0;
 }
@@ -108,7 +135,8 @@ export async function brineCount(): Promise<number> {
 export async function preservedThisWeek(): Promise<number> {
   const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const rows = await db().select<{ n: number }[]>(
-    `SELECT count(*) AS n FROM items WHERE created_at >= $1`,
+    `SELECT count(*) AS n FROM items
+     WHERE created_at >= $1 AND deleted_at IS NULL`,
     [since],
   );
   return rows[0]?.n ?? 0;
@@ -130,8 +158,8 @@ export async function listJars(): Promise<Jar[]> {
     `SELECT j.id, j.name, j.hue, j.created_at, j.shelf_life_hours,
             count(i.id) AS item_count
      FROM jars j
-     LEFT JOIN items i ON i.jar_id = j.id
-     WHERE j.sealed_at IS NULL
+     LEFT JOIN items i ON i.jar_id = j.id AND i.deleted_at IS NULL
+     WHERE j.sealed_at IS NULL AND j.deleted_at IS NULL
      GROUP BY j.id
      ORDER BY j.created_at`,
   );
@@ -139,8 +167,10 @@ export async function listJars(): Promise<Jar[]> {
 
 /** Create a jar; the hue rotates through --nr-jar-1..6 in creation order. */
 export async function createJar(name: string): Promise<Jar> {
+  // Live jars only: the hue rotates through the shelf the user can see, so
+  // a deleted jar must not push the next one's colour along.
   const counted = await db().select<{ n: number }[]>(
-    `SELECT count(*) AS n FROM jars`,
+    `SELECT count(*) AS n FROM jars WHERE deleted_at IS NULL`,
   );
   const jar: Jar = {
     id: crypto.randomUUID(),
@@ -150,23 +180,78 @@ export async function createJar(name: string): Promise<Jar> {
     shelf_life_hours: null,
     item_count: 0,
   };
+  const w = insertWrite({
+    id: jar.id,
+    name: jar.name,
+    hue: jar.hue,
+    created_at: jar.created_at,
+  });
   await db().execute(
-    `INSERT INTO jars (id, name, hue, created_at) VALUES ($1, $2, $3, $4)`,
-    [jar.id, jar.name, jar.hue, jar.created_at],
+    `INSERT INTO jars (${w.cols.join(", ")}) VALUES (${w.placeholders})`,
+    w.vals,
   );
   return jar;
 }
 
 export async function renameJar(id: string, name: string): Promise<void> {
-  await db().execute(`UPDATE jars SET name = $1 WHERE id = $2`, [name, id]);
+  const w = updateWrite({ name }, await prevTs("jars", id));
+  await db().execute(
+    `UPDATE jars SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
+  );
 }
 
 /**
- * Delete a jar. Its items return to Brine via the schema's ON DELETE SET
- * NULL — nothing the user preserved is ever deleted by tidying.
+ * Delete a jar. The row stays, tombstoned — an absent row cannot replicate.
+ *
+ * A tombstone fires none of the schema's foreign-key actions, so everything
+ * the jar held is handled here in SQL instead:
+ *
+ *   items    ON DELETE SET NULL — back to Brine. Nothing the user preserved
+ *            is ever deleted by tidying, and that promise now rests on this
+ *            statement rather than on the constraint.
+ *   tabs     ON DELETE CASCADE — the jar's tabs left the strip with it, so
+ *            they tombstone with it.
+ *   recipes  ON DELETE CASCADE — a recipe is attached to one jar and has
+ *            nowhere to live without it.
  */
 export async function deleteJar(id: string): Promise<void> {
-  await db().execute(`DELETE FROM jars WHERE id = $1`, [id]);
+  const now = Date.now();
+  // All three are set-based: one statement, many rows, so there is no single
+  // previous field_ts to read and the stamps merge with json_patch instead —
+  // see moveItems.
+  await db().execute(
+    `UPDATE items SET jar_id = NULL, updated_at = $2,
+       field_ts = json_patch(field_ts, json_object('jar_id', CAST($2 AS INTEGER)))
+     WHERE jar_id = $1 AND deleted_at IS NULL`,
+    [id, now],
+  );
+  await db().execute(
+    `UPDATE tabs SET deleted_at = $2, updated_at = $2,
+       field_ts = json_patch(field_ts, json_object('deleted_at', CAST($2 AS INTEGER)))
+     WHERE jar_id = $1 AND deleted_at IS NULL`,
+    [id, now],
+  );
+  await db().execute(
+    `UPDATE recipes SET deleted_at = $2, updated_at = $2,
+       field_ts = json_patch(field_ts, json_object('deleted_at', CAST($2 AS INTEGER)))
+     WHERE jar_id = $1 AND deleted_at IS NULL`,
+    [id, now],
+  );
+  // suggestion_feedback is the fourth ON DELETE CASCADE on jar_id (003), and
+  // is easy to miss because the engine writes it, not the UI. Left behind, a
+  // deleted jar's feedback rows would sync forever and outlive the jar.
+  await db().execute(
+    `UPDATE suggestion_feedback SET deleted_at = $2, updated_at = $2,
+       field_ts = json_patch(field_ts, json_object('deleted_at', CAST($2 AS INTEGER)))
+     WHERE jar_id = $1 AND deleted_at IS NULL`,
+    [id, now],
+  );
+  const w = tombstone(await prevTs("jars", id), now);
+  await db().execute(
+    `UPDATE jars SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
+  );
 }
 
 /** An item row as the jar view lists it. */
@@ -189,7 +274,7 @@ export async function jarItems(jarId: string): Promise<JarItemRow[]> {
     `SELECT id, kind, url, title, touched_at, sealed_at, meta,
             substr(coalesce(body, ''), 1, 240) AS snippet
      FROM items
-     WHERE jar_id = $1
+     WHERE jar_id = $1 AND deleted_at IS NULL
      ORDER BY touched_at DESC
      LIMIT 500`,
   [jarId],
@@ -235,20 +320,24 @@ export async function pantrySearch(
       WHEN items.jar_id IS NOT NULL THEN 1
       ELSE 2 END`;
 
+  where.push(`items.deleted_at IS NULL`);
   where.push(`items.sealed_at IS ${q.sealed ? "NOT NULL" : "NULL"}`);
   if (q.kind) where.push(`items.kind = ${bind(q.kind)}`);
   if (q.jar === "brine") {
     where.push(`items.jar_id IS NULL`);
   } else if (q.jar) {
     where.push(
-      `items.jar_id IN (SELECT id FROM jars WHERE name LIKE ${bind(q.jar + "%")})`,
+      `items.jar_id IN (SELECT id FROM jars
+        WHERE name LIKE ${bind(q.jar + "%")} AND deleted_at IS NULL)`,
     );
   }
   if (q.sinceMs !== null) where.push(`items.touched_at >= ${bind(q.sinceMs)}`);
   if (q.label) {
     where.push(
       `items.id IN (SELECT il.item_id FROM item_labels il
-        JOIN labels l ON l.id = il.label_id WHERE l.name = ${bind(q.label)})`,
+        JOIN labels l ON l.id = il.label_id
+        WHERE l.name = ${bind(q.label)}
+          AND il.deleted_at IS NULL AND l.deleted_at IS NULL)`,
     );
   }
 
@@ -264,7 +353,7 @@ export async function pantrySearch(
               snippet(items_fts, 1, '${MARK_START}', '${MARK_END}', ' … ', 14) AS snippet
        FROM items_fts
        JOIN items ON items.rowid = items_fts.rowid
-       LEFT JOIN jars ON jars.id = items.jar_id
+       LEFT JOIN jars ON jars.id = items.jar_id AND jars.deleted_at IS NULL
        WHERE items_fts MATCH ${bind(match)} AND ${where.join(" AND ")}
        ORDER BY tier, rank
        LIMIT ${bind(limit)}`,
@@ -278,7 +367,7 @@ export async function pantrySearch(
             jars.name AS jar_name, ${tier} AS tier,
             substr(coalesce(items.body, ''), 1, 200) AS snippet
      FROM items
-     LEFT JOIN jars ON jars.id = items.jar_id
+     LEFT JOIN jars ON jars.id = items.jar_id AND jars.deleted_at IS NULL
      WHERE ${where.join(" AND ")}
      ORDER BY tier, items.touched_at DESC
      LIMIT ${bind(limit)}`,
@@ -311,8 +400,8 @@ export async function tabsList(): Promise<Tab[]> {
     `SELECT t.id, t.jar_id, t.url, t.scroll_y, t.position, t.touched_at,
             t.seal_after, coalesce(i.title, t.url, 'New tab') AS title
      FROM tabs t
-     LEFT JOIN items i ON i.url = t.url
-     WHERE t.sealed_batch IS NULL
+     LEFT JOIN items i ON i.url = t.url AND i.deleted_at IS NULL
+     WHERE t.sealed_batch IS NULL AND t.deleted_at IS NULL
      ORDER BY t.position`,
   );
 }
@@ -321,7 +410,8 @@ export async function tabsList(): Promise<Tab[]> {
 async function shelfLifeMs(jarId: string | null): Promise<number> {
   if (jarId) {
     const rows = await db().select<{ h: number | null }[]>(
-      `SELECT shelf_life_hours AS h FROM jars WHERE id = $1`,
+      `SELECT shelf_life_hours AS h FROM jars
+       WHERE id = $1 AND deleted_at IS NULL`,
       [jarId],
     );
     if (rows[0]?.h) return rows[0].h * 3_600_000;
@@ -344,11 +434,19 @@ export async function tabCreate(
     touched_at: now,
     seal_after: now + (await shelfLifeMs(jarId)),
   };
+  const w = insertWrite({
+    id: tab.id,
+    jar_id: tab.jar_id,
+    url: tab.url,
+    scroll_y: 0,
+    position: tab.position,
+    opened_at: now,
+    touched_at: now,
+    seal_after: tab.seal_after,
+  });
   await db().execute(
-    `INSERT INTO tabs (id, jar_id, url, scroll_y, position, opened_at,
-                       touched_at, seal_after)
-     VALUES ($1, $2, $3, 0, $4, $5, $5, $6)`,
-    [tab.id, tab.jar_id, tab.url, tab.position, now, tab.seal_after],
+    `INSERT INTO tabs (${w.cols.join(", ")}) VALUES (${w.placeholders})`,
+    w.vals,
   );
   return tab;
 }
@@ -362,23 +460,40 @@ export async function tabTouch(
 ): Promise<void> {
   const now = Date.now();
   const life = await shelfLifeMs(jarId);
+  // url and seal_after keep their old values through SQL expressions — a
+  // pinned tab must stay pinned, an addressless touch must not blank the
+  // url — so this one merges its stamps with json_patch rather than
+  // round-tripping the row into JS just to rebuild what SQLite already knows.
   await db().execute(
     `UPDATE tabs SET
        touched_at = $1,
        url = coalesce($2, url),
-       seal_after = CASE WHEN seal_after IS NULL THEN NULL ELSE $3 END
+       seal_after = CASE WHEN seal_after IS NULL THEN NULL ELSE $3 END,
+       updated_at = $1,
+       field_ts = json_patch(field_ts, json_object(
+         'touched_at', CAST($1 AS INTEGER), 'url', CAST($1 AS INTEGER), 'seal_after', CAST($1 AS INTEGER)))
      WHERE id = $4`,
     [now, url ?? null, now + life, id],
   );
 }
 
 export async function tabSetScroll(id: string, y: number): Promise<void> {
-  await db().execute(`UPDATE tabs SET scroll_y = $1 WHERE id = $2`, [y, id]);
+  const w = updateWrite({ scroll_y: y }, await prevTs("tabs", id));
+  await db().execute(
+    `UPDATE tabs SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
+  );
 }
 
-/** Plain close (⌘W-style): the page is already preserved; the tab just goes. */
+/** Plain close (⌘W-style): the page is already preserved; the tab just goes.
+ *  Goes as a tombstone — a row deleted outright would come back on the next
+ *  pull, because absence is indistinguishable from never-having-known. */
 export async function tabClose(id: string): Promise<void> {
-  await db().execute(`DELETE FROM tabs WHERE id = $1`, [id]);
+  const w = tombstone(await prevTs("tabs", id));
+  await db().execute(
+    `UPDATE tabs SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
+  );
 }
 
 /** Pin = seal_after NULL, the schema's own idiom for "never seals". */
@@ -387,14 +502,12 @@ export async function tabSetPinned(
   jarId: string | null,
   pinned: boolean,
 ): Promise<void> {
-  if (pinned) {
-    await db().execute(`UPDATE tabs SET seal_after = NULL WHERE id = $1`, [id]);
-  } else {
-    await db().execute(`UPDATE tabs SET seal_after = $1 WHERE id = $2`, [
-      Date.now() + (await shelfLifeMs(jarId)),
-      id,
-    ]);
-  }
+  const seal_after = pinned ? null : Date.now() + (await shelfLifeMs(jarId));
+  const w = updateWrite({ seal_after }, await prevTs("tabs", id));
+  await db().execute(
+    `UPDATE tabs SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
+  );
 }
 
 /** The most recent sealed tab for a URL — how a jar reopen knows where the
@@ -402,7 +515,7 @@ export async function tabSetPinned(
 export async function lastSealedScroll(url: string): Promise<number> {
   const rows = await db().select<{ scroll_y: number }[]>(
     `SELECT scroll_y FROM tabs
-     WHERE url = $1 AND sealed_batch IS NOT NULL
+     WHERE url = $1 AND sealed_batch IS NOT NULL AND deleted_at IS NULL
      ORDER BY sealed_at DESC LIMIT 1`,
     [url],
   );
@@ -411,9 +524,12 @@ export async function lastSealedScroll(url: string): Promise<number> {
 
 /** Reopening something sealed makes it live again. */
 export async function unsealUrl(url: string): Promise<void> {
+  // Addressed by url, not id, so prevTs cannot reach it; json_patch merges.
   await db().execute(
-    `UPDATE items SET sealed_at = NULL WHERE url = $1`,
-    [url],
+    `UPDATE items SET sealed_at = NULL, updated_at = $2,
+       field_ts = json_patch(field_ts, json_object('sealed_at', CAST($2 AS INTEGER)))
+     WHERE url = $1 AND deleted_at IS NULL`,
+    [url, Date.now()],
   );
 }
 
@@ -441,8 +557,8 @@ export async function sweepDue(denyPatterns: string[]): Promise<SweepResult | nu
     { id: string; url: string | null; jar_id: string | null; jar_name: string | null }[]
   >(
     `SELECT t.id, t.url, t.jar_id, j.name AS jar_name
-     FROM tabs t LEFT JOIN jars j ON j.id = t.jar_id
-     WHERE t.sealed_batch IS NULL
+     FROM tabs t LEFT JOIN jars j ON j.id = t.jar_id AND j.deleted_at IS NULL
+     WHERE t.sealed_batch IS NULL AND t.deleted_at IS NULL
        AND t.seal_after IS NOT NULL AND t.seal_after < $1`,
     [now],
   );
@@ -453,8 +569,10 @@ export async function sweepDue(denyPatterns: string[]): Promise<SweepResult | nu
     return denyPatterns.some((p) => lower.includes(p));
   };
   const preserved = await db().select<{ url: string }[]>(
-    `SELECT url FROM items WHERE url IN (SELECT url FROM tabs
-       WHERE sealed_batch IS NULL AND seal_after IS NOT NULL AND seal_after < $1)`,
+    `SELECT url FROM items WHERE deleted_at IS NULL AND url IN (
+       SELECT url FROM tabs
+       WHERE sealed_batch IS NULL AND deleted_at IS NULL
+         AND seal_after IS NOT NULL AND seal_after < $1)`,
     [now],
   );
   const inItems = new Set(preserved.map((r) => r.url));
@@ -469,21 +587,31 @@ export async function sweepDue(denyPatterns: string[]): Promise<SweepResult | nu
   const slots = ids.map((_, i) => `$${i + 3}`).join(", ");
 
   // Stamp the batch. Rows survive for Undo; the strip filters them out.
+  // Set-based, so the sync stamps merge with json_patch — see moveItems.
   await db().execute(
-    `UPDATE tabs SET sealed_batch = $1, sealed_at = $2 WHERE id IN (${slots})`,
+    `UPDATE tabs SET sealed_batch = $1, sealed_at = $2, updated_at = $2,
+       field_ts = json_patch(field_ts,
+         json_object('sealed_batch', CAST($2 AS INTEGER), 'sealed_at', CAST($2 AS INTEGER)))
+     WHERE deleted_at IS NULL AND id IN (${slots})`,
     [batchId, now, ...ids],
   );
   // Seal the items, and file Brine items into their tab's jar — that is
   // what "preserve an untouched tab into its jar" means. Items the user
   // already filed somewhere else are not second-guessed.
+  // Set-based again, and both values are coalesce expressions: json_patch.
   await db().execute(
     `UPDATE items SET
        sealed_at = coalesce(sealed_at, $1),
        jar_id = coalesce(jar_id,
          (SELECT t.jar_id FROM tabs t
           WHERE t.url = items.url AND t.sealed_batch = $2
-          ORDER BY t.sealed_at DESC LIMIT 1))
-     WHERE url IN (SELECT url FROM tabs WHERE sealed_batch = $2)`,
+            AND t.deleted_at IS NULL
+          ORDER BY t.sealed_at DESC LIMIT 1)),
+       updated_at = $1,
+       field_ts = json_patch(field_ts,
+         json_object('sealed_at', CAST($1 AS INTEGER), 'jar_id', CAST($1 AS INTEGER)))
+     WHERE deleted_at IS NULL AND url IN (
+       SELECT url FROM tabs WHERE sealed_batch = $2 AND deleted_at IS NULL)`,
     [now, batchId],
   );
 
@@ -493,16 +621,23 @@ export async function sweepDue(denyPatterns: string[]): Promise<SweepResult | nu
 
 /** Undo a sweep: the whole batch stands back up, open, in strip order. */
 export async function undoSweep(batchId: string): Promise<number> {
+  // Both statements are set-based — one batch, many rows — so their stamps
+  // merge with json_patch rather than through updateWrite.
+  const now = Date.now();
   await db().execute(
-    `UPDATE items SET sealed_at = NULL
-     WHERE url IN (SELECT url FROM tabs WHERE sealed_batch = $1)`,
-    [batchId],
+    `UPDATE items SET sealed_at = NULL, updated_at = $2,
+       field_ts = json_patch(field_ts, json_object('sealed_at', CAST($2 AS INTEGER)))
+     WHERE deleted_at IS NULL AND url IN (
+       SELECT url FROM tabs WHERE sealed_batch = $1 AND deleted_at IS NULL)`,
+    [batchId, now],
   );
   const result = await db().execute(
     `UPDATE tabs SET sealed_batch = NULL, sealed_at = NULL,
-       seal_after = $1
-     WHERE sealed_batch = $2`,
-    [Date.now() + DEFAULT_SHELF_LIFE_HOURS * 3_600_000, batchId],
+       seal_after = $1, updated_at = $3,
+       field_ts = json_patch(field_ts, json_object(
+         'sealed_batch', CAST($3 AS INTEGER), 'sealed_at', CAST($3 AS INTEGER), 'seal_after', CAST($3 AS INTEGER)))
+     WHERE sealed_batch = $2 AND deleted_at IS NULL`,
+    [now + DEFAULT_SHELF_LIFE_HOURS * 3_600_000, batchId, now],
   );
   return result.rowsAffected;
 }
@@ -520,14 +655,29 @@ export async function listSweeps(): Promise<SweepBatch[]> {
     `SELECT t.sealed_batch AS batch_id, max(t.sealed_at) AS sealed_at,
             count(*) AS count,
             group_concat(coalesce(i.title, t.url), ' · ') AS titles
-     FROM tabs t LEFT JOIN items i ON i.url = t.url
-     WHERE t.sealed_batch IS NOT NULL
+     FROM tabs t LEFT JOIN items i ON i.url = t.url AND i.deleted_at IS NULL
+     WHERE t.sealed_batch IS NOT NULL AND t.deleted_at IS NULL
      GROUP BY t.sealed_batch
      ORDER BY sealed_at DESC`,
   );
 }
 
-/** Sealed tab rows older than the undo window have served their purpose. */
+/**
+ * Sealed tab rows older than the undo window have served their purpose.
+ *
+ * Deliberately still a hard DELETE, and the only one left in this module.
+ * Every other delete became a tombstone because it is a user deleting
+ * something, and that has to replicate. This one is not: it is local
+ * housekeeping of expired undo history. The user pressed nothing, and no
+ * other device needs to be told that an undo window lapsed here — every
+ * device reaches the same conclusion from the same `sealed_at`, 24 hours
+ * after the same sweep, without being told.
+ *
+ * The one cost of a hard delete is that a full re-sync can pull these rows
+ * back down. Nothing user-visible survives it: the tab strip filters sealed
+ * rows out, and App.tsx purges before every sweep, so the next pass removes
+ * them again on exactly the same clock.
+ */
 export async function purgeExpiredSweeps(): Promise<void> {
   await db().execute(
     `DELETE FROM tabs WHERE sealed_batch IS NOT NULL AND sealed_at < $1`,
@@ -539,10 +689,11 @@ export async function setJarShelfLife(
   id: string,
   hours: number | null,
 ): Promise<void> {
-  await db().execute(`UPDATE jars SET shelf_life_hours = $1 WHERE id = $2`, [
-    hours,
-    id,
-  ]);
+  const w = updateWrite({ shelf_life_hours: hours }, await prevTs("jars", id));
+  await db().execute(
+    `UPDATE jars SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
+  );
 }
 
 /* ---------------------------------------------------------------------------
@@ -559,7 +710,8 @@ export interface Recipe {
 
 export async function listRecipes(jarId: string): Promise<Recipe[]> {
   return db().select<Recipe[]>(
-    `SELECT id, jar_id, name, steps FROM recipes WHERE jar_id = $1 ORDER BY name`,
+    `SELECT id, jar_id, name, steps FROM recipes
+     WHERE jar_id = $1 AND deleted_at IS NULL ORDER BY name`,
     [jarId],
   );
 }
@@ -570,19 +722,33 @@ export async function createRecipe(
   steps: string,
 ): Promise<Recipe> {
   const recipe: Recipe = { id: crypto.randomUUID(), jar_id: jarId, name, steps };
+  const w = insertWrite({
+    id: recipe.id,
+    jar_id: recipe.jar_id,
+    name: recipe.name,
+    steps: recipe.steps,
+  });
   await db().execute(
-    `INSERT INTO recipes (id, jar_id, name, steps) VALUES ($1, $2, $3, $4)`,
-    [recipe.id, recipe.jar_id, recipe.name, recipe.steps],
+    `INSERT INTO recipes (${w.cols.join(", ")}) VALUES (${w.placeholders})`,
+    w.vals,
   );
   return recipe;
 }
 
 export async function updateRecipeSteps(id: string, steps: string): Promise<void> {
-  await db().execute(`UPDATE recipes SET steps = $1 WHERE id = $2`, [steps, id]);
+  const w = updateWrite({ steps }, await prevTs("recipes", id));
+  await db().execute(
+    `UPDATE recipes SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
+  );
 }
 
 export async function deleteRecipe(id: string): Promise<void> {
-  await db().execute(`DELETE FROM recipes WHERE id = $1`, [id]);
+  const w = tombstone(await prevTs("recipes", id));
+  await db().execute(
+    `UPDATE recipes SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
+  );
 }
 
 /** A markdown note in a jar; returns the new item's id. */
@@ -592,10 +758,18 @@ export async function createNoteItem(
 ): Promise<string> {
   const now = Date.now();
   const id = crypto.randomUUID();
+  const w = insertWrite({
+    id,
+    jar_id: jarId,
+    kind: "note",
+    title: text.split("\n")[0].slice(0, 120) || "Note",
+    body: text,
+    created_at: now,
+    touched_at: now,
+  });
   await db().execute(
-    `INSERT INTO items (id, jar_id, kind, title, body, created_at, touched_at)
-     VALUES ($1, $2, 'note', $3, $4, $5, $5)`,
-    [id, jarId, text.split("\n")[0].slice(0, 120) || "Note", text, now],
+    `INSERT INTO items (${w.cols.join(", ")}) VALUES (${w.placeholders})`,
+    w.vals,
   );
   return id;
 }
@@ -607,15 +781,23 @@ export async function createNoteItem(
 --------------------------------------------------------------------------- */
 
 export async function updateNote(id: string, text: string): Promise<void> {
+  const w = updateWrite(
+    {
+      title: text.split("\n")[0].slice(0, 120) || "Note",
+      body: text,
+      touched_at: Date.now(),
+    },
+    await prevTs("items", id),
+  );
   await db().execute(
-    `UPDATE items SET title = $1, body = $2, touched_at = $3 WHERE id = $4`,
-    [text.split("\n")[0].slice(0, 120) || "Note", text, Date.now(), id],
+    `UPDATE items SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
   );
 }
 
 export async function getItem(id: string): Promise<Item | null> {
   const rows = await db().select<Item[]>(
-    `SELECT * FROM items WHERE id = $1`,
+    `SELECT * FROM items WHERE id = $1 AND deleted_at IS NULL`,
     [id],
   );
   return rows[0] ?? null;
@@ -628,19 +810,33 @@ export async function createTask(
   due: number | null,
 ): Promise<void> {
   const now = Date.now();
+  const w = insertWrite({
+    id: crypto.randomUUID(),
+    jar_id: jarId,
+    kind: "task",
+    title,
+    meta: JSON.stringify({ due, done: false }),
+    created_at: now,
+    touched_at: now,
+  });
   await db().execute(
-    `INSERT INTO items (id, jar_id, kind, title, meta, created_at, touched_at)
-     VALUES ($1, $2, 'task', $3, $4, $5, $5)`,
-    [crypto.randomUUID(), jarId, title, JSON.stringify({ due, done: false }), now],
+    `INSERT INTO items (${w.cols.join(", ")}) VALUES (${w.placeholders})`,
+    w.vals,
   );
 }
 
 export async function toggleTaskDone(id: string): Promise<void> {
+  // The new meta is computed by SQLite, not by us — reading it back into JS
+  // would change `done` from the integer json_set writes to a JSON boolean.
+  // So the stamps merge inline with json_patch rather than via updateWrite.
   await db().execute(
     `UPDATE items SET
        meta = json_set(coalesce(meta, '{}'), '$.done',
                        NOT coalesce(json_extract(meta, '$.done'), 0)),
-       touched_at = $1
+       touched_at = $1,
+       updated_at = $1,
+       field_ts = json_patch(field_ts,
+                    json_object('meta', CAST($1 AS INTEGER), 'touched_at', CAST($1 AS INTEGER)))
      WHERE id = $2`,
     [Date.now(), id],
   );
@@ -666,13 +862,30 @@ export async function createFileItem(
   const now = Date.now();
   const name = path.split("/").pop() ?? path;
   const url = `file://${path}`;
+  const w = insertWrite({
+    id: crypto.randomUUID(),
+    jar_id: jarId,
+    kind: "file",
+    url,
+    title: name,
+    body,
+    meta: JSON.stringify({ path }),
+    created_at: now,
+    touched_at: now,
+  });
+  // The conflict branch rewrites only four of those columns, so it cannot
+  // take excluded.field_ts wholesale — that would forge stamps for title
+  // and created_at, which it never touches. json_patch merges just the four.
   await db().execute(
-    `INSERT INTO items (id, jar_id, kind, url, title, body, meta, created_at, touched_at)
-     VALUES ($1, $2, 'file', $3, $4, $5, $6, $7, $7)
+    `INSERT INTO items (${w.cols.join(", ")}) VALUES (${w.placeholders})
      ON CONFLICT(url) WHERE url IS NOT NULL DO UPDATE SET
        jar_id = excluded.jar_id, body = excluded.body,
-       meta = excluded.meta, touched_at = excluded.touched_at`,
-    [crypto.randomUUID(), jarId, url, name, body, JSON.stringify({ path }), now],
+       meta = excluded.meta, touched_at = excluded.touched_at,
+       updated_at = excluded.updated_at,
+       field_ts = json_patch(items.field_ts, json_object(
+         'jar_id', excluded.updated_at, 'body', excluded.updated_at,
+         'meta', excluded.updated_at, 'touched_at', excluded.updated_at))`,
+    w.vals,
   );
 }
 
@@ -681,10 +894,15 @@ export async function markFileStatus(
   id: string,
   missing: boolean,
 ): Promise<void> {
+  // Same reason as toggleTaskDone: json_set builds the new meta in SQLite,
+  // so the stamp merges inline instead of through updateWrite.
   await db().execute(
-    `UPDATE items SET meta = json_set(coalesce(meta, '{}'), '$.missing', $1)
-     WHERE id = $2`,
-    [missing, id],
+    `UPDATE items SET
+       meta = json_set(coalesce(meta, '{}'), '$.missing', $1),
+       updated_at = $2,
+       field_ts = json_patch(field_ts, json_object('meta', CAST($2 AS INTEGER)))
+     WHERE id = $3`,
+    [missing, Date.now(), id],
   );
 }
 
@@ -693,7 +911,8 @@ export async function listFileItems(): Promise<
 > {
   return db().select<{ id: string; path: string }[]>(
     `SELECT id, json_extract(meta, '$.path') AS path
-     FROM items WHERE kind = 'file' AND path IS NOT NULL`,
+     FROM items
+     WHERE kind = 'file' AND path IS NOT NULL AND deleted_at IS NULL`,
   );
 }
 
@@ -709,7 +928,9 @@ export interface Label {
 export async function listLabels(): Promise<Label[]> {
   return db().select<Label[]>(
     `SELECT l.id, l.name, count(il.item_id) AS uses
-     FROM labels l LEFT JOIN item_labels il ON il.label_id = l.id
+     FROM labels l
+     LEFT JOIN item_labels il ON il.label_id = l.id AND il.deleted_at IS NULL
+     WHERE l.deleted_at IS NULL
      GROUP BY l.id ORDER BY l.name`,
   );
 }
@@ -721,15 +942,31 @@ export async function assignLabel(
 ): Promise<void> {
   const clean = name.trim().toLowerCase();
   if (!clean || itemIds.length === 0) return;
+  const w = insertWrite({ id: crypto.randomUUID(), name: clean });
   await db().execute(
-    `INSERT OR IGNORE INTO labels (id, name) VALUES ($1, $2)`,
-    [crypto.randomUUID(), clean],
+    `INSERT OR IGNORE INTO labels (${w.cols.join(", ")}) VALUES (${w.placeholders})`,
+    w.vals,
   );
+  // The lookup below deliberately does not filter tombstoned labels: nothing
+  // in the app deletes a label, and filtering one out here would make the
+  // assignment a silent no-op (OR IGNORE keeps the name, the SELECT finds
+  // nothing). Whoever adds a label delete owes this the same reviving upsert
+  // item_labels gets.
+  // item_labels is a pure join table and 004 gives it no field_ts: presence
+  // is the only fact, so there is nothing to merge field by field. It still
+  // carries updated_at, which is what the sync cursor reads.
+  //
+  // This must be an upsert, not INSERT OR IGNORE. unassignLabel tombstones
+  // the join row rather than removing it, so the pair still exists and an
+  // OR IGNORE would silently do nothing — removing a label would be
+  // permanent, with no error. DO UPDATE clears the tombstone instead.
   for (const itemId of itemIds) {
     await db().execute(
-      `INSERT OR IGNORE INTO item_labels (item_id, label_id)
-       SELECT $1, id FROM labels WHERE name = $2`,
-      [itemId, clean],
+      `INSERT INTO item_labels (item_id, label_id, updated_at)
+       SELECT $1, id, $3 FROM labels WHERE name = $2
+       ON CONFLICT(item_id, label_id) DO UPDATE SET
+         deleted_at = NULL, updated_at = excluded.updated_at`,
+      [itemId, clean, Date.now()],
     );
   }
 }
@@ -738,11 +975,16 @@ export async function unassignLabel(
   name: string,
   itemIds: string[],
 ): Promise<void> {
+  // A tombstone, not a delete: a removed label that left no trace would come
+  // back from any device that never heard about the removal. No field_ts to
+  // merge here (see assignLabel), so this writes the columns directly rather
+  // than going through the stamp helpers.
   for (const itemId of itemIds) {
     await db().execute(
-      `DELETE FROM item_labels WHERE item_id = $1
-       AND label_id IN (SELECT id FROM labels WHERE name = $2)`,
-      [itemId, name.trim().toLowerCase()],
+      `UPDATE item_labels SET deleted_at = $3, updated_at = $3
+       WHERE item_id = $1
+         AND label_id IN (SELECT id FROM labels WHERE name = $2)`,
+      [itemId, name.trim().toLowerCase(), Date.now()],
     );
   }
 }
@@ -751,7 +993,8 @@ export async function unassignLabel(
 export async function itemIdsWithLabel(name: string): Promise<string[]> {
   const rows = await db().select<{ item_id: string }[]>(
     `SELECT il.item_id FROM item_labels il
-     JOIN labels l ON l.id = il.label_id WHERE l.name = $1`,
+     JOIN labels l ON l.id = il.label_id
+     WHERE l.name = $1 AND il.deleted_at IS NULL AND l.deleted_at IS NULL`,
     [name.trim().toLowerCase()],
   );
   return rows.map((r) => r.item_id);
@@ -763,9 +1006,13 @@ export async function moveItems(
   jarId: string | null,
 ): Promise<void> {
   if (ids.length === 0) return;
-  const slots = ids.map((_, i) => `$${i + 2}`).join(", ");
+  const slots = ids.map((_, i) => `$${i + 3}`).join(", ");
+  // One statement, many rows: there is no single previous field_ts to read,
+  // so json_patch merges the one stamp this write owns and leaves the rest.
   await db().execute(
-    `UPDATE items SET jar_id = $1 WHERE id IN (${slots})`,
-    [jarId, ...ids],
+    `UPDATE items SET jar_id = $1, updated_at = $2,
+       field_ts = json_patch(field_ts, json_object('jar_id', CAST($2 AS INTEGER)))
+     WHERE deleted_at IS NULL AND id IN (${slots})`,
+    [jarId, Date.now(), ...ids],
   );
 }

@@ -31,14 +31,27 @@ pub async fn suggestion_feedback(
     };
     let now = db::now_ms();
     for id in item_ids {
+        // INSERT OR REPLACE would delete the row and insert a fresh one, taking
+        // its field_ts with it — every stamp reset to nothing, so every field
+        // would lose the next merge. Upsert in place instead, and stamp only
+        // the columns this write actually rewrites.
+        let stamp = serde_json::json!({ "action": now, "at": now, "deleted_at": now }).to_string();
         let _ = sqlx::query(
-            "INSERT OR REPLACE INTO suggestion_feedback (item_id, jar_id, action, at)
-             VALUES (?1, ?2, ?3, ?4)",
+            "INSERT INTO suggestion_feedback
+               (item_id, jar_id, action, at, updated_at, field_ts)
+             VALUES (?1, ?2, ?3, ?4, ?4, ?5)
+             ON CONFLICT(item_id, jar_id) DO UPDATE SET
+               action     = excluded.action,
+               at         = excluded.at,
+               updated_at = excluded.updated_at,
+               deleted_at = NULL,
+               field_ts   = json_patch(suggestion_feedback.field_ts, excluded.field_ts)",
         )
         .bind(&id)
         .bind(&jar_id)
         .bind(&action)
         .bind(now)
+        .bind(&stamp)
         .execute(&pool)
         .await;
     }
