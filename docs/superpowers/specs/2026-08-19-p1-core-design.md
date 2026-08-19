@@ -203,11 +203,20 @@ learns what actually won rather than assuming it did.
 
 ### Conflict copies
 
-Triggered on exactly one condition: `body` is present in the incoming
-`field_ts`, differs from stored, **and** the stored `body` timestamp is
-newer than `client_synced_at` — i.e. the server's copy changed after the
-pushing client last saw it, so both sides genuinely edited prose since they
-last agreed.
+Triggered when `body` is present in the incoming `field_ts`, differs from
+stored, and **both** timestamps are newer than `client_synced_at`:
+
+- `stored_ts > client_synced_at` — the server's copy changed after the
+  pushing client last saw it, and
+- `incoming_ts > client_synced_at` — the client wrote too.
+
+**Both halves are required, and the second one is easy to forget.** An
+earlier draft of this spec checked only the first, which forks an item
+whenever a client re-sends an unchanged snapshot after any server-side
+edit — and full-snapshot push is the obvious way to write a client, so all
+three would have done it. Verified against the live database: with one
+clause an unedited client produced a conflict copy of its own stale text;
+with both, it does not, while a genuinely-edited client still forks.
 
 Then the incoming version is inserted as a new item with:
 
