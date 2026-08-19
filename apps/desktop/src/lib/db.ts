@@ -222,19 +222,19 @@ export async function deleteJar(id: string): Promise<void> {
   // see moveItems.
   await db().execute(
     `UPDATE items SET jar_id = NULL, updated_at = $2,
-       field_ts = json_patch(field_ts, json_object('jar_id', $2))
+       field_ts = json_patch(field_ts, json_object('jar_id', CAST($2 AS INTEGER)))
      WHERE jar_id = $1 AND deleted_at IS NULL`,
     [id, now],
   );
   await db().execute(
     `UPDATE tabs SET deleted_at = $2, updated_at = $2,
-       field_ts = json_patch(field_ts, json_object('deleted_at', $2))
+       field_ts = json_patch(field_ts, json_object('deleted_at', CAST($2 AS INTEGER)))
      WHERE jar_id = $1 AND deleted_at IS NULL`,
     [id, now],
   );
   await db().execute(
     `UPDATE recipes SET deleted_at = $2, updated_at = $2,
-       field_ts = json_patch(field_ts, json_object('deleted_at', $2))
+       field_ts = json_patch(field_ts, json_object('deleted_at', CAST($2 AS INTEGER)))
      WHERE jar_id = $1 AND deleted_at IS NULL`,
     [id, now],
   );
@@ -243,7 +243,7 @@ export async function deleteJar(id: string): Promise<void> {
   // deleted jar's feedback rows would sync forever and outlive the jar.
   await db().execute(
     `UPDATE suggestion_feedback SET deleted_at = $2, updated_at = $2,
-       field_ts = json_patch(field_ts, json_object('deleted_at', $2))
+       field_ts = json_patch(field_ts, json_object('deleted_at', CAST($2 AS INTEGER)))
      WHERE jar_id = $1 AND deleted_at IS NULL`,
     [id, now],
   );
@@ -471,7 +471,7 @@ export async function tabTouch(
        seal_after = CASE WHEN seal_after IS NULL THEN NULL ELSE $3 END,
        updated_at = $1,
        field_ts = json_patch(field_ts, json_object(
-         'touched_at', $1, 'url', $1, 'seal_after', $1))
+         'touched_at', CAST($1 AS INTEGER), 'url', CAST($1 AS INTEGER), 'seal_after', CAST($1 AS INTEGER)))
      WHERE id = $4`,
     [now, url ?? null, now + life, id],
   );
@@ -527,7 +527,7 @@ export async function unsealUrl(url: string): Promise<void> {
   // Addressed by url, not id, so prevTs cannot reach it; json_patch merges.
   await db().execute(
     `UPDATE items SET sealed_at = NULL, updated_at = $2,
-       field_ts = json_patch(field_ts, json_object('sealed_at', $2))
+       field_ts = json_patch(field_ts, json_object('sealed_at', CAST($2 AS INTEGER)))
      WHERE url = $1 AND deleted_at IS NULL`,
     [url, Date.now()],
   );
@@ -591,7 +591,7 @@ export async function sweepDue(denyPatterns: string[]): Promise<SweepResult | nu
   await db().execute(
     `UPDATE tabs SET sealed_batch = $1, sealed_at = $2, updated_at = $2,
        field_ts = json_patch(field_ts,
-         json_object('sealed_batch', $2, 'sealed_at', $2))
+         json_object('sealed_batch', CAST($2 AS INTEGER), 'sealed_at', CAST($2 AS INTEGER)))
      WHERE deleted_at IS NULL AND id IN (${slots})`,
     [batchId, now, ...ids],
   );
@@ -609,7 +609,7 @@ export async function sweepDue(denyPatterns: string[]): Promise<SweepResult | nu
           ORDER BY t.sealed_at DESC LIMIT 1)),
        updated_at = $1,
        field_ts = json_patch(field_ts,
-         json_object('sealed_at', $1, 'jar_id', $1))
+         json_object('sealed_at', CAST($1 AS INTEGER), 'jar_id', CAST($1 AS INTEGER)))
      WHERE deleted_at IS NULL AND url IN (
        SELECT url FROM tabs WHERE sealed_batch = $2 AND deleted_at IS NULL)`,
     [now, batchId],
@@ -626,7 +626,7 @@ export async function undoSweep(batchId: string): Promise<number> {
   const now = Date.now();
   await db().execute(
     `UPDATE items SET sealed_at = NULL, updated_at = $2,
-       field_ts = json_patch(field_ts, json_object('sealed_at', $2))
+       field_ts = json_patch(field_ts, json_object('sealed_at', CAST($2 AS INTEGER)))
      WHERE deleted_at IS NULL AND url IN (
        SELECT url FROM tabs WHERE sealed_batch = $1 AND deleted_at IS NULL)`,
     [batchId, now],
@@ -635,7 +635,7 @@ export async function undoSweep(batchId: string): Promise<number> {
     `UPDATE tabs SET sealed_batch = NULL, sealed_at = NULL,
        seal_after = $1, updated_at = $3,
        field_ts = json_patch(field_ts, json_object(
-         'sealed_batch', $3, 'sealed_at', $3, 'seal_after', $3))
+         'sealed_batch', CAST($3 AS INTEGER), 'sealed_at', CAST($3 AS INTEGER), 'seal_after', CAST($3 AS INTEGER)))
      WHERE sealed_batch = $2 AND deleted_at IS NULL`,
     [now + DEFAULT_SHELF_LIFE_HOURS * 3_600_000, batchId, now],
   );
@@ -836,7 +836,7 @@ export async function toggleTaskDone(id: string): Promise<void> {
        touched_at = $1,
        updated_at = $1,
        field_ts = json_patch(field_ts,
-                    json_object('meta', $1, 'touched_at', $1))
+                    json_object('meta', CAST($1 AS INTEGER), 'touched_at', CAST($1 AS INTEGER)))
      WHERE id = $2`,
     [Date.now(), id],
   );
@@ -900,7 +900,7 @@ export async function markFileStatus(
     `UPDATE items SET
        meta = json_set(coalesce(meta, '{}'), '$.missing', $1),
        updated_at = $2,
-       field_ts = json_patch(field_ts, json_object('meta', $2))
+       field_ts = json_patch(field_ts, json_object('meta', CAST($2 AS INTEGER)))
      WHERE id = $3`,
     [missing, Date.now(), id],
   );
@@ -1011,7 +1011,7 @@ export async function moveItems(
   // so json_patch merges the one stamp this write owns and leaves the rest.
   await db().execute(
     `UPDATE items SET jar_id = $1, updated_at = $2,
-       field_ts = json_patch(field_ts, json_object('jar_id', $2))
+       field_ts = json_patch(field_ts, json_object('jar_id', CAST($2 AS INTEGER)))
      WHERE deleted_at IS NULL AND id IN (${slots})`,
     [jarId, Date.now(), ...ids],
   );
