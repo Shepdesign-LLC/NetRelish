@@ -120,8 +120,8 @@ to it is a decision, not an implementation detail.
 
 - **Credentials.** Passwords live in the macOS Keychain and are not rows in
   `netrelish.db`. They do not sync, they are never sent for analysis, and no
-  server-side feature may read them. (§9, and the passwords work already
-  shipped.)
+  server-side feature may read them. Shipped 2026-08-11: the fill path runs
+  Rust→page, and the UI layer only ever sees usernames.
 - **Private-window browsing.** §7 already forbids extracting it; it therefore
   has nothing to sync.
 - **Denied URLs.** The deny list is applied before a row exists, so denied
@@ -333,8 +333,17 @@ Twelve projects, six phases. Summarised here; the spec is authoritative.
 | 5 Premium | P8 Relish Reports · P9 competitive research |
 | 6 Scale | P10 teams · P11 marketplace · P12 knowledge graph |
 
-Already shipped and not re-listed above: passwords in the Keychain
-(2026-08-11), and the eight weeks of CLAUDE.md §11.
+Already shipped and not re-listed above: the eight weeks of CLAUDE.md §11,
+and **passwords** (2026-08-11) — save and fill logins vaulted in the macOS
+Keychain, never in `netrelish.db`, never near FTS or the engine. The fill
+path runs Rust→page; the UI layer only ever sees usernames. Detection is a
+suggestion; saving and filling are user gestures. Still wanted: a management
+panel, CSV import from Safari/Chrome, a multi-account picker, Touch ID on
+reveal, and subdomain matching.
+
+That paragraph is load-bearing: CLAUDE.md §4a's credentials rule depends on
+this being the written-down description of how passwords work. Do not drop
+it when rewriting this section.
 
 Still unscheduled, still wanted: element-level clipping, email via IMAP, a
 PWA companion.
