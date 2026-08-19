@@ -371,11 +371,19 @@ export async function tabCreate(
     touched_at: now,
     seal_after: now + (await shelfLifeMs(jarId)),
   };
+  const w = insertWrite({
+    id: tab.id,
+    jar_id: tab.jar_id,
+    url: tab.url,
+    scroll_y: 0,
+    position: tab.position,
+    opened_at: now,
+    touched_at: now,
+    seal_after: tab.seal_after,
+  });
   await db().execute(
-    `INSERT INTO tabs (id, jar_id, url, scroll_y, position, opened_at,
-                       touched_at, seal_after)
-     VALUES ($1, $2, $3, 0, $4, $5, $5, $6)`,
-    [tab.id, tab.jar_id, tab.url, tab.position, now, tab.seal_after],
+    `INSERT INTO tabs (${w.cols.join(", ")}) VALUES (${w.placeholders})`,
+    w.vals,
   );
   return tab;
 }
@@ -389,18 +397,29 @@ export async function tabTouch(
 ): Promise<void> {
   const now = Date.now();
   const life = await shelfLifeMs(jarId);
+  // url and seal_after keep their old values through SQL expressions — a
+  // pinned tab must stay pinned, an addressless touch must not blank the
+  // url — so this one merges its stamps with json_patch rather than
+  // round-tripping the row into JS just to rebuild what SQLite already knows.
   await db().execute(
     `UPDATE tabs SET
        touched_at = $1,
        url = coalesce($2, url),
-       seal_after = CASE WHEN seal_after IS NULL THEN NULL ELSE $3 END
+       seal_after = CASE WHEN seal_after IS NULL THEN NULL ELSE $3 END,
+       updated_at = $1,
+       field_ts = json_patch(field_ts, json_object(
+         'touched_at', $1, 'url', $1, 'seal_after', $1))
      WHERE id = $4`,
     [now, url ?? null, now + life, id],
   );
 }
 
 export async function tabSetScroll(id: string, y: number): Promise<void> {
-  await db().execute(`UPDATE tabs SET scroll_y = $1 WHERE id = $2`, [y, id]);
+  const w = updateWrite({ scroll_y: y }, await prevTs("tabs", id));
+  await db().execute(
+    `UPDATE tabs SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
+  );
 }
 
 /** Plain close (⌘W-style): the page is already preserved; the tab just goes. */
@@ -414,14 +433,12 @@ export async function tabSetPinned(
   jarId: string | null,
   pinned: boolean,
 ): Promise<void> {
-  if (pinned) {
-    await db().execute(`UPDATE tabs SET seal_after = NULL WHERE id = $1`, [id]);
-  } else {
-    await db().execute(`UPDATE tabs SET seal_after = $1 WHERE id = $2`, [
-      Date.now() + (await shelfLifeMs(jarId)),
-      id,
-    ]);
-  }
+  const seal_after = pinned ? null : Date.now() + (await shelfLifeMs(jarId));
+  const w = updateWrite({ seal_after }, await prevTs("tabs", id));
+  await db().execute(
+    `UPDATE tabs SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
+  );
 }
 
 /** The most recent sealed tab for a URL — how a jar reopen knows where the
@@ -438,9 +455,12 @@ export async function lastSealedScroll(url: string): Promise<number> {
 
 /** Reopening something sealed makes it live again. */
 export async function unsealUrl(url: string): Promise<void> {
+  // Addressed by url, not id, so prevTs cannot reach it; json_patch merges.
   await db().execute(
-    `UPDATE items SET sealed_at = NULL WHERE url = $1`,
-    [url],
+    `UPDATE items SET sealed_at = NULL, updated_at = $2,
+       field_ts = json_patch(field_ts, json_object('sealed_at', $2))
+     WHERE url = $1`,
+    [url, Date.now()],
   );
 }
 
@@ -496,20 +516,28 @@ export async function sweepDue(denyPatterns: string[]): Promise<SweepResult | nu
   const slots = ids.map((_, i) => `$${i + 3}`).join(", ");
 
   // Stamp the batch. Rows survive for Undo; the strip filters them out.
+  // Set-based, so the sync stamps merge with json_patch — see moveItems.
   await db().execute(
-    `UPDATE tabs SET sealed_batch = $1, sealed_at = $2 WHERE id IN (${slots})`,
+    `UPDATE tabs SET sealed_batch = $1, sealed_at = $2, updated_at = $2,
+       field_ts = json_patch(field_ts,
+         json_object('sealed_batch', $2, 'sealed_at', $2))
+     WHERE id IN (${slots})`,
     [batchId, now, ...ids],
   );
   // Seal the items, and file Brine items into their tab's jar — that is
   // what "preserve an untouched tab into its jar" means. Items the user
   // already filed somewhere else are not second-guessed.
+  // Set-based again, and both values are coalesce expressions: json_patch.
   await db().execute(
     `UPDATE items SET
        sealed_at = coalesce(sealed_at, $1),
        jar_id = coalesce(jar_id,
          (SELECT t.jar_id FROM tabs t
           WHERE t.url = items.url AND t.sealed_batch = $2
-          ORDER BY t.sealed_at DESC LIMIT 1))
+          ORDER BY t.sealed_at DESC LIMIT 1)),
+       updated_at = $1,
+       field_ts = json_patch(field_ts,
+         json_object('sealed_at', $1, 'jar_id', $1))
      WHERE url IN (SELECT url FROM tabs WHERE sealed_batch = $2)`,
     [now, batchId],
   );
@@ -520,16 +548,22 @@ export async function sweepDue(denyPatterns: string[]): Promise<SweepResult | nu
 
 /** Undo a sweep: the whole batch stands back up, open, in strip order. */
 export async function undoSweep(batchId: string): Promise<number> {
+  // Both statements are set-based — one batch, many rows — so their stamps
+  // merge with json_patch rather than through updateWrite.
+  const now = Date.now();
   await db().execute(
-    `UPDATE items SET sealed_at = NULL
+    `UPDATE items SET sealed_at = NULL, updated_at = $2,
+       field_ts = json_patch(field_ts, json_object('sealed_at', $2))
      WHERE url IN (SELECT url FROM tabs WHERE sealed_batch = $1)`,
-    [batchId],
+    [batchId, now],
   );
   const result = await db().execute(
     `UPDATE tabs SET sealed_batch = NULL, sealed_at = NULL,
-       seal_after = $1
+       seal_after = $1, updated_at = $3,
+       field_ts = json_patch(field_ts, json_object(
+         'sealed_batch', $3, 'sealed_at', $3, 'seal_after', $3))
      WHERE sealed_batch = $2`,
-    [Date.now() + DEFAULT_SHELF_LIFE_HOURS * 3_600_000, batchId],
+    [now + DEFAULT_SHELF_LIFE_HOURS * 3_600_000, batchId, now],
   );
   return result.rowsAffected;
 }
