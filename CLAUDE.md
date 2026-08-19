@@ -72,14 +72,18 @@ jokes. The vocabulary does the work.
 
 ## 4. Non-negotiables
 
-1. **Everything is local.** SQLite on disk. No network calls except page
-   loads, the updater check, and (later) a license check. No telemetry, no
-   analytics, no account.
+1. **Offline is the floor.** SQLite on disk stays the source of truth on the
+   Mac, and every feature must work with the network unplugged. Sync is
+   additive: it makes the Pantry reachable elsewhere, it never becomes the
+   thing the app needs in order to function.
 
-   This is an engineering constraint, not a marketing position. Local is why
-   `⌘K` returns in under 50ms, and cutting sync is why this ships in eight
-   weeks instead of five months. Privacy is a consequence — a good line for
-   the website, but not the reason it's in the architecture.
+   This is what survives of local-first, and it is the part worth keeping.
+   Local is still why `⌘K` returns in under 50ms — that is a read against
+   a file on disk, and it must stay one.
+
+   *(Amended 2026-08-18. This clause previously read "Everything is local /
+   no network calls except page loads". Ryan reversed it — see §4a and
+   `docs/superpowers/specs/2026-08-18-netrelish-master-plan-design.md`.)*
 
 2. **Suggest, never file silently.** The organization engine proposes; the
    user approves with one key. Auto-filing that's wrong 15% of the time
@@ -91,9 +95,36 @@ jokes. The vocabulary does the work.
 
 4. **The preview is a native child webview, not an iframe.** See §5.
 
-5. **No cloud in v1.** Not Supabase, not anything. If a task seems to need a
-   server, an account, or a network call, stop and say so. It's out of scope
-   by design, not by oversight.
+5. **The cloud is a co-equal track.** Supabase is the backend, the web app is
+   a first-class client, and the extension is a real capture surface. What
+   this does *not* license is drift: a server feature ships against the
+   schema in §6 and the vocabulary in §2, or it doesn't ship.
+
+### 4a. What may leave the machine
+
+Full account sync was chosen deliberately, which makes this list the honest
+replacement for the old "nothing leaves" promise. It is exhaustive; adding
+to it is a decision, not an implementation detail.
+
+| Leaves | Why | Note |
+| :-- | :-- | :-- |
+| Jars, items, labels, recipes, tabs | Sync | The user's own content, under their account |
+| Extracted page text | Sync + hosted AI | Same rows as above; §7 still governs extraction |
+| Item text sent for analysis | Summaries, gap analysis, reports | Per-request, cached server-side, shown in the UI while it happens |
+| Licence + subscription state | Billing | |
+
+**Never leaves, under any feature:**
+
+- **Credentials.** Passwords live in the macOS Keychain and are not rows in
+  `netrelish.db`. They do not sync, they are never sent for analysis, and no
+  server-side feature may read them. Shipped 2026-08-11: the fill path runs
+  Rust→page, and the UI layer only ever sees usernames.
+- **Private-window browsing.** §7 already forbids extracting it; it therefore
+  has nothing to sync.
+- **Denied URLs.** The deny list is applied before a row exists, so denied
+  pages never reach the server for the same reason.
+- **Telemetry.** There is still none. Accounts make it possible; that is not
+  the same as deciding to. Until it is written here, it does not exist.
 
 ---
 
