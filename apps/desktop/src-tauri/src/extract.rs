@@ -141,23 +141,87 @@ async fn record<R: Runtime>(
             .and_then(|s| s.0.lock().unwrap_or_else(|p| p.into_inner()).clone())
     });
 
-    let sql = if jar_override.is_some() {
-        "INSERT INTO items (id, jar_id, kind, url, title, body, meta, created_at, touched_at)
-         VALUES (?1, ?2, 'page', ?3, ?4, ?5, ?6, ?7, ?7)
-         ON CONFLICT(url) WHERE url IS NOT NULL DO UPDATE SET
-           jar_id = excluded.jar_id,
-           title = excluded.title,
-           body = excluded.body,
-           meta = excluded.meta,
-           touched_at = excluded.touched_at"
+    let now = db::now_ms();
+
+    // Sync stamps (migration 004). `field_ts` maps column -> epoch ms of that
+    // column's last write and the server merges field by field against it, so
+    // an unstamped column looks infinitely old and loses every merge. This
+    // mirrors src/lib/stamp.ts, where `id`, `updated_at` and `field_ts` are
+    // metadata and never stamp themselves.
+    //
+    // The two branches bind two DIFFERENT JSON values, because they write
+    // different column sets. The insert covers everything VALUES supplies; the
+    // conflict clause covers only what DO UPDATE SET rewrites. Sharing one
+    // value would forge a `created_at` stamp (and, on a plain revisit, a
+    // `jar_id` stamp) for writes that never happened, letting those columns
+    // win merges they should lose — which is also why the conflict clause
+    // cannot take `excluded.field_ts` wholesale and uses json_patch to merge
+    // just its own keys over the stamps the row already carries.
+    let insert_ts = serde_json::json!({
+        "jar_id": now,
+        "kind": now,
+        "url": now,
+        "title": now,
+        "body": now,
+        "meta": now,
+        "created_at": now,
+        "touched_at": now,
+    })
+    .to_string();
+
+    // `deleted_at = NULL` on conflict is deliberate: visiting a URL the user
+    // previously deleted preserves it again, because that is what visiting it
+    // again means. Without it a tombstoned page could never come back and
+    // extraction would silently do nothing. The revival is stamped for the
+    // same reason a delete is — an unstamped clear never propagates, and the
+    // server's tombstone would simply delete the row out from under the user
+    // on the next sync.
+    let (sql, conflict_ts) = if jar_override.is_some() {
+        (
+            "INSERT INTO items (id, jar_id, kind, url, title, body, meta,
+                                created_at, touched_at, updated_at, field_ts)
+             VALUES (?1, ?2, 'page', ?3, ?4, ?5, ?6, ?7, ?7, ?7, ?8)
+             ON CONFLICT(url) WHERE url IS NOT NULL DO UPDATE SET
+               jar_id = excluded.jar_id,
+               title = excluded.title,
+               body = excluded.body,
+               meta = excluded.meta,
+               touched_at = excluded.touched_at,
+               updated_at = excluded.updated_at,
+               deleted_at = NULL,
+               field_ts = json_patch(items.field_ts, ?9)",
+            serde_json::json!({
+                "jar_id": now,
+                "title": now,
+                "body": now,
+                "meta": now,
+                "touched_at": now,
+                "deleted_at": now,
+            })
+            .to_string(),
+        )
     } else {
-        "INSERT INTO items (id, jar_id, kind, url, title, body, meta, created_at, touched_at)
-         VALUES (?1, ?2, 'page', ?3, ?4, ?5, ?6, ?7, ?7)
-         ON CONFLICT(url) WHERE url IS NOT NULL DO UPDATE SET
-           title = excluded.title,
-           body = excluded.body,
-           meta = excluded.meta,
-           touched_at = excluded.touched_at"
+        (
+            "INSERT INTO items (id, jar_id, kind, url, title, body, meta,
+                                created_at, touched_at, updated_at, field_ts)
+             VALUES (?1, ?2, 'page', ?3, ?4, ?5, ?6, ?7, ?7, ?7, ?8)
+             ON CONFLICT(url) WHERE url IS NOT NULL DO UPDATE SET
+               title = excluded.title,
+               body = excluded.body,
+               meta = excluded.meta,
+               touched_at = excluded.touched_at,
+               updated_at = excluded.updated_at,
+               deleted_at = NULL,
+               field_ts = json_patch(items.field_ts, ?9)",
+            serde_json::json!({
+                "title": now,
+                "body": now,
+                "meta": now,
+                "touched_at": now,
+                "deleted_at": now,
+            })
+            .to_string(),
+        )
     };
 
     let upsert = sqlx::query(sql)
@@ -167,7 +231,9 @@ async fn record<R: Runtime>(
         .bind(&title)
         .bind(&body)
         .bind(&meta)
-        .bind(db::now_ms())
+        .bind(now)
+        .bind(&insert_ts)
+        .bind(&conflict_ts)
         .execute(&pool)
         .await;
 
