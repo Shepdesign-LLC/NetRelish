@@ -9,6 +9,7 @@
  */
 import Database from "@tauri-apps/plugin-sql";
 import { type ParsedQuery } from "./query";
+import { insertWrite, updateWrite } from "./stamp";
 
 /** Must match DB_URL in src-tauri/src/db.rs — it is the pool's lookup key. */
 const DB_URL = "sqlite:netrelish.db";
@@ -41,6 +42,22 @@ export interface BrineRow {
 
 function db(): Database {
   return Database.get(DB_URL);
+}
+
+/**
+ * Read a row's current field_ts so updateWrite can preserve untouched stamps.
+ * `table` is a literal at every call site, never user input.
+ *
+ * Single-row updates only. A statement that touches many rows has no one
+ * previous stamp to read, so those merge inline with SQLite's json_patch
+ * instead — see the comments at each such statement.
+ */
+async function prevTs(table: string, id: string): Promise<string | null> {
+  const r = await db().select<{ field_ts: string }[]>(
+    `SELECT field_ts FROM ${table} WHERE id = $1`,
+    [id],
+  );
+  return r[0]?.field_ts ?? null;
 }
 
 /** Everything browsed but not yet sorted, newest touch first. */
@@ -150,15 +167,25 @@ export async function createJar(name: string): Promise<Jar> {
     shelf_life_hours: null,
     item_count: 0,
   };
+  const w = insertWrite({
+    id: jar.id,
+    name: jar.name,
+    hue: jar.hue,
+    created_at: jar.created_at,
+  });
   await db().execute(
-    `INSERT INTO jars (id, name, hue, created_at) VALUES ($1, $2, $3, $4)`,
-    [jar.id, jar.name, jar.hue, jar.created_at],
+    `INSERT INTO jars (${w.cols.join(", ")}) VALUES (${w.placeholders})`,
+    w.vals,
   );
   return jar;
 }
 
 export async function renameJar(id: string, name: string): Promise<void> {
-  await db().execute(`UPDATE jars SET name = $1 WHERE id = $2`, [name, id]);
+  const w = updateWrite({ name }, await prevTs("jars", id));
+  await db().execute(
+    `UPDATE jars SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
+  );
 }
 
 /**
@@ -539,10 +566,11 @@ export async function setJarShelfLife(
   id: string,
   hours: number | null,
 ): Promise<void> {
-  await db().execute(`UPDATE jars SET shelf_life_hours = $1 WHERE id = $2`, [
-    hours,
-    id,
-  ]);
+  const w = updateWrite({ shelf_life_hours: hours }, await prevTs("jars", id));
+  await db().execute(
+    `UPDATE jars SET ${w.setClause} WHERE id = $${w.vals.length + 1}`,
+    [...w.vals, id],
+  );
 }
 
 /* ---------------------------------------------------------------------------
