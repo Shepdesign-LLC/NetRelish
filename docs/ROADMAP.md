@@ -69,15 +69,16 @@ their public output attracts 2–4.
 | AI categorization / related resources | on-device embeddings + entities (§8) | shipped |
 | Repeatable workflow / Recipe | **Recipe** — recorded, not authored | shipped |
 | Web clipper | `⌘J` on a selection | shipped (page-level); element-level is future |
-| "What am I missing?" gap analysis | future engine layer — see below | next |
-| Relish Report (website analysis) | future feature; naming is Ryan's call when scheduled | later |
-| Knowledge graph | entities + embeddings exist; a visual surface is future | later |
-| Public collections / marketplace / teams | out until ~1,000 users (CLAUDE.md §12) | later |
-| Accounts, cloud backend, LLM API | **not translated** — see "Out by design" | — |
+| "What am I missing?" gap analysis | hosted intelligence, a fifth engine layer | **P5** |
+| Relish Report (website analysis) | naming is Ryan's call when scheduled | **P8** |
+| Knowledge graph | entities + embeddings exist; the visual surface is scheduled | **P12** |
+| Public collections / marketplace / teams | scheduled — no longer gated on user count | **P7, P10, P11** |
+| Accounts, cloud backend, LLM API | **adopted**, not translated — see "Reversed on 2026-08-18" | **P1, P4, P5** |
 
 The plan's own thesis — *"NetRelish should live inside the browser"* —
-is fulfilled beyond what it asked: the plan wanted an extension riding
-in Chrome. NetRelish **is** the browser.
+is now fulfilled twice over: on the Mac, NetRelish **is** the browser;
+everywhere else, the extension rides in Chrome exactly as the plan
+first imagined (P3).
 
 ## Roadmap
 
