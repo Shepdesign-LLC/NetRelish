@@ -220,10 +220,19 @@ Ryan's `netrelish.db` is 90 items and 4 jars of real work and is the only copy.
 
 ## 11. Open questions
 
-- **OAuth users and the note key.** GitHub sign-in has no password to derive
-  `wrapKey` from. Options: prompt for a separate encryption passphrase the
-  first time they write a note; or leave notes unencrypted for OAuth accounts
-  and say so honestly. Blocks stage D only. **Needs Ryan.**
+- ~~**OAuth users and the note key.**~~ **Decided 2026-08-19: notes are
+  unencrypted on OAuth accounts, and the UI says so plainly.** A separate
+  encryption passphrase was rejected — a second secret to remember undermines
+  the reason GitHub sign-in exists. Stage D is unblocked.
+
+  What this obliges stage D to build: account settings that name the tier in
+  plain words, and copy that never says "private, even from us" to an OAuth
+  user. CLAUDE.md §4a now carries both rules.
+
+  Still to design when stage D starts: what happens if an OAuth user later
+  adds a password. The honest options are to encrypt from that point forward
+  only, or to re-encrypt the backlog — the second is correct and slower, and
+  it is a stage D detail, not a blocker.
 - **Tombstone retention.** How long before a confirmed-synced tombstone is
   purged locally. Must exceed the longest plausible time a device stays
   offline — a Mac closed over a long holiday is the case that decides it.

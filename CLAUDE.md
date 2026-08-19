@@ -124,10 +124,24 @@ to it is a decision, not an implementation detail.
 
 **Never leaves, under any feature:**
 
-- **Your own writing.** Note bodies, and the bodies of tasks, are encrypted
-  **client-side** before they sync. The server stores ciphertext it cannot
-  read, no AI feature may be given them, and publishing a Relish excludes
-  them unless the user explicitly includes one.
+- **Your own writing — on a password account.** Note bodies, and the bodies
+  of tasks, are encrypted **client-side** before they sync. The server stores
+  ciphertext it cannot read, no AI feature may be given them, and publishing
+  a Relish excludes them unless the user explicitly includes one.
+
+  **This does not hold for OAuth accounts, and the UI must say so.** The key
+  is derived from the password, so signing in with GitHub leaves nothing to
+  derive it from. On an OAuth account, notes are stored like page text: the
+  server can read them. That is a real second privacy tier, and it is stated
+  here rather than buried because an unqualified promise is exactly the
+  failure this section was written to correct — the design mocks claimed
+  "we can't read your Pantry" while showing AI that reads it.
+  *(Decided 2026-08-19.)*
+
+  Two rules follow. Account settings must show which tier the account is on,
+  in plain words, not a padlock icon. And the product may never say "your
+  notes are private, even from us" to an OAuth user — that sentence is true
+  only on a password account.
 
   The line is principled, not arbitrary: a note is something you wrote, a
   page is a copy of something already public. That is why pages can be
