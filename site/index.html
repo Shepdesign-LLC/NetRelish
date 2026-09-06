@@ -491,7 +491,13 @@
   @media (max-width: 700px) {
     .mock__side { display: none; }
   }
-</style>
+
+    .privacy .fineprint {
+      font-size: 14px;
+      color: var(--ink-meta, #5E6E48);
+      margin-top: 14px;
+    }
+  </style>
 </head>
 <body>
 <div class="wrap">
@@ -610,15 +616,25 @@
   </section>
 
   <section class="privacy glass" id="download">
-    <h2>Everything is local. Everything.</h2>
-    <p>Your browsing lives in one SQLite file on your Mac. The suggestion
-    engine is a 90MB model that runs on your CPU. NetRelish makes no network
-    requests except the pages you visit and the update check.</p>
+    <h2>Offline is the floor.</h2>
+    <p>Your Pantry is one SQLite file on your Mac, and every feature works
+    with the network unplugged — extraction, search, and the suggestion
+    engine, which is a 90MB model running on your CPU. Pull the cable and
+    nothing stops.</p>
+    <p>Sign in with a NetRelish ID and your Pantry follows you. Your notes
+    are encrypted on your Mac before they sync, so we can't read them — not
+    for search, not for AI, not at all. The pages you saved stay readable,
+    because a note is something you wrote and a page is a copy of something
+    already public. That's what lets NetRelish analyse your research without
+    reading your thinking.</p>
+    <p class="fineprint">Signing in with GitHub is the exception: there's no
+    password to build an encryption key from, so those notes sync unencrypted
+    and the app tells you so.</p>
     <div class="mono-row">
       <span>No telemetry</span>
-      <span>No account</span>
-      <span>No cloud</span>
       <span>No analytics</span>
+      <span>Works offline</span>
+      <span>Your notes stay yours</span>
     </div>
     <p style="margin-top:26px"><a class="pour" href="#">Download for macOS — beta soon</a></p>
   </section>
