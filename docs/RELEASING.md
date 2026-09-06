@@ -128,11 +128,25 @@ key"* — the bundles are fine, only `NetRelish.app.tar.gz` goes unsigned.
 
 ## Each release
 
-1. Bump `version` in `apps/desktop/src-tauri/tauri.conf.json` and
-   `apps/desktop/package.json`. The **root** `package.json` carries a version
-   too, but it is the workspace root, not the app — the shipped version is the
-   one in `tauri.conf.json`, and the two under `apps/desktop/` should agree.
+1. Bump `version` in **four** files, all under `apps/desktop/`:
+   `src-tauri/tauri.conf.json`, `package.json`, `src-tauri/Cargo.toml`, and
+   the `netrelish` entry in `src-tauri/Cargo.lock`. Then regenerate the root
+   `package-lock.json`'s `apps/desktop` workspace entry — a one-line edit, or
+   `npm install` if your npm is current (an older npm strips `libc` metadata
+   from optional dependencies and adds ~57 lines of churn).
+
+   The **root** `package.json` carries a version too, but it is the workspace
+   root, not the app — leave it. The shipped version is `tauri.conf.json`'s;
+   it overrides `Cargo.toml`, which is why `Cargo.toml` sat at `0.1.0` through
+   two releases without anyone noticing. Cosmetic, and it still wants to agree.
 2. Commit, then tag: `git tag v0.1.0 && git push origin v0.1.0`.
+
+   **Tag last, and tag the tip you actually mean.** `v0.2.0` was tagged at the
+   bump commit and built green; the fix correcting the updater endpoint to
+   `Shepdesign-LLC` landed two commits later, so the artifacts in that draft
+   carry a URL that resolves only through GitHub's 301. Nothing was published,
+   and 0.2.1 is the re-cut. A tag that has already produced signed artifacts is
+   better burned than moved.
 3. CI (`.github/workflows/release.yml`) builds, signs, notarizes, staples,
    and drafts a GitHub Release with the .dmg + updater artifacts.
 4. Publish the draft. Installed copies see the update at the endpoint in

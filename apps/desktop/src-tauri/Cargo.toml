@@ -1,6 +1,6 @@
 [package]
 name = "netrelish"
-version = "0.1.0"
+version = "0.2.1"
 description = "NetRelish — the browser for people who build the web"
 authors = ["NetRelish"]
 edition = "2021"
