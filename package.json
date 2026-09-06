@@ -13,6 +13,7 @@
     "app:build": "npm run app:build -w @netrelish/desktop",
     "tauri": "npm run tauri -w @netrelish/desktop",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
     "app:test": "npm run app:test -w @netrelish/desktop",
     "db:types": "echo 'Regenerate packages/core/src/database.types.ts from project qiyqlbaggqthcuxslwyk \u2014 Supabase MCP generate_typescript_types, or: npx supabase gen types typescript --project-id qiyqlbaggqthcuxslwyk > packages/core/src/database.types.ts'"
   }

@@ -633,11 +633,22 @@ npm run app         # dev, hot reload, devtools
 npm run app:build   # local release build — WRITES THE REAL PANTRY
 npm run app:test    # isolated build: own identifier, own database
 npm run typecheck   # types, all workspaces
+npm test            # vitest unit tests, all workspaces
 cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
 npm run tauri -w @netrelish/desktop icon <1024px.png>   # regenerate icons
 ```
 
 Requires Rust stable, Xcode Command Line Tools, Node 20+.
+
+**`npm test` and `npm run app:test` are unrelated.** The first runs vitest; the
+second builds an isolated Tauri app. Nothing above builds or launches the app
+as a side effect of running tests.
+
+Unit tests are deliberately narrow: `src/lib/auth.test.ts` pins the §4a tier
+decisions — which keyring call each path makes, and therefore whether a note
+can leave this Mac readable. That is the one piece of logic worth holding
+without a running app. Do not grow this into a UI test suite; the demos in §11
+are what prove a surface works.
 
 **Never test a migration with `app:build`.** It carries the real identifier,
 so it opens the real Pantry — and migrations are one-way and shared. Use
