@@ -612,6 +612,15 @@ brand assets.
 
 ## 13. Warnings
 
+- **The repo lives at `Shepdesign-LLC/NetRelish`, not `Shepdesign/`.** It was
+  transferred to the organization; `Shepdesign` is Ryan's personal account.
+  GitHub 301-redirects the old path, so `gh` commands against it still work —
+  which is exactly why the move went unnoticed for a day. Transferring to an
+  org creates a new repository record: **secrets do not transfer, and neither
+  does workflow run history**, so an empty `gh secret list` after a move means
+  "moved", not "never set". Use the canonical path, and never let a redirect
+  carry anything baked into a shipped binary — the updater endpoint in
+  `tauri.conf.json` is the one that cannot be fixed after release.
 - **Apple Developer enrolment blocks everything.** $99/yr, 24–48h approval,
   and every signing step waits on it. *(Done Aug 2026 — Team ID
   `D9QDJ44773`. Kept here because it gates any fresh machine or account.)*

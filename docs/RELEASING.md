@@ -9,7 +9,7 @@ public build — both need Ryan, neither needs a terminal beyond copy-paste.
    24–48h approval). Every signing step waits on this (CLAUDE.md §13).
 2. **Create a Developer ID Application certificate** in the Apple portal,
    export it as a `.p12` with a password.
-3. **Add GitHub repository secrets** (github.com/Shepdesign/NetRelish →
+3. **Add GitHub repository secrets** (github.com/Shepdesign-LLC/NetRelish →
    Settings → Secrets and variables → Actions):
    - `APPLE_CERTIFICATE` — the .p12, base64-encoded
    - `APPLE_CERTIFICATE_PASSWORD`
@@ -24,12 +24,17 @@ public build — both need Ryan, neither needs a terminal beyond copy-paste.
 Status 2026-08-19: enrolment done (Individual, Team ID `D9QDJ44773`) and
 the certificate is issued.
 
-**Correction — the run history this section used to cite belongs to a
-different repository.** `Shepdesign/NetRelish` was **created 2026-08-16**
-when the project went public. The old private repo's secrets, workflow
-runs, and the v0.1.0 draft release did not come with it; only the `v0.1.0`
-tag rode along with the history. As of 2026-08-19 this repo had **0
-secrets, 0 workflow runs, 0 releases**.
+**Correction — the repo moved to an organization.** NetRelish now lives at
+**`Shepdesign-LLC/NetRelish`**; `Shepdesign` is Ryan's personal account and
+is no longer the owner. Transferring a repository to an org creates a new
+repository record, and **secrets do not transfer** — neither does workflow
+run history. That is why this repo showed 0 secrets, 0 runs and 0 releases
+while the git history came across intact.
+
+GitHub 301-redirects the old path, so `Shepdesign/NetRelish` keeps working
+in `gh` commands and in a browser. Convenient, and misleading: it hid the
+ownership change for a full day. Prefer the canonical path everywhere, and
+never rely on the redirect for anything baked into a shipped binary.
 
 So the long-standing story here — "`APPLE_PASSWORD` is present but
 invalid, notarization fails 401" — was never true of *this* repo. The

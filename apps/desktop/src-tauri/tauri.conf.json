@@ -84,7 +84,7 @@
       "active": true,
       "dialog": false,
       "endpoints": [
-        "https://github.com/Shepdesign/NetRelish/releases/latest/download/latest.json",
+        "https://github.com/Shepdesign-LLC/NetRelish/releases/latest/download/latest.json",
         "https://netrelish.com/releases/{{target}}/{{arch}}/{{current_version}}"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNEMEVGRDUwQkM5RUEyRjQKUldUMG9wNjhVUDBPUGZHQitXK0c3KzZTZ3RHdDdoRSttY0ZEKzRFWnJDaENFa2NtZ0JsTEVQTFYK"
