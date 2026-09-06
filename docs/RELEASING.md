@@ -149,9 +149,35 @@ key"* — the bundles are fine, only `NetRelish.app.tar.gz` goes unsigned.
    better burned than moved.
 3. CI (`.github/workflows/release.yml`) builds, signs, notarizes, staples,
    and drafts a GitHub Release with the .dmg + updater artifacts.
+
+   **Never start a release with "Run workflow."** The workflow accepts
+   `workflow_dispatch` — it is how notarization was first proven, before any
+   tag existed — but it passes `tagName: ${{ github.ref_name }}`, and on a
+   dispatch that is the *branch* name. Dispatching on `main` drafts a release
+   called "NetRelish main" whose `tag_name` is `main`; publishing it would
+   create a git tag literally named `main`. It happened on 2026-09-06
+   (run 34030599628) and the draft had to be thrown away.
+
+   A dispatch build is still useful for proving the pipeline signs and
+   notarizes. It is never the build you ship. Only a tag push produces a
+   release that is named, versioned and taggable correctly.
 4. Publish the draft. Installed copies see the update at the endpoint in
    `tauri.conf.json` (`netrelish.com/releases/...` — point it at the GitHub
    release asset URLs, or move the manifest to Vercel later, §10).
+
+   **Check the artifact before publishing, not the checkmark.** Mount the
+   .dmg and run both:
+
+   ```bash
+   spctl -a -vvv -t install /Volumes/.../NetRelish.app
+   xcrun stapler validate /Volumes/.../NetRelish.app
+   ```
+
+   Two of the three green runs this repo has ever had produced something
+   that should not ship: run 34007890136 with the wrong updater endpoint,
+   run 34030599628 named after a branch. Only run 32229611836 — the
+   notarization proof above — was checked on the artifact. Green means the
+   workflow finished, nothing more.
 
 ## Local sanity build
 
