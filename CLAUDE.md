@@ -569,9 +569,17 @@ on a machine that has never been online.
 - [x] Labels: create, assign, filter
 - [x] Full keyboard map + shortcut sheet
 - [x] Light theme parity pass
-- [x] Updater wired (keys generated, pipeline ready; enrolment done and
-      CI signing proven Aug 2026 — but notarization still fails 401 on an
-      invalid `APPLE_PASSWORD`, see docs/RELEASING.md)
+- [x] Updater wired (keys generated, pipeline ready; enrolment done, and
+      signing **and notarization** both proven 2026-08-19 — run 32229611836,
+      verified on the artifact with `spctl -a` and `xcrun stapler validate`,
+      not on a green checkmark. See docs/RELEASING.md)
+
+  *(This line used to say notarization failed 401 on an invalid
+  `APPLE_PASSWORD`. That was never true of this repo: it was created
+  2026-08-16 when the project went public, and the old private repo's
+  secrets did not come with it — so there were no secrets at all. Ryan
+  re-added all seven on 2026-08-19 and notarization passed. Corrected
+  2026-09-05, after the stale claim was repeated as a live blocker.)*
 
 ---
 

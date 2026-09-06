@@ -203,6 +203,14 @@ every hour spent on desktop features before it is fixed is speculative.
 **Done when:** CLAUDE.md no longer contradicts itself, `npm run app:build`
 works from the new layout, and a notarized build is stapled and verified.
 
+> **Resolved 2026-08-19 — this P0 blocker is closed.** Left above as written
+> because it is why P0 was scoped this way, but do not act on it: notarization
+> passes (run 32229611836, verified with `spctl -a` and `xcrun stapler
+> validate`). The diagnosis above was also inherited from the old private repo
+> — this one was created 2026-08-16 and simply had no secrets. See
+> `docs/RELEASING.md`. *(Annotated 2026-09-05, after the stale claim was
+> repeated as a live blocker.)*
+
 ### P1 — The Core
 
 Supabase project. Postgres schema per §3 above. Auth (email + OAuth). RLS
