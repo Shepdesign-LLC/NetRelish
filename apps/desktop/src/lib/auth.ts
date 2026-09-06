@@ -15,7 +15,7 @@ import {
 } from "./crypto";
 import { remote, unlockKeyring, usePlaintextNotes, lockKeyring } from "./sync";
 
-export type Tier = "encrypted" | "plaintext" | "locked" | "signed-out";
+export type Tier = "encrypted" | "plaintext" | "locked" | "no-keyring" | "signed-out";
 
 export interface Account {
   id: string;
@@ -30,20 +30,64 @@ let currentTier: Tier = "signed-out";
 export const tier = (): Tier => currentTier;
 export const currentAccount = (): Account | null => account;
 
+/** "github" → "GitHub". Only for the sentence below. */
+function providerLabel(p: string | undefined): string {
+  if (!p || p === "github") return "GitHub";
+  return p.charAt(0).toUpperCase() + p.slice(1);
+}
+
 /** In plain words, for the UI. §4a forbids leaving this to an icon. */
-export function tierStatement(t: Tier = currentTier): string {
+export function tierStatement(t: Tier = currentTier, provider = account?.provider): string {
   switch (t) {
     case "encrypted":
       return "Your notes are encrypted on this Mac before they sync. We can't read them.";
     case "plaintext":
-      return "Your notes are not encrypted. Signing in with GitHub means there's no password " +
-        "to build an encryption key from, so notes sync the same way pages do — we can read them. " +
-        "Sign in with an email and password instead if you'd rather we couldn't.";
+      // "plaintext" is reached by more than one path: an OAuth account (no
+      // password, so no wrapping key) and a password account with no keyring.
+      // Blaming GitHub in the second case is a falsehood told in the one place
+      // §4a insists on plain words, so only say it when it is true. An unknown
+      // provider keeps the OAuth wording — that is the pre-commit warning
+      // shown before signInWithGitHub, when there is no account yet.
+      return provider === "email"
+        ? "Your notes are not encrypted. This account has no encryption keyring, so notes " +
+          "sync the same way pages do — we can read them."
+        : `Your notes are not encrypted. Signing in with ${providerLabel(provider)} means ` +
+          "there's no password to build an encryption key from, so notes sync the same way " +
+          "pages do — we can read them. Sign in with an email and password instead if you'd " +
+          "rather we couldn't.";
     case "locked":
       return "Notes are encrypted and locked. Enter your password to read or sync them.";
+    case "no-keyring":
+      return "Syncing is off. This account has no encryption keyring, so there is no safe " +
+        "way to send your notes — and rather than send them readable, nothing syncs at all. " +
+        "Everything stays on this Mac.";
     case "signed-out":
       return "Not signed in. Everything stays on this Mac.";
   }
+}
+
+/**
+ * What a missing `user_keys` row means. It is only evidence of a plaintext
+ * account when the account has no password to build a key from; for a password
+ * account it means the keyring is MISSING — a sign-up whose insert failed, or
+ * an account predating keyrings — which is an anomaly, not consent to send
+ * notes readable.
+ *
+ * An OAuth account later given a password keeps its original provider, so it
+ * still reads as plaintext here. That is correct: its notes never were
+ * encrypted, and saying otherwise would be the same lie in reverse.
+ */
+function tierWithoutKeyring(provider: string | undefined): Tier {
+  if (provider === "email") {
+    // lockKeyring() makes sync refuse the push (sync.ts). Because syncNow wraps
+    // the whole cycle in one try and pushTable uses Promise.all, that stops
+    // every table in both directions, not just notes. Deliberate, and said
+    // plainly in tierStatement("no-keyring") rather than left to be discovered.
+    lockKeyring();
+    return "no-keyring";
+  }
+  usePlaintextNotes();
+  return "plaintext";
 }
 
 function readAccount(user: { id: string; email?: string | null; app_metadata?: { provider?: string } }): Account {
@@ -109,17 +153,36 @@ export async function signIn(email: string, password: string): Promise<Account> 
   if (error) throw new Error(error.message);
   if (!data.user) throw new Error("Sign-in did not return an account.");
 
-  account = readAccount(data.user);
-  const rec = await fetchKeyRecord();
-  if (rec) {
-    unlockKeyring(await openKeyring(rec, password));
-    currentTier = "encrypted";
-  } else {
-    // A password account with no keyring: made before Stage D, or made via
-    // OAuth and later given a password. Notes are plaintext until one exists.
-    usePlaintextNotes();
-    currentTier = "plaintext";
+  // Both the keyring lookup and the unwrap can throw, so nothing is published
+  // to module state until the tier is settled. Assigning `account` first would
+  // leave currentAccount() populated while tier() still read "signed-out" — a
+  // pair no caller can make sense of, and enough for the UI to render someone
+  // as signed in on a sign-in that failed.
+  const next = readAccount(data.user);
+  let nextTier: Tier;
+  try {
+    const rec = await fetchKeyRecord();
+    if (rec) {
+      unlockKeyring(await openKeyring(rec, password));
+      nextTier = "encrypted";
+    } else {
+      // No keyring: made before Stage D, or made via OAuth and later given a
+      // password. Which of those it is decides the tier — see below.
+      nextTier = tierWithoutKeyring(next.provider);
+    }
+  } catch (e) {
+    // The Supabase session is live but we could not settle a tier. Leave no
+    // half-signed-in state behind: a stale account paired with a stale note
+    // key is worse than signed-out, and restoreSession() picks the session up
+    // cleanly on the next launch.
+    account = null;
+    currentTier = "signed-out";
+    lockKeyring();
+    throw e;
   }
+
+  account = next;
+  currentTier = nextTier;
   return account;
 }
 
@@ -154,14 +217,31 @@ export async function restoreSession(): Promise<Tier> {
     lockKeyring();
     return currentTier;
   }
-  account = readAccount(user);
-  const rec = await fetchKeyRecord().catch(() => null);
+  const restored = readAccount(user);
+  account = restored;
+
+  // A failed lookup is NOT evidence that no keyring exists, and the two tiers
+  // behave in opposite ways: "locked" refuses to push (see sync.ts), while
+  // "plaintext" uploads note bodies in the clear. Swallowing the error and
+  // falling through to plaintext would silently downgrade an encrypted account
+  // on a cold start, a wake from sleep, or a token-refresh race — exactly the
+  // conditions this runs under. If we cannot tell, stay locked: the user is
+  // asked for a password they can supply, rather than having their notes
+  // uploaded readable without being told.
+  let rec: KeyRecord | null;
+  try {
+    rec = await fetchKeyRecord();
+  } catch {
+    lockKeyring();
+    currentTier = "locked";
+    return currentTier;
+  }
+
   if (rec) {
     lockKeyring();
     currentTier = "locked";
   } else {
-    usePlaintextNotes();
-    currentTier = "plaintext";
+    currentTier = tierWithoutKeyring(restored.provider);
   }
   return currentTier;
 }
