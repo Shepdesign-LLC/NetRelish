@@ -39,3 +39,8 @@ npm-debug.log*
 
 # the embedding model is fetched by scripts/ensure-model.mjs, not committed
 apps/desktop/src-tauri/models/
+
+# Swift package build output (P0 design system + Design Kit)
+.build/
+.swiftpm/
+Config.xcconfig
