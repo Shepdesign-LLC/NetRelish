@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <!-- NetRelish symbols — Brand Lock v1.1, manifest §7.
+       24×24, currentColor, hairline weight (1px). Color comes from the caller via tokens; never baked in here.
+       Sources/UI/Symbols.swift is GENERATED from this file. -->
+
+  <!-- Jar: filled body, hairline shoulder (superellipse), lid on top -->
+  <symbol id="nr-jar" viewBox="0 0 24 24">
+    <rect x="7.5" y="2.5" width="9" height="3" rx="1" fill="none" stroke="currentColor" stroke-width="1"/>
+    <path d="M6.5 8.5 C6.5 6.6 7.4 5.5 9 5.5 H15 C16.6 5.5 17.5 6.6 17.5 8.5" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+    <path d="M6.5 8.5 V18 C6.5 20.2 7.8 21.5 10 21.5 H14 C16.2 21.5 17.5 20.2 17.5 18 V8.5 Z" fill="currentColor"/>
+  </symbol>
+
+  <!-- Smart jar: jar + filter glyph -->
+  <symbol id="nr-jar-smart" viewBox="0 0 24 24">
+    <rect x="7.5" y="2.5" width="9" height="3" rx="1" fill="none" stroke="currentColor" stroke-width="1"/>
+    <path d="M6.5 8.5 C6.5 6.6 7.4 5.5 9 5.5 H15 C16.6 5.5 17.5 6.6 17.5 8.5" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+    <path d="M6.5 8.5 V18 C6.5 20.2 7.8 21.5 10 21.5 H14 C16.2 21.5 17.5 20.2 17.5 18 V8.5 Z M9 11.5 H15 L12.8 14.5 V18 L11.2 17 V14.5 Z" fill="currentColor" fill-rule="evenodd"/>
+  </symbol>
+
+  <!-- Pickle jar: jar + </> -->
+  <symbol id="nr-jar-pickle" viewBox="0 0 24 24">
+    <rect x="7.5" y="2.5" width="9" height="3" rx="1" fill="none" stroke="currentColor" stroke-width="1"/>
+    <path d="M6.5 8.5 C6.5 6.6 7.4 5.5 9 5.5 H15 C16.6 5.5 17.5 6.6 17.5 8.5" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+    <path d="M6.5 8.5 V18 C6.5 20.2 7.8 21.5 10 21.5 H14 C16.2 21.5 17.5 20.2 17.5 18 V8.5 Z M9 15 L10.8 12.6 V13.8 L9.9 15 L10.8 16.2 V17.4 Z M15 15 L13.2 12.6 V13.8 L14.1 15 L13.2 16.2 V17.4 Z M12.9 11.8 H13.8 L11.1 18.2 H10.2 Z" fill="currentColor" fill-rule="evenodd"/>
+  </symbol>
+
+  <!-- Seal: lid pressed down, one ring -->
+  <symbol id="nr-seal" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1"/>
+    <circle cx="12" cy="12" r="4" fill="currentColor"/>
+    <path d="M12 3.5 V1.5 M12 22.5 V20.5 M3.5 12 H1.5 M22.5 12 H20.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+  </symbol>
+
+  <!-- Lip: the relish bar on the active tab. Stretch horizontally; height = lip-h token -->
+  <symbol id="nr-lip" viewBox="0 0 24 3" preserveAspectRatio="none">
+    <rect x="0" y="0" width="24" height="3" rx="1.5" fill="currentColor"/>
+  </symbol>
+
+  <!-- Drip: the one drip, Seal animation only -->
+  <symbol id="nr-drip" viewBox="0 0 24 24">
+    <path d="M12 3 C12 3 7 10.5 7 14.5 A5 5 0 0 0 17 14.5 C17 10.5 12 3 12 3 Z" fill="currentColor"/>
+  </symbol>
+
+  <!-- Sink: a page slipping under a waterline. Neutral only -->
+  <symbol id="nr-sink" viewBox="0 0 24 24">
+    <path d="M8 3.5 H14 L17 6.5 V13 H8 Z" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/>
+    <path d="M2.5 16.5 C4.5 14.8 6 14.8 8 16.5 C10 18.2 11.5 18.2 13.5 16.5 C15.5 14.8 17 14.8 19 16.5 C20 17.3 20.8 17.6 21.5 17.6" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+    <path d="M2.5 20 C4.5 18.3 6 18.3 8 20 C10 21.7 11.5 21.7 13.5 20 C15.5 18.3 17 18.3 19 20 C20 20.8 20.8 21.1 21.5 21.1" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+  </symbol>
+</svg>

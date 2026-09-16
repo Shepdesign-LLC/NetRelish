@@ -1,0 +1,61 @@
+name: Design system
+
+# The generated files in Sources/UI must be exactly what the generators emit from
+# /design. If someone edits Tokens.swift or Symbols.swift by hand, or changes
+# tokens.css without regenerating, this fails.
+
+on:
+  push:
+    branches: [main]
+    paths: ["design/**", "scripts/**", "Sources/**", "Tests/**", "Package.swift", ".github/workflows/design-system.yml"]
+  pull_request:
+    paths: ["design/**", "scripts/**", "Sources/**", "Tests/**", "Package.swift", ".github/workflows/design-system.yml"]
+
+jobs:
+  generated-files-are-current:
+    name: Generated files match /design
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Regenerate Tokens.swift and Symbols.swift
+        run: |
+          swift scripts/gen-tokens.swift design/tokens.css > /tmp/Tokens.swift
+          swift scripts/gen-symbols.swift design/symbols.svg design/logo.svg design/logo-cog.svg > /tmp/Symbols.swift
+      - name: Fail on drift
+        run: |
+          set -e
+          if ! diff -u Sources/UI/Tokens.swift /tmp/Tokens.swift; then
+            echo "::error file=Sources/UI/Tokens.swift::stale — run: swift scripts/gen-tokens.swift design/tokens.css > Sources/UI/Tokens.swift"
+            exit 1
+          fi
+          if ! diff -u Sources/UI/Symbols.swift /tmp/Symbols.swift; then
+            echo "::error file=Sources/UI/Symbols.swift::stale — run: swift scripts/gen-symbols.swift design/symbols.svg design/logo.svg design/logo-cog.svg > Sources/UI/Symbols.swift"
+            exit 1
+          fi
+          echo "Sources/UI/Tokens.swift and Symbols.swift are current."
+      - name: Logos are untouched
+        # The generator embeds the SVGs byte-for-byte; the drift check above already
+        # proves that. This makes the brand rule explicit in the log.
+        run: shasum -a 256 design/logo.svg design/logo-cog.svg
+
+  build-and-test:
+    name: Build + test (macOS 27 SDK)
+    # The `xcode-27` image is macOS 27 with Xcode 27 as default; `macos-latest`
+    # is still macOS 26 and cannot build for the macOS 27 floor.
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: Build
+        run: swift build
+      - name: Test
+        run: swift test
+      - name: Render the Design Kit (light + dark)
+        run: .build/debug/DesignKit --snapshot design-kit-snapshots
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: design-kit-snapshots
+          path: design-kit-snapshots/*.png
