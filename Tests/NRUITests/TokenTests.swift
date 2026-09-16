@@ -37,9 +37,12 @@ private func close(_ a: (Int, Int, Int), _ b: (Int, Int, Int), tol: Int) -> Bool
             guard let lightHex = css.lightHex[entry.css] else { continue }   // aliases like --nr-focus have no hex
             let light = srgb(entry.color, dark: false)
             #expect(close(light, hex(lightHex), tol: 3), "\(entry.css) light: got \(light), css says \(lightHex)")
-            let darkHex = css.darkHex[entry.css] ?? lightHex
-            let dark = srgb(entry.color, dark: true)
-            #expect(close(dark, hex(darkHex), tol: 3), "\(entry.css) dark: got \(dark), css says \(darkHex)")
+            // A token with no dark value keeps its light hex in dark mode.
+            let darkHex = css.darkHex[entry.css] ?? (css.dark[entry.css] == nil ? lightHex : nil)
+            if let darkHex {
+                let dark = srgb(entry.color, dark: true)
+                #expect(close(dark, hex(darkHex), tol: 3), "\(entry.css) dark: got \(dark), css says \(darkHex)")
+            }
             checked += 1
         }
         #expect(checked >= 15, "expected to check most colour tokens, checked \(checked)")
@@ -51,14 +54,14 @@ private func close(_ a: (Int, Int, Int), _ b: (Int, Int, Int), tol: Int) -> Bool
         #expect(srgb(NRColor.focus, dark: true) == srgb(NRColor.relish500, dark: true))
     }
 
-    @Test("Relish-500 is out of sRGB gamut and lands inside Display P3")
-    @MainActor func relishUsesP3() {
-        // The whole reason for P3: the sRGB fallback #93E413 is a clipped render.
-        let p3 = NSColor(NRColor.relish500).usingColorSpace(.displayP3)!
-        #expect(p3.redComponent >= 0 && p3.redComponent <= 1)
-        #expect(p3.greenComponent > 0.85)
-        let s = NSColor(NRColor.relish500).usingColorSpace(.extendedSRGB)!
-        #expect(s.redComponent < 0 || s.blueComponent < 0, "relish-500 should not fit in sRGB")
+    @Test("Relish-500 is #93E413, stored in Display P3")
+    @MainActor func relishIsTheRelish() {
+        // The brand hex named in CLAUDE.md and the manifest; ADR 0001 made the OKLCH agree.
+        let ns = NSColor(NRColor.relish500)
+        #expect(ns.colorSpace.colorSpaceModel == .rgb)
+        #expect(ns.usingColorSpace(.displayP3) != nil)
+        #expect(close(srgb(NRColor.relish500, dark: false), hex("#93E413"), tol: 1))
+        #expect(close(srgb(NRColor.relish500, dark: true), hex("#93E413"), tol: 1))
     }
 
     @Test("Every custom property in tokens.css has exactly one static")

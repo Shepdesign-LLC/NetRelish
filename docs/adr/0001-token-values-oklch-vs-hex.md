@@ -1,6 +1,6 @@
 # ADR 0001 — Which column of tokens.css is the truth: OKLCH or the hex fallback?
 
-**Status:** proposed (needs Ryan) · **Date:** 2026-09-16 · **PR:** design-system: swift token bridge
+**Status:** accepted — option 1 · **Date:** 2026-09-16 · **PR:** design-system: swift token bridge
 
 `design/tokens.css` says "Colors are authored in OKLCH; hex fallbacks are the sRGB render."
 The two columns disagree. Converting each OKLCH value exactly gives a different colour than
@@ -23,4 +23,7 @@ each mismatch, and `Tests/NRUITests/TokenTests.swift` fails until the file agree
 2. **OKLCH wins.** Rewrite the hex comments to the true renders. Dark mode becomes near-black
    and relish becomes `#9CE700`; the brand hex in CLAUDE.md and the manifest would need editing.
 
-**Decision:** _pending_.
+**Decision (Ryan, 2026-09-16):** option 1. Every OKLCH value in `tokens.css` is now the exact
+conversion of its hex; `--relish-ink` dark, which had no hex, gained one (`#030C00`) from its
+OKLCH. `tokens.css` and the manifest are v1.1.1. `scripts/gen-tokens.swift` emits no warnings
+and `TokenTests.coloursMatchHexFallbacks` passes.

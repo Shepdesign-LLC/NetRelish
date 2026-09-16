@@ -1,33 +1,35 @@
-/* NetRelish tokens — Brand Lock v1.1
+/* NetRelish tokens — Brand Lock v1.1.1
  * Source of truth for every color, space, radius, and type size across macOS, iOS, and the site.
  * Sources/UI/Tokens.swift is GENERATED from this file. Edit here, regenerate there.
  * Colors are authored in OKLCH; hex fallbacks are the sRGB render for tooling that can't read OKLCH.
+ * v1.1.1 (2026-09-16): every OKLCH value re-derived exactly from its hex fallback — the v1.1 numbers
+ * were approximations that rendered darker than the hexes (ADR 0001). The hexes are unchanged.
  */
 
 :root {
   /* ---------- Neutral base (light) ---------- */
-  --nr-bg:            oklch(99.2% 0.002 100);   /* #FCFCFB  window */
-  --nr-surface:       oklch(100%  0     0);     /* #FFFFFF  cards, bench chrome */
-  --nr-surface-2:     oklch(97%   0.003 100);   /* #F5F5F3  shelf, inspector */
-  --nr-hairline:      oklch(90%   0.004 100);   /* #E3E3E0  1px borders */
-  --nr-fg:            oklch(18%   0.005 100);   /* #1D1D1B  primary text */
-  --nr-fg-2:          oklch(45%   0.006 100);   /* #66665F  secondary */
-  --nr-fg-3:          oklch(62%   0.006 100);   /* #93938B  tertiary / placeholders */
+  --nr-bg:            oklch(99.1% 0.001 106.4);   /* #FCFCFB  window */
+  --nr-surface:       oklch(100% 0 0);     /* #FFFFFF  cards, bench chrome */
+  --nr-surface-2:     oklch(97% 0.003 106.4);   /* #F5F5F3  shelf, inspector */
+  --nr-hairline:      oklch(91.5% 0.004 106.5);   /* #E3E3E0  1px borders */
+  --nr-fg:            oklch(23% 0.004 106.7);   /* #1D1D1B  primary text */
+  --nr-fg-2:          oklch(50.8% 0.011 106.8);   /* #66665F  secondary */
+  --nr-fg-3:          oklch(66.1% 0.012 106.7);   /* #93938B  tertiary / placeholders */
 
   /* ---------- Relish — the single accent ---------- */
-  --relish-100:       oklch(96%   0.08  125);   /* #EEFBD0  active-jar tint, badge bg */
-  --relish-300:       oklch(90%   0.17  125);   /* #CDF48A  hover on primary */
-  --relish-500:       oklch(84.3% 0.245 128);   /* #93E413  THE relish. primary button, tab lip, seal glyph */
-  --relish-700:       oklch(62%   0.19  130);   /* #5C9A0B  relish on light bg where contrast needs it */
-  --relish-ink:       oklch(24%   0.06  135);   /* #1E3A12  text on relish-500 */
+  --relish-100:       oklch(96.7% 0.058 121.2);   /* #EEFBD0  active-jar tint, badge bg */
+  --relish-300:       oklch(91.6% 0.14 125.6);   /* #CDF48A  hover on primary */
+  --relish-500:       oklch(83.4% 0.224 130.9);   /* #93E413  THE relish. primary button, tab lip, seal glyph */
+  --relish-700:       oklch(62% 0.17 132.5);   /* #5C9A0B  relish on light bg where contrast needs it */
+  --relish-ink:       oklch(31.6% 0.073 137.4);   /* #1E3A12  text on relish-500 */
 
   /* ---------- Brand greens (mark only — never UI surfaces) ---------- */
-  --nr-squircle:      oklch(30%   0.06  150);   /* #1F3F2E  logo squircle. DO NOT use in UI */
-  --nr-steel:         oklch(72%   0.01  240);   /* #A9AFB6  logo gear. DO NOT use in UI */
+  --nr-squircle:      oklch(33.7% 0.049 159);   /* #1F3F2E  logo squircle. DO NOT use in UI */
+  --nr-steel:         oklch(75.1% 0.012 252.1);   /* #A9AFB6  logo gear. DO NOT use in UI */
 
   /* ---------- Semantic ---------- */
-  --nr-danger:        oklch(58%   0.2   27);    /* #D9432E */
-  --nr-warn:          oklch(78%   0.16  80);    /* #E4A72A  shelf-life "sinking soon" */
+  --nr-danger:        oklch(59.7% 0.19 31.1);    /* #D9432E */
+  --nr-warn:          oklch(76.7% 0.148 79.9);    /* #E4A72A  shelf-life "sinking soon" */
   --nr-focus:         var(--relish-500);
 
   /* ---------- Space (4pt grid) ---------- */
@@ -65,21 +67,21 @@
 /* ---------- Dark ---------- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --nr-bg:        oklch(14%  0.004 100);   /* #171716 */
-    --nr-surface:   oklch(18%  0.004 100);   /* #1D1D1B */
-    --nr-surface-2: oklch(22%  0.004 100);   /* #262624 */
-    --nr-hairline:  oklch(30%  0.005 100);   /* #3B3B38 */
-    --nr-fg:        oklch(95%  0.003 100);   /* #F0F0EE */
-    --nr-fg-2:      oklch(70%  0.005 100);   /* #A8A8A2 */
-    --nr-fg-3:      oklch(52%  0.005 100);   /* #77776F */
-    --relish-100:   oklch(28%  0.07  130);   /* #26400E  active-jar tint on dark */
-    --relish-ink:   oklch(14%  0.04  135);
+    --nr-bg:        oklch(20.4% 0.002 106.6);   /* #171716 */
+    --nr-surface:   oklch(23% 0.004 106.7);   /* #1D1D1B */
+    --nr-surface-2: oklch(26.8% 0.004 106.6);   /* #262624 */
+    --nr-hairline:  oklch(35.1% 0.005 106.7);   /* #3B3B38 */
+    --nr-fg:        oklch(95.5% 0.003 106.4);   /* #F0F0EE */
+    --nr-fg-2:      oklch(73% 0.009 106.6);   /* #A8A8A2 */
+    --nr-fg-3:      oklch(56.7% 0.012 106.8);   /* #77776F */
+    --relish-100:   oklch(33.8% 0.081 133);   /* #26400E  active-jar tint on dark */
+    --relish-ink:   oklch(14%  0.04  135);   /* #030C00  text on relish-500, dark */
   }
 }
 :root[data-theme="dark"] {
-  --nr-bg: oklch(14% 0.004 100); --nr-surface: oklch(18% 0.004 100); --nr-surface-2: oklch(22% 0.004 100);
-  --nr-hairline: oklch(30% 0.005 100); --nr-fg: oklch(95% 0.003 100); --nr-fg-2: oklch(70% 0.005 100);
-  --nr-fg-3: oklch(52% 0.005 100); --relish-100: oklch(28% 0.07 130); --relish-ink: oklch(14% 0.04 135);
+  --nr-bg: oklch(20.4% 0.002 106.6); --nr-surface: oklch(23% 0.004 106.7); --nr-surface-2: oklch(26.8% 0.004 106.6);
+  --nr-hairline: oklch(35.1% 0.005 106.7); --nr-fg: oklch(95.5% 0.003 106.4); --nr-fg-2: oklch(73% 0.009 106.6);
+  --nr-fg-3: oklch(56.7% 0.012 106.8); --relish-100: oklch(33.8% 0.081 133); --relish-ink: oklch(14% 0.04 135);
 }
 
 /* Contrast rule carried from earlier work: pick text polarity by OKLab L > 0.62 first, then verify WCAG.

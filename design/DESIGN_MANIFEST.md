@@ -114,6 +114,7 @@ Dark-green glass · gradient text in the product · relish backgrounds · a seco
 ---
 
 ## Changelog
+- **v1.1.1 (Sept 16 2026)** — `tokens.css` OKLCH values re-derived exactly from their hex fallbacks; the v1.1 numbers were approximations that rendered darker (relish-500 came out `#9CE700`). Hexes unchanged. Decided by Ryan, ADR 0001.
 - **v1.1 (consolidated, Sept 16 2026)** — merged Brand Lock v1.1 + Design Manifest v1.1 into one file. Token values re-derived; original file wins on values if recovered.
 - **v1.1 (Sept 15 2026)** — neutral base locked; relish placement list made exhaustive; cog variant approved; dark-green world retired.
 - **v1.0** — mark, vocabulary, OKLCH system, superellipse n=5 carried over from the Shepdesign toolkit era.
