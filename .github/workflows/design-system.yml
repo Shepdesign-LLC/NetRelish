@@ -16,7 +16,7 @@ jobs:
     name: Generated files match /design
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Regenerate Tokens.swift and Symbols.swift
         run: |
           swift scripts/gen-tokens.swift design/tokens.css > /tmp/Tokens.swift
@@ -40,14 +40,13 @@ jobs:
 
   build-and-test:
     name: Build + test (macOS 27 SDK)
-    runs-on: macos-latest
+    # The `xcode-27` image is macOS 27 with Xcode 27 as default; `macos-latest`
+    # is still macOS 26 and cannot build for the macOS 27 floor.
+    runs-on: xcode-27
     steps:
-      - uses: actions/checkout@v4
-      - name: Select newest Xcode
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Toolchain
         run: |
-          ls /Applications | grep -i xcode || true
-          NEWEST=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
-          sudo xcode-select -s "$NEWEST"
           xcodebuild -version
           swift --version
       - name: Build
@@ -56,7 +55,7 @@ jobs:
         run: swift test
       - name: Render the Design Kit (light + dark)
         run: .build/debug/DesignKit --snapshot design-kit-snapshots
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: design-kit-snapshots
           path: design-kit-snapshots/*.png
