@@ -69,7 +69,8 @@ jobs:
             -configuration Debug-AppStore -derivedDataPath "$DERIVED" \
             -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet test
       - name: Render the Design Kit (light + dark)
-        run: "$DERIVED/Build/Products/Debug-AppStore/NetRelish.app/Contents/MacOS/NetRelish" --snapshot design-kit-snapshots
+        run: |
+          "$DERIVED/Build/Products/Debug-AppStore/NetRelish.app/Contents/MacOS/NetRelish" --snapshot design-kit-snapshots
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: design-kit-snapshots
