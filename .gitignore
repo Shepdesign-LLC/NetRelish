@@ -1,26 +1,20 @@
-# deps
-node_modules/
-.pnp
-.pnp.js
+# Swift package / Xcode build output
+.build/
+.swiftpm/
+DerivedData/
+*.xcuserstate
+xcuserdata/
 
-# build output
-dist/
-dist-ssr/
-apps/desktop/src-tauri/target/
-apps/desktop/src-tauri/gen/
-
-# env & secrets — NEVER commit these
+# secrets — NEVER commit these (CLAUDE.md: endpoints come from Config.xcconfig)
+Config.xcconfig
 .env
 .env.*
-!.env.example
 *.p12
 *.cer
 *.certSigningRequest
 *.provisionprofile
 AuthKey_*.p8
-apps/desktop/src-tauri/*.key
-apps/desktop/src-tauri/updater.key
-apps/desktop/src-tauri/updater.key.pub
+*.key
 
 # macOS
 .DS_Store
@@ -35,12 +29,3 @@ apps/desktop/src-tauri/updater.key.pub
 
 # logs
 *.log
-npm-debug.log*
-
-# the embedding model is fetched by scripts/ensure-model.mjs, not committed
-apps/desktop/src-tauri/models/
-
-# Swift package build output (P0 design system + Design Kit)
-.build/
-.swiftpm/
-Config.xcconfig
