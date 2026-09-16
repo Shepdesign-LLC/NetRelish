@@ -9,7 +9,7 @@
 //   • a dark value must override a light value that exists
 //   • no token is invented here — if it isn't in the CSS, it isn't emitted
 //
-// Colours: OKLCH → OKLab → linear sRGB → XYZ (D65) → linear Display P3 → P3 gamma.
+// Colors: OKLCH → OKLab → linear sRGB → XYZ (D65) → linear Display P3 → P3 gamma.
 // The sRGB hex in each doc comment is computed the same way and clipped; it is
 // compared against the CSS comment's hex fallback and a mismatch is a warning.
 
@@ -130,7 +130,7 @@ func lit(_ s: String) -> String {
     s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
 }
 
-// MARK: - Colour maths
+// MARK: - Color maths
 
 struct RGB { var r: Double, g: Double, b: Double }
 
@@ -243,7 +243,7 @@ func doc(_ d: Decl, extra: String? = nil) -> String {
 }
 
 // --- NRColor -------------------------------------------------------------
-line("/// Colours from tokens.css. Display P3, light + dark via a dynamic `NSColor`.")
+line("/// Colors from tokens.css. Display P3, light + dark via a dynamic `NSColor`.")
 line("/// `--nr-squircle` and `--nr-steel` exist only so the mark renders from tokens (manifest §2).")
 line("public enum NRColor {")
 var aliasQueue: [(Decl, String)] = []
@@ -251,20 +251,20 @@ for d in light where home(of: d.name) == .color {
     let name = swiftName(d.name, dropping: ["nr"])
     if d.value.hasPrefix("var(") {
         let target = d.value.dropFirst(4).dropLast().trimmingCharacters(in: .whitespaces)
-        guard home(of: target) == .color else { fail("\(d.name) aliases \(target), which is not a colour") }
+        guard home(of: target) == .color else { fail("\(d.name) aliases \(target), which is not a color") }
         if let dv = dark[d.name], dv != normalized(d.value) { fail("\(d.name) is an alias in light but a value in dark") }
         aliasQueue.append((d, swiftName(target, dropping: ["nr"])))
         catalog.append(Emitted(css: d.name, swift: name, enumName: "NRColor", describe: "= \(target)"))
         continue
     }
-    guard let lp = parseOKLCH(d.value) else { fail("\(d.name): cannot parse colour `\(d.value)`") }
+    guard let lp = parseOKLCH(d.value) else { fail("\(d.name): cannot parse color `\(d.value)`") }
     if let want = hexIn(d.comment), hexDistance(want, lp.srgbHex) > 2 {
         warn("\(d.name) light renders \(lp.srgbHex) in sRGB; tokens.css comment says \(want)")
     }
     if lp.clippedP3 { warn("\(d.name) light is outside Display P3 and was clamped") }
     var dp: ParsedColor? = nil
     if let dv = dark[d.name] {
-        guard let parsed = parseOKLCH(dv) else { fail("\(d.name): cannot parse dark colour `\(dv)`") }
+        guard let parsed = parseOKLCH(dv) else { fail("\(d.name): cannot parse dark color `\(dv)`") }
         dp = parsed
         if parsed.clippedP3 { warn("\(d.name) dark is outside Display P3 and was clamped") }
     }
@@ -402,12 +402,12 @@ line()
 // --- Helpers ---------------------------------------------------------------
 line("// MARK: - Helpers (generated once, not tokens)")
 line()
-line("/// A Display P3 colour that is the same in light and dark.")
+line("/// A Display P3 color that is the same in light and dark.")
 line("private func nr_p3(_ r: Double, _ g: Double, _ b: Double) -> NSColor {")
 line("    NSColor(displayP3Red: r, green: g, blue: b, alpha: 1)")
 line("}")
 line()
-line("/// A Display P3 colour that resolves against the drawing appearance: light for Aqua, dark for Dark Aqua.")
+line("/// A Display P3 color that resolves against the drawing appearance: light for Aqua, dark for Dark Aqua.")
 line("private func nr_dynamic(light: (Double, Double, Double), dark: (Double, Double, Double)) -> NSColor {")
 line("    NSColor(name: nil) { appearance in")
 line("        let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua")

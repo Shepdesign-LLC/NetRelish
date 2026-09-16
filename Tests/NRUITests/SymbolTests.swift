@@ -19,11 +19,11 @@ import Testing
         }
     }
 
-    @Test("Logos load full-colour, never as templates")
+    @Test("Logos load full-color, never as templates")
     @MainActor func logosAreNotTemplates() {
         for l in NRLogo.allCases {
             let img = l.nsImage
-            #expect(!img.isTemplate, "\(l) must keep its colours")
+            #expect(!img.isTemplate, "\(l) must keep its colors")
             #expect(img.size == NSSize(width: 100, height: 100))
         }
     }

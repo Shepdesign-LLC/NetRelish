@@ -3,7 +3,7 @@
 **Status:** accepted — option 1 · **Date:** 2026-09-16 · **PR:** design-system: swift token bridge
 
 `design/tokens.css` says "Colors are authored in OKLCH; hex fallbacks are the sRGB render."
-The two columns disagree. Converting each OKLCH value exactly gives a different colour than
+The two columns disagree. Converting each OKLCH value exactly gives a different color than
 the hex beside it, and the drift runs one way — darker:
 
 | token | OKLCH renders | hex says |
@@ -13,7 +13,7 @@ the hex beside it, and the drift runs one way — darker:
 | `--nr-bg` (dark) | `#090907` | `#171716` |
 | `--relish-ink` | `#122505` | `#1E3A12` |
 
-Every colour token is off; these are the visible ones. `scripts/gen-tokens.swift` warns on
+Every color token is off; these are the visible ones. `scripts/gen-tokens.swift` warns on
 each mismatch, and `Tests/NRUITests/TokenTests.swift` fails until the file agrees with itself.
 
 **Options**
@@ -26,4 +26,4 @@ each mismatch, and `Tests/NRUITests/TokenTests.swift` fails until the file agree
 **Decision (Ryan, 2026-09-16):** option 1. Every OKLCH value in `tokens.css` is now the exact
 conversion of its hex; `--relish-ink` dark, which had no hex, gained one (`#030C00`) from its
 OKLCH. `tokens.css` and the manifest are v1.1.1. `scripts/gen-tokens.swift` emits no warnings
-and `TokenTests.coloursMatchHexFallbacks` passes.
+and `TokenTests.colorsMatchHexFallbacks` passes.

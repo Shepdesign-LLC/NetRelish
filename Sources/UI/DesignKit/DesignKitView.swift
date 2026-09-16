@@ -62,14 +62,14 @@ public struct DesignKitView: View {
 }
 
 /// The scrolling body. Split out so the snapshot tool can render it at a fixed size
-/// under an explicit colour scheme without the controls.
+/// under an explicit color scheme without the controls.
 public struct DesignKitContent: View {
     public var sealTrigger: Int
     public init(sealTrigger: Int = 0) { self.sealTrigger = sealTrigger }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: NRSpace.sp10) {
-            KitSection("Colour", note: "tokens.css → NRColor. Display P3; each swatch resolves for the current appearance.") {
+            KitSection("Colors", note: "tokens.css → NRColor. Display P3; each swatch resolves for the current appearance.") {
                 ColorTokens()
             }
             KitSection("Space · Radius · Layout", note: "NRSpace, NRRadius. 4pt grid.") {
@@ -87,7 +87,7 @@ public struct DesignKitContent: View {
             KitSection("Symbols", note: "symbols.svg → NRSymbol, template images. Tint comes from the caller.") {
                 SymbolGrid()
             }
-            KitSection("The mark", note: "logo.svg and logo-cog.svg → NRLogo. Full colour, untouched. Clear space ½ width.") {
+            KitSection("The mark", note: "logo.svg and logo-cog.svg → NRLogo. Full color, untouched. Clear space ½ width.") {
                 LogoRow()
             }
             KitSection("Shapes", note: "Superellipse(n: 5) and JarShape — sampled from the equation, not border-radius.") {

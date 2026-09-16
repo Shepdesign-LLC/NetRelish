@@ -50,7 +50,7 @@ struct ComponentGallery: View {
                 KitCell("Seal — ⌘S. Glyph pulses once, the drip falls (seal · easeJar), tab closes, badge increments") {
                     SealDemo(trigger: sealTrigger)
                 }
-                KitCell("Bench chrome — surface, hairline-separated. Nothing brand-coloured touches the page") { BenchDemo() }
+                KitCell("Bench chrome — surface, hairline-separated. Nothing brand-colored touches the page") { BenchDemo() }
                 KitCell("Inspector — inspectorW, surface2, fsSm labels in fg2") { InspectorDemo() }
             }
             HStack(alignment: .top, spacing: NRSpace.sp8) {

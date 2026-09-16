@@ -5,7 +5,7 @@
 import AppKit
 import SwiftUI
 
-/// The seven symbols of manifest §7. Template images: colour comes from the caller.
+/// The seven symbols of manifest §7. Template images: color comes from the caller.
 public enum NRSymbol: String, CaseIterable, Sendable {
     case jar = "nr-jar"
     case jarSmart = "nr-jar-smart"
@@ -80,7 +80,7 @@ public enum NRSymbol: String, CaseIterable, Sendable {
     }
 }
 
-/// The mark (`logo.svg`) and the cog (`logo-cog.svg`), manifest §2. Full colour, never templates.
+/// The mark (`logo.svg`) and the cog (`logo-cog.svg`), manifest §2. Full color, never templates.
 public enum NRLogo: CaseIterable, Sendable {
     /// `logo.svg` — app icon, titlebar, About. Minimum 16pt.
     case mark

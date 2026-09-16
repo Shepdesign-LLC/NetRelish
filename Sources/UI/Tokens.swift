@@ -5,7 +5,7 @@
 import AppKit
 import SwiftUI
 
-/// Colours from tokens.css. Display P3, light + dark via a dynamic `NSColor`.
+/// Colors from tokens.css. Display P3, light + dark via a dynamic `NSColor`.
 /// `--nr-squircle` and `--nr-steel` exist only so the mark renders from tokens (manifest §2).
 public enum NRColor {
     /// `--nr-bg` — #FCFCFB window · light #FCFCFB · dark #171716
@@ -293,12 +293,12 @@ public enum NRTokenCatalog {
 
 // MARK: - Helpers (generated once, not tokens)
 
-/// A Display P3 colour that is the same in light and dark.
+/// A Display P3 color that is the same in light and dark.
 private func nr_p3(_ r: Double, _ g: Double, _ b: Double) -> NSColor {
     NSColor(displayP3Red: r, green: g, blue: b, alpha: 1)
 }
 
-/// A Display P3 colour that resolves against the drawing appearance: light for Aqua, dark for Dark Aqua.
+/// A Display P3 color that resolves against the drawing appearance: light for Aqua, dark for Dark Aqua.
 private func nr_dynamic(light: (Double, Double, Double), dark: (Double, Double, Double)) -> NSColor {
     NSColor(name: nil) { appearance in
         let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua

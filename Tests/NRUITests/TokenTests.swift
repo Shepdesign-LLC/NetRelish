@@ -26,11 +26,11 @@ private func close(_ a: (Int, Int, Int), _ b: (Int, Int, Int), tol: Int) -> Bool
 
 @Suite("Tokens") struct TokenTests {
 
-    /// Every colour in tokens.css carries an sRGB hex fallback. The generated Color,
+    /// Every color in tokens.css carries an sRGB hex fallback. The generated Color,
     /// resolved in light and dark, must land on that hex (± rounding). This is the
     /// OKLCH → P3 maths, checked end to end through the real generated file.
-    @Test("Every colour token round-trips to its hex fallback, light and dark")
-    @MainActor func coloursMatchHexFallbacks() throws {
+    @Test("Every color token round-trips to its hex fallback, light and dark")
+    @MainActor func colorsMatchHexFallbacks() throws {
         let css = try CSSFixture(contentsOf: repoRoot.appendingPathComponent("design/tokens.css"))
         var checked = 0
         for entry in NRTokenCatalog.colors {
@@ -45,7 +45,7 @@ private func close(_ a: (Int, Int, Int), _ b: (Int, Int, Int), tol: Int) -> Bool
             }
             checked += 1
         }
-        #expect(checked >= 15, "expected to check most colour tokens, checked \(checked)")
+        #expect(checked >= 15, "expected to check most color tokens, checked \(checked)")
     }
 
     @Test("--nr-focus is relish-500, not a copy of it")

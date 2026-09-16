@@ -3,7 +3,7 @@
 #if DEBUG
 import SwiftUI
 
-// MARK: - Colour
+// MARK: - Color
 
 struct ColorTokens: View {
     private let columns = [GridItem(.adaptive(minimum: 200), spacing: NRSpace.sp3, alignment: .leading)]
@@ -27,7 +27,7 @@ struct ColorTokens: View {
     }
 }
 
-/// The sRGB hex a token resolves to in the *current* appearance — proof the dynamic colour flips.
+/// The sRGB hex a token resolves to in the *current* appearance — proof the dynamic color flips.
 struct ResolvedHex: View {
     let color: Color
     @Environment(\.colorScheme) private var scheme

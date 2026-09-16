@@ -5,8 +5,8 @@
 //
 // Each `<symbol>` becomes a standalone SVG document embedded as a string and loaded
 // through `NSImage(data:)` as a *template* image, so `currentColor` is whatever tint
-// the caller sets. The logos are embedded byte-for-byte and loaded *full colour* —
-// a template would recolour the mark, which the manifest forbids (§2).
+// the caller sets. The logos are embedded byte-for-byte and loaded *full color* —
+// a template would recolor the mark, which the manifest forbids (§2).
 //
 // The seven ids from manifest §7 are required, in that order. Anything else in the
 // file is an error: no custom icons beyond §7.
@@ -95,7 +95,7 @@ line()
 line("import AppKit")
 line("import SwiftUI")
 line()
-line("/// The seven symbols of manifest §7. Template images: colour comes from the caller.")
+line("/// The seven symbols of manifest §7. Template images: color comes from the caller.")
 line("public enum NRSymbol: String, CaseIterable, Sendable {")
 for s in symbols { line("    case \(caseName(s.id)) = \"\(s.id)\"") }
 line()
@@ -116,7 +116,7 @@ line("        }")
 line("    }")
 line("}")
 line()
-line("/// The mark (`logo.svg`) and the cog (`logo-cog.svg`), manifest §2. Full colour, never templates.")
+line("/// The mark (`logo.svg`) and the cog (`logo-cog.svg`), manifest §2. Full color, never templates.")
 line("public enum NRLogo: CaseIterable, Sendable {")
 line("    /// `logo.svg` — app icon, titlebar, About. Minimum 16pt.")
 line("    case mark")
