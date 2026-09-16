@@ -194,7 +194,10 @@ paste → restore `_id` → ✓.
 }
 ```
 
-**Checkpoint:** the Schemas list on the right shows seven names. Nothing else.
+**Checkpoint:** the Models tab's right-hand list shows seven names — models are generated
+from schemas, so that list is the proof. (The Schemas tab itself shows **one schema per
+page**; the right-hand list there only names the current page. Step through pages with the
+**‹ ›** arrows at the top right. Nothing is missing when you only see one.)
 
 ---
 
