@@ -11,7 +11,7 @@ options:
     macOS: "27.0"
   xcodeVersion: "27.0"
   createIntermediateGroups: true
-  generateEmptyDirectories: true
+  generateEmptyDirectories: false
   groupSortPosition: top
 
 # Two product flavors × debug/release. AppStore is StoreKit; Direct defines DIRECT_BUILD

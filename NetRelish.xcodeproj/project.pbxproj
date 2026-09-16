@@ -201,7 +201,6 @@
 		AB8A0C95C34CB4DC7B3F6AB8 /* Pantry */ = {
 			isa = PBXGroup;
 			children = (
-				E2BBE382BA48C7A39DFCA4F0 /* Migrations */,
 				F037DB20D174BDE22C182A86 /* Pantry.swift */,
 			);
 			path = Pantry;
@@ -235,13 +234,6 @@
 				847FE03DCF1AAF9768A5CEFC /* Direct.xcconfig */,
 			);
 			path = Config;
-			sourceTree = "<group>";
-		};
-		E2BBE382BA48C7A39DFCA4F0 /* Migrations */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Migrations;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
