@@ -2,24 +2,9 @@ import Foundation
 
 /// Repo root, derived from this file's location so tests work from `swift test` and Xcode alike.
 let repoRoot: URL = URL(fileURLWithPath: #filePath)
-    .deletingLastPathComponent()   // NRUITests
+    .deletingLastPathComponent()   // NetRelishTests
     .deletingLastPathComponent()   // Tests
     .deletingLastPathComponent()   // repo
-
-/// Runs `swift <script> <args>` and returns (exitCode, stdout, stderr).
-func runScript(_ script: String, _ args: [String]) throws -> (Int32, String, String) {
-    let p = Process()
-    p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-    p.arguments = ["swift", repoRoot.appendingPathComponent(script).path] + args
-    let out = Pipe(), err = Pipe()
-    p.standardOutput = out
-    p.standardError = err
-    try p.run()
-    let o = out.fileHandleForReading.readDataToEndOfFile()
-    let e = err.fileHandleForReading.readDataToEndOfFile()
-    p.waitUntilExit()
-    return (p.terminationStatus, String(decoding: o, as: UTF8.self), String(decoding: e, as: UTF8.self))
-}
 
 /// Minimal tokens.css reader for tests: returns (light, dark) maps of `--name` → raw value,
 /// plus the hex found in each light/dark line's trailing comment, if any.

@@ -1,0 +1,77 @@
+name: CI
+
+# Runs on every push and PR. Three things must hold:
+#   1. generated files match their sources (Tokens.swift, Symbols.swift, NetRelish.xcodeproj)
+#   2. both product flavors build — AppStore and Direct (DIRECT_BUILD)
+#   3. the tests pass (hosted NetRelishTests + unhosted GeneratorTests)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  DERIVED: .build/DerivedData
+
+jobs:
+  generated-files:
+    name: Generated files match their sources
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Regenerate Tokens.swift and Symbols.swift
+        run: |
+          swift scripts/gen-tokens.swift design/tokens.css > /tmp/Tokens.swift
+          swift scripts/gen-symbols.swift design/symbols.svg design/logo.svg design/logo-cog.svg > /tmp/Symbols.swift
+          diff -u Sources/UI/Tokens.swift /tmp/Tokens.swift || { echo "::error file=Sources/UI/Tokens.swift::stale — swift scripts/gen-tokens.swift design/tokens.css > Sources/UI/Tokens.swift"; exit 1; }
+          diff -u Sources/UI/Symbols.swift /tmp/Symbols.swift || { echo "::error file=Sources/UI/Symbols.swift::stale — swift scripts/gen-symbols.swift design/symbols.svg design/logo.svg design/logo-cog.svg > Sources/UI/Symbols.swift"; exit 1; }
+      - name: Regenerate NetRelish.xcodeproj
+        run: |
+          brew install xcodegen >/dev/null
+          cp -R NetRelish.xcodeproj /tmp/committed.xcodeproj
+          xcodegen generate --quiet
+          diff -ru /tmp/committed.xcodeproj NetRelish.xcodeproj || { echo "::error file=project.yml::NetRelish.xcodeproj is stale — run scripts/gen-project.sh"; exit 1; }
+      - name: Logos are untouched
+        run: shasum -a 256 design/logo.svg design/logo-cog.svg
+
+  build:
+    name: Build ${{ matrix.flavor }}
+    # xcode-27 is the only image with the macOS 27 SDK; macos-latest is still macOS 26.
+    runs-on: xcode-27
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flavor: AppStore
+            scheme: NetRelish (App Store)
+            configuration: Release-AppStore
+          - flavor: Direct
+            scheme: NetRelish (Direct)
+            configuration: Release-Direct
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Toolchain
+        run: xcodebuild -version
+      - name: Build (unsigned — CI has no certificate)
+        run: |
+          xcodebuild -project NetRelish.xcodeproj -scheme "${{ matrix.scheme }}" \
+            -configuration "${{ matrix.configuration }}" -derivedDataPath "$DERIVED" \
+            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
+
+  test:
+    name: Test
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Test (Debug-AppStore, both bundles)
+        run: |
+          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
+            -configuration Debug-AppStore -derivedDataPath "$DERIVED" \
+            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet test
+      - name: Render the Design Kit (light + dark)
+        run: |
+          "$DERIVED/Build/Products/Debug-AppStore/NetRelish.app/Contents/MacOS/NetRelish" --snapshot design-kit-snapshots
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: design-kit-snapshots
+          path: design-kit-snapshots/*.png

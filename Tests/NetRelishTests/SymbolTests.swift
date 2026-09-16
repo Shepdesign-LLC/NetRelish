@@ -1,6 +1,6 @@
 import AppKit
 import Testing
-@testable import NRUI
+@testable import NetRelish
 
 @Suite("Symbols") struct SymbolTests {
 

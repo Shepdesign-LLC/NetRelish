@@ -29,22 +29,28 @@ The contract is [`CLAUDE.md`](CLAUDE.md). The design of record is
 
 ## Build
 
-Requires Xcode 27 on macOS 27.
+Requires Xcode 27 on macOS 27. Open `NetRelish.xcodeproj` and run the
+*NetRelish (App Store)* scheme, or from the command line:
 
 ```bash
-swift build && swift test
+open "$(scripts/build-app.sh)"
 ```
 
-Until the Xcode project lands (P0, prompt 2), the app surface is the
-DEBUG-only Design Kit:
+Two flavors — *App Store* (StoreKit) and *Direct* (Developer ID, defines
+`DIRECT_BUILD`) — each in Debug and Release. Debug builds carry the Design Kit
+under *Window → Design Kit*. Endpoints come from `Config.xcconfig` (gitignored;
+copy `Config.xcconfig.example`).
 
-```bash
-scripts/build-designkit.sh && open .build/DesignKit.app
-```
+Three things are generated and must never be hand-edited; CI fails on drift:
 
-`Sources/UI/Tokens.swift` and `Symbols.swift` are generated from `design/` by
-`scripts/gen-tokens.swift` and `scripts/gen-symbols.swift`. Edit the design
-files, regenerate, commit both; CI fails on drift.
+| File | Source | Regenerate |
+|---|---|---|
+| `Sources/UI/Tokens.swift` | `design/tokens.css` | `swift scripts/gen-tokens.swift design/tokens.css > Sources/UI/Tokens.swift` |
+| `Sources/UI/Symbols.swift` | `design/symbols.svg` + logos | `swift scripts/gen-symbols.swift design/symbols.svg design/logo.svg design/logo-cog.svg > Sources/UI/Symbols.swift` |
+| `NetRelish.xcodeproj` | `project.yml` | `scripts/gen-project.sh` (needs `brew install xcodegen`) |
+
+The app icon is `Resources/AppIcon.icns`, rendered from `design/logo.svg` by
+`scripts/gen-appicon.swift`.
 
 ## Plan
 
