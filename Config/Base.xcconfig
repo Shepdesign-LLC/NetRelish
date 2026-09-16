@@ -1,0 +1,9 @@
+// Base.xcconfig — shared by every configuration.
+// Endpoints and license settings live in Config.xcconfig (gitignored, see
+// Config.xcconfig.example). The include is optional so a fresh clone builds.
+#include? "../Config.xcconfig"
+
+// Defaults so the build never fails on an unset endpoint; the app treats an
+// empty string as "feature off". Config.xcconfig overrides these.
+NR_TIMESTAMP_URL =
+NR_LICENSE_ACTIVATION_URL =

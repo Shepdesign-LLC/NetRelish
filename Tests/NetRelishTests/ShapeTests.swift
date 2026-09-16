@@ -1,6 +1,6 @@
 import SwiftUI
 import Testing
-@testable import NRUI
+@testable import NetRelish
 
 @Suite("Shapes") struct ShapeTests {
 

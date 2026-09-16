@@ -24,21 +24,21 @@ import Testing
 
     @Test("Dark blocks that disagree are rejected")
     func darkMismatchRejected() throws {
-        let (code, _, err) = try runScript("scripts/gen-tokens.swift", ["Tests/NRUITests/Fixtures/bad-dark-mismatch.css"])
+        let (code, _, err) = try runScript("scripts/gen-tokens.swift", ["Tests/GeneratorTests/Fixtures/bad-dark-mismatch.css"])
         #expect(code != 0)
         #expect(err.contains("--nr-bg"))
     }
 
     @Test("A property with no enum to live in is rejected")
     func unknownPropertyRejected() throws {
-        let (code, _, err) = try runScript("scripts/gen-tokens.swift", ["Tests/NRUITests/Fixtures/bad-unknown-property.css"])
+        let (code, _, err) = try runScript("scripts/gen-tokens.swift", ["Tests/GeneratorTests/Fixtures/bad-unknown-property.css"])
         #expect(code != 0)
         #expect(err.contains("--mystery-thing"))
     }
 
     @Test("A dark-only property with no light value is rejected")
     func darkOrphanRejected() throws {
-        let (code, _, err) = try runScript("scripts/gen-tokens.swift", ["Tests/NRUITests/Fixtures/bad-dark-orphan.css"])
+        let (code, _, err) = try runScript("scripts/gen-tokens.swift", ["Tests/GeneratorTests/Fixtures/bad-dark-orphan.css"])
         #expect(code != 0)
         #expect(err.contains("--nr-ghost"))
     }

@@ -1,0 +1,11 @@
+// Config.xcconfig — copy this file to Config.xcconfig at the repo root and fill it in.
+// Config.xcconfig is gitignored. Never commit real values.
+//
+// CLAUDE.md non-negotiable 5: these are the ONLY endpoints the app may talk to
+// besides page loads and StoreKit. Adding one here is adding one to that list.
+
+// RFC 3161 timestamping authority for Pro provenance.
+NR_TIMESTAMP_URL = https://timestamp.example.com/tsr
+
+// One-time license activation for the Direct build only. Unused by the App Store build.
+NR_LICENSE_ACTIVATION_URL = https://license.example.com/activate

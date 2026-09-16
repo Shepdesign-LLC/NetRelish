@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import Testing
-@testable import NRUI
+@testable import NetRelish
 
 /// Resolves a token Color under a given appearance and returns 0–255 sRGB components.
 @MainActor
