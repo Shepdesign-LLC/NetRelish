@@ -1,6 +1,6 @@
 # netrelish-site — design
 
-**Date:** 2026-09-16 · **Status:** approved for build (Ryan, this session) · **Repo:** `Shepdesign-LLC/netrelish-site` (new)
+**Date:** 2026-09-16 (rev 2, after Ryan's Sept 12 draft) · **Status:** approved for build (Ryan, this session) · **Repo:** `Shepdesign-LLC/netrelish-site` (new)
 
 The marketing site for NetRelish. One page, launch-ready today, collecting beta leads into Bento. Governed by `netrelish/design/DESIGN_MANIFEST.md` §10 (Site) and `tokens.css`; this document adds only what the manifest leaves to the site.
 
@@ -40,7 +40,8 @@ netrelish-site/
     pages/thanks.astro    post-signup
     pages/privacy.astro   what the form does with an email
     pages/api/join.ts     the one server route (prerender = false)
-    components/           Hero, Section, Pricing, JoinForm, Footer — one file each
+    components/           Nav, Hero, SealStage, Row, Intelligence, Pickle, Pro, Questions, JoinForm, Footer — one file each
+    components/mocks/     the CSS mock objects for §4.3 (Tray, Shelf, Inspector, PantryResults, Recipe)
     styles/site.css       everything the page needs beyond tokens.css
   astro.config.mjs, package.json, .github/workflows/ci.yml, README.md, LICENSE (MIT; mark excluded)
 ```
@@ -49,58 +50,75 @@ netrelish-site/
 
 ## 4 · The page
 
-One route, `/`, sections in this order. Every section is a component with one job.
+One route, `/`. Structure follows Ryan's Sept 12 draft (`netrelish-site.html`), rebuilt on manifest v1.1.1: current tokens, `symbols.svg`, system type below the hero, relish only where §6 says. Every section is a component with one job. Where the draft used placeholder screenshots there is no app to screenshot yet, so those slots are CSS mock objects built from the design-kit components (tab strip, shelf, inspector) — real screenshots replace them when P1 lands.
+
+### 4.0 Nav
+
+Sticky, `--nr-bg` solid (no blur, no glass — manifest §6), hairline bottom. Left: `logo-cog.svg` at 30px + "NetRelish" in `--font-ui` 600. Right: text links *How it works · Intelligence · Pro · Questions*, then a secondary button **Join the beta** that scrolls to the hero form. At launch the button becomes *Download*.
 
 ### 4.1 Hero
 
-- `logo-cog.svg` at 64px (manifest: shown larger than the full mark would be; clear space ½ width).
-- H1 in `--font-hero`, wght 800 / wdth 100 / opsz 96: **"The browser that preserves your work."**
-- One paragraph in `--font-ui`, `--fs-lg`: what it is, in product words. Draft: *"NetRelish is a Mac browser with a pantry. Idle tabs sink into brine. The ones worth keeping you seal into jars — searchable, private, and never leaving your Mac."*
-- The join form inline (§5): email field + primary button **"Join the beta"**. This is relish placement #8 and the page's only primary button.
-- Requirement line under the form, `--fs-sm` in `--nr-fg-2`: *"macOS 27 or later · Mac App Store · Beta invites go out in waves."*
+- `logo-cog.svg` at 132px beside the copy (clear space ½ width). No drop shadow — the manifest allows none on the mark.
+- H1 in `--font-hero`, wght 800 / wdth 100 / opsz 96: **"Keep the pages that matter."**
+- Sub, `--font-ui` `--fs-xl` in `--nr-fg-2`: *"NetRelish is a Mac browser with a pantry. Save any page with one key, sort it into jars, and seal the ones you'll need again — searchable, summarized on your Mac, offline."*
+- The join form inline (§5): email field + primary button **"Join the beta"** — the page's one relish button. Beside it a secondary button *See how it works* → `#how`.
+- Requirement line, `--fs-sm` in `--nr-fg-3`: *"macOS 27 or later · Apple silicon · Free, with a Pro upgrade · Beta invites go out in waves."*
 
-### 4.2 What it does
+### 4.2 The Seal stage (in the hero)
 
-Four items, nouns from the vocabulary, one line each, `#nr-jar` / `#nr-seal` / `#nr-sink` from `symbols.svg` where a jar, seal, or sinking is meant. No other icons.
+The draft's centerpiece, kept: a mock browser window in a `--nr-surface-2` stage with `--r-3` corners. Window bar with three tabs (active tab carries `#nr-lip`, others carry shelf-life bars), a `--shelf-w` shelf with three `#nr-jar`, a page of hairline placeholder lines. On a 4.4s loop: a page card lifts, shrinks toward the active jar (`--relish-100` tint), the lid caps, **one drip runs** (`#nr-drip`, relish — this is the Seal's drip and the only one on the page), the active tab collapses so the count visibly drops, a badge toast *Sealed to Reference* (`--relish-100` bg, `--relish-700` text). Plays only while in view (IntersectionObserver); `prefers-reduced-motion` freezes it on the final frame. Caption under it: *Press ⌘S. The page is preserved, the tab closes, the jar keeps it.*
 
-| Noun | Line |
-|---|---|
-| Jars | Every project is a jar. Every jar is a profile — its own cookies, its own logins. Nothing crosses. |
-| Brine | Tabs you stop using sink instead of piling up. Pinned tabs never sink. |
-| Seal | ⌘S freezes the page as a `.webarchive`, closes the tab, and files it. Sealed pages don't change. |
-| Recipes | Record what you do in a jar; replay it with ⌘R. Every Recipe is a Shortcut. |
+The card gets the one floating-sheet shadow the manifest allows; nothing else on the page has a shadow.
 
-Symbols render in `--nr-fg`; `#nr-seal` is the exception and renders in `--relish-500` (placement #4).
+### 4.3 How it works — five rows, alternating
 
-### 4.3 On your Mac, on device
+Each row: mono eyebrow in `--nr-fg-3`, H2 in `--font-ui` 600 `--fs-2xl`, one or two paragraphs in `--nr-fg-2`, and a mock object opposite.
 
-The four §11 claims, substance locked, one short line each:
+| Eyebrow | H2 | Copy | Mock |
+|---|---|---|---|
+| Capture | One key to save anything. | Press ⌘D on any page, or share from any app. It lands in Brine, right where you can see it. Nothing gets lost in a bookmarks folder again. | Brine tray with three items |
+| Sort | Jars, not folders. | Drag a saved page onto a jar on the Shelf. Jars are where your projects live — clients, research, reading, whatever you're working on this month. Every jar is its own profile: its own cookies, its own logins. Switch with ⌘1–9. | Shelf with four jars, one active |
+| Seal | Seal it, and it's yours. | Sealing saves a complete snapshot, closes the tab, and runs the jar's Recipe. The page is preserved exactly as you saw it and never changes. The tab count goes down. That's the point. | Inspector after a seal |
+| Search | Search what you kept, not the whole internet. | Every sealed page is indexed in full. Find it from Ask the Pantry or straight from Spotlight. | Ask the Pantry result rows with `#nr-jar` provenance chips |
+| Recipes | Workflows that run on save. | A Recipe is a short list of steps: label it, move it, summarize it, export it. Attach one to a jar and it runs on every seal. Every Recipe is a Shortcut, so Siri and the rest of your Mac can run it too. | Recipe row beside a Shortcuts tile |
 
-1. **Ask the Pantry runs on-device.** It answers over what you've sealed. Nothing leaves the Mac.
-2. **Recipes are Shortcuts.** Siri and Shortcuts can run any Recipe.
-3. **Seal sorts for you.** Kind, labels, and a suggested jar are proposed from the sealed snapshot.
-4. **Writing Tools in your notes.** Notes on sealed pages get system Writing Tools.
+### 4.4 Intelligence
 
-Followed by the privacy line, stated exactly as the non-negotiable allows: *"NetRelish makes no network calls except the pages you load, the App Store, and — on Pro — a signed timestamp for your sealed pages."*
+Eyebrow *Apple Intelligence*. H2 **Built for Apple Intelligence. Reads only what you've kept.** Four items in a 2×2, the §11 claims in the draft's words, bound by non-negotiable 4:
 
-### 4.4 Pricing
+1. **Summaries, on your Mac.** Every sealed page gets a summary from on-device Foundation Models. No page leaves the machine.
+2. **Seal sorts for you.** Kind, labels, and a suggested jar are proposed at seal time, from the snapshot.
+3. **Siri and Shortcuts.** Every Recipe is an App Intent. "Seal this into Clients" works from Siri, Shortcuts, the Action button, and Focus.
+4. **Nothing to trick.** Intelligence reads sealed snapshots, never a live tab or a logged-in session. There's no agent in your browser for a page to hijack.
 
-Two columns, hairline-separated, secondary-button styling only (no second relish fill on the page).
+(The draft's "Visual Intelligence on capture" is dropped: reading on the way in is not reading a sealed snapshot.)
 
-- **Free** — the browser: jars, brine, seal, Ask the Pantry, Recipes.
-- **Pro** — **$39/yr or $99 lifetime.** Line items: *Provenance — every sealed page carries a signed RFC 3161 timestamp.* Further Pro items are added when P4 decides them; the component takes a list.
-- Block ends with the sentence **"Buy once, use forever."** (manifest §10, verbatim).
-- Both columns' action is the same text link, `--nr-fg` underlined: *"In beta — join the list"* → scrolls to the hero form. At launch this becomes the App Store badge.
+### 4.5 Pickle
 
-### 4.5 Footer
+Eyebrow *Pickle · coming in 1.2 · Direct build*. H2 **A jar that runs your site.** One paragraph from the draft: a Pickle is a jar with a local environment inside it — one click starts it on your Mac with OrbStack or Docker, opens it on the Bench, and keeps it in step with a GitHub repo you sign into once. Mock: `#nr-jar-pickle` beside a mono line *localhost:8080 · main · synced*.
 
-Open-core line: *"NetRelish is open source under MIT. The name, the mark, and the App Store listing are reserved."* Links: GitHub, Privacy, `hello@` (Ryan supplies the address or the link is omitted). Mark at 16px is `logo.svg`, not the cog.
+### 4.6 Pro
 
-### 4.6 `/thanks`
+On `--nr-surface-2`. Eyebrow *Pro*. H2 **Pro turns saved pages into evidence.** A four-cell hairline grid — Reseal and diff · Provenance · Jar bundles · Unlimited recipes + semantic search — then two plan cards, hairline-bordered, no relish border, no drip:
+
+- **Free · $0 · forever** — Capture, jars, seal, full-text search · 3 Recipes · Share extension, Spotlight, Shortcuts.
+- **Pro · $39 · per year, or $99 once** — Everything in Free · Reseal and diff, provenance export · Jar bundles, unlimited Recipes · Semantic search.
+
+Contents are ADR 0003. List markers are plain (no relish bullets). Each card's action is a secondary button *Join the beta* → hero form; at launch, *Download* / *Get Pro*. Fine print: *"One price. No seats, no tiers, no telemetry. Buy once, use forever."*
+
+### 4.7 Questions
+
+Six `<details>` rows from the draft, hairline-separated, marker in `--nr-fg-2`: Is it a browser? (WebKit, same engine as Safari) · Where's my data? (a database on your Mac; export any time as a jar bundle) · Does it need an account? (No) · Extensions? (No; Recipes and Shortcuts do that job without the security surface) · Windows? (No plans) · Open source? (MIT on GitHub; the name and mark are ours).
+
+### 4.8 Footer
+
+`logo.svg` at 24px, © 2026 Shepdesign LLC, links GitHub · Privacy, and right-aligned *Built on WebKit. Nothing leaves your Mac.* Press and Changelog links from the draft are omitted until those pages exist.
+
+### 4.9 `/thanks`
 
 Cog at 40px, one line — *"You're on the list. Beta invites go out in waves; you'll hear from us."* — and a text link back. Empty-state pattern from manifest §8.
 
-### 4.7 `/privacy`
+### 4.10 `/privacy`
 
 Plain words, `--font-ui`: the email goes to Bento (the mailing tool), is tagged for the NetRelish beta, is used only for beta invites and launch news, and is deleted on request. The page sets no cookies and loads nothing from third parties.
 
@@ -131,7 +149,7 @@ Why the `netrelish-beta` tag matters: Ryan's Bento site is shared with other bus
 
 ## 6 · Theme
 
-Light and dark from `tokens.css` via `prefers-color-scheme`; no toggle in v1 (the manifest's `data-theme` hook stays available). Body background is explicit. Relish appears in exactly three places: the hero primary button (placement #8), the cog's own fill (#8), and the `#nr-seal` glyph in §4.2 (#4, under "below the hero follows product rules"). Links are `--nr-fg` underlined. Focus ring is `--nr-focus`.
+Light and dark from `tokens.css` via `prefers-color-scheme`; no toggle in v1 (the manifest's `data-theme` hook stays available). Body background is explicit. Relish appears only in: the hero primary button (placement #8); the cog's own fill (#8); and, inside the mock windows under "below the hero follows product rules", the active tab lip (#2), the active jar tint (#3), the seal glyph and the Seal animation's one drip (#4), shelf-life bars (#5), and the *Sealed* badge (#6). Not on bullets, card borders, secondary buttons, or headings. Links are `--nr-fg` underlined. Focus ring is `--nr-focus`.
 
 ## 7 · OG image
 
@@ -143,7 +161,7 @@ Light and dark from `tokens.css` via `prefers-color-scheme`; no toggle in v1 (th
 - **Build:** `astro build` must succeed; `astro check` clean.
 - **Design drift:** `scripts/check-design.sh` — the four files match the pinned NetRelish commit.
 - **Network rule:** after build, grep `dist/` for `https?://` and fail on any host other than `netrelish.com`, `github.com`, and `apps.apple.com`.
-- **Relish audit:** grep the built CSS for `--relish-500` usages; fail if any selector other than the three in §6 uses it.
+- **Relish audit:** grep the built CSS for `--relish-500` usages; fail if any selector outside the §6 allowlist uses it. The Pro card and list markers are explicitly asserted relish-free.
 - **Accessibility:** form has a visible label, contrast is from the token pairs the manifest already passes, `prefers-reduced-motion` respected (the only motion is the button hover).
 
 ## 9 · Vercel and DNS (Ryan's clicks, in order — I write the exact steps in the PR)
@@ -169,4 +187,7 @@ Blog, docs, changelog, press kit, a second language, an App Store badge before t
 
 - **Lead capture goes through a server route, not Bento's script.** Chosen by Ryan this session over `bento.js` and the hosted embed, for the network rule.
 - **Beta promise is "invited in waves."** Chosen by Ryan.
-- **Pro line items:** only provenance timestamps are documented. Others are P4's call; the site does not guess.
+- **Free/Pro contents:** ADR 0003, adopted from Ryan's Sept 12 draft.
+- **Headline:** "Keep the pages that matter." (Ryan's draft) over the manifest's voice example.
+- **Type below the hero:** system stack per manifest; the draft's Bricolage headings are not carried over.
+- **Relish extras in the draft** (bullets, Pro-card border and drip, secondary-button outlines): dropped per manifest v1.1.1.
