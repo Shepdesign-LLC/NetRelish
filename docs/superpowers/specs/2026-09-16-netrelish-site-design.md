@@ -16,9 +16,9 @@ The promise made to a lead is **beta access, invited in waves**. Ryan chooses wh
 
 | Layer | Choice | Why |
 |---|---|---|
-| Framework | Astro 5, `output: 'static'`, `@astrojs/vercel` adapter | Locked in CLAUDE.md. Static pages; the adapter exists only for the one endpoint. |
+| Framework | Astro 7.3 (the spec first said 5; 7 is current and the API used is identical), `output: 'static'`, `@astrojs/vercel` adapter | Locked in CLAUDE.md. Static pages; the adapter exists only for the one endpoint. |
 | CSS | Plain CSS, `tokens.css` imported unchanged | Locked. No Tailwind, no preprocessor. |
-| Fonts | Bricolage Grotesque variable (OFL) self-hosted in `/public/fonts`, used only in the hero. Everything else `--font-ui`. | Manifest §5. Self-hosted so the page makes zero third-party requests. |
+| Fonts | Bricolage Grotesque variable (OFL) from `@fontsource-variable/bricolage-grotesque/standard.css`, bundled same-origin by Astro; used only in the hero. Everything else `--font-ui`. | Manifest §5. Self-hosted so the page makes zero third-party requests. |
 | Hosting | Vercel project `netrelish` (existing, currently paused) re-linked to the new repo | Keeps the project, its history, and the team. |
 | Domain | `netrelish.com` (Ryan owns it) | Canonical URLs and OG tags built for it. |
 | Lead capture | `POST /api/join` → Bento API | §5. |
@@ -31,8 +31,7 @@ The promise made to a lead is **beta access, invited in waves**. Ryan chooses wh
 ```
 netrelish-site/
   design/                 tokens.css, logo-cog.svg, logo.svg, symbols.svg — byte-for-byte copies
-  scripts/check-design.sh verifies design/ matches netrelish/design at a pinned commit; CI fails on drift
-  public/fonts/           BricolageGrotesque[opsz,wdth,wght].woff2 + OFL.txt
+  scripts/                check-design.sh, check-network.mjs, check-relish.mjs, gen-og.mjs
   public/og.png           1200×630, generated (§7)
   src/
     layouts/Base.astro    <head>, tokens.css, theme, footer
