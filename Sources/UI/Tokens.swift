@@ -36,20 +36,20 @@ public enum NRColor {
     public static let fg3 = Color(nsColor: nr_dynamic(
         light: (0.5767, 0.5767, 0.5473),
         dark: (0.4669, 0.4669, 0.4385)))
-    /// `--relish-100` — #EEFBD0 active-jar tint, badge bg · light #EEFBD0 · dark #26400E
+    /// `--relish-100` — #EFFCCB active-jar tint, badge bg · light #EFFCCB · dark #1F3309
     public static let relish100 = Color(nsColor: nr_dynamic(
-        light: (0.9419, 0.9822, 0.8304),
-        dark: (0.1717, 0.2478, 0.0869)))
-    /// `--relish-300` — #CDF48A hover on primary · #CDF48A
-    public static let relish300 = Color(nsColor: nr_p3(0.8332, 0.9522, 0.5891))
+        light: (0.9464, 0.9864, 0.8146),
+        dark: (0.1396, 0.1982, 0.0609)))
+    /// `--relish-300` — #C4F26B hover on primary · #C4F26B
+    public static let relish300 = Color(nsColor: nr_p3(0.8049, 0.9440, 0.4935))
     /// `--relish-500` — #93E413 THE relish. primary button, tab lip, seal glyph · #93E413
     public static let relish500 = Color(nsColor: nr_p3(0.6482, 0.8853, 0.2874))
-    /// `--relish-700` — #5C9A0B relish on light bg where contrast needs it · #5C9A0C
-    public static let relish700 = Color(nsColor: nr_p3(0.4173, 0.5979, 0.1845))
-    /// `--relish-ink` — #1E3A12 text on relish-500 · light #1E3A12 · dark #030C00
+    /// `--relish-700` — #4E9110 relish on light bg where contrast needs it · #4E9111
+    public static let relish700 = Color(nsColor: nr_p3(0.3707, 0.5620, 0.1783))
+    /// `--relish-ink` — #1D3506 text on relish-500 · light #1D3506 · dark #0D1206
     public static let relishInk = Color(nsColor: nr_dynamic(
-        light: (0.1443, 0.2250, 0.0924),
-        dark: (0.0191, 0.0477, 0.0043)))
+        light: (0.1352, 0.2054, 0.0544),
+        dark: (0.0550, 0.0705, 0.0277)))
     /// `--nr-squircle` — #1F3F2E logo squircle. DO NOT use in UI · #1F3F2E
     public static let squircle = Color(nsColor: nr_p3(0.1516, 0.2437, 0.1848))
     /// `--nr-steel` — #A9AFB6 logo gear. DO NOT use in UI · #A9AFB6
@@ -175,11 +175,11 @@ public enum NRTokenCatalog {
         ColorEntry(css: "--nr-fg", swift: "fg", color: NRColor.fg, note: "light #1D1D1B · dark #F0F0EE"),
         ColorEntry(css: "--nr-fg-2", swift: "fg2", color: NRColor.fg2, note: "light #66665F · dark #A8A8A2"),
         ColorEntry(css: "--nr-fg-3", swift: "fg3", color: NRColor.fg3, note: "light #93938B · dark #77776F"),
-        ColorEntry(css: "--relish-100", swift: "relish100", color: NRColor.relish100, note: "light #EEFBD0 · dark #26400E"),
-        ColorEntry(css: "--relish-300", swift: "relish300", color: NRColor.relish300, note: "#CDF48A"),
+        ColorEntry(css: "--relish-100", swift: "relish100", color: NRColor.relish100, note: "light #EFFCCB · dark #1F3309"),
+        ColorEntry(css: "--relish-300", swift: "relish300", color: NRColor.relish300, note: "#C4F26B"),
         ColorEntry(css: "--relish-500", swift: "relish500", color: NRColor.relish500, note: "#93E413"),
-        ColorEntry(css: "--relish-700", swift: "relish700", color: NRColor.relish700, note: "#5C9A0C"),
-        ColorEntry(css: "--relish-ink", swift: "relishInk", color: NRColor.relishInk, note: "light #1E3A12 · dark #030C00"),
+        ColorEntry(css: "--relish-700", swift: "relish700", color: NRColor.relish700, note: "#4E9111"),
+        ColorEntry(css: "--relish-ink", swift: "relishInk", color: NRColor.relishInk, note: "light #1D3506 · dark #0D1206"),
         ColorEntry(css: "--nr-squircle", swift: "squircle", color: NRColor.squircle, note: "#1F3F2E"),
         ColorEntry(css: "--nr-steel", swift: "steel", color: NRColor.steel, note: "#A9AFB6"),
         ColorEntry(css: "--nr-danger", swift: "danger", color: NRColor.danger, note: "#D9432E"),
