@@ -44,6 +44,15 @@ final class JarWebView: NSObject, WKNavigationDelegate {
         webView.load(URLRequest(url: url))
     }
 
+    /// Everything WebKit needs to bring a tab back exactly: history, scroll, form state.
+    var interactionState: Data? {
+        get { webView.interactionState as? Data }
+        set { if let newValue { webView.interactionState = newValue } }
+    }
+
+    /// Called after every navigation change, with the tab's URL and title.
+    var onNavigation: ((URL?, String) -> Void)?
+
     func goBack() { webView.goBack() }
     func goForward() { webView.goForward() }
     func reload() { webView.reload() }
@@ -54,6 +63,7 @@ final class JarWebView: NSObject, WKNavigationDelegate {
         isLoading = webView.isLoading
         canGoBack = webView.canGoBack
         canGoForward = webView.canGoForward
+        if !isLoading { onNavigation?(url, title) }
     }
 
     // MARK: WKNavigationDelegate

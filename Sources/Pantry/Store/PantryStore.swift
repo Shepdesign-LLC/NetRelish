@@ -38,6 +38,11 @@ public final class PantryStore: Sendable {
 
     private func migrate() throws {
         var migrator = DatabaseMigrator()
+        #if DEBUG
+        // Pre-release: V1 is still moving with the diagram. A dev Pantry whose schema
+        // no longer matches is thrown away rather than migrated. Removed before 1.0.
+        migrator.eraseDatabaseOnSchemaChange = true
+        #endif
         PantryMigrations.register(in: &migrator)
         try migrator.migrate(dbQueue)
     }
