@@ -27,6 +27,18 @@ struct NetRelishApp: App {
                     Button(jar.name) { workbench.activate(index: index) }
                         .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: .command)
                 }
+                Divider()
+                Button("Brine") { workbench.activateBrine() }.keyboardShortcut("1", modifiers: [.command, .shift])
+                Divider()
+                Button("Edit Jar…") { workbench.requestEditActiveJar() }.keyboardShortcut("e", modifiers: [.command, .shift])
+                    .disabled(workbench.activeJar == nil)
+            }
+            CommandMenu("Tab") {
+                Button("New Tab") { workbench.newTab() }.keyboardShortcut("t", modifiers: .command)
+                Button("Close Tab") { workbench.closeActiveTab() }.keyboardShortcut("w", modifiers: .command)
+                    .disabled(workbench.activeTab == nil)
+                Button(workbench.activeTab?.isPinned == true ? "Unpin Tab" : "Pin Tab") { workbench.togglePinActiveTab() }
+                    .keyboardShortcut("p", modifiers: [.command, .shift]).disabled(workbench.activeTab == nil)
             }
         }
 
@@ -49,12 +61,13 @@ struct ContentView: View {
     var body: some View {
         HStack(spacing: 0) {
             ShelfView(workbench: workbench)
-            BenchView(jar: workbench.activeJar)
+            BenchView(workbench: workbench)
         }
         .frame(minWidth: 880, minHeight: 560)
         .background(NRColor.bg)
-        .navigationTitle(workbench.activeJar?.name ?? "NetRelish")
+        .navigationTitle(workbench.showingBrine ? "Brine" : (workbench.activeJar?.name ?? "NetRelish"))
         .navigationSubtitle("\(workbench.itemCount) \(workbench.itemCount == 1 ? "item" : "items")")
         .task { await workbench.observe() }
+        .task { await workbench.runSweep() }
     }
 }
