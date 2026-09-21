@@ -10,26 +10,52 @@
 		02842D0084BA1EE62118A2EC /* Shapes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4B24F6BEF1D0FD10AF96198 /* Shapes.swift */; };
 		04966F0A5EEC53CF7959DC1E /* ComponentGallery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 218FB43BD5082731DA57EAA4 /* ComponentGallery.swift */; };
 		0AD4F161E0451C3360A98861 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = C61649A4E36CCBE8276372C9 /* AppIcon.icns */; };
+		0B901D7B2E11F34BFA9A3C67 /* PantryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925A75FA2063A43C84060387 /* PantryTests.swift */; };
+		0D3D276ECCC65CD9DB85C29F /* PantryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3088C168536BDBDBD5110E0 /* PantryStore.swift */; };
+		114158F3743BA3992CCE19BB /* Pantry.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3D40C86B7681871F9D11011A /* Pantry.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		1EE44D0E30E32974D0F82329 /* Step.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF138E55CED036400B9C85EC /* Step.swift */; };
+		2114393DF2A2807D7D5FECE0 /* V1.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2EEE66990AF838FD9B4386E /* V1.swift */; };
 		2A048A04EBC2F87C7E0A38EB /* TokenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C5376395DE69F85C624CDC9 /* TokenTests.swift */; };
 		2A2DE6B7BCD41683B2C96321 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = A71E55B24F31AB432801A1C5 /* KeyboardShortcuts */; };
+		3156A4FAB02F777C58A85495 /* SealIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7996267AB0A6C7FE076D3195 /* SealIntent.swift */; };
 		3449309B5250DB469701ACEB /* Pantry.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D40C86B7681871F9D11011A /* Pantry.framework */; };
 		3B3EC063044298EED335234E /* AssetSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93BF3FF36A0C57425D7F9B4C /* AssetSections.swift */; };
 		3D8A5BF4A9D27DB30A466463 /* SealDemo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1348DA8E44DDB79358705C26 /* SealDemo.swift */; };
 		42D6E667627B715D0DAF09A0 /* Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = 172166523A7298160D10E066 /* Support.swift */; };
 		4387F7C64133D0CF249227C2 /* DesignKitSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EFD43D9BDEBCE6AECDB40DE /* DesignKitSnapshot.swift */; };
+		44F4E3743EBA933CB106016C /* PantryIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 540CFB70FCEF33BF7DF63007 /* PantryIntents.swift */; };
 		491397EF23E823777A34F536 /* ShapeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0B24A1EE81659EB7BBA716 /* ShapeTests.swift */; };
+		49B870E63311F44EE7519EFB /* Recipe+Behavior.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BA168573E80003B6999EE2C /* Recipe+Behavior.swift */; };
+		4CAF4DE84BF4ADDE44625254 /* Types.swift in Sources */ = {isa = PBXBuildFile; fileRef = 703D5F78CD1E867DB5E5D6FD /* Types.swift */; };
 		4EC192B287C6A95EA4A4627F /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE46A525A1828AEFEDABF24D /* Components.swift */; };
+		518399168F3764EADA28D797 /* Step+Behavior.swift in Sources */ = {isa = PBXBuildFile; fileRef = 500F5D46CE9F7219B92624E5 /* Step+Behavior.swift */; };
+		595648038E73140D83584AC8 /* Label.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09FC5F2BD5E382917A40D33D /* Label.swift */; };
+		6199787D8A6E60DF9E2FF446 /* Batch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BA7D24B05548BBBB627F9B9 /* Batch.swift */; };
+		6346FA67446EEEE6FD5E174F /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9D9D4F8D3B930BF6EAF57A8F /* AppIntents.framework */; };
 		6A2FCEE071655C20FD18712D /* GeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00490801AACE6526C5F44E /* GeneratorTests.swift */; };
 		74492C9667F54D60BB05534B /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AA2B804BABD2B9C3897FC5F /* Environment.swift */; };
+		7D762510642CB6FB703C9705 /* Pantry.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D40C86B7681871F9D11011A /* Pantry.framework */; };
+		819D577AA3194D05D11A94E7 /* NetRelish.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07FF70502E5A8CE3DFA58804 /* NetRelish.swift */; };
+		8201BAC73011287F21687E6D /* Jar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C912A16282281351EAE6A48 /* Jar.swift */; };
+		8A18D629407EB1E42E2BFFE6 /* NetRelish+Behavior.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0463DF5285B0BBF00DBF245A /* NetRelish+Behavior.swift */; };
+		A1022716C1E913FFADAAE23E /* CaptureIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519B39C9B1F8B4F5028C925E /* CaptureIntent.swift */; };
 		A236840F375E1EFCAAAF3122 /* Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7294EB62C146D80E801CB46E /* Support.swift */; };
 		A2F447CE15F775DC1CA148C6 /* Pantry.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3D40C86B7681871F9D11011A /* Pantry.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		A318FBCB7D7AAE549B1503F6 /* PantryEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FFDF4D28CFACA14CA04CA4F /* PantryEvent.swift */; };
+		A6A021284B09B926081A63B3 /* Schema.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90F2185D73165C21FF2FB83 /* Schema.swift */; };
+		A6AFEAD4BF570FA07631E2BD /* NetRelishIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EE83596F73D04918B8FBF71 /* NetRelishIntents.swift */; };
 		AB9FE10A2C7C77E5EEE4C434 /* SymbolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34870FC9D22FF5C528700017 /* SymbolTests.swift */; };
 		B3FE19280519DD9B29CA9656 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 28AB2610A93441AD621D517F /* GRDB */; };
+		BD875949F36770F9AC5F3CA1 /* PantryGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 639BF0D3B112C860F0B857A3 /* PantryGeneratorTests.swift */; };
+		D414D4C7DAC49650ABFFAE74 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 993CF81100D71BB382CD6AF1 /* Item.swift */; };
 		D7C610F19C06EA2B34D7CBA1 /* DesignKitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B72B425EB474AE8FD25283C /* DesignKitView.swift */; };
+		D7D65C41E37B8F01A300D15B /* Recipe.swift in Sources */ = {isa = PBXBuildFile; fileRef = A17F82A86D0AE3E64EE396B1 /* Recipe.swift */; };
 		DF6ADC4BFB101F5FC27CF09C /* TokenSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98236E4D7EDD3E89F974042 /* TokenSections.swift */; };
 		E2D8EB8EC7DF4883742D8B87 /* Tokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DBE6B2CBBFF6DDC55781E3E /* Tokens.swift */; };
 		E636538228CDF06005B32F97 /* Pantry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F037DB20D174BDE22C182A86 /* Pantry.swift */; };
 		EFF35C4B557CAB56C70B2CC8 /* Symbols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40130C352534C0973D9E549D /* Symbols.swift */; };
+		F1B5DF817798D256DF5191A9 /* Item+Behavior.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439AE825B43CBFCF48D96703 /* Item+Behavior.swift */; };
+		FC8116E739C0CFE3F0211BD7 /* Seed.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB595026D868AB174EF028DD /* Seed.swift */; };
 		FE8412F363AE72CDCBD44F45 /* NetRelishApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CAED094D268288F3732DE63 /* NetRelishApp.swift */; };
 /* End PBXBuildFile section */
 
@@ -48,6 +74,13 @@
 			remoteGlobalIDString = 64FFBFC34044BE0D54E62489;
 			remoteInfo = NetRelish;
 		};
+		2EFC2D0D44D86C6BA54722CA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7F4E677465564BB5E2032D42 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 38331042C87A79590E52C943;
+			remoteInfo = Pantry;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -62,35 +95,71 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A5F275A4F3573D24A9BEE738 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				114158F3743BA3992CCE19BB /* Pantry.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0463DF5285B0BBF00DBF245A /* NetRelish+Behavior.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NetRelish+Behavior.swift"; sourceTree = "<group>"; };
+		07FF70502E5A8CE3DFA58804 /* NetRelish.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetRelish.swift; sourceTree = "<group>"; };
+		09FC5F2BD5E382917A40D33D /* Label.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Label.swift; sourceTree = "<group>"; };
 		0E7C64098202D9F54E20DBDD /* NetRelish.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NetRelish.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1348DA8E44DDB79358705C26 /* SealDemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SealDemo.swift; sourceTree = "<group>"; };
 		172166523A7298160D10E066 /* Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Support.swift; sourceTree = "<group>"; };
 		1EFD43D9BDEBCE6AECDB40DE /* DesignKitSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignKitSnapshot.swift; sourceTree = "<group>"; };
+		1FFDF4D28CFACA14CA04CA4F /* PantryEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PantryEvent.swift; sourceTree = "<group>"; };
 		218FB43BD5082731DA57EAA4 /* ComponentGallery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentGallery.swift; sourceTree = "<group>"; };
 		2AA2B804BABD2B9C3897FC5F /* Environment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Environment.swift; sourceTree = "<group>"; };
+		2BA7D24B05548BBBB627F9B9 /* Batch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Batch.swift; sourceTree = "<group>"; };
 		34870FC9D22FF5C528700017 /* SymbolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolTests.swift; sourceTree = "<group>"; };
 		365E60F8F85F45C02557A94C /* NetRelishTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NetRelishTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3CAED094D268288F3732DE63 /* NetRelishApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetRelishApp.swift; sourceTree = "<group>"; };
 		3D40C86B7681871F9D11011A /* Pantry.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pantry.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		3DBE6B2CBBFF6DDC55781E3E /* Tokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tokens.swift; sourceTree = "<group>"; };
 		40130C352534C0973D9E549D /* Symbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Symbols.swift; sourceTree = "<group>"; };
+		439AE825B43CBFCF48D96703 /* Item+Behavior.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Item+Behavior.swift"; sourceTree = "<group>"; };
 		4B72B425EB474AE8FD25283C /* DesignKitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignKitView.swift; sourceTree = "<group>"; };
+		500F5D46CE9F7219B92624E5 /* Step+Behavior.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Step+Behavior.swift"; sourceTree = "<group>"; };
+		519B39C9B1F8B4F5028C925E /* CaptureIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureIntent.swift; sourceTree = "<group>"; };
 		536D469BD724671A2416EEC4 /* AppStore.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AppStore.xcconfig; sourceTree = "<group>"; };
+		540CFB70FCEF33BF7DF63007 /* PantryIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PantryIntents.swift; sourceTree = "<group>"; };
+		639BF0D3B112C860F0B857A3 /* PantryGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PantryGeneratorTests.swift; sourceTree = "<group>"; };
 		6C5376395DE69F85C624CDC9 /* TokenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTests.swift; sourceTree = "<group>"; };
+		6C912A16282281351EAE6A48 /* Jar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Jar.swift; sourceTree = "<group>"; };
+		703D5F78CD1E867DB5E5D6FD /* Types.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Types.swift; sourceTree = "<group>"; };
 		7294EB62C146D80E801CB46E /* Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Support.swift; sourceTree = "<group>"; };
+		7996267AB0A6C7FE076D3195 /* SealIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SealIntent.swift; sourceTree = "<group>"; };
 		83A0FA70EC9D9597C5C56145 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		847FE03DCF1AAF9768A5CEFC /* Direct.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Direct.xcconfig; sourceTree = "<group>"; };
+		8EE83596F73D04918B8FBF71 /* NetRelishIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetRelishIntents.swift; sourceTree = "<group>"; };
+		925A75FA2063A43C84060387 /* PantryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PantryTests.swift; sourceTree = "<group>"; };
 		93BF3FF36A0C57425D7F9B4C /* AssetSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetSections.swift; sourceTree = "<group>"; };
+		993CF81100D71BB382CD6AF1 /* Item.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
+		9BA168573E80003B6999EE2C /* Recipe+Behavior.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Recipe+Behavior.swift"; sourceTree = "<group>"; };
+		9D9D4F8D3B930BF6EAF57A8F /* AppIntents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
+		A17F82A86D0AE3E64EE396B1 /* Recipe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recipe.swift; sourceTree = "<group>"; };
 		A413B3253D326063F6138B5D /* GeneratorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GeneratorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A98236E4D7EDD3E89F974042 /* TokenSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenSections.swift; sourceTree = "<group>"; };
+		AF138E55CED036400B9C85EC /* Step.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Step.swift; sourceTree = "<group>"; };
+		BB595026D868AB174EF028DD /* Seed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Seed.swift; sourceTree = "<group>"; };
+		C3DF4031B6CBC0E8FE3962FD /* PantryTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PantryTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C61649A4E36CCBE8276372C9 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		D4B24F6BEF1D0FD10AF96198 /* Shapes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shapes.swift; sourceTree = "<group>"; };
 		DD00490801AACE6526C5F44E /* GeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorTests.swift; sourceTree = "<group>"; };
+		E3088C168536BDBDBD5110E0 /* PantryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PantryStore.swift; sourceTree = "<group>"; };
+		E90F2185D73165C21FF2FB83 /* Schema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Schema.swift; sourceTree = "<group>"; };
 		EF0B24A1EE81659EB7BBA716 /* ShapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeTests.swift; sourceTree = "<group>"; };
 		F037DB20D174BDE22C182A86 /* Pantry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pantry.swift; sourceTree = "<group>"; };
+		F2EEE66990AF838FD9B4386E /* V1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V1.swift; sourceTree = "<group>"; };
 		FE46A525A1828AEFEDABF24D /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -100,6 +169,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				B3FE19280519DD9B29CA9656 /* GRDB in Frameworks */,
+				6346FA67446EEEE6FD5E174F /* AppIntents.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		56AC6CAB2BC8F10D476E6FA2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7D762510642CB6FB703C9705 /* Pantry.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -115,6 +193,16 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		010A4729827776FCC4429264 /* Intents */ = {
+			isa = PBXGroup;
+			children = (
+				519B39C9B1F8B4F5028C925E /* CaptureIntent.swift */,
+				540CFB70FCEF33BF7DF63007 /* PantryIntents.swift */,
+				7996267AB0A6C7FE076D3195 /* SealIntent.swift */,
+			);
+			path = Intents;
+			sourceTree = "<group>";
+		};
 		14EE87A6E84E63CC8BFBE176 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
@@ -130,8 +218,20 @@
 				0E7C64098202D9F54E20DBDD /* NetRelish.app */,
 				365E60F8F85F45C02557A94C /* NetRelishTests.xctest */,
 				3D40C86B7681871F9D11011A /* Pantry.framework */,
+				C3DF4031B6CBC0E8FE3962FD /* PantryTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		19FC09F10B2C22846CBAAA37 /* Behaviors */ = {
+			isa = PBXGroup;
+			children = (
+				439AE825B43CBFCF48D96703 /* Item+Behavior.swift */,
+				0463DF5285B0BBF00DBF245A /* NetRelish+Behavior.swift */,
+				9BA168573E80003B6999EE2C /* Recipe+Behavior.swift */,
+				500F5D46CE9F7219B92624E5 /* Step+Behavior.swift */,
+			);
+			path = Behaviors;
 			sourceTree = "<group>";
 		};
 		30F8F8026066413CCE91F78A /* UI */ = {
@@ -162,6 +262,7 @@
 			isa = PBXGroup;
 			children = (
 				DD00490801AACE6526C5F44E /* GeneratorTests.swift */,
+				639BF0D3B112C860F0B857A3 /* PantryGeneratorTests.swift */,
 				7294EB62C146D80E801CB46E /* Support.swift */,
 			);
 			path = GeneratorTests;
@@ -172,8 +273,43 @@
 			children = (
 				3D5856915087BB81AB666502 /* GeneratorTests */,
 				3CEA8E909AC71CE83B7814DE /* NetRelishTests */,
+				AF945A85977CAA135ACE9385 /* PantryTests */,
 			);
 			path = Tests;
+			sourceTree = "<group>";
+		};
+		56346DC2BA1E211CC98FB476 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				2BA7D24B05548BBBB627F9B9 /* Batch.swift */,
+				993CF81100D71BB382CD6AF1 /* Item.swift */,
+				6C912A16282281351EAE6A48 /* Jar.swift */,
+				09FC5F2BD5E382917A40D33D /* Label.swift */,
+				07FF70502E5A8CE3DFA58804 /* NetRelish.swift */,
+				A17F82A86D0AE3E64EE396B1 /* Recipe.swift */,
+				E90F2185D73165C21FF2FB83 /* Schema.swift */,
+				BB595026D868AB174EF028DD /* Seed.swift */,
+				AF138E55CED036400B9C85EC /* Step.swift */,
+				703D5F78CD1E867DB5E5D6FD /* Types.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		661E1A263C688B412D73CB1B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				9D9D4F8D3B930BF6EAF57A8F /* AppIntents.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		7412DD262A6E0D3286432EC0 /* Store */ = {
+			isa = PBXGroup;
+			children = (
+				1FFDF4D28CFACA14CA04CA4F /* PantryEvent.swift */,
+				E3088C168536BDBDBD5110E0 /* PantryStore.swift */,
+			);
+			path = Store;
 			sourceTree = "<group>";
 		};
 		8C291D796D63C4739019C44F /* Sources */ = {
@@ -201,9 +337,22 @@
 		AB8A0C95C34CB4DC7B3F6AB8 /* Pantry */ = {
 			isa = PBXGroup;
 			children = (
+				19FC09F10B2C22846CBAAA37 /* Behaviors */,
+				010A4729827776FCC4429264 /* Intents */,
+				E2BBE382BA48C7A39DFCA4F0 /* Migrations */,
+				56346DC2BA1E211CC98FB476 /* Models */,
+				7412DD262A6E0D3286432EC0 /* Store */,
 				F037DB20D174BDE22C182A86 /* Pantry.swift */,
 			);
 			path = Pantry;
+			sourceTree = "<group>";
+		};
+		AF945A85977CAA135ACE9385 /* PantryTests */ = {
+			isa = PBXGroup;
+			children = (
+				925A75FA2063A43C84060387 /* PantryTests.swift */,
+			);
+			path = PantryTests;
 			sourceTree = "<group>";
 		};
 		B46443A4D81C208E7E10A0FE /* App */ = {
@@ -212,6 +361,7 @@
 				1EFD43D9BDEBCE6AECDB40DE /* DesignKitSnapshot.swift */,
 				83A0FA70EC9D9597C5C56145 /* Info.plist */,
 				3CAED094D268288F3732DE63 /* NetRelishApp.swift */,
+				8EE83596F73D04918B8FBF71 /* NetRelishIntents.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -223,6 +373,7 @@
 				14EE87A6E84E63CC8BFBE176 /* Resources */,
 				8C291D796D63C4739019C44F /* Sources */,
 				47FC7E5ADBD65861931ADF7F /* Tests */,
+				661E1A263C688B412D73CB1B /* Frameworks */,
 				199D49C6100948DEFC819612 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -234,6 +385,14 @@
 				847FE03DCF1AAF9768A5CEFC /* Direct.xcconfig */,
 			);
 			path = Config;
+			sourceTree = "<group>";
+		};
+		E2BBE382BA48C7A39DFCA4F0 /* Migrations */ = {
+			isa = PBXGroup;
+			children = (
+				F2EEE66990AF838FD9B4386E /* V1.swift */,
+			);
+			path = Migrations;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -315,6 +474,26 @@
 			productReference = 0E7C64098202D9F54E20DBDD /* NetRelish.app */;
 			productType = "com.apple.product-type.application";
 		};
+		6D95FA83314A531BA57C7085 /* PantryTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C208AFFEF57A50D9D07EC12A /* Build configuration list for PBXNativeTarget "PantryTests" */;
+			buildPhases = (
+				C418BA3150FF87C30559585F /* Sources */,
+				56AC6CAB2BC8F10D476E6FA2 /* Frameworks */,
+				A5F275A4F3573D24A9BEE738 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3AE4F56E36502863B0EFA6DB /* PBXTargetDependency */,
+			);
+			name = PantryTests;
+			packageProductDependencies = (
+			);
+			productName = PantryTests;
+			productReference = C3DF4031B6CBC0E8FE3962FD /* PantryTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -337,6 +516,10 @@
 						ProvisioningStyle = Automatic;
 					};
 					64FFBFC34044BE0D54E62489 = {
+						DevelopmentTeam = D9QDJ44773;
+						ProvisioningStyle = Automatic;
+					};
+					6D95FA83314A531BA57C7085 = {
 						DevelopmentTeam = D9QDJ44773;
 						ProvisioningStyle = Automatic;
 					};
@@ -363,6 +546,7 @@
 				38331042C87A79590E52C943 /* Pantry */,
 				64FFBFC34044BE0D54E62489 /* NetRelish */,
 				1362E61B88B6B3CB901E020C /* NetRelishTests */,
+				6D95FA83314A531BA57C7085 /* PantryTests */,
 				21E506CA40E2B964782E743D /* GeneratorTests */,
 			);
 		};
@@ -402,6 +586,7 @@
 				D7C610F19C06EA2B34D7CBA1 /* DesignKitView.swift in Sources */,
 				74492C9667F54D60BB05534B /* Environment.swift in Sources */,
 				FE8412F363AE72CDCBD44F45 /* NetRelishApp.swift in Sources */,
+				A6AFEAD4BF570FA07631E2BD /* NetRelishIntents.swift in Sources */,
 				3D8A5BF4A9D27DB30A466463 /* SealDemo.swift in Sources */,
 				02842D0084BA1EE62118A2EC /* Shapes.swift in Sources */,
 				EFF35C4B557CAB56C70B2CC8 /* Symbols.swift in Sources */,
@@ -414,7 +599,27 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6199787D8A6E60DF9E2FF446 /* Batch.swift in Sources */,
+				A1022716C1E913FFADAAE23E /* CaptureIntent.swift in Sources */,
+				F1B5DF817798D256DF5191A9 /* Item+Behavior.swift in Sources */,
+				D414D4C7DAC49650ABFFAE74 /* Item.swift in Sources */,
+				8201BAC73011287F21687E6D /* Jar.swift in Sources */,
+				595648038E73140D83584AC8 /* Label.swift in Sources */,
+				8A18D629407EB1E42E2BFFE6 /* NetRelish+Behavior.swift in Sources */,
+				819D577AA3194D05D11A94E7 /* NetRelish.swift in Sources */,
 				E636538228CDF06005B32F97 /* Pantry.swift in Sources */,
+				A318FBCB7D7AAE549B1503F6 /* PantryEvent.swift in Sources */,
+				44F4E3743EBA933CB106016C /* PantryIntents.swift in Sources */,
+				0D3D276ECCC65CD9DB85C29F /* PantryStore.swift in Sources */,
+				49B870E63311F44EE7519EFB /* Recipe+Behavior.swift in Sources */,
+				D7D65C41E37B8F01A300D15B /* Recipe.swift in Sources */,
+				A6A021284B09B926081A63B3 /* Schema.swift in Sources */,
+				3156A4FAB02F777C58A85495 /* SealIntent.swift in Sources */,
+				FC8116E739C0CFE3F0211BD7 /* Seed.swift in Sources */,
+				518399168F3764EADA28D797 /* Step+Behavior.swift in Sources */,
+				1EE44D0E30E32974D0F82329 /* Step.swift in Sources */,
+				4CAF4DE84BF4ADDE44625254 /* Types.swift in Sources */,
+				2114393DF2A2807D7D5FECE0 /* V1.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -423,13 +628,27 @@
 			buildActionMask = 2147483647;
 			files = (
 				6A2FCEE071655C20FD18712D /* GeneratorTests.swift in Sources */,
+				BD875949F36770F9AC5F3CA1 /* PantryGeneratorTests.swift in Sources */,
 				A236840F375E1EFCAAAF3122 /* Support.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C418BA3150FF87C30559585F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0B901D7B2E11F34BFA9A3C67 /* PantryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		3AE4F56E36502863B0EFA6DB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 38331042C87A79590E52C943 /* Pantry */;
+			targetProxy = 2EFC2D0D44D86C6BA54722CA /* PBXContainerItemProxy */;
+		};
 		E164E5B51C22B69035E5EDE1 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 64FFBFC34044BE0D54E62489 /* NetRelish */;
@@ -563,6 +782,22 @@
 			};
 			name = "Release-Direct";
 		};
+		27023FB7BC7F7EFCA0E09538 /* Release-AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.shepdesign.netrelish.pantrytests;
+				SDKROOT = macosx;
+			};
+			name = "Release-AppStore";
+		};
 		3C85DA0085981C76C40610AB /* Release-Direct */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -586,6 +821,22 @@
 			};
 			name = "Release-Direct";
 		};
+		3EA5D724E2B26B7DB6A107D9 /* Release-Direct */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.shepdesign.netrelish.pantrytests;
+				SDKROOT = macosx;
+			};
+			name = "Release-Direct";
+		};
 		45079E59BD2B81ABB0AA6D77 /* Debug-Direct */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -598,6 +849,22 @@
 					"@loader_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.shepdesign.netrelish.generatortests;
+				SDKROOT = macosx;
+			};
+			name = "Debug-Direct";
+		};
+		4E5150EE0A77B45A0018AFF5 /* Debug-Direct */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.shepdesign.netrelish.pantrytests;
 				SDKROOT = macosx;
 			};
 			name = "Debug-Direct";
@@ -676,6 +943,22 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.shepdesign.netrelish;
 				PRODUCT_NAME = NetRelish;
+				SDKROOT = macosx;
+			};
+			name = "Debug-AppStore";
+		};
+		64D78E266A1F6943A37E7EAA /* Debug-AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.shepdesign.netrelish.pantrytests;
 				SDKROOT = macosx;
 			};
 			name = "Debug-AppStore";
@@ -1043,6 +1326,17 @@
 				45079E59BD2B81ABB0AA6D77 /* Debug-Direct */,
 				11F785AA148356859EEF9C45 /* Release-AppStore */,
 				969DC05350615FFDCE2493E2 /* Release-Direct */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = "Debug-AppStore";
+		};
+		C208AFFEF57A50D9D07EC12A /* Build configuration list for PBXNativeTarget "PantryTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				64D78E266A1F6943A37E7EAA /* Debug-AppStore */,
+				4E5150EE0A77B45A0018AFF5 /* Debug-Direct */,
+				27023FB7BC7F7EFCA0E09538 /* Release-AppStore */,
+				3EA5D724E2B26B7DB6A107D9 /* Release-Direct */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = "Debug-AppStore";

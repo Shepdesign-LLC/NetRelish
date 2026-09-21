@@ -55,6 +55,17 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "6D95FA83314A531BA57C7085"
+               BuildableName = "PantryTests.xctest"
+               BlueprintName = "PantryTests"
+               ReferencedContainer = "container:NetRelish.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "21E506CA40E2B964782E743D"
                BuildableName = "GeneratorTests.xctest"
                BlueprintName = "GeneratorTests"

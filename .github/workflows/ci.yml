@@ -1,7 +1,7 @@
 name: CI
 
 # Runs on every push and PR. Three things must hold:
-#   1. generated files match their sources (Tokens.swift, Symbols.swift, NetRelish.xcodeproj)
+#   1. generated files match their sources (Tokens.swift, Symbols.swift, Sources/Pantry/Models, NetRelish.xcodeproj)
 #   2. both product flavors build — AppStore and Direct (DIRECT_BUILD)
 #   3. the tests pass (hosted NetRelishTests + unhosted GeneratorTests)
 
@@ -25,6 +25,10 @@ jobs:
           swift scripts/gen-symbols.swift design/symbols.svg design/logo.svg design/logo-cog.svg > /tmp/Symbols.swift
           diff -u Sources/UI/Tokens.swift /tmp/Tokens.swift || { echo "::error file=Sources/UI/Tokens.swift::stale — swift scripts/gen-tokens.swift design/tokens.css > Sources/UI/Tokens.swift"; exit 1; }
           diff -u Sources/UI/Symbols.swift /tmp/Symbols.swift || { echo "::error file=Sources/UI/Symbols.swift::stale — swift scripts/gen-symbols.swift design/symbols.svg design/logo.svg design/logo-cog.svg > Sources/UI/Symbols.swift"; exit 1; }
+      - name: Regenerate Sources/Pantry/Models
+        run: |
+          swift scripts/gen-pantry.swift design/NetRelish.json /tmp/PantryModels
+          diff -ru Sources/Pantry/Models /tmp/PantryModels || { echo "::error file=design/NetRelish.json::Sources/Pantry/Models is stale — swift scripts/gen-pantry.swift design/NetRelish.json Sources/Pantry/Models"; exit 1; }
       - name: Regenerate NetRelish.xcodeproj
         run: |
           brew install xcodegen >/dev/null
