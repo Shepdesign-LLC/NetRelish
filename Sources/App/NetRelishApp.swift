@@ -7,6 +7,8 @@ import SwiftUI
 
 @main
 struct NetRelishApp: App {
+    @State private var workbench = Workbench()
+
     init() {
         #if DEBUG
         DesignKitSnapshot.runIfRequested()
@@ -15,9 +17,18 @@ struct NetRelishApp: App {
 
     var body: some Scene {
         WindowGroup("NetRelish") {
-            ContentView()
+            ContentView(workbench: workbench)
         }
         .defaultSize(width: 1180, height: 820)
+        .commands {
+            // Jars menu: ⌘1–9 switch jars (manifest §8 Shelf).
+            CommandMenu("Jars") {
+                ForEach(Array(workbench.jars.prefix(9).enumerated()), id: \.element.id) { index, jar in
+                    Button(jar.name) { workbench.activate(index: index) }
+                        .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: .command)
+                }
+            }
+        }
 
         #if DEBUG
         // A secondary `Window` scene gets its item in the Window menu from SwiftUI.
@@ -30,32 +41,20 @@ struct NetRelishApp: App {
     }
 }
 
-/// The main window. Empty for now — P1 puts the Shelf, Bench, and Inspector here.
-/// The title carries the Pantry's item count, live, so a capture from Shortcuts shows up.
+/// The main window: Shelf on the leading edge, Bench filling the rest (manifest §10).
+/// The title carries the active jar's name; the subtitle, the Pantry's item count.
 struct ContentView: View {
-    @State private var itemCount: Int?
+    @Bindable var workbench: Workbench
 
     var body: some View {
-        Color.clear
-            .frame(minWidth: 880, minHeight: 560)
-            .background(NRColor.bg)
-            .navigationTitle(title)
-            .task { await observeItemCount() }
-    }
-
-    private var title: String {
-        guard let itemCount else { return "NetRelish" }
-        return "NetRelish — \(itemCount) \(itemCount == 1 ? "item" : "items")"
-    }
-
-    private func observeItemCount() async {
-        let observation = ValueObservation.tracking { db in try Item.fetchCount(db) }
-        do {
-            for try await count in observation.values(in: PantryStore.shared.dbQueue) {
-                itemCount = count
-            }
-        } catch {
-            itemCount = nil
+        HStack(spacing: 0) {
+            ShelfView(workbench: workbench)
+            BenchView(jar: workbench.activeJar)
         }
+        .frame(minWidth: 880, minHeight: 560)
+        .background(NRColor.bg)
+        .navigationTitle(workbench.activeJar?.name ?? "NetRelish")
+        .navigationSubtitle("\(workbench.itemCount) \(workbench.itemCount == 1 ? "item" : "items")")
+        .task { await workbench.observe() }
     }
 }
