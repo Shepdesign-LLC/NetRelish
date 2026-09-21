@@ -43,7 +43,8 @@
       "shelfLifeDays": "property",
       "defaultRecipe": "link",
       "items": "collection",
-      "onItemDropped": "event"
+      "onItemDropped": "event",
+      "tabs": "collection"
     },
     "7dbf8d2c-9bd5-4c34-bd69-d54c5e3878df": {
       "_id": "7dbf8d2c-9bd5-4c34-bd69-d54c5e3878df",
@@ -113,6 +114,23 @@
       "runRecipe": "method",
       "onCapture": "event",
       "onSeal": "event"
+    },
+    "bc02df56-5bf9-482c-9914-ac4431636d02": {
+      "_id": "bc02df56-5bf9-482c-9914-ac4431636d02",
+      "_name": "Tab",
+      "_inherit": [
+        "_Component"
+      ],
+      "url": "property",
+      "title": "property",
+      "isPinned": "property",
+      "sortOrder": "property",
+      "openedAt": "property",
+      "touchedAt": "property",
+      "interactionState": "property",
+      "jar": "link",
+      "sink": "method",
+      "onSunk": "event"
     }
   },
   "models": {
@@ -292,6 +310,14 @@
             "type": "Item"
           }
         ]
+      },
+      "tabs": {
+        "type": [
+          "Tab"
+        ],
+        "readOnly": false,
+        "mandatory": false,
+        "default": []
       }
     },
     "7dbf8d2c-9bd5-4c34-bd69-d54c5e3878df": {
@@ -573,6 +599,71 @@
           }
         ]
       }
+    },
+    "bc02df56-5bf9-482c-9914-ac4431636d02": {
+      "_id": "bc02df56-5bf9-482c-9914-ac4431636d02",
+      "_name": "Tab",
+      "_description": "An open pane on the Bench. Belongs to a jar; sinks into Brine past the jar's shelf life unless pinned.",
+      "url": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "title": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "isPinned": {
+        "type": "boolean",
+        "readOnly": false,
+        "mandatory": true,
+        "default": false
+      },
+      "sortOrder": {
+        "type": "number",
+        "readOnly": false,
+        "mandatory": true,
+        "default": 0
+      },
+      "openedAt": {
+        "type": "date",
+        "readOnly": true,
+        "mandatory": true,
+        "default": "1970-01-01T00:00:00.000Z"
+      },
+      "touchedAt": {
+        "type": "date",
+        "readOnly": false,
+        "mandatory": true,
+        "default": "1970-01-01T00:00:00.000Z"
+      },
+      "interactionState": {
+        "type": "object",
+        "readOnly": false,
+        "mandatory": false,
+        "default": {}
+      },
+      "jar": {
+        "type": "Jar",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "sink": {
+        "params": [],
+        "result": "Item"
+      },
+      "onSunk": {
+        "params": [
+          {
+            "name": "item",
+            "type": "Item"
+          }
+        ]
+      }
     }
   },
   "behaviors": {
@@ -631,6 +722,14 @@
       "action": "function execute(item) {\n  const params = this.params() || {};\n  switch (this.action()) {\n    case 'addLabel': {\n      const labels = item.labels();\n      if (params.label && !labels.includes(params.label)) labels.push(params.label);\n      item.labels(labels);\n      break;\n    }\n    case 'removeLabel': {\n      item.labels(item.labels().filter(l => l !== params.label));\n      break;\n    }\n    case 'moveToJar': {\n      item.jar(params.jar);\n      item.state('jarred');\n      break;\n    }\n    case 'seal': {\n      item.seal();\n      break;\n    }\n    default: {\n      // summarize, extractLinks, extractTasks, ocrImage, exportMarkdown,\n      // exportPDF, runShortcut, notify: performed on-device by the app,\n      // reading the sealed snapshot only. Nothing to model here.\n      break;\n    }\n  }\n  item.updatedAt(new Date());\n  return item;\n}",
       "useCoreAPI": false,
       "core": false
+    },
+    "745494e9-b859-48a0-b784-e329e72426a9": {
+      "_id": "745494e9-b859-48a0-b784-e329e72426a9",
+      "component": "Tab",
+      "state": "sink",
+      "useCoreAPI": false,
+      "core": false,
+      "action": "function sink() {\n  const Item = this.require('Item');\n  const now = new Date();\n  const item = new Item({\n    kind: 'page',\n    state: 'brined',\n    title: this.title(),\n    url: this.url(),\n    domain: this.url() ? new URL(this.url()).hostname : '',\n    source: 'browse',\n    createdAt: now,\n    updatedAt: now,\n    meta: { interactionState: this.interactionState(), originJar: this.jar() ? this.jar().id() : null }\n  });\n  this.onSunk(item);\n  this.destroy();\n  return item;\n}"
     }
   },
   "types": {

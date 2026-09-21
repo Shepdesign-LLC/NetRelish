@@ -69,6 +69,11 @@ public struct Jar: Codable, Identifiable, Hashable, Sendable, FetchableRecord, M
         try Item.filter(Item.Columns.jarId == id).fetchAll(db)
     }
 
+    public static let tabs = hasMany(Tab.self, key: "tabs", using: ForeignKey(["jarId"]))
+    public func tabs(_ db: Database) throws -> [Tab] {
+        try Tab.filter(Tab.Columns.jarId == id).fetchAll(db)
+    }
+
     // MARK: Events
 
     /// `onItemDropped` — an `AsyncStream<Item>`; also posted as `Notification.Name("NetRelish.Jar.onItemDropped")`.

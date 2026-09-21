@@ -7,7 +7,7 @@ import GRDB
 /// Creates every table, join table and index the diagram implies. Called by Migrations/V1.
 public enum PantrySchema {
     /// Table names, in creation order (referenced tables first).
-    public static let tables: [String] = ["labels", "recipes", "batches", "jars", "items", "netrelish", "steps"]
+    public static let tables: [String] = ["labels", "recipes", "batches", "jars", "items", "netrelish", "steps", "tabs"]
 
     public static func create(_ db: Database) throws {
         try db.create(table: "labels") { t in
@@ -71,6 +71,17 @@ public enum PantrySchema {
             t.column("params", .blob)
             t.belongsTo("recipe", inTable: "recipes", onDelete: .setNull)
         }
+        try db.create(table: "tabs") { t in
+            t.primaryKey("id", .text)
+            t.column("interactionState", .blob)
+            t.column("isPinned", .boolean).notNull()
+            t.column("openedAt", .datetime).notNull()
+            t.column("sortOrder", .double).notNull()
+            t.column("title", .text)
+            t.column("touchedAt", .datetime).notNull()
+            t.column("url", .text)
+            t.belongsTo("jar", inTable: "jars", onDelete: .setNull)
+        }
         try db.create(table: "items_labels") { t in
             t.belongsTo("item", inTable: "items", onDelete: .cascade).notNull()
             t.belongsTo("label", inTable: "labels", onDelete: .cascade).notNull()
@@ -85,5 +96,6 @@ public enum PantrySchema {
         try db.create(indexOn: "items", columns: ["updatedAt"])
         try db.create(indexOn: "items", columns: ["url"])
         try db.create(indexOn: "steps", columns: ["action"])
+        try db.create(indexOn: "tabs", columns: ["url"])
     }
 }
