@@ -41,12 +41,13 @@ Two flavors — *App Store* (StoreKit) and *Direct* (Developer ID, defines
 under *Window → Design Kit*. Endpoints come from `Config.xcconfig` (gitignored;
 copy `Config.xcconfig.example`).
 
-Three things are generated and must never be hand-edited; CI fails on drift:
+Four things are generated and must never be hand-edited; CI fails on drift:
 
 | File | Source | Regenerate |
 |---|---|---|
 | `Sources/UI/Tokens.swift` | `design/tokens.css` | `swift scripts/gen-tokens.swift design/tokens.css > Sources/UI/Tokens.swift` |
 | `Sources/UI/Symbols.swift` | `design/symbols.svg` + logos | `swift scripts/gen-symbols.swift design/symbols.svg design/logo.svg design/logo-cog.svg > Sources/UI/Symbols.swift` |
+| `Sources/Pantry/Models/` | `design/NetRelish.json` (System Designer) | `swift scripts/gen-pantry.swift design/NetRelish.json Sources/Pantry/Models` |
 | `NetRelish.xcodeproj` | `project.yml` | `scripts/gen-project.sh` (needs `brew install xcodegen`) |
 
 The app icon is `Resources/AppIcon.icns`, rendered from `design/logo.svg` by

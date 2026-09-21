@@ -64,6 +64,7 @@ targets:
       - path: Sources/Pantry
     dependencies:
       - package: GRDB
+      - sdk: AppIntents.framework
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shepdesign.netrelish.pantry
@@ -121,6 +122,19 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.shepdesign.netrelish.tests
         GENERATE_INFOPLIST_FILE: YES
 
+  # Unhosted: the Pantry against an in-memory database.
+  PantryTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/PantryTests
+    dependencies:
+      - target: Pantry
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shepdesign.netrelish.pantrytests
+        GENERATE_INFOPLIST_FILE: YES
+
   # Unhosted: runs scripts/gen-*.swift as processes, which the sandboxed app host cannot.
   GeneratorTests:
     type: bundle.unit-test
@@ -142,7 +156,7 @@ schemes:
       config: Debug-AppStore
     test:
       config: Debug-AppStore
-      targets: [NetRelishTests, GeneratorTests]
+      targets: [NetRelishTests, PantryTests, GeneratorTests]
     profile:
       config: Release-AppStore
     archive:
@@ -155,7 +169,7 @@ schemes:
       config: Debug-Direct
     test:
       config: Debug-Direct
-      targets: [NetRelishTests, GeneratorTests]
+      targets: [NetRelishTests, PantryTests, GeneratorTests]
     profile:
       config: Release-Direct
     archive:
