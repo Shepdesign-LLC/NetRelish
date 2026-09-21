@@ -25,3 +25,8 @@ get a hand-written `V2`, `V3`… that moves the real database toward it.
 **What this gives Prompt 4.** Change a property in `NetRelish.json`, regenerate, and the diff
 is confined to `Sources/Pantry/Models/`. Change a method body and the diff is a doc comment
 plus whatever hand-written mirror the reviewer updates to match.
+
+**Pre-1.0 addendum (2026-09-21).** Until V1 ships, DEBUG builds set GRDB's
+`eraseDatabaseOnSchemaChange`: a dev Pantry whose schema no longer matches the generated
+`PantrySchema` is discarded, not migrated. Release builds never do this. Removed at 1.0,
+when V1 freezes and V2 begins.
