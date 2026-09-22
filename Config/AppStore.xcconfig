@@ -1,0 +1,3 @@
+// AppStore.xcconfig — the Mac App Store build. StoreKit 2 for billing.
+#include "Base.xcconfig"
+NR_DISTRIBUTION = appstore

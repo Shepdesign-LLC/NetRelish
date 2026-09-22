@@ -1,0 +1,4 @@
+// Direct.xcconfig — the Developer ID build. Defines DIRECT_BUILD (see project.yml),
+// which enables Pickle and the direct license path.
+#include "Base.xcconfig"
+NR_DISTRIBUTION = direct

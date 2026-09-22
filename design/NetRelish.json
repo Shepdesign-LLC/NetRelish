@@ -1,0 +1,851 @@
+{
+  "name": "NetRelish",
+  "master": true,
+  "version": "0.2.0",
+  "description": "Savor the web. Get more done.",
+  "schemas": {
+    "cb188040-2065-4be8-8f84-308508106fe6": {
+      "_id": "cb188040-2065-4be8-8f84-308508106fe6",
+      "_name": "Item",
+      "_inherit": [
+        "_Component"
+      ],
+      "kind": "property",
+      "state": "property",
+      "title": "property",
+      "url": "property",
+      "domain": "property",
+      "excerpt": "property",
+      "body": "property",
+      "snapshotPath": "property",
+      "source": "property",
+      "meta": "property",
+      "createdAt": "property",
+      "updatedAt": "property",
+      "sealedAt": "property",
+      "jar": "link",
+      "batch": "link",
+      "labels": "collection",
+      "seal": "method",
+      "onSealed": "event"
+    },
+    "b674e29c-a533-4aef-98d8-09febdf71816": {
+      "_id": "b674e29c-a533-4aef-98d8-09febdf71816",
+      "_name": "Jar",
+      "_inherit": [
+        "_Component"
+      ],
+      "name": "property",
+      "glyph": "property",
+      "tint": "property",
+      "sortOrder": "property",
+      "isPinned": "property",
+      "shelfLifeDays": "property",
+      "defaultRecipe": "link",
+      "items": "collection",
+      "onItemDropped": "event",
+      "tabs": "collection"
+    },
+    "7dbf8d2c-9bd5-4c34-bd69-d54c5e3878df": {
+      "_id": "7dbf8d2c-9bd5-4c34-bd69-d54c5e3878df",
+      "_name": "Recipe",
+      "_inherit": [
+        "_Component"
+      ],
+      "name": "property",
+      "trigger": "property",
+      "schedule": "property",
+      "isShortcutExposed": "property",
+      "lastRunAt": "property",
+      "steps": "collection",
+      "run": "method",
+      "onRunFinished": "event"
+    },
+    "1a92f397-c0c9-4aa9-90a8-b831f5a4817f": {
+      "_id": "1a92f397-c0c9-4aa9-90a8-b831f5a4817f",
+      "_name": "Step",
+      "_inherit": [
+        "_Component"
+      ],
+      "order": "property",
+      "action": "property",
+      "params": "property",
+      "haltOnFail": "property",
+      "recipe": "link",
+      "execute": "method"
+    },
+    "831e262d-62a6-4a19-940a-f137b6cb623c": {
+      "_id": "831e262d-62a6-4a19-940a-f137b6cb623c",
+      "_name": "Label",
+      "_inherit": [
+        "_Component"
+      ],
+      "name": "property",
+      "tint": "property",
+      "items": "collection"
+    },
+    "46dbd19b-5eca-413e-bd94-00d8376f663b": {
+      "_id": "46dbd19b-5eca-413e-bd94-00d8376f663b",
+      "_name": "Batch",
+      "_inherit": [
+        "_Component"
+      ],
+      "status": "property",
+      "createdAt": "property",
+      "finishedAt": "property",
+      "recipe": "link",
+      "items": "collection",
+      "onFinished": "event"
+    },
+    "b8e2ac70-556b-40d1-a85c-8e5fbe3effc4": {
+      "_id": "b8e2ac70-556b-40d1-a85c-8e5fbe3effc4",
+      "_name": "NetRelish",
+      "_inherit": [
+        "_Component"
+      ],
+      "tagline": "property",
+      "brine": "collection",
+      "jars": "collection",
+      "recipes": "collection",
+      "labels": "collection",
+      "activeJar": "link",
+      "capture": "method",
+      "seal": "method",
+      "runRecipe": "method",
+      "onCapture": "event",
+      "onSeal": "event"
+    },
+    "bc02df56-5bf9-482c-9914-ac4431636d02": {
+      "_id": "bc02df56-5bf9-482c-9914-ac4431636d02",
+      "_name": "Tab",
+      "_inherit": [
+        "_Component"
+      ],
+      "url": "property",
+      "title": "property",
+      "isPinned": "property",
+      "sortOrder": "property",
+      "openedAt": "property",
+      "touchedAt": "property",
+      "interactionState": "property",
+      "jar": "link",
+      "sink": "method",
+      "onSunk": "event"
+    }
+  },
+  "models": {
+    "cb188040-2065-4be8-8f84-308508106fe6": {
+      "_id": "cb188040-2065-4be8-8f84-308508106fe6",
+      "_name": "Item",
+      "_description": "Everything the user saves. One table. kind is the discriminator.",
+      "kind": {
+        "type": "ItemKind",
+        "readOnly": false,
+        "mandatory": true,
+        "default": "page"
+      },
+      "state": {
+        "type": "ItemState",
+        "readOnly": false,
+        "mandatory": true,
+        "default": "brined"
+      },
+      "title": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": true,
+        "default": ""
+      },
+      "url": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "domain": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "excerpt": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "body": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "snapshotPath": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "source": {
+        "type": "CaptureSource",
+        "readOnly": true,
+        "mandatory": true,
+        "default": "browse"
+      },
+      "meta": {
+        "type": "object",
+        "readOnly": false,
+        "mandatory": false,
+        "default": {}
+      },
+      "createdAt": {
+        "type": "date",
+        "readOnly": true,
+        "mandatory": true,
+        "default": "1970-01-01T00:00:00.000Z"
+      },
+      "updatedAt": {
+        "type": "date",
+        "readOnly": false,
+        "mandatory": true,
+        "default": "1970-01-01T00:00:00.000Z"
+      },
+      "sealedAt": {
+        "type": "date",
+        "readOnly": false,
+        "mandatory": false,
+        "default": "1970-01-01T00:00:00.000Z"
+      },
+      "jar": {
+        "type": "Jar",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "batch": {
+        "type": "Batch",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "labels": {
+        "type": [
+          "Label"
+        ],
+        "readOnly": false,
+        "mandatory": false,
+        "default": []
+      },
+      "seal": {
+        "params": [],
+        "result": "Item"
+      },
+      "onSealed": {
+        "params": [
+          {
+            "name": "item",
+            "type": "Item"
+          }
+        ]
+      }
+    },
+    "b674e29c-a533-4aef-98d8-09febdf71816": {
+      "_id": "b674e29c-a533-4aef-98d8-09febdf71816",
+      "_name": "Jar",
+      "_description": "A project, and a profile. Has a shelf life. Where Brine goes once sorted.",
+      "name": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": true,
+        "default": ""
+      },
+      "glyph": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": false,
+        "default": "nr-jar"
+      },
+      "tint": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "sortOrder": {
+        "type": "number",
+        "readOnly": false,
+        "mandatory": false,
+        "default": 0
+      },
+      "isPinned": {
+        "type": "boolean",
+        "readOnly": false,
+        "mandatory": false,
+        "default": false
+      },
+      "shelfLifeDays": {
+        "type": "number",
+        "readOnly": false,
+        "mandatory": false,
+        "default": 3
+      },
+      "defaultRecipe": {
+        "type": "Recipe",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "items": {
+        "type": [
+          "Item"
+        ],
+        "readOnly": false,
+        "mandatory": false,
+        "default": []
+      },
+      "onItemDropped": {
+        "params": [
+          {
+            "name": "item",
+            "type": "Item"
+          }
+        ]
+      },
+      "tabs": {
+        "type": [
+          "Tab"
+        ],
+        "readOnly": false,
+        "mandatory": false,
+        "default": []
+      }
+    },
+    "7dbf8d2c-9bd5-4c34-bd69-d54c5e3878df": {
+      "_id": "7dbf8d2c-9bd5-4c34-bd69-d54c5e3878df",
+      "_name": "Recipe",
+      "_description": "A repeatable workflow. Ordered Steps, one Trigger. Every Recipe is an App Intent.",
+      "name": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": true,
+        "default": ""
+      },
+      "trigger": {
+        "type": "RecipeTrigger",
+        "readOnly": false,
+        "mandatory": true,
+        "default": "manual"
+      },
+      "schedule": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "isShortcutExposed": {
+        "type": "boolean",
+        "readOnly": false,
+        "mandatory": false,
+        "default": true
+      },
+      "lastRunAt": {
+        "type": "date",
+        "readOnly": false,
+        "mandatory": false,
+        "default": "1970-01-01T00:00:00.000Z"
+      },
+      "steps": {
+        "type": [
+          "Step"
+        ],
+        "readOnly": false,
+        "mandatory": false,
+        "default": []
+      },
+      "run": {
+        "params": [
+          {
+            "name": "items",
+            "type": [
+              "Item"
+            ],
+            "mandatory": true
+          }
+        ],
+        "result": "Batch"
+      },
+      "onRunFinished": {
+        "params": [
+          {
+            "name": "batch",
+            "type": "Batch"
+          }
+        ]
+      }
+    },
+    "1a92f397-c0c9-4aa9-90a8-b831f5a4817f": {
+      "_id": "1a92f397-c0c9-4aa9-90a8-b831f5a4817f",
+      "_name": "Step",
+      "_description": "One atomic unit of a Recipe. A function of Item -> Item.",
+      "order": {
+        "type": "number",
+        "readOnly": false,
+        "mandatory": true,
+        "default": 0
+      },
+      "action": {
+        "type": "StepAction",
+        "readOnly": false,
+        "mandatory": true,
+        "default": "addLabel"
+      },
+      "params": {
+        "type": "object",
+        "readOnly": false,
+        "mandatory": false,
+        "default": {}
+      },
+      "haltOnFail": {
+        "type": "boolean",
+        "readOnly": false,
+        "mandatory": false,
+        "default": false
+      },
+      "recipe": {
+        "type": "Recipe",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "execute": {
+        "params": [
+          {
+            "name": "item",
+            "type": "Item",
+            "mandatory": true
+          }
+        ],
+        "result": "Item"
+      }
+    },
+    "831e262d-62a6-4a19-940a-f137b6cb623c": {
+      "_id": "831e262d-62a6-4a19-940a-f137b6cb623c",
+      "_name": "Label",
+      "_description": "Flat tag. No hierarchy — Jars do that job.",
+      "name": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": true,
+        "default": ""
+      },
+      "tint": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "items": {
+        "type": [
+          "Item"
+        ],
+        "readOnly": false,
+        "mandatory": false,
+        "default": []
+      }
+    },
+    "46dbd19b-5eca-413e-bd94-00d8376f663b": {
+      "_id": "46dbd19b-5eca-413e-bd94-00d8376f663b",
+      "_name": "Batch",
+      "_description": "A set of Items handled together — one Recipe run, one export, one Seal.",
+      "status": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": true,
+        "default": "queued"
+      },
+      "createdAt": {
+        "type": "date",
+        "readOnly": true,
+        "mandatory": true,
+        "default": "1970-01-01T00:00:00.000Z"
+      },
+      "finishedAt": {
+        "type": "date",
+        "readOnly": false,
+        "mandatory": false,
+        "default": "1970-01-01T00:00:00.000Z"
+      },
+      "recipe": {
+        "type": "Recipe",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "items": {
+        "type": [
+          "Item"
+        ],
+        "readOnly": false,
+        "mandatory": false,
+        "default": []
+      },
+      "onFinished": {
+        "params": [
+          {
+            "name": "batch",
+            "type": "Batch"
+          }
+        ]
+      }
+    },
+    "b8e2ac70-556b-40d1-a85c-8e5fbe3effc4": {
+      "_id": "b8e2ac70-556b-40d1-a85c-8e5fbe3effc4",
+      "_name": "NetRelish",
+      "_description": "The workbench. Root of the system.",
+      "tagline": {
+        "type": "string",
+        "readOnly": true,
+        "mandatory": false,
+        "default": "Savor the web. Get more done."
+      },
+      "brine": {
+        "type": [
+          "Item"
+        ],
+        "readOnly": false,
+        "mandatory": false,
+        "default": []
+      },
+      "jars": {
+        "type": [
+          "Jar"
+        ],
+        "readOnly": false,
+        "mandatory": false,
+        "default": []
+      },
+      "recipes": {
+        "type": [
+          "Recipe"
+        ],
+        "readOnly": false,
+        "mandatory": false,
+        "default": []
+      },
+      "labels": {
+        "type": [
+          "Label"
+        ],
+        "readOnly": false,
+        "mandatory": false,
+        "default": []
+      },
+      "activeJar": {
+        "type": "Jar",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "capture": {
+        "params": [
+          {
+            "name": "url",
+            "type": "string",
+            "mandatory": true
+          }
+        ],
+        "result": "Item"
+      },
+      "seal": {
+        "params": [
+          {
+            "name": "item",
+            "type": "Item",
+            "mandatory": true
+          }
+        ],
+        "result": "Item"
+      },
+      "runRecipe": {
+        "params": [
+          {
+            "name": "recipe",
+            "type": "Recipe",
+            "mandatory": true
+          },
+          {
+            "name": "items",
+            "type": [
+              "Item"
+            ],
+            "mandatory": true
+          }
+        ],
+        "result": "Batch"
+      },
+      "onCapture": {
+        "params": [
+          {
+            "name": "item",
+            "type": "Item"
+          }
+        ]
+      },
+      "onSeal": {
+        "params": [
+          {
+            "name": "item",
+            "type": "Item"
+          }
+        ]
+      }
+    },
+    "bc02df56-5bf9-482c-9914-ac4431636d02": {
+      "_id": "bc02df56-5bf9-482c-9914-ac4431636d02",
+      "_name": "Tab",
+      "_description": "An open pane on the Bench. Belongs to a jar; sinks into Brine past the jar's shelf life unless pinned.",
+      "url": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "title": {
+        "type": "string",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "isPinned": {
+        "type": "boolean",
+        "readOnly": false,
+        "mandatory": true,
+        "default": false
+      },
+      "sortOrder": {
+        "type": "number",
+        "readOnly": false,
+        "mandatory": true,
+        "default": 0
+      },
+      "openedAt": {
+        "type": "date",
+        "readOnly": true,
+        "mandatory": true,
+        "default": "1970-01-01T00:00:00.000Z"
+      },
+      "touchedAt": {
+        "type": "date",
+        "readOnly": false,
+        "mandatory": true,
+        "default": "1970-01-01T00:00:00.000Z"
+      },
+      "interactionState": {
+        "type": "object",
+        "readOnly": false,
+        "mandatory": false,
+        "default": {}
+      },
+      "jar": {
+        "type": "Jar",
+        "readOnly": false,
+        "mandatory": false,
+        "default": ""
+      },
+      "sink": {
+        "params": [],
+        "result": "Item"
+      },
+      "onSunk": {
+        "params": [
+          {
+            "name": "item",
+            "type": "Item"
+          }
+        ]
+      }
+    }
+  },
+  "behaviors": {
+    "f5b1cf15-3b9f-40a6-ae98-7d9c9f0f40a2": {
+      "_id": "f5b1cf15-3b9f-40a6-ae98-7d9c9f0f40a2",
+      "component": "f829c36b-3b93-4ae0-9ce0-2b2230027094",
+      "state": "start",
+      "action": "function start() {\n  const NetRelish = this.require('NetRelish');\n  if (!this.require('pantry')) {\n    new NetRelish({ _id: 'pantry' });\n  }\n}",
+      "useCoreAPI": false,
+      "core": false
+    },
+    "c849a96c-0991-46e1-a7b1-cbecced2cc3f": {
+      "_id": "c849a96c-0991-46e1-a7b1-cbecced2cc3f",
+      "component": "NetRelish",
+      "state": "capture",
+      "action": "function capture(url) {\n  const Item = this.require('Item');\n  const now = new Date();\n  const item = new Item({\n    kind: 'page',\n    state: 'brined',\n    title: url,\n    url: url,\n    domain: new URL(url).hostname,\n    source: 'browse',\n    createdAt: now,\n    updatedAt: now\n  });\n  this.brine().push(item);\n  this.onCapture(item);\n  return item;\n}",
+      "useCoreAPI": false,
+      "core": false
+    },
+    "1286dfe0-b141-463c-82aa-4c2a64a4f19f": {
+      "_id": "1286dfe0-b141-463c-82aa-4c2a64a4f19f",
+      "component": "NetRelish",
+      "state": "seal",
+      "action": "function seal(item) {\n  item.seal();\n  this.onSeal(item);\n  return item;\n}",
+      "useCoreAPI": false,
+      "core": false
+    },
+    "6b9602c3-50a1-47a6-8fbe-22a0a88c8470": {
+      "_id": "6b9602c3-50a1-47a6-8fbe-22a0a88c8470",
+      "component": "NetRelish",
+      "state": "runRecipe",
+      "action": "function runRecipe(recipe, items) {\n  return recipe.run(items);\n}",
+      "useCoreAPI": false,
+      "core": false
+    },
+    "2bbd90b1-9afe-4d65-89cf-592a79c8a8d4": {
+      "_id": "2bbd90b1-9afe-4d65-89cf-592a79c8a8d4",
+      "component": "Item",
+      "state": "seal",
+      "action": "function seal() {\n  if (this.state() === 'sealed') return this;\n  const now = new Date();\n  this.state('sealed');\n  this.sealedAt(now);\n  this.updatedAt(now);\n  this.onSealed(this);\n  return this;\n}",
+      "useCoreAPI": false,
+      "core": false
+    },
+    "3d620011-4b50-42ea-b568-e251ea8f56db": {
+      "_id": "3d620011-4b50-42ea-b568-e251ea8f56db",
+      "component": "Recipe",
+      "state": "run",
+      "action": "function run(items) {\n  const Batch = this.require('Batch');\n  const batch = new Batch({ status: 'running', createdAt: new Date(), recipe: this, items: items });\n  const steps = this.steps().sort((a, b) => a.order() - b.order());\n  for (const item of items) {\n    for (const step of steps) {\n      try {\n        step.execute(item);\n      } catch (e) {\n        if (step.haltOnFail()) {\n          batch.status('failed');\n          batch.finishedAt(new Date());\n          this.onRunFinished(batch);\n          return batch;\n        }\n      }\n    }\n  }\n  batch.status('done');\n  batch.finishedAt(new Date());\n  this.lastRunAt(new Date());\n  this.onRunFinished(batch);\n  return batch;\n}",
+      "useCoreAPI": false,
+      "core": false
+    },
+    "dfab6ba5-5388-409a-bfcc-4c821b639ba8": {
+      "_id": "dfab6ba5-5388-409a-bfcc-4c821b639ba8",
+      "component": "Step",
+      "state": "execute",
+      "action": "function execute(item) {\n  const params = this.params() || {};\n  switch (this.action()) {\n    case 'addLabel': {\n      const labels = item.labels();\n      if (params.label && !labels.includes(params.label)) labels.push(params.label);\n      item.labels(labels);\n      break;\n    }\n    case 'removeLabel': {\n      item.labels(item.labels().filter(l => l !== params.label));\n      break;\n    }\n    case 'moveToJar': {\n      item.jar(params.jar);\n      item.state('jarred');\n      break;\n    }\n    case 'seal': {\n      item.seal();\n      break;\n    }\n    default: {\n      // summarize, extractLinks, extractTasks, ocrImage, exportMarkdown,\n      // exportPDF, runShortcut, notify: performed on-device by the app,\n      // reading the sealed snapshot only. Nothing to model here.\n      break;\n    }\n  }\n  item.updatedAt(new Date());\n  return item;\n}",
+      "useCoreAPI": false,
+      "core": false
+    },
+    "745494e9-b859-48a0-b784-e329e72426a9": {
+      "_id": "745494e9-b859-48a0-b784-e329e72426a9",
+      "component": "Tab",
+      "state": "sink",
+      "useCoreAPI": false,
+      "core": false,
+      "action": "function sink() {\n  const Item = this.require('Item');\n  const now = new Date();\n  const item = new Item({\n    kind: 'page',\n    state: 'brined',\n    title: this.title(),\n    url: this.url(),\n    domain: this.url() ? new URL(this.url()).hostname : '',\n    source: 'browse',\n    createdAt: now,\n    updatedAt: now,\n    meta: { interactionState: this.interactionState(), originJar: this.jar() ? this.jar().id() : null }\n  });\n  this.onSunk(item);\n  this.destroy();\n  return item;\n}"
+    }
+  },
+  "types": {
+    "ItemKind": {
+      "_id": "5ed1f343-a923-4f0c-a597-7ad55311d87a",
+      "name": "ItemKind",
+      "description": "What an Item is. The single discriminator.",
+      "type": "string",
+      "value": [
+        "page",
+        "note",
+        "task",
+        "file",
+        "message",
+        "clip"
+      ]
+    },
+    "ItemState": {
+      "_id": "7d7730d2-11a3-4bf4-9eee-b5984c2cdd51",
+      "name": "ItemState",
+      "description": "Where an Item is in its life. Seal is the only one-way move.",
+      "type": "string",
+      "value": [
+        "brined",
+        "jarred",
+        "sealed"
+      ]
+    },
+    "RecipeTrigger": {
+      "_id": "54892549-980a-45a4-8cc6-b35253070047",
+      "name": "RecipeTrigger",
+      "description": "What starts a Recipe.",
+      "type": "string",
+      "value": [
+        "manual",
+        "onCapture",
+        "onSeal",
+        "onJarDrop",
+        "scheduled"
+      ]
+    },
+    "StepAction": {
+      "_id": "4e2952e2-9159-4517-8e1a-de34a5fb66d9",
+      "name": "StepAction",
+      "description": "The atomic operations a Step can perform on an Item.",
+      "type": "string",
+      "value": [
+        "addLabel",
+        "removeLabel",
+        "moveToJar",
+        "seal",
+        "summarize",
+        "extractLinks",
+        "extractTasks",
+        "ocrImage",
+        "exportMarkdown",
+        "exportPDF",
+        "runShortcut",
+        "notify"
+      ]
+    },
+    "CaptureSource": {
+      "_id": "e2a80e7a-6323-43ae-a42f-2cc62b4f9f73",
+      "name": "CaptureSource",
+      "description": "How an Item entered the Pantry.",
+      "type": "string",
+      "value": [
+        "browse",
+        "shareExtension",
+        "clipboard",
+        "drop",
+        "shortcut",
+        "recipe"
+      ]
+    }
+  },
+  "components": {
+    "Jar": {
+      "read-later": {
+        "_id": "read-later",
+        "name": "Read Later",
+        "glyph": "nr-jar",
+        "isPinned": true,
+        "sortOrder": 0,
+        "shelfLifeDays": 3
+      },
+      "reference": {
+        "_id": "reference",
+        "name": "Reference",
+        "glyph": "nr-jar",
+        "isPinned": false,
+        "sortOrder": 1,
+        "shelfLifeDays": 7
+      }
+    },
+    "Recipe": {
+      "seal-summarize": {
+        "_id": "seal-summarize",
+        "name": "Seal & Summarize",
+        "trigger": "onSeal",
+        "isShortcutExposed": true
+      }
+    },
+    "NetRelish": {
+      "pantry": {
+        "_id": "pantry",
+        "jars": [
+          "read-later",
+          "reference"
+        ],
+        "recipes": [
+          "seal-summarize"
+        ],
+        "activeJar": "read-later"
+      }
+    }
+  },
+  "_id": "f829c36b-3b93-4ae0-9ce0-2b2230027094"
+}
