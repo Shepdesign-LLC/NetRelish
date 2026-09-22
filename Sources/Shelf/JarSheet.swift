@@ -15,7 +15,10 @@ struct JarSheet: View {
     /// Nil for a new jar.
     var existing: Jar?
     var save: (_ name: String, _ tint: String?, _ shelfLifeDays: Double?) -> Void
+    var vault: VaultStore = .live
     @Environment(\.dismiss) private var dismiss
+    @State private var ownCard = false
+    @State private var card = Identity()
     @State private var name = ""
     @State private var color: Color = OKLCH(l: 0.72, c: 0.14, h: 40).color
     @State private var amount = 3
@@ -53,6 +56,18 @@ struct JarSheet: View {
                             .font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg3)
                     }
                 }
+                if existing != nil {
+                    GridRow {
+                        Text("Card").font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2)
+                        VStack(alignment: .leading, spacing: NRSpace.sp2) {
+                            Toggle("Use a different card in this jar", isOn: $ownCard).toggleStyle(.switch)
+                                .font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg)
+                            Text(ownCard ? "⌘⇧F fills forms in this jar from this card instead of Me." : "⌘⇧F fills forms in this jar from Me (Settings → Me).")
+                                .font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg3)
+                            if ownCard { IdentityFields(identity: $card) }
+                        }
+                    }
+                }
             }
             HStack {
                 Spacer()
@@ -62,7 +77,7 @@ struct JarSheet: View {
             }
         }
         .padding(NRSpace.sp6)
-        .frame(width: 480)
+        .frame(width: 520)
         .background(NRColor.surface)
         .onAppear(perform: seed)
     }
@@ -70,6 +85,10 @@ struct JarSheet: View {
     private func seed() {
         guard let existing else { return }
         name = existing.name
+        if let own = try? vault.hasOverride(for: existing.id), own {
+            ownCard = true
+            card = (try? vault.identity(for: existing.id)) ?? Identity()
+        }
         if let tint = existing.tint, let c = OKLCH(tint) { color = c.color }
         if let days = existing.shelfLifeDays, days > 0 {
             hasShelfLife = true
@@ -86,6 +105,9 @@ struct JarSheet: View {
     private func submit() {
         guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         save(name, OKLCH(color).css, hasShelfLife ? Double(amount) / unit.perDay : nil)
+        if let existing {
+            if ownCard, !card.isEmpty { try? vault.save(card, for: existing.id) } else { try? vault.remove(for: existing.id) }
+        }
         dismiss()
     }
 }

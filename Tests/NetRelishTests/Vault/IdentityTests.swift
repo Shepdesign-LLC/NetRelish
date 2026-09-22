@@ -64,3 +64,29 @@ import Testing
         #expect(try Identity.decode(data) == me)
     }
 }
+
+import Contacts
+
+@Suite("Identity from Contacts") struct IdentityFromContactsTests {
+    @Test("The first email, phone, and postal address come across; a two-line street becomes one")
+    func mapsMeCard() {
+        let c = CNMutableContact()
+        c.givenName = "Ryan"; c.familyName = "Shepherd"
+        c.emailAddresses = [CNLabeledValue(label: CNLabelWork, value: "ryan@example.com"), CNLabeledValue(label: CNLabelHome, value: "second@example.com")]
+        c.phoneNumbers = [CNLabeledValue(label: CNLabelPhoneNumberMobile, value: CNPhoneNumber(stringValue: "303-555-0100"))]
+        let a = CNMutablePostalAddress()
+        a.street = "1 Main St\nSuite 4"; a.city = "Denver"; a.state = "CO"; a.postalCode = "80202"; a.country = "United States"
+        c.postalAddresses = [CNLabeledValue(label: CNLabelHome, value: a)]
+        let me = Identity(contact: c)
+        #expect(me.givenName == "Ryan" && me.familyName == "Shepherd")
+        #expect(me.email == "ryan@example.com")
+        #expect(me.phone == "303-555-0100")
+        #expect(me.street == "1 Main St, Suite 4" && me.city == "Denver" && me.state == "CO")
+        #expect(me.postalCode == "80202" && me.country == "United States")
+    }
+
+    @Test("An empty card maps to an empty identity")
+    func emptyCard() {
+        #expect(Identity(contact: CNMutableContact()).isEmpty)
+    }
+}

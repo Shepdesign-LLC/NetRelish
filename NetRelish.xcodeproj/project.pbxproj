@@ -22,6 +22,7 @@
 		25876C40D8B8A69067C6E12E /* FormFill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43E13803770E245554A7C7A2 /* FormFill.swift */; };
 		2A048A04EBC2F87C7E0A38EB /* TokenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C5376395DE69F85C624CDC9 /* TokenTests.swift */; };
 		2A2DE6B7BCD41683B2C96321 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = A71E55B24F31AB432801A1C5 /* KeyboardShortcuts */; };
+		3082C4319551742BC2271B52 /* MeOnboardingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98A9AC161F49C3D3FBDEC67 /* MeOnboardingSheet.swift */; };
 		3156A4FAB02F777C58A85495 /* SealIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7996267AB0A6C7FE076D3195 /* SealIntent.swift */; };
 		3449309B5250DB469701ACEB /* Pantry.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D40C86B7681871F9D11011A /* Pantry.framework */; };
 		3B3EC063044298EED335234E /* AssetSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93BF3FF36A0C57425D7F9B4C /* AssetSections.swift */; };
@@ -43,6 +44,7 @@
 		6346FA67446EEEE6FD5E174F /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9D9D4F8D3B930BF6EAF57A8F /* AppIntents.framework */; };
 		6A2FCEE071655C20FD18712D /* GeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00490801AACE6526C5F44E /* GeneratorTests.swift */; };
 		6DF98DD9B52E6A421EB0B763 /* Tab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F9C3D5AFFA1CE9A9EE3EBAF /* Tab.swift */; };
+		7131964397BDD2A3E1BF68F6 /* IdentityFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = 141FB6A827355E5480CE90CE /* IdentityFields.swift */; };
 		74492C9667F54D60BB05534B /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AA2B804BABD2B9C3897FC5F /* Environment.swift */; };
 		7D762510642CB6FB703C9705 /* Pantry.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D40C86B7681871F9D11011A /* Pantry.framework */; };
 		819D577AA3194D05D11A94E7 /* NetRelish.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07FF70502E5A8CE3DFA58804 /* NetRelish.swift */; };
@@ -64,7 +66,9 @@
 		BD875949F36770F9AC5F3CA1 /* PantryGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 639BF0D3B112C860F0B857A3 /* PantryGeneratorTests.swift */; };
 		BEF4D07A58EBC1F49CA72CF4 /* ShelfLifeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88A8EC903EBD79104D542C82 /* ShelfLifeTests.swift */; };
 		C0289B2F4C89841CDA57E227 /* Workbench.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1945281CFAD12D88F79278C7 /* Workbench.swift */; };
+		C5AA6F4B3034E848272B1087 /* ContactsImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAB6D003EE9A56DA7A350E31 /* ContactsImport.swift */; };
 		C80B7DD1C500A7282051CEA4 /* FormFillTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C8701B85E904123842490DA /* FormFillTests.swift */; };
+		CD72776B669DF8E7757DA298 /* MeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9E93C49D40CA6F315D82D1 /* MeSettingsView.swift */; };
 		D1D77CDC285C08CD6FC1CDC6 /* VaultStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA78418D6AA0380B5C0C6CA0 /* VaultStoreTests.swift */; };
 		D414D4C7DAC49650ABFFAE74 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 993CF81100D71BB382CD6AF1 /* Item.swift */; };
 		D7C610F19C06EA2B34D7CBA1 /* DesignKitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B72B425EB474AE8FD25283C /* DesignKitView.swift */; };
@@ -134,6 +138,7 @@
 		09FC5F2BD5E382917A40D33D /* Label.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Label.swift; sourceTree = "<group>"; };
 		0E7C64098202D9F54E20DBDD /* NetRelish.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NetRelish.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1348DA8E44DDB79358705C26 /* SealDemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SealDemo.swift; sourceTree = "<group>"; };
+		141FB6A827355E5480CE90CE /* IdentityFields.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityFields.swift; sourceTree = "<group>"; };
 		172166523A7298160D10E066 /* Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Support.swift; sourceTree = "<group>"; };
 		18574D3272AE9DCF11A5F999 /* VaultStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultStore.swift; sourceTree = "<group>"; };
 		1945281CFAD12D88F79278C7 /* Workbench.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workbench.swift; sourceTree = "<group>"; };
@@ -183,6 +188,7 @@
 		A98236E4D7EDD3E89F974042 /* TokenSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenSections.swift; sourceTree = "<group>"; };
 		AA7871C27DFFF42E18361E61 /* JarProfileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JarProfileTests.swift; sourceTree = "<group>"; };
 		AF138E55CED036400B9C85EC /* Step.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Step.swift; sourceTree = "<group>"; };
+		BA9E93C49D40CA6F315D82D1 /* MeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeSettingsView.swift; sourceTree = "<group>"; };
 		BB595026D868AB174EF028DD /* Seed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Seed.swift; sourceTree = "<group>"; };
 		C3DF4031B6CBC0E8FE3962FD /* PantryTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PantryTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C61649A4E36CCBE8276372C9 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
@@ -191,10 +197,12 @@
 		D46826672F74157C7DA0109F /* ShelfView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelfView.swift; sourceTree = "<group>"; };
 		D4805F286DA75D1B3238CBEC /* Tab+Behavior.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Tab+Behavior.swift"; sourceTree = "<group>"; };
 		D4B24F6BEF1D0FD10AF96198 /* Shapes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shapes.swift; sourceTree = "<group>"; };
+		DAB6D003EE9A56DA7A350E31 /* ContactsImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsImport.swift; sourceTree = "<group>"; };
 		DD00490801AACE6526C5F44E /* GeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorTests.swift; sourceTree = "<group>"; };
 		DD5099EA2A36C261D6DFAF15 /* BenchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchView.swift; sourceTree = "<group>"; };
 		E3088C168536BDBDBD5110E0 /* PantryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PantryStore.swift; sourceTree = "<group>"; };
 		E90F2185D73165C21FF2FB83 /* Schema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Schema.swift; sourceTree = "<group>"; };
+		E98A9AC161F49C3D3FBDEC67 /* MeOnboardingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeOnboardingSheet.swift; sourceTree = "<group>"; };
 		EA78418D6AA0380B5C0C6CA0 /* VaultStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultStoreTests.swift; sourceTree = "<group>"; };
 		EF0B24A1EE81659EB7BBA716 /* ShapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeTests.swift; sourceTree = "<group>"; };
 		F2EEE66990AF838FD9B4386E /* V1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V1.swift; sourceTree = "<group>"; };
@@ -325,8 +333,12 @@
 		41BFD33DCEB98DB130019492 /* Vault */ = {
 			isa = PBXGroup;
 			children = (
+				DAB6D003EE9A56DA7A350E31 /* ContactsImport.swift */,
 				43E13803770E245554A7C7A2 /* FormFill.swift */,
 				FEF61F8EFF0301292F4271D2 /* Identity.swift */,
+				141FB6A827355E5480CE90CE /* IdentityFields.swift */,
+				E98A9AC161F49C3D3FBDEC67 /* MeOnboardingSheet.swift */,
+				BA9E93C49D40CA6F315D82D1 /* MeSettingsView.swift */,
 				18574D3272AE9DCF11A5F999 /* VaultStore.swift */,
 			);
 			path = Vault;
@@ -681,12 +693,16 @@
 				DF5AE705B24A50299541ABC3 /* BrineView.swift in Sources */,
 				04966F0A5EEC53CF7959DC1E /* ComponentGallery.swift in Sources */,
 				4EC192B287C6A95EA4A4627F /* Components.swift in Sources */,
+				C5AA6F4B3034E848272B1087 /* ContactsImport.swift in Sources */,
 				4387F7C64133D0CF249227C2 /* DesignKitSnapshot.swift in Sources */,
 				D7C610F19C06EA2B34D7CBA1 /* DesignKitView.swift in Sources */,
 				74492C9667F54D60BB05534B /* Environment.swift in Sources */,
 				25876C40D8B8A69067C6E12E /* FormFill.swift in Sources */,
 				9C9666B8D0D43BECB130C95A /* Identity.swift in Sources */,
+				7131964397BDD2A3E1BF68F6 /* IdentityFields.swift in Sources */,
 				53CA45E71B9E8D1D9BA81E79 /* JarSheet.swift in Sources */,
+				3082C4319551742BC2271B52 /* MeOnboardingSheet.swift in Sources */,
+				CD72776B669DF8E7757DA298 /* MeSettingsView.swift in Sources */,
 				FE8412F363AE72CDCBD44F45 /* NetRelishApp.swift in Sources */,
 				A6AFEAD4BF570FA07631E2BD /* NetRelishIntents.swift in Sources */,
 				072846673B8EAF5905701417 /* OKLCH.swift in Sources */,

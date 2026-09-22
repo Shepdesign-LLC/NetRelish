@@ -59,6 +59,9 @@ struct BenchView: View {
         workbench.interactionStateProvider = { [webViews] tab in
             webViews.existing(for: tab.id)?.interactionState
         }
+        workbench.formFiller = { [webViews] tab, identity in
+            try await FormFill.fill(identity, in: webViews.view(for: tab).webView)
+        }
     }
 }
 
@@ -98,6 +101,10 @@ struct TabPane: View {
                 .frame(height: 26)
                 .background(NRColor.surface2, in: RoundedRectangle(cornerRadius: NRRadius.r1))
                 .overlay(RoundedRectangle(cornerRadius: NRRadius.r1).strokeBorder(addressFocused ? NRColor.focus : .clear, lineWidth: 2))
+            if let status = workbench.fillStatus {
+                Text(status).font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2).lineLimit(1)
+                    .transition(.opacity).accessibilityIdentifier("fill-status")
+            }
             Button { web.isLoading ? web.webView.stopLoading() : web.reload() } label: {
                 Image(systemName: web.isLoading ? "xmark" : "arrow.clockwise")
             }.help(web.isLoading ? "Stop" : "Reload")
@@ -108,6 +115,7 @@ struct TabPane: View {
         .padding(.horizontal, NRSpace.sp3)
         .frame(height: 38)
         .background(NRColor.surface)
+        .animation(.easeOut(duration: NRMotion.base), value: workbench.fillStatus)
     }
 }
 
