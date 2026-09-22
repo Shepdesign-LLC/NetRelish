@@ -92,6 +92,8 @@ targets:
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
         com.apple.security.files.user-selected.read-write: true
+        # "Import from my card" reads the Contacts Me card once (ADR 0006).
+        com.apple.security.personal-information.addressbook: true
     info:
       path: Sources/App/Info.plist
       properties:
@@ -103,6 +105,7 @@ targets:
         NSHumanReadableCopyright: "© 2026 Shepdesign LLC. Code MIT; the mark and the name are all rights reserved."
         NSPrincipalClass: NSApplication
         NSHighResolutionCapable: true
+        NSContactsUsageDescription: "NetRelish copies your Contacts card into your Keychain once, so it can fill forms when you ask. It never reads Contacts again."
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shepdesign.netrelish
