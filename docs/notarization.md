@@ -1,7 +1,11 @@
 # Signing & Notarization
 
-Do this in week 1. Every project that defers it loses a week later to
-entitlement errors and stapler failures.
+For the **Developer ID direct build** (`DIRECT_BUILD`). The App Store build
+signs and is reviewed through App Store Connect and none of this applies to
+it.
+
+Do this before the first direct build ships. Every project that defers it
+loses a week later to entitlement errors and stapler failures.
 
 ## 1. Apple Developer Program
 
@@ -31,19 +35,23 @@ security find-identity -v -p codesigning
 appleid.apple.com → Sign-In and Security → App-Specific Passwords.
 This is **not** your Apple ID password. → GitHub secret `APPLE_PASSWORD`.
 
-## 4. Updater keypair
+## 4. Updates
 
-```bash
-npm run tauri signer generate -- -w ~/.netrelish/updater.key
-```
+**Not yet decided for the Swift app.** The App Store build updates through
+the App Store. The direct build needs its own mechanism and does not have one
+in the tree — no Sparkle, no appcast, nothing.
 
-Public key → `plugins.updater.pubkey` in `tauri.conf.json` (committed).
-Private key → GitHub secret `TAURI_SIGNING_PRIVATE_KEY` (never committed).
-
-Lose the private key and you cannot ship updates to installed copies. Back it
-up somewhere you will still have in three years.
+The retired Tauri app had a minisign keypair for this, and `v0.2.1` on GitHub
+Releases is still signed by it. That key is not used by anything being built
+now; it is kept only so the published release stays verifiable. Whatever the
+direct build eventually uses, the rule that killed the old one still applies:
+lose the signing key and you can never update an installed copy.
 
 ## 5. GitHub secrets checklist
+
+These are the secrets a signing CI job needs. There is no release workflow on
+`main` today — only `ci.yml` — so nothing consumes them yet.
+
 
 | Secret | Source |
 | :-- | :-- |
@@ -53,8 +61,6 @@ up somewhere you will still have in three years.
 | `APPLE_ID` | your Apple ID email |
 | `APPLE_PASSWORD` | app-specific password |
 | `APPLE_TEAM_ID` | the code in parentheses in the identity string |
-| `TAURI_SIGNING_PRIVATE_KEY` | contents of `updater.key` |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | password set during generate |
 
 ## 6. Verify a build
 
@@ -76,6 +82,6 @@ xcrun notarytool log <submission-id> \
 | Symptom | Cause |
 | :-- | :-- |
 | `The signature does not include a secure timestamp` | built offline; signing needs network |
-| `The executable does not have the hardened runtime enabled` | `hardenedRuntime: true` missing from `tauri.conf.json` |
+| `The executable does not have the hardened runtime enabled` | Hardened Runtime off in the target's Signing & Capabilities |
 | App launches then dies instantly | JIT entitlement missing — WKWebView cannot start |
 | `Team ID mismatch` | certificate belongs to a different team than `APPLE_TEAM_ID` |
