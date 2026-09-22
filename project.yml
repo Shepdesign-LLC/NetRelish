@@ -80,6 +80,7 @@ targets:
       - path: Sources/UI
       - path: Sources/Shelf
       - path: Sources/Bench
+      - path: Sources/Vault
       - path: Resources
         buildPhase: resources   # AppIcon.icns lands flat in Contents/Resources
     dependencies:

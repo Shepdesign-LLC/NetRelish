@@ -35,6 +35,7 @@
 		53CA45E71B9E8D1D9BA81E79 /* JarSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C990059A4A876CEEAD04DE9D /* JarSheet.swift */; };
 		572DA3163D3FA591B16E8695 /* JarProfileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA7871C27DFFF42E18361E61 /* JarProfileTests.swift */; };
 		595648038E73140D83584AC8 /* Label.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09FC5F2BD5E382917A40D33D /* Label.swift */; };
+		5DEE19ECAFFBEEF5452871FC /* IdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 835DCC7CB567037E4025CF3A /* IdentityTests.swift */; };
 		6199787D8A6E60DF9E2FF446 /* Batch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BA7D24B05548BBBB627F9B9 /* Batch.swift */; };
 		6241E4E5B69644A70237AFC1 /* OKLCHTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F90136E09BA2F6D18415C368 /* OKLCHTests.swift */; };
 		6346FA67446EEEE6FD5E174F /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9D9D4F8D3B930BF6EAF57A8F /* AppIntents.framework */; };
@@ -47,6 +48,7 @@
 		8367D1D02837C164E4D3AEDA /* JarProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71F2DBDA46CC41E896451980 /* JarProfile.swift */; };
 		87AC09A29F8D1AC2BD396ABC /* ShelfLife.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66C4E250F528E14925ED1080 /* ShelfLife.swift */; };
 		8A18D629407EB1E42E2BFFE6 /* NetRelish+Behavior.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0463DF5285B0BBF00DBF245A /* NetRelish+Behavior.swift */; };
+		9C9666B8D0D43BECB130C95A /* Identity.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEF61F8EFF0301292F4271D2 /* Identity.swift */; };
 		A0550C98BFEF10D0BF6261AB /* ShelfView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D46826672F74157C7DA0109F /* ShelfView.swift */; };
 		A1022716C1E913FFADAAE23E /* CaptureIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519B39C9B1F8B4F5028C925E /* CaptureIntent.swift */; };
 		A236840F375E1EFCAAAF3122 /* Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7294EB62C146D80E801CB46E /* Support.swift */; };
@@ -158,6 +160,7 @@
 		7294EB62C146D80E801CB46E /* Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Support.swift; sourceTree = "<group>"; };
 		7996267AB0A6C7FE076D3195 /* SealIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SealIntent.swift; sourceTree = "<group>"; };
 		80AA83881FEF26447C9DDD1E /* JarIsolationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JarIsolationTests.swift; sourceTree = "<group>"; };
+		835DCC7CB567037E4025CF3A /* IdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityTests.swift; sourceTree = "<group>"; };
 		83A0FA70EC9D9597C5C56145 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		847FE03DCF1AAF9768A5CEFC /* Direct.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Direct.xcconfig; sourceTree = "<group>"; };
 		88A8EC903EBD79104D542C82 /* ShelfLifeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelfLifeTests.swift; sourceTree = "<group>"; };
@@ -189,6 +192,7 @@
 		F2EEE66990AF838FD9B4386E /* V1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V1.swift; sourceTree = "<group>"; };
 		F90136E09BA2F6D18415C368 /* OKLCHTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OKLCHTests.swift; sourceTree = "<group>"; };
 		FE46A525A1828AEFEDABF24D /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		FEF61F8EFF0301292F4271D2 /* Identity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Identity.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -289,6 +293,7 @@
 		3CEA8E909AC71CE83B7814DE /* NetRelishTests */ = {
 			isa = PBXGroup;
 			children = (
+				D492BD29A2E197107C5631B8 /* Vault */,
 				80AA83881FEF26447C9DDD1E /* JarIsolationTests.swift */,
 				F90136E09BA2F6D18415C368 /* OKLCHTests.swift */,
 				EF0B24A1EE81659EB7BBA716 /* ShapeTests.swift */,
@@ -307,6 +312,14 @@
 				7294EB62C146D80E801CB46E /* Support.swift */,
 			);
 			path = GeneratorTests;
+			sourceTree = "<group>";
+		};
+		41BFD33DCEB98DB130019492 /* Vault */ = {
+			isa = PBXGroup;
+			children = (
+				FEF61F8EFF0301292F4271D2 /* Identity.swift */,
+			);
+			path = Vault;
 			sourceTree = "<group>";
 		};
 		47FC7E5ADBD65861931ADF7F /* Tests */ = {
@@ -364,6 +377,7 @@
 				AB8A0C95C34CB4DC7B3F6AB8 /* Pantry */,
 				27A1D2D795588F25BAC99162 /* Shelf */,
 				30F8F8026066413CCE91F78A /* UI */,
+				41BFD33DCEB98DB130019492 /* Vault */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -422,6 +436,14 @@
 				1945281CFAD12D88F79278C7 /* Workbench.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		D492BD29A2E197107C5631B8 /* Vault */ = {
+			isa = PBXGroup;
+			children = (
+				835DCC7CB567037E4025CF3A /* IdentityTests.swift */,
+			);
+			path = Vault;
 			sourceTree = "<group>";
 		};
 		DB4FB1AC4162CC7476300B88 = {
@@ -626,6 +648,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5DEE19ECAFFBEEF5452871FC /* IdentityTests.swift in Sources */,
 				1CF9373273D94B6D52B49ACE /* JarIsolationTests.swift in Sources */,
 				6241E4E5B69644A70237AFC1 /* OKLCHTests.swift in Sources */,
 				491397EF23E823777A34F536 /* ShapeTests.swift in Sources */,
@@ -647,6 +670,7 @@
 				4387F7C64133D0CF249227C2 /* DesignKitSnapshot.swift in Sources */,
 				D7C610F19C06EA2B34D7CBA1 /* DesignKitView.swift in Sources */,
 				74492C9667F54D60BB05534B /* Environment.swift in Sources */,
+				9C9666B8D0D43BECB130C95A /* Identity.swift in Sources */,
 				53CA45E71B9E8D1D9BA81E79 /* JarSheet.swift in Sources */,
 				FE8412F363AE72CDCBD44F45 /* NetRelishApp.swift in Sources */,
 				A6AFEAD4BF570FA07631E2BD /* NetRelishIntents.swift in Sources */,
