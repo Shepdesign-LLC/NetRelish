@@ -283,6 +283,49 @@ final class Workbench {
         loadTabs()
     }
 
+    // MARK: The palette (⌘K)
+
+    /// ⌘K. The palette is a sheet over the Bench; nothing else changes while it's open.
+    var showPalette = false
+
+    /// ⌘D. Puts the active tab's page in Brine as an Item. It does NOT seal — no webarchive,
+    /// no `sealedAt` — that's P2. The generated `capture` titles the item with its URL, so the
+    /// tab's real title is written over it here.
+    func captureActivePage() {
+        guard let tab = activeTab, let url = tab.url, !url.isEmpty else {
+            report("Nothing to capture — open a page first")
+            return
+        }
+        do {
+            try store.write { db in
+                var item = try store.root(db).capture(db, url: url)
+                if let title = tab.title, !title.isEmpty, title != url {
+                    item.title = title
+                    item.updatedAt = Date()
+                    try item.update(db)
+                }
+            }
+            report("Captured into Brine")   // the ValueObservation refreshes Brine on its own
+        } catch {
+            report("Couldn't capture: \(error)")
+        }
+    }
+
+    /// Full-text search over the Pantry. Failures return nothing rather than throwing into a view.
+    func searchPantry(_ query: String) -> [Item] {
+        (try? store.read { db in try store.search(db, query) }) ?? []
+    }
+
+    /// Opens a Pantry item: its tab if one is already open, else a new tab in its jar.
+    func open(_ item: Item) {
+        if let existing = tabs.first(where: { $0.url == item.url }) {
+            activateTab(existing)
+            return
+        }
+        if let jarId = item.jarId, jarId != activeJarId { activate(jarId: jarId) }
+        newTab(url: item.url, interactionState: item.sunkInteractionState, in: item.jarId ?? activeJarId)
+    }
+
     /// Reopens a Brine item as a tab, with its scroll and history, in the jar it sank from
     /// (or the first jar). The item stays in Brine: closing is free, so is restoring.
     func restore(_ item: Item) {

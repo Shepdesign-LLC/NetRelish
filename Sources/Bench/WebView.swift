@@ -29,6 +29,26 @@ final class JarWebView: NSObject, WKNavigationDelegate {
         super.init()
         webView.navigationDelegate = self
         webView.allowsBackForwardNavigationGestures = true
+        observe()
+    }
+
+    /// WebKit sets `title` (and finishes `isLoading`) after didFinish for most pages, so the
+    /// delegate alone leaves tabs named after their URL. KVO is the only version that's right.
+    private var observations: [NSKeyValueObservation] = []
+
+    private func observe() {
+        let keyPaths: [KeyPath<WKWebView, String?>] = [\.title]
+        observations = keyPaths.map { keyPath in
+            webView.observe(keyPath, options: [.new]) { [weak self] _, _ in
+                MainActor.assumeIsolated { self?.sync() }
+            }
+        }
+        observations.append(webView.observe(\.url, options: [.new]) { [weak self] _, _ in
+            MainActor.assumeIsolated { self?.sync() }
+        })
+        observations.append(webView.observe(\.isLoading, options: [.new]) { [weak self] _, _ in
+            MainActor.assumeIsolated { self?.sync() }
+        })
     }
 
     func load(_ text: String) {
@@ -63,7 +83,9 @@ final class JarWebView: NSObject, WKNavigationDelegate {
         isLoading = webView.isLoading
         canGoBack = webView.canGoBack
         canGoForward = webView.canGoForward
-        if !isLoading { onNavigation?(url, title) }
+        // Tell the Workbench once the page has settled. A title arriving late counts as
+        // settling, so the tab gets its name even when it lands after didFinish.
+        if !isLoading, url != nil { onNavigation?(url, title) }
     }
 
     // MARK: WKNavigationDelegate
