@@ -46,6 +46,10 @@ enum PaletteSource {
         if workbench.activeTab != nil {
             rows.append(PaletteRow(id: "cmd.capture", kind: .command, title: "Capture this page",
                                    subtitle: "Into Brine", shortcut: "⌘D") { workbench.captureActivePage() })
+            rows.append(PaletteRow(id: "cmd.seal", kind: .command, title: "Seal this page",
+                                   subtitle: "Into the jar, frozen", shortcut: "⌘S") {
+                Task { await workbench.sealActiveTab() }
+            })
             rows.append(PaletteRow(id: "cmd.fill", kind: .command, title: "Fill this form",
                                    subtitle: "From your card", shortcut: "⌘⇧F") { workbench.fillFromMe() })
             rows.append(PaletteRow(id: "cmd.close", kind: .command, title: "Close Tab", shortcut: "⌘W") { workbench.closeActiveTab() })

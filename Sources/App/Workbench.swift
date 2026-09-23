@@ -283,6 +283,63 @@ final class Workbench {
         loadTabs()
     }
 
+    // MARK: Seal (⌘S)
+
+    /// Set by the Bench: freezes the tab's page and pulls its text out. Stubbed in tests.
+    var sealProvider: ((Tab) async throws -> (Data, Extraction.Result))?
+    /// Increments to run the drip. The Bench watches it; nothing else does.
+    private(set) var sealTrigger = 0
+    /// The jar the drip is falling into, so its badge can tick over.
+    private(set) var sealingJarId: String?
+
+    /// Seal: stamp `sealedAt`, freeze the `.webarchive`, close the tab, fire `onSeal`, and run
+    /// the jar's default Recipe (non-negotiable 3). The drip starts first and the disk work
+    /// happens behind it, so the gesture feels instant however heavy the page is.
+    func sealActiveTab() async {
+        guard let tab = activeTab, let jarId = tab.jarId, let provider = sealProvider else {
+            report("Nothing to seal — open a page first")
+            return
+        }
+        sealingJarId = jarId
+        sealTrigger += 1
+
+        do {
+            let (archive, extracted) = try await provider(tab)
+            let now = Date()
+            try store.write { db in
+                var item = Item(
+                    body: extracted.body.isEmpty ? nil : extracted.body,
+                    createdAt: now,
+                    domain: tab.url.flatMap { URL(string: $0)?.host },
+                    excerpt: extracted.excerpt.isEmpty ? nil : extracted.excerpt,
+                    kind: .page,
+                    source: .browse,
+                    state: .brined,
+                    title: extracted.title.isEmpty ? (tab.title ?? tab.url ?? "Untitled") : extracted.title,
+                    updatedAt: now,
+                    url: tab.url,
+                    jarId: jarId
+                )
+                try item.insert(db)
+                // The id names the file, so the archive is written after the insert.
+                item.snapshotPath = try store.snapshots.write(archive, for: item.id)
+                try item.update(db)
+                _ = try store.root(db).seal(db, item: item)
+
+                // The jar's default Recipe, if it has one. P3 gives it an editor.
+                if let jar = try Jar.fetchOne(db, key: jarId), let recipeId = jar.defaultRecipeId,
+                   let recipe = try Recipe.fetchOne(db, key: recipeId),
+                   let sealed = try Item.fetchOne(db, key: item.id) {
+                    _ = try store.root(db).runRecipe(db, recipe: recipe, items: [sealed])
+                }
+            }
+            closeTab(tab)
+            report("Sealed into \(jars.first { $0.id == jarId }?.name ?? "the jar")")
+        } catch {
+            report("Couldn't seal: \(error)")
+        }
+    }
+
     // MARK: The palette (⌘K)
 
     /// ⌘K. The palette is a sheet over the Bench; nothing else changes while it's open.

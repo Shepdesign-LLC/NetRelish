@@ -82,7 +82,7 @@ targets:
       - path: Sources/Bench
       - path: Sources/Vault
       - path: Resources
-        buildPhase: resources   # AppIcon.icns lands flat in Contents/Resources
+        buildPhase: resources   # AppIcon.icns and defuddle.js land in Contents/Resources
     dependencies:
       - target: Pantry
       - package: KeyboardShortcuts

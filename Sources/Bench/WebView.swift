@@ -96,6 +96,16 @@ final class JarWebView: NSObject, WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: any Error) { sync(); log.error("provisional fail \(error.localizedDescription, privacy: .public)") }
 }
 
+extension WKWebView {
+    /// `createWebArchiveData` as async/await. This is the freeze in Seal: everything the page
+    /// needs to render again, in one file, with no network (non-negotiable 5).
+    func dataForWebArchive() async throws -> Data {
+        try await withCheckedThrowingContinuation { continuation in
+            createWebArchiveData { continuation.resume(with: $0) }
+        }
+    }
+}
+
 /// Hosts a JarWebView's WKWebView in SwiftUI.
 struct WebViewHost: NSViewRepresentable {
     let jarWebView: JarWebView

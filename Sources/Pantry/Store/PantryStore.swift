@@ -20,8 +20,13 @@ public final class PantryStore: Sendable {
         }
     }()
 
+    /// Sealed pages, beside the database.
+    public let snapshots: SnapshotStore
+
     /// A Pantry on disk at `path`.
     public init(path: String) throws {
+        snapshots = SnapshotStore(directory: URL(fileURLWithPath: path).deletingLastPathComponent()
+            .appendingPathComponent("Snapshots", isDirectory: true))
         var config = Configuration()
         config.foreignKeysEnabled = true
         dbQueue = try DatabaseQueue(path: path, configuration: config)
@@ -30,6 +35,8 @@ public final class PantryStore: Sendable {
 
     /// A throwaway in-memory Pantry, for tests.
     public init(inMemory: Void = ()) throws {
+        snapshots = SnapshotStore(directory: URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("NetRelishTestSnapshots/\(UUID().uuidString)", isDirectory: true))
         var config = Configuration()
         config.foreignKeysEnabled = true
         dbQueue = try DatabaseQueue(configuration: config)
