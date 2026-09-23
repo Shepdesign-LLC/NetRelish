@@ -17,11 +17,18 @@ Two builds ship from one codebase (`#if DIRECT_BUILD`):
 | Build | Signs with | Distributed by | Updates by |
 | :-- | :-- | :-- | :-- |
 | App Store | Apple Distribution | App Store Connect | the App Store |
-| Direct | Developer ID | *undecided* | *undecided — nothing in the tree* |
+| Direct | Developer ID | *undecided* | email — by design, see ADR 0006 |
 
-The direct build has no update mechanism: no Sparkle, no appcast, nothing.
-That is a decision waiting to be made, not an omission to patch quietly —
-it wants an ADR under `/docs/adr/` when it is made.
+The direct build has **no updater, deliberately**: no Sparkle, no appcast,
+nothing that polls. A new version is announced by email to the address that
+bought the licence, and About links to the download page. Decided by Ryan on
+2026-09-23; the reasoning, and what would overturn it, are in
+`docs/adr/0006-direct-build-updates.md`.
+
+The constraint that drove it is CLAUDE.md §5, which lists every call the app
+may make and ends "Add an endpoint and you've broken this rule." An appcast
+polled on a schedule is such an endpoint. Adding one later is possible, but it
+amends a non-negotiable and must be written as such, in the same commit.
 
 Write this section when the first build of either kind actually ships. Do not
 write it from intention; that is how the file you are reading became wrong.

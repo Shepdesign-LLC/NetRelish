@@ -1,6 +1,6 @@
 # ADR 0006 — The direct build announces updates; it does not fetch them
 
-**Status:** proposed · **Date:** 2026-09-23 · **PR:** docs: ADR for the direct-build updater
+**Status:** accepted (Ryan, 2026-09-23) · **Date:** 2026-09-23 · **PR:** docs: ADR for the direct-build updater
 
 The direct tier is Post-1.0 (`NetRelish_Plan_and_Roadmap.md` §5), so nothing is blocked
 today. It is written now because the decision stops being free the moment the first
@@ -17,7 +17,7 @@ a schedule. Choosing auto-update means amending a non-negotiable, not just addin
 dependency — which is a bigger decision than picking an updater, and is why this is an
 ADR rather than a task.
 
-**Decision (proposed).** The direct build ships with **no updater**. A new version is
+**Decision.** The direct build ships with **no updater**. A new version is
 announced by email to the address that bought the licence, and the app's About window
 links to the download page. Nothing polls, nothing self-installs, and §5 stands
 unamended.
