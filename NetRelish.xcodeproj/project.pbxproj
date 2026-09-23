@@ -49,6 +49,7 @@
 		7131964397BDD2A3E1BF68F6 /* IdentityFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = 141FB6A827355E5480CE90CE /* IdentityFields.swift */; };
 		74492C9667F54D60BB05534B /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AA2B804BABD2B9C3897FC5F /* Environment.swift */; };
 		7D762510642CB6FB703C9705 /* Pantry.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D40C86B7681871F9D11011A /* Pantry.framework */; };
+		7E5E44B7C50F88A69AA2B191 /* WebViewTitleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 953B97315E6F69B886F253AD /* WebViewTitleTests.swift */; };
 		819D577AA3194D05D11A94E7 /* NetRelish.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07FF70502E5A8CE3DFA58804 /* NetRelish.swift */; };
 		8201BAC73011287F21687E6D /* Jar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C912A16282281351EAE6A48 /* Jar.swift */; };
 		8235C4D89E75695DFEBB4673 /* PaletteMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D49A2BFCFE81078325CCF0 /* PaletteMatcher.swift */; };
@@ -188,6 +189,7 @@
 		8EE83596F73D04918B8FBF71 /* NetRelishIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetRelishIntents.swift; sourceTree = "<group>"; };
 		925A75FA2063A43C84060387 /* PantryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PantryTests.swift; sourceTree = "<group>"; };
 		93BF3FF36A0C57425D7F9B4C /* AssetSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetSections.swift; sourceTree = "<group>"; };
+		953B97315E6F69B886F253AD /* WebViewTitleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewTitleTests.swift; sourceTree = "<group>"; };
 		993CF81100D71BB382CD6AF1 /* Item.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
 		9BA168573E80003B6999EE2C /* Recipe+Behavior.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Recipe+Behavior.swift"; sourceTree = "<group>"; };
 		9D9D4F8D3B930BF6EAF57A8F /* AppIntents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
@@ -327,6 +329,7 @@
 				172166523A7298160D10E066 /* Support.swift */,
 				34870FC9D22FF5C528700017 /* SymbolTests.swift */,
 				6C5376395DE69F85C624CDC9 /* TokenTests.swift */,
+				953B97315E6F69B886F253AD /* WebViewTitleTests.swift */,
 			);
 			path = NetRelishTests;
 			sourceTree = "<group>";
@@ -706,6 +709,7 @@
 				AB9FE10A2C7C77E5EEE4C434 /* SymbolTests.swift in Sources */,
 				2A048A04EBC2F87C7E0A38EB /* TokenTests.swift in Sources */,
 				D1D77CDC285C08CD6FC1CDC6 /* VaultStoreTests.swift in Sources */,
+				7E5E44B7C50F88A69AA2B191 /* WebViewTitleTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
