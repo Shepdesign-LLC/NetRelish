@@ -26,6 +26,8 @@
 	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>27.0</string>
+	<key>NSContactsUsageDescription</key>
+	<string>NetRelish copies your Contacts card into your Keychain once, so it can fill forms when you ask. It never reads Contacts again.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>

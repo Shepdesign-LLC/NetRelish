@@ -34,13 +34,52 @@ final class Workbench {
     /// Called before a tab sinks so the Bench can hand over the web view's interaction state.
     var interactionStateProvider: ((Tab) -> Data?)?
 
+    // MARK: Vault (the Me card)
+
+    let vault: VaultStore
+    /// Set by the Bench: fills `identity` into the tab's web view, returns the count.
+    var formFiller: ((Tab, Identity) async throws -> Int)?
+    /// One line in the address bar for a couple of seconds after ⌘⇧F.
+    private(set) var fillStatus: String?
+    /// ⌘⇧F with an empty card opens onboarding instead of filling.
+    var showMeOnboarding = false
+
     var activeJar: Jar? { jars.first { $0.id == activeJarId } }
     var showingBrine: Bool { activeJarId == SmartJar.brineId }
     var activeTab: Tab? { tabs.first { $0.id == activeTabId } }
 
-    init(store: PantryStore = .shared) {
+    init(store: PantryStore = .shared, vault: VaultStore = .live) {
         self.store = store
+        self.vault = vault
         load()
+    }
+
+    // MARK: Fill from Me
+
+    /// Bench → Fill from Me (⌘⇧F). The jar's own card wins over Me. Never runs on its own.
+    func fillFromMe() {
+        guard let tab = activeTab, let filler = formFiller else { return }
+        Task { @MainActor in
+            do {
+                guard let identity = try vault.identity(for: tab.jarId), !identity.isEmpty else {
+                    showMeOnboarding = true
+                    return
+                }
+                let count = try await filler(tab, identity)
+                let source = try tab.jarId.map { try vault.hasOverride(for: $0) } == true ? "\(activeJar?.name ?? "this jar")’s card" : "Me"
+                report(count == 0 ? "Nothing to fill on this page" : "Filled \(count) \(count == 1 ? "field" : "fields") from \(source)")
+            } catch {
+                report("Couldn’t fill: \(error)")
+            }
+        }
+    }
+
+    private func report(_ text: String) {
+        fillStatus = text
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.5))
+            if fillStatus == text { fillStatus = nil }
+        }
     }
 
     // MARK: Loading and observing
@@ -242,6 +281,49 @@ final class Workbench {
             assertionFailure("Workbench.sweep: \(error)")
         }
         loadTabs()
+    }
+
+    // MARK: The palette (⌘K)
+
+    /// ⌘K. The palette is a sheet over the Bench; nothing else changes while it's open.
+    var showPalette = false
+
+    /// ⌘D. Puts the active tab's page in Brine as an Item. It does NOT seal — no webarchive,
+    /// no `sealedAt` — that's P2. The generated `capture` titles the item with its URL, so the
+    /// tab's real title is written over it here.
+    func captureActivePage() {
+        guard let tab = activeTab, let url = tab.url, !url.isEmpty else {
+            report("Nothing to capture — open a page first")
+            return
+        }
+        do {
+            try store.write { db in
+                var item = try store.root(db).capture(db, url: url)
+                if let title = tab.title, !title.isEmpty, title != url {
+                    item.title = title
+                    item.updatedAt = Date()
+                    try item.update(db)
+                }
+            }
+            report("Captured into Brine")   // the ValueObservation refreshes Brine on its own
+        } catch {
+            report("Couldn't capture: \(error)")
+        }
+    }
+
+    /// Full-text search over the Pantry. Failures return nothing rather than throwing into a view.
+    func searchPantry(_ query: String) -> [Item] {
+        (try? store.read { db in try store.search(db, query) }) ?? []
+    }
+
+    /// Opens a Pantry item: its tab if one is already open, else a new tab in its jar.
+    func open(_ item: Item) {
+        if let existing = tabs.first(where: { $0.url == item.url }) {
+            activateTab(existing)
+            return
+        }
+        if let jarId = item.jarId, jarId != activeJarId { activate(jarId: jarId) }
+        newTab(url: item.url, interactionState: item.sunkInteractionState, in: item.jarId ?? activeJarId)
     }
 
     /// Reopens a Brine item as a tab, with its scroll and history, in the jar it sank from

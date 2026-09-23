@@ -33,6 +33,14 @@ struct NetRelishApp: App {
                 Button("Edit Jar…") { workbench.requestEditActiveJar() }.keyboardShortcut("e", modifiers: [.command, .shift])
                     .disabled(workbench.activeJar == nil)
             }
+            CommandMenu("Bench") {
+                Button("Command Palette…") { workbench.showPalette = true }.keyboardShortcut("k", modifiers: .command)
+                Button("Capture This Page") { workbench.captureActivePage() }.keyboardShortcut("d", modifiers: .command)
+                    .disabled(workbench.activeTab == nil)
+                Divider()
+                Button("Fill from Me") { workbench.fillFromMe() }.keyboardShortcut("f", modifiers: [.command, .shift])
+                    .disabled(workbench.activeTab == nil)
+            }
             CommandMenu("Tab") {
                 Button("New Tab") { workbench.newTab() }.keyboardShortcut("t", modifiers: .command)
                 Button("Close Tab") { workbench.closeActiveTab() }.keyboardShortcut("w", modifiers: .command)
@@ -40,6 +48,11 @@ struct NetRelishApp: App {
                 Button(workbench.activeTab?.isPinned == true ? "Unpin Tab" : "Pin Tab") { workbench.togglePinActiveTab() }
                     .keyboardShortcut("p", modifiers: [.command, .shift]).disabled(workbench.activeTab == nil)
             }
+        }
+
+        // Settings → Me: the card, in the Keychain (ADR 0006).
+        Settings {
+            MeSettingsView(vault: workbench.vault)
         }
 
         #if DEBUG
@@ -69,5 +82,11 @@ struct ContentView: View {
         .navigationSubtitle("\(workbench.itemCount) \(workbench.itemCount == 1 ? "item" : "items")")
         .task { await workbench.observe() }
         .task { await workbench.runSweep() }
+        .sheet(isPresented: $workbench.showPalette) {
+            PaletteView(workbench: workbench)
+        }
+        .sheet(isPresented: $workbench.showMeOnboarding) {
+            MeOnboardingSheet(vault: workbench.vault) { workbench.fillFromMe() }
+        }
     }
 }
