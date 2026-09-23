@@ -5,6 +5,14 @@ name: CI
 #   2. both product flavors build — AppStore and Direct (DIRECT_BUILD)
 #   3. the tests pass (hosted NetRelishTests + unhosted GeneratorTests)
 
+# Read-only token. Every job here checks out, regenerates, builds or tests —
+# nothing writes back to the repository. Without this block the workflow
+# inherits the repository default for GITHUB_TOKEN, which may be write-all.
+# (upload-artifact in `test` uses ACTIONS_RUNTIME_TOKEN, a separate credential,
+# so it is unaffected by this scope.)
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]
