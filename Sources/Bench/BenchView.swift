@@ -40,6 +40,11 @@ struct BenchView: View {
                     let web = webViews.view(for: tab)
                     TabPane(tab: tab, web: web, workbench: workbench)
                         .id(tab.id)
+                        .overlay(alignment: .topLeading) {
+                            SealDrip(trigger: workbench.sealTrigger)
+                                .padding(.leading, NRSpace.sp2)
+                                .padding(.top, 44)   // just under the address bar
+                        }
                 } else {
                     EmptyBench(message: "No tabs in \(jar.name). Press ⌘T.")
                 }
@@ -61,6 +66,14 @@ struct BenchView: View {
         }
         workbench.formFiller = { [webViews] tab, identity in
             try await FormFill.fill(identity, in: webViews.view(for: tab).webView)
+        }
+        workbench.sealProvider = { [webViews] tab in
+            let web = webViews.view(for: tab).webView
+            // Extract first: createWebArchiveData can take a moment on a heavy page, and the
+            // page must still be live when Defuddle reads it.
+            let extracted = try await Extraction.run(in: web)
+            let archive = try await web.dataForWebArchive()
+            return (archive, extracted)
         }
     }
 }
