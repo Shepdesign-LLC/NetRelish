@@ -1,0 +1,49 @@
+name: CodeQL
+
+# Advanced setup, not default setup. CodeQL analyses Swift by BUILDING it, and
+# default setup would run that build on a GitHub-hosted macos-latest — which is
+# still macOS 26 and has no macOS 27 SDK (see the note on `runs-on` in ci.yml).
+# The build would fail on every push. This runs on the same xcode-27 image the
+# rest of CI uses, and builds the same way.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly. New queries ship regularly and find old bugs in unchanged code;
+    # without this, the analysis only ever sees what a push happens to touch.
+    - cron: '17 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (swift)
+    runs-on: xcode-27
+    permissions:
+      contents: read
+      # Required: this is how the analysis uploads its results to the Security
+      # tab. Nothing else here needs write. (actions: read is only needed on
+      # private repositories; this one is public.)
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+
+      - uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        with:
+          languages: swift
+
+      # Not autobuild: this project builds through a named scheme and
+      # configuration, exactly as ci.yml does. Signing is off because CI holds
+      # no certificate.
+      - name: Build (unsigned — CI has no certificate)
+        run: |
+          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
+            -configuration Release-AppStore -derivedDataPath .build/DerivedData \
+            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
+
+      - uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        with:
+          category: "/language:swift"
