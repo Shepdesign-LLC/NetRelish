@@ -166,17 +166,36 @@ def line_comments(source: str) -> dict[int, str]:
             advance(2)
             continue
 
-        # A run of `#` only opens a string when a quote follows it; `#if` and
-        # `#Preview` are not string literals.
+        # A run of `#` opens a string when a quote follows it and an extended
+        # regex literal when a slash does; `#if` and `#Preview` are neither.
         run = 0
         while index + run < source_length and source[index + run] == "#":
             run += 1
-        quote_at = index + run
-        if quote_at < source_length and source[quote_at] == '"':
+        opener_at = index + run
+
+        if opener_at < source_length and source[opener_at] == '"':
             in_string = True
             hashes = run
-            multiline = source.startswith('"""', quote_at)
+            multiline = source.startswith('"""', opener_at)
             advance(run + (3 if multiline else 1))
+            continue
+
+        if run and opener_at < source_length and source[opener_at] == "/":
+            # Extended regex literal, `#/ ... /#` at any hash count, possibly
+            # spanning lines. Its contents are pattern text, so a `//` in there
+            # is not a comment — and in extended syntax whitespace is ignored,
+            # which makes `#/ // NETRELISH-ALLOW-ENDPOINT: adr-0007 /#` read
+            # exactly like an approval to the naive scanner. Skip to the
+            # matching delimiter; unterminated swallows the rest, which fails
+            # closed.
+            #
+            # The BARE `/.../` form is not tracked, and does not need to be: two
+            # unescaped slashes in a row would end the literal at the first one,
+            # so the sequence `//` cannot occur inside one.
+            closer = "/" + "#" * run
+            end = source.find(closer, opener_at + 1)
+            end = source_length if end == -1 else end + len(closer)
+            advance(end - index)
             continue
 
         advance(1)
@@ -261,12 +280,22 @@ class Finding:
     def identity(self):
         """What makes two findings the same call rather than two calls.
 
-        The same result can appear in more than one SARIF file. Columns
-        distinguish two genuinely different calls that share a line, so they
-        belong in the key — otherwise deduplication would quietly merge the very
-        case the shared-line rule exists to catch.
+        The same result can appear in more than one SARIF file, so findings are
+        deduplicated — but deduplicating too eagerly would quietly merge the
+        very case the shared-line rule exists to catch.
+
+        Columns settle it when they are present: a position is a call site, and
+        the message is only description, so two reports of one position are one
+        finding however they are worded.
+
+        When columns are absent there is nothing left to tell two calls on one
+        line apart, so the message stays in the key. That can only split one
+        finding into two, which blocks; merging two into one would approve. Of
+        the two ways to be wrong, this is the one that fails closed.
         """
-        return (self.path, self.line, self.start_column, self.end_column, self.message)
+        if self.start_column is not None and self.end_column is not None:
+            return (self.path, self.line, self.start_column, self.end_column)
+        return (self.path, self.line, None, None, self.message)
 
 
 class Report:
@@ -326,6 +355,18 @@ def evaluate(results_dir, repo_root=None) -> Report:
 
     source_cache: dict[str, dict[int, str] | None] = {}
 
+    # A trailing marker approves the call it sits beside, and nothing else. The
+    # line above is offered as a second home for it only when that line is not
+    # itself flagged — otherwise
+    #
+    #     _ = try await URLSession.shared.data(from: a)  // ...ALLOW...: adr-0007
+    #     _ = try await URLSession.shared.data(from: b)
+    #
+    # would let one exemption cover both calls: the shared-line bypass wearing a
+    # newline. The standalone-comment-above form is unaffected, because a line
+    # holding only a comment is never a finding.
+    flagged = set(lines)
+
     for (path, line), group in sorted(lines.items()):
         if path not in source_cache:
             candidate = repo_root / path
@@ -347,6 +388,8 @@ def evaluate(results_dir, repo_root=None) -> Report:
             for candidate_line in (line - 1, line):
                 if adr:
                     break
+                if candidate_line != line and (path, candidate_line) in flagged:
+                    continue
                 text = comments.get(candidate_line)
                 if text:
                     adr = cited_adr(text, repo_root, report)

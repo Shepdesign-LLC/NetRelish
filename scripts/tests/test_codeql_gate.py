@@ -141,6 +141,29 @@ class ScannerTests(unittest.TestCase):
         source = 'let s = """\nbody\n"""\n// ' + MARKER
         self.assertIn(MARKER, self.comment_on(source, 4))
 
+    def test_extended_regex_literal_is_not_a_comment(self):
+        # Extended regex ignores whitespace, so the marker inside one reads
+        # exactly like an approval to a scanner that does not know the form.
+        self.assertIsNone(self.comment_on("let r = #/ // " + MARKER + " /#", 1))
+
+    def test_extended_regex_literal_with_two_hashes(self):
+        self.assertIsNone(self.comment_on("let r = ##/ // " + MARKER + " /##", 1))
+
+    def test_slash_hash_inside_double_hash_regex_does_not_close_it(self):
+        source = "let r = ##/ a /# b // " + MARKER + " /##"
+        self.assertIsNone(self.comment_on(source, 1))
+
+    def test_code_after_a_regex_literal_is_code_again(self):
+        self.assertIn(MARKER, self.comment_on("let r = #/ a /#  // " + MARKER, 1))
+
+    def test_multiline_regex_literal_is_not_a_comment(self):
+        source = "let r = #/\n// " + MARKER + "\n/#\n" + CALL
+        self.assertIsNone(self.comment_on(source, 2))
+
+    def test_unterminated_regex_literal_swallows_the_rest(self):
+        source = "let r = #/ oops\n// " + MARKER + "\n" + CALL
+        self.assertEqual(codeql_gate.line_comments(source), {})
+
     def test_hash_directives_do_not_open_a_string(self):
         source = "#if DIRECT_BUILD\n#Preview { EmptyView() }\n#endif\n// " + MARKER
         self.assertIn(MARKER, self.comment_on(source, 4))
@@ -279,6 +302,72 @@ class GateTests(unittest.TestCase):
         self.assertEqual(len(report.blocking), 2)
         self.assertEqual(report.approved, [])
         self.assertIn("share this line", report.blocking[0][1])
+
+    def test_trailing_marker_does_not_approve_the_next_flagged_line(self):
+        # The shared-line bypass wearing a newline: a marker beside one call
+        # must not also serve as the comment "above" the call below it.
+        self.checkout.swift(
+            "Sources/A.swift",
+            CALL + "  // " + MARKER + "\n" + CALL,
+        )
+        self.checkout.results(sarif(
+            result("Sources/A.swift", 1, start_column=5, end_column=46),
+            result("Sources/A.swift", 2, start_column=5, end_column=46),
+        ))
+        report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertEqual(len(report.approved), 1)   # line 1, beside its marker
+        self.assertEqual(len(report.blocking), 1)
+        self.assertEqual(report.blocking[0][0].line, 2)
+
+    def test_standalone_comment_above_still_approves_a_flagged_line(self):
+        # The guard above must not break the ordinary form, where the line above
+        # holds only the comment and is never itself a finding.
+        self.checkout.swift(
+            "Sources/A.swift",
+            "// " + MARKER + "\n" + CALL + "\n// " + MARKER + "\n" + CALL,
+        )
+        self.checkout.results(sarif(
+            result("Sources/A.swift", 2, start_column=5, end_column=46),
+            result("Sources/A.swift", 4, start_column=5, end_column=46),
+        ))
+        self.assertTrue(self.checkout.evaluate().ok)
+
+    def test_regex_literal_marker_does_not_approve(self):
+        self.checkout.swift(
+            "Sources/A.swift",
+            "let r = #/ // " + MARKER + " /#\n" + CALL,
+        )
+        self.checkout.results(sarif(result("Sources/A.swift", 2)))
+        self.assertFalse(self.checkout.evaluate().ok)
+
+    def test_one_position_reworded_is_still_one_finding(self):
+        # Same call site, different message text: description, not identity.
+        # Splitting it would invent a shared line and block a valid exemption.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL)
+        self.checkout.results(sarif(
+            result("Sources/A.swift", 2, start_column=5, end_column=46,
+                   message="outbound network call"),
+        ), "a.sarif")
+        self.checkout.results(sarif(
+            result("Sources/A.swift", 2, start_column=5, end_column=46,
+                   message="outbound network call via URLSession"),
+        ), "b.sarif")
+        report = self.checkout.evaluate()
+        self.assertTrue(report.ok)
+        self.assertEqual(len(report.approved), 1)
+
+    def test_columnless_findings_on_one_line_still_fail_closed(self):
+        # With no columns there is nothing to tell two calls apart, so the
+        # message stays in the key and the shared line blocks.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL + "; " + CALL)
+        self.checkout.results(sarif(
+            result("Sources/A.swift", 2, message="call to data(from:)"),
+            result("Sources/A.swift", 2, message="call to bytes(from:)"),
+        ))
+        report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertEqual(len(report.blocking), 2)
 
     def test_the_same_finding_in_two_sarif_files_is_one_finding(self):
         # Deduplication must not turn a duplicate report into a shared line.

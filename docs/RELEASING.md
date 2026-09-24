@@ -17,7 +17,7 @@ Two builds ship from one codebase (`#if DIRECT_BUILD`):
 | Build | Signs with | Distributed by | Updates by |
 | :-- | :-- | :-- | :-- |
 | App Store | Apple Distribution | App Store Connect | the App Store |
-| Direct | Developer ID | *undecided* | email — by design, see ADR 0006 |
+| Direct | Developer ID | *undecided* | email — by design, see ADR 0007 |
 
 The direct build has **no updater, deliberately**: no Sparkle, no appcast,
 nothing that polls. A new version is announced by email to the address that
