@@ -1,4 +1,4 @@
-# ADR 0006 — The direct build announces updates; it does not fetch them
+# ADR 0007 — The direct build announces updates; it does not fetch them
 
 **Status:** accepted (Ryan, 2026-09-23) · **Date:** 2026-09-23 · **PR:** docs: ADR for the direct-build updater
 
