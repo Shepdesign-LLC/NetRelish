@@ -43,7 +43,20 @@ private predicate networkMethod(Method c, string api) {
       // silently skipped, so the list going stale fails safe.
       type.matches(["URLSession%", "NSURLSession%"]) and
       not c.getShortName() =
-        ["invalidateAndCancel", "finishTasksAndInvalidate", "cancel", "reset", "flush"]
+        [
+          // Teardown.
+          "invalidateAndCancel", "finishTasksAndInvalidate", "cancel", "reset", "flush",
+          // Introspection. Excluded on the same reasoning as teardown: both can
+          // only appear where a session already exists, and creating that
+          // session is itself a hit, so the noise is bounded by a finding that
+          // is already on the board.
+          "getAllTasks", "getTasksWithCompletionHandler", "delegate"
+        ]
+      // `init` is deliberately NOT excluded. Constructing a URLSession is the
+      // single clearest signal that someone is adding an endpoint — it is the
+      // line this rule exists to stop. Excluding it to keep the gate quiet
+      // would trade a bounded false positive for the one false negative that
+      // matters.
       or
       type = ["NSURLConnection", "NSURLDownload"]
       or
