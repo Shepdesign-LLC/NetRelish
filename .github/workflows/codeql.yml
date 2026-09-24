@@ -170,6 +170,33 @@ jobs:
           # satisfy this: that is invisible from the repository.
           MARKER = re.compile(r"NETRELISH-ALLOW-ENDPOINT:\s*(adr-\d{4})")
 
+          def exemption(line):
+              """The marker, but only in a // comment and naming a real ADR.
+
+              Two bypasses this closes. Searching raw source matched the token
+              inside a string literal, so a line like
+              let s = "NETRELISH-ALLOW-ENDPOINT: adr-0001" was an exemption.
+              And checking only the adr-NNNN SHAPE meant adr-9999 passed with
+              no written decision existing at all, which made the ADR
+              requirement decoration rather than a control.
+
+              Still not a Swift parser: a // inside a string literal ahead of
+              the marker would fool it. That is far narrower than either hole
+              above, and closing it properly needs parsed source, not text.
+              """
+              _, sep, comment = line.partition("//")
+              if not sep:
+                  return None
+              found = MARKER.search(comment)
+              if not found:
+                  return None
+              number = found.group(1)[len("adr-"):]
+              if not list(pathlib.Path("docs/adr").glob(number + "-*.md")):
+                  print("::error::" + found.group(1)
+                        + " is cited but no docs/adr/" + number + "-*.md exists")
+                  return None
+              return found.group(1)
+
           paths = sorted(glob.glob(".codeql-results/*.sarif"))
           if not paths:
               # A missing SARIF must never read as "clean" — that is precisely
@@ -189,17 +216,17 @@ jobs:
                       uri = where["artifactLocation"]["uri"]
                       line = where.get("region", {}).get("startLine", 1)
 
-                      source, context = pathlib.Path(uri), ""
+                      source, found = pathlib.Path(uri), None
                       if source.is_file():
-                          text = source.read_text(errors="replace").splitlines()
-                          context = "\n".join(text[max(0, line - 2):line])
-                      found = MARKER.search(context)
+                          body = source.read_text(errors="replace").splitlines()
+                          for candidate in body[max(0, line - 2):line]:
+                              found = found or exemption(candidate)
 
                       entry = (uri, line, result["message"]["text"], found)
                       (approved if found else blocking).append(entry)
 
           for uri, line, _, found in approved:
-              print(f"::notice file={uri},line={line}::approved endpoint ({found.group(1)})")
+              print(f"::notice file={uri},line={line}::approved endpoint ({found})")
           for uri, line, message, _ in blocking:
               print(f"::error file={uri},line={line}::{message}")
 

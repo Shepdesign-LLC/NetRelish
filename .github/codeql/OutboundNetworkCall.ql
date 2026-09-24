@@ -100,15 +100,28 @@ private predicate networkMethod(Method c, string api) {
 private predicate networkFreeFunction(FreeFunction c, string api) {
   api = c.getName() and
   (
-    c.getShortName()
-        .matches([
-          // CFReadStream/CFWriteStream are NOT matched by "CFStream%" — the
-          // prefix is the wrong shape for them, and CFReadStreamCreateForHTTPRequest
-          // is the CFNetwork HTTP entry point, so leaving them out made the
-          // claimed CFNetwork coverage a blind spot.
-          "CFStream%", "CFReadStream%", "CFWriteStream%", "CFHTTP%",
-          "CFSocket%", "CFHost%", "CFNetwork%"
-        ])
+    (
+      // Named, not prefixed. "CFReadStream%" was too broad in the other
+      // direction: CFReadStreamCreateWithFile opens a local file and
+      // CFStreamCreateBoundPair is in-memory, so a prefix put local-only
+      // operations on the zero-baseline gate — the same false-positive mistake
+      // the audit-query split exists to avoid.
+      //
+      // An explicit list is safe HERE, unlike URLSession's: CFNetwork is a
+      // frozen C API. Apple is not adding constructors to it, so this list
+      // cannot silently fall behind the way a Swift API list would.
+      c.getShortName() =
+        [
+          "CFReadStreamCreateForHTTPRequest", "CFReadStreamCreateForStreamedHTTPRequest",
+          "CFReadStreamCreateWithFTPURL", "CFWriteStreamCreateWithFTPURL",
+          "CFStreamCreatePairWithSocket", "CFStreamCreatePairWithSocketToHost",
+          "CFStreamCreatePairWithPeerSocketSignature"
+        ]
+      or
+      // These remain prefixes because every member of them is network by
+      // definition — there is no local CFSocket or CFHost.
+      c.getShortName().matches(["CFSocket%", "CFHost%", "CFNetwork%"])
+    )
     or
     c.getShortName() =
       [
