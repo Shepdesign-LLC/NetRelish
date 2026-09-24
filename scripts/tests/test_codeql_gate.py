@@ -141,6 +141,41 @@ class ScannerTests(unittest.TestCase):
         source = 'let s = """\nbody\n"""\n// ' + MARKER
         self.assertIn(MARKER, self.comment_on(source, 4))
 
+    def test_marker_in_an_interpolated_string_is_not_a_comment(self):
+        # Flat state mistook the nested opening quote for the outer closer and
+        # fell out into "code" mid-literal, recording the marker as a comment.
+        source = 'let s = "\\("// ' + MARKER + '")"\n' + CALL
+        self.assertIsNone(self.comment_on(source, 1))
+
+    def test_marker_in_a_raw_string_interpolation_is_not_a_comment(self):
+        source = 'let s = #"\\#("// ' + MARKER + '")"#'
+        self.assertIsNone(self.comment_on(source, 1))
+
+    def test_marker_in_doubly_nested_interpolation_is_not_a_comment(self):
+        source = 'let s = "\\("\\("// ' + MARKER + '")")"'
+        self.assertIsNone(self.comment_on(source, 1))
+
+    def test_marker_in_a_multiline_string_interpolation_is_not_a_comment(self):
+        source = 'let s = """\n\\("// ' + MARKER + '")\n"""'
+        self.assertIsNone(self.comment_on(source, 2))
+
+    def test_comment_after_an_interpolation_is_a_comment(self):
+        source = 'let s = "\\(a)"  // ' + MARKER
+        self.assertIn(MARKER, self.comment_on(source, 1))
+
+    def test_nested_parentheses_inside_an_interpolation(self):
+        # The interpolation ends at its own matching paren, not the first one.
+        source = 'let s = "\\(f(g(x)))"  // ' + MARKER
+        self.assertIn(MARKER, self.comment_on(source, 1))
+
+    def test_escaped_backslash_does_not_open_an_interpolation(self):
+        source = 'let s = "\\\\(a)"  // ' + MARKER
+        self.assertIn(MARKER, self.comment_on(source, 1))
+
+    def test_string_opened_inside_an_interpolation_still_hides_a_marker(self):
+        source = 'let s = "\\(x)" + "// ' + MARKER + '"'
+        self.assertIsNone(self.comment_on(source, 1))
+
     def test_extended_regex_literal_is_not_a_comment(self):
         # Extended regex ignores whitespace, so the marker inside one reads
         # exactly like an approval to a scanner that does not know the form.
@@ -332,6 +367,14 @@ class GateTests(unittest.TestCase):
             result("Sources/A.swift", 4, start_column=5, end_column=46),
         ))
         self.assertTrue(self.checkout.evaluate().ok)
+
+    def test_interpolated_string_marker_does_not_approve(self):
+        self.checkout.swift(
+            "Sources/A.swift",
+            'let s = "\\("// ' + MARKER + '")"\n' + CALL,
+        )
+        self.checkout.results(sarif(result("Sources/A.swift", 2)))
+        self.assertFalse(self.checkout.evaluate().ok)
 
     def test_regex_literal_marker_does_not_approve(self):
         self.checkout.swift(

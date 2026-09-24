@@ -87,29 +87,44 @@ def line_comments(source: str) -> dict[int, str]:
     the dangerous one: a commented-out block that happens to contain a marker
     silently approves whatever line follows it.
 
-    So this scans the file once, front to back, tracking the three lexical
-    contexts that can hide or reveal a `//`: block comments (which NEST in
-    Swift), string literals, and raw string literals (`#"..."#`, any number of
-    hashes, where the escape is `\\#`). Multiline `\"\"\"..\"\"\"` too, since a
-    marker inside one spans lines and would otherwise look like a comment.
+    So this scans the file once, front to back, tracking every lexical context
+    that can hide or reveal a `//`: block comments (which NEST in Swift), string
+    literals, raw strings (`#"..."#` at any hash count, where the escape is
+    `\\#`), extended regex literals (`#/.../#`), the multiline forms of each,
+    and string interpolation.
 
-    Unterminated constructs fail closed for free: an unclosed `/*` swallows the
-    rest of the file, so no further line records a comment, so nothing below it
-    can be approved.
+    Interpolation is why the contexts are a STACK rather than a few flags.
+    `\\(` returns to code INSIDE a string, that code can open another string,
+    and that one can interpolate again. Flat state mistook the nested opening
+    quote for the outer closer and fell out into "code" mid-literal, so
+
+        let s = "\\("// NETRELISH-ALLOW-ENDPOINT: adr-0007")"
+
+    recorded a line comment and approved the call below it. Each construct now
+    pushes; its terminator pops; a `//` is only recorded as a comment when the
+    stack is empty, which is the one place a genuine comment can be.
+
+    Unterminated constructs fail closed for free: an unclosed `/*`, string or
+    `#/` swallows the rest of the file, so no further line records a comment,
+    so nothing below it can be approved.
 
     This is a comment/string scanner, not a Swift parser, and that is the
     correct scope — it needs to answer one question, and it answers it for every
-    way Swift can spell these three things.
+    way Swift can spell these constructs.
     """
     comments: dict[int, str] = {}
     source_length = len(source)
     index = 0
     line = 1
 
-    depth = 0             # block-comment nesting depth; 0 means we are not in one
-    in_string = False
-    multiline = False     # the \"\"\" form, which may contain newlines
-    hashes = 0            # raw-string delimiter count: #"..."# is 1, ##"..."## is 2
+    depth = 0    # block-comment nesting depth; 0 means we are not in one
+
+    # Innermost context last. Either ["str", hashes, multiline] or
+    # ["interp", paren_depth] — the latter is code again, inside a literal.
+    stack: list[list] = []
+
+    def in_string() -> bool:
+        return bool(stack) and stack[-1][0] == "str"
 
     def advance(count: int) -> None:
         """Step `count` characters, keeping the line number honest."""
@@ -124,8 +139,14 @@ def line_comments(source: str) -> dict[int, str]:
             # A single-line string cannot span a newline. Reaching one means the
             # source is malformed; resync at the line break rather than treating
             # the remainder of the file as string content.
-            if in_string and not multiline:
-                in_string = False
+            #
+            # Only the directly-enclosing string is resynced. A newline inside
+            # an interpolation is legal within a multiline literal, and guessing
+            # which one this is would risk resyncing out of a construct that is
+            # genuinely open. Not resyncing only swallows more of the file,
+            # which approves nothing.
+            if in_string() and not stack[-1][2]:
+                stack.pop()
             advance(1)
             continue
 
@@ -140,24 +161,53 @@ def line_comments(source: str) -> dict[int, str]:
                 advance(1)
             continue
 
-        if in_string:
+        if in_string():
+            _, hashes, multiline = stack[-1]
+            escape = "\\" + "#" * hashes
             closer = '"""' if multiline else '"'
-            if source.startswith("\\" + "#" * hashes, index):
-                advance(1 + hashes + 1)   # backslash, its hashes, the escaped character
+
+            # Interpolation first: `\(` is also a prefix of the generic escape,
+            # and treating it as one would skip the paren and read the rest of
+            # the interpolation as string content.
+            if source.startswith(escape + "(", index):
+                stack.append(["interp", 0])
+                advance(len(escape) + 1)
+            elif source.startswith(escape, index):
+                advance(len(escape) + 1)   # the escape, then the character it escapes
             elif source.startswith(closer + "#" * hashes, index):
-                in_string = False
+                stack.pop()
                 advance(len(closer) + hashes)
             else:
                 advance(1)
             continue
 
-        # Ordinary code.
+        # Code — either the top level, or inside an interpolation.
+        if stack:   # ["interp", paren_depth]
+            if char == "(":
+                stack[-1][1] += 1
+                advance(1)
+                continue
+            if char == ")":
+                if stack[-1][1]:
+                    stack[-1][1] -= 1
+                else:
+                    stack.pop()   # interpolation over; the string resumes
+                advance(1)
+                continue
+
         if source.startswith("//", index):
             end = source.find("\n", index)
             end = source_length if end == -1 else end
             # First genuine `//` wins: everything after it on the line is inside
             # that same comment.
-            comments.setdefault(line, source[index + 2:end])
+            #
+            # Recorded only at the top level. A `//` inside an interpolation
+            # would comment out the closing paren and quote, so it cannot occur
+            # in code that compiles — and code that does not compile is code
+            # CodeQL never flagged. Skipping it here costs nothing and cannot
+            # approve anything.
+            if not stack:
+                comments.setdefault(line, source[index + 2:end])
             advance(end - index)
             continue
 
@@ -174,10 +224,9 @@ def line_comments(source: str) -> dict[int, str]:
         opener_at = index + run
 
         if opener_at < source_length and source[opener_at] == '"':
-            in_string = True
-            hashes = run
-            multiline = source.startswith('"""', opener_at)
-            advance(run + (3 if multiline else 1))
+            is_multiline = source.startswith('"""', opener_at)
+            stack.append(["str", run, is_multiline])
+            advance(run + (3 if is_multiline else 1))
             continue
 
         if run and opener_at < source_length and source[opener_at] == "/":
