@@ -99,6 +99,18 @@ jobs:
         id: init
         with:
           languages: swift
+          # Pinned, and also a TEST. The action SHA above pins the bundle via
+          # its own src/defaults.json — for v4.38.1 that is CodeQL 2.27.0, and
+          # `tools: latest` resolves to the same thing, which is why that
+          # experiment was a no-op.
+          #
+          # codeql-bundle-v2.27.1 exists (it is the default on the action's main
+          # branch). It has never been tried here, and tracer fixes for a new
+          # Xcode are exactly what a patch release carries. If this clears the
+          # swift-plugin-server EBADARCH failure, bump the action SHA to a
+          # release whose default is 2.27.1 and drop this line, so the action
+          # and its CLI move together instead of drifting apart.
+          tools: https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.1/codeql-bundle-osx64.tar.zst
           # Adds .github/codeql on top of the default suite — it does not replace
           # it. `disable-default-queries` stays false, so both run.
           queries: ./.github/codeql
