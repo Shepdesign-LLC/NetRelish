@@ -1,0 +1,13 @@
+# A one-query pack that enforces CLAUDE.md non-negotiable #5.
+#
+# It is NOT a copy of the rule in another language — it catches the thing prose
+# cannot: a call that reaches the network without looking like it does.
+#
+# `codeql/swift-all` is left unpinned on purpose. The version that resolves is
+# whichever ships in the CodeQL bundle the workflow already pins by SHA, so the
+# two can never drift apart.
+name: netrelish/swift-rules
+version: 0.0.1
+library: false
+dependencies:
+  codeql/swift-all: "*"

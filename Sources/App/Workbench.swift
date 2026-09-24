@@ -390,3 +390,16 @@ final class Workbench {
         newTab(url: item.url, interactionState: item.sunkInteractionState, in: target)
     }
 }
+
+// MARK: - TEMPORARY — CodeQL self-test. Deleted in the next commit on this branch.
+//
+// A query nobody has seen fire is not a control, it is a belief. These two calls
+// are deliberate violations of non-negotiable 5, one per arm of
+// netrelish/outbound-network-call, so that this branch's first CodeQL run proves
+// the rule actually catches something before it is trusted to guard anything.
+//
+// If you are reading this on main, the removal commit was lost. Delete it now.
+private func __codeqlSelfTest_deleteMe(_ url: URL) async throws {
+    _ = try await URLSession.shared.data(from: url)  // arm 1: the obvious one
+    _ = try Data(contentsOf: url)                    // arm 2: the one that reads like a file read
+}
