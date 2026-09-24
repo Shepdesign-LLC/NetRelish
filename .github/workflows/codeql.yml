@@ -63,11 +63,30 @@ jobs:
         run: defaults write com.apple.dt.Xcode IDEPackageSupportDisableManifestSandbox -bool YES
 
       - uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        id: init
         with:
           languages: swift
           # Adds .github/codeql on top of the default suite — it does not replace
           # it. `disable-default-queries` stays false, so both run.
           queries: ./.github/codeql
+
+      # Compile the custom queries against the CodeQL the runner actually uses,
+      # BEFORE spending eight minutes on a build.
+      #
+      # A broken query otherwise surfaces as "CodeQL job status was
+      # configuration error" only after the whole extraction, with the real
+      # message buried under a few hundred lines of extractor diagnostics. This
+      # turns that into a readable failure in seconds.
+      #
+      # It also prints the CodeQL version, which is NOT necessarily the one the
+      # queries were authored against: the action is pinned by SHA, the CLI it
+      # downloads is not, and qlpack.yml takes codeql/swift-all at "*". If those
+      # ever diverge enough to matter, this step is where it shows up.
+      - name: Compile the custom queries (fail fast, readable error)
+        run: |
+          "${{ steps.init.outputs.codeql-path }}" version --format=terse
+          "${{ steps.init.outputs.codeql-path }}" query compile --warnings=error \
+            --threads=0 .github/codeql/
 
       # Not autobuild: this project builds through a named scheme and
       # configuration, exactly as ci.yml does. Signing is off because CI holds
