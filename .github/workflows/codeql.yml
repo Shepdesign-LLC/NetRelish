@@ -138,9 +138,24 @@ jobs:
       - name: Fail if the gate fired
         run: |
           python3 - <<'PY'
-          import glob, json, sys
+          import glob, json, pathlib, re, sys
 
           GATE = "netrelish/outbound-network-call"
+
+          # An approved exception is a comment on the flagged line or the one
+          # directly above it, citing the ADR that approved it:
+          #
+          #     // NETRELISH-ALLOW-ENDPOINT: adr-0007 — RFC 3161 timestamping
+          #
+          # It lives beside the code rather than in a list, so it shows up in
+          # every diff that touches the call, cannot drift away from what it
+          # exempts, and dies with the line. The ADR reference is required
+          # because CLAUDE.md already says an uncovered decision gets one, and
+          # an exception with no written reason is how a rule rots.
+          #
+          # Dismissing the alert in the Security tab deliberately does NOT
+          # satisfy this: that is invisible from the repository.
+          MARKER = re.compile(r"NETRELISH-ALLOW-ENDPOINT:\s*(adr-\d{4})")
 
           paths = sorted(glob.glob(".codeql-results/*.sarif"))
           if not paths:
@@ -149,7 +164,7 @@ jobs:
               print("::error::no SARIF in .codeql-results; the gate did not run")
               sys.exit(1)
 
-          hits = []
+          approved, blocking = [], []
           for path in paths:
               with open(path) as f:
                   sarif = json.load(f)
@@ -158,19 +173,30 @@ jobs:
                       if result.get("ruleId") != GATE:
                           continue
                       where = result["locations"][0]["physicalLocation"]
-                      hits.append((
-                          where["artifactLocation"]["uri"],
-                          where.get("region", {}).get("startLine", 1),
-                          result["message"]["text"],
-                      ))
+                      uri = where["artifactLocation"]["uri"]
+                      line = where.get("region", {}).get("startLine", 1)
 
-          for uri, line, message in hits:
+                      source, context = pathlib.Path(uri), ""
+                      if source.is_file():
+                          text = source.read_text(errors="replace").splitlines()
+                          context = "\n".join(text[max(0, line - 2):line])
+                      found = MARKER.search(context)
+
+                      entry = (uri, line, result["message"]["text"], found)
+                      (approved if found else blocking).append(entry)
+
+          for uri, line, _, found in approved:
+              print(f"::notice file={uri},line={line}::approved endpoint ({found.group(1)})")
+          for uri, line, message, _ in blocking:
               print(f"::error file={uri},line={line}::{message}")
 
-          if hits:
-              print(f"\n{GATE} fired {len(hits)} time(s). CLAUDE.md non-negotiable 5 "
-                    "permits page loads, StoreKit, RFC 3161 timestamping and direct-build "
-                    "licence activation, and nothing else.")
+          if approved:
+              print(f"\n{len(approved)} approved exception(s), re-printed every run so they stay visible.")
+
+          if blocking:
+              print(f"\n{GATE} fired {len(blocking)} time(s) with no approved exception. "
+                    "CLAUDE.md non-negotiable 5 permits page loads, StoreKit, RFC 3161 "
+                    "timestamping and direct-build licence activation, and nothing else.")
               sys.exit(1)
 
           print(f"{GATE}: clean across {len(paths)} SARIF file(s).")

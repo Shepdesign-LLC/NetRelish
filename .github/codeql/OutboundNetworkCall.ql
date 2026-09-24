@@ -112,8 +112,8 @@ private predicate networkFreeFunction(FreeFunction c, string api) {
     or
     c.getShortName() =
       [
-        "socket", "connect", "bind", "listen", "accept", "send", "sendto", "sendmsg", "recv",
-        "recvfrom", "recvmsg", "getaddrinfo", "gethostbyname"
+        "socket", "connect", "connectx", "bind", "listen", "accept", "send", "sendto",
+        "sendmsg", "sendfile", "recv", "recvfrom", "recvmsg", "getaddrinfo", "gethostbyname"
       ]
   )
 }
@@ -133,5 +133,6 @@ where
 select call,
   "Call to $@ opens a network connection. CLAUDE.md non-negotiable #5 allows only page loads, " +
     "StoreKit, RFC 3161 timestamping and direct-build licence activation. If this is one of " +
-    "those four, dismiss this alert saying which; otherwise it is a fifth endpoint and the rule " +
+    "those four, put a NETRELISH-ALLOW-ENDPOINT: adr-NNNN comment on this line or the one " +
+    "above, citing the ADR that approved it. Otherwise it is a fifth endpoint and the rule " +
     "says no.", target, api
