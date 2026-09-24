@@ -17,6 +17,20 @@
  *       non-negotiable-5
  */
 
+// KNOWN LIMIT — read before trusting this rule's coverage.
+//
+// Every prefix below is a CLAIM about coverage that nothing verifies.
+// Compiling proves the QL is valid, not that it matches what it says it
+// matches, and the canary only exercises the one path a canary was written
+// for. Three holes of exactly this shape were found by review on this branch
+// alone: URL.resourceBytes matched as an ApplyExpr when it is a property, the
+// BSD socket calls missing outright, and CFReadStream/CFWriteStream not being
+// matched by "CFStream%". Each read as coverage and was not.
+//
+// So treat a clean run as "nothing matched these patterns", never as "this app
+// makes no network calls". Adding an API here is cheap; assuming one is
+// already here is how a rule like this quietly stops meaning anything.
+//
 // This query is the gate, so every API it names is unambiguously a network
 // call. The APIs that only MIGHT be remote — `Data(contentsOf:)` and friends,
 // which are equally a local file read — are not here; they are in
