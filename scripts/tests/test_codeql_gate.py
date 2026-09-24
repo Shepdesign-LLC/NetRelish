@@ -176,6 +176,22 @@ class ScannerTests(unittest.TestCase):
         source = 'let s = "\\(x)" + "// ' + MARKER + '"'
         self.assertIsNone(self.comment_on(source, 1))
 
+    def test_bare_regex_closing_delimiter_does_not_start_a_comment(self):
+        # In `/\//` the escaped slash and the closing delimiter are textually
+        # `//`, so the rest of the line was read as a comment.
+        source = r'let r = /\//; let s = "' + MARKER + '"'
+        self.assertIsNone(self.comment_on(source, 1))
+
+    def test_a_real_comment_after_a_bare_regex_still_counts(self):
+        source = r'let r = /\//  // ' + MARKER
+        self.assertIn(MARKER, self.comment_on(source, 1))
+
+    def test_escaped_delimiter_does_not_end_an_extended_regex(self):
+        # `find("/#")` matched the `/` of an escaped `\/` and ended the literal
+        # early, leaving the rest of the pattern to be read as code.
+        source = r'let r = #/ a\/# b // ' + MARKER + ' /#'
+        self.assertIsNone(self.comment_on(source, 1))
+
     def test_extended_regex_literal_is_not_a_comment(self):
         # Extended regex ignores whitespace, so the marker inside one reads
         # exactly like an approval to a scanner that does not know the form.
@@ -278,6 +294,19 @@ class CitationTests(unittest.TestCase):
         adr, report = self.cite(" " + MARKER)
         self.assertEqual(adr, "adr-0007")
         self.assertEqual(report.errors, [])
+
+    def test_an_adr_behind_a_symlinked_parent_is_refused(self):
+        # Checking only the matched file left its parent unchecked, so
+        # `docs/adr -> /tmp/decisions` returned ordinary regular files from
+        # outside the checkout.
+        import tempfile
+        with tempfile.TemporaryDirectory() as elsewhere:
+            (pathlib.Path(elsewhere) / "0007-planted.md").write_text("# not ours\n")
+            (self.root / "docs" / "adr").rmdir()
+            (self.root / "docs" / "adr").symlink_to(elsewhere)
+            adr, report = self.cite(" " + MARKER)
+        self.assertIsNone(adr)
+        self.assertIn("no docs/adr/0007", report.errors[0])
 
     def test_comment_without_a_marker_is_not_an_error(self):
         adr, report = self.cite(" just an ordinary comment")
@@ -509,6 +538,28 @@ class GateTests(unittest.TestCase):
         report = self.checkout.evaluate()
         self.assertFalse(report.ok)
         self.assertTrue(any("cannot read" in e for e in report.errors))
+
+    def test_two_spellings_of_one_path_are_one_line(self):
+        # SARIF chooses the spelling. Grouping on the raw string put two
+        # findings on one physical line into two groups of one, and a single
+        # marker approved both.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL + "; " + CALL)
+        self.checkout.results(sarif(
+            result("Sources/A.swift", 2, start_column=5, end_column=46),
+            result("Sources/../Sources/A.swift", 2, start_column=60, end_column=101),
+        ))
+        report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertEqual(report.approved, [])
+        self.assertEqual(len(report.blocking), 2)
+        self.assertIn("share this line", report.blocking[0][1])
+
+    def test_a_traversing_uri_that_lands_back_inside_is_canonicalised(self):
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL)
+        self.checkout.results(sarif(result("Sources/../Sources/A.swift", 2)))
+        report = self.checkout.evaluate()
+        self.assertTrue(report.ok)
+        self.assertEqual(report.approved[0][0].path, "Sources/A.swift")
 
     def test_a_source_outside_the_checkout_is_not_trusted(self):
         # A SARIF location naming any file on the runner that happens to carry

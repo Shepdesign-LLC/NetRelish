@@ -25,9 +25,25 @@ its ENFORCEMENT rather than its design:
 
 Each idea was right; each implementation had a hole. A heredoc cannot be tested,
 so every one of those was caught by a human reading it, or not caught at all.
-The mechanism is now a module with a test suite beside it in scripts/tests/, and
-that suite runs on every push — including while CodeQL itself cannot build this
-project. See scripts/tests/test_codeql_gate.py.
+
+That list is the HISTORICAL set — the five that existed before this file did.
+Review of the branch that extracted it found TWELVE more, every one of them
+failing open: markers hidden in extended regex literals, in interpolated nested
+strings, and behind a bare regex's own closing delimiter; a trailing marker
+exempting the line below it; ADR citations satisfied by a directory, by a
+symlink, and by a symlinked parent directory; a missing SARIF start line
+defaulting to 1; columnless findings merging on their message; source paths
+escaping the checkout entirely; and two spellings of one path splitting a
+shared line into two. One of the twelve was introduced by the fix for another,
+and defended in review before it was checked.
+
+Seventeen defects, not one of them in the design. That is the case for the
+suite in scripts/tests/, which runs on every push — including while CodeQL
+itself cannot build this project. See scripts/tests/test_codeql_gate.py.
+
+The lesson is in the ratio rather than the number: reading this code carefully
+has never once been sufficient. Anything added here needs a test that fails
+without it.
 
 FAIL CLOSED, ALWAYS
 -------------------
@@ -238,13 +254,36 @@ def line_comments(source: str) -> dict[int, str]:
             # matching delimiter; unterminated swallows the rest, which fails
             # closed.
             #
-            # The BARE `/.../` form is not tracked, and does not need to be: two
-            # unescaped slashes in a row would end the literal at the first one,
-            # so the sequence `//` cannot occur inside one.
+            # Escape-aware, because `source.find("/#")` matched the `/` of an
+            # escaped `\/` and ended the literal early — leaving the rest of the
+            # pattern to be read as code, where a `//` in it became a comment.
             closer = "/" + "#" * run
-            end = source.find(closer, opener_at + 1)
-            end = source_length if end == -1 else end + len(closer)
+            scan, end = opener_at + 1, source_length
+            while scan < source_length:
+                if source[scan] == "\\":
+                    scan += 2
+                    continue
+                if source.startswith(closer, scan):
+                    end = scan + len(closer)
+                    break
+                scan += 1
             advance(end - index)
+            continue
+
+        if char == "\\":
+            # An escape in code is opaque: skip it and whatever it escapes.
+            #
+            # This is what makes the BARE `/.../` regex form safe to leave
+            # untracked. I claimed two unescaped slashes would end such a
+            # literal at the first, so `//` could not occur inside one. True,
+            # and beside the point: the literal's own ending supplies the
+            # second slash. In `let r = /\//` the `\/` and the closing `/` are
+            # textually `//`, and the rest of the line was read as a comment.
+            #
+            # Skipping `\/` as one token leaves the closing `/` alone, with
+            # nothing after it to pair with. Disambiguating regex from division
+            # is not needed, and is not something this scanner should attempt.
+            advance(2)
             continue
 
         advance(1)
@@ -273,13 +312,20 @@ def cited_adr(comment: str, repo_root: pathlib.Path, report: "Report") -> str | 
     # A match counts only if it is a regular file that actually lives here.
     #
     # `glob` also returns directories, so `0007-placeholder.md/` would satisfy
-    # the citation with no written decision inside it. And `is_file()` follows
+    # the citation with no written decision inside it. `is_file()` follows
     # symlinks, so `0007-anything.md -> /etc/hosts` would satisfy it with a
-    # decision that is not in the repository at all. Both are approvals backed
-    # by nothing, which is the failure this ADR requirement exists to prevent.
+    # decision that is not in the repository at all. And checking only the
+    # matched file left its PARENT unchecked, so `docs/adr -> /tmp/decisions`
+    # handed back perfectly ordinary regular files from outside the checkout.
+    #
+    # Hence `inside_checkout`, which resolves the whole path rather than
+    # inspecting its last component: every one of those is an approval backed
+    # by something this repository does not contain, which is the failure the
+    # ADR requirement exists to prevent.
     matches = sorted(
         p.name for p in (repo_root / "docs" / "adr").glob(number + "-*.md")
         if not p.is_symlink() and p.is_file()
+        and inside_checkout(repo_root, p) is not None
     )
 
     if not matches:
@@ -324,7 +370,7 @@ def source_path(uri: str) -> pathlib.Path:
     return path
 
 
-def inside_checkout(repo_root: pathlib.Path, path: str) -> pathlib.Path | None:
+def inside_checkout(repo_root: pathlib.Path, path) -> pathlib.Path | None:
     """The source file, but only if it really is one of ours.
 
     SARIF is input, and this one names the file whose comments decide whether a
@@ -396,6 +442,7 @@ class Report:
 def evaluate(results_dir, repo_root=None) -> Report:
     """Decide the build. Pure: it reads, it does not print or exit."""
     repo_root = pathlib.Path(repo_root or pathlib.Path.cwd())
+    root = repo_root.resolve()
     report = Report()
 
     paths = sorted(glob.glob(str(pathlib.Path(results_dir) / "*.sarif")))
@@ -420,7 +467,23 @@ def evaluate(results_dir, repo_root=None) -> Report:
                     continue
                 where = result["locations"][0]["physicalLocation"]
                 region = where.get("region", {})
-                where_file = str(source_path(where["artifactLocation"]["uri"]))
+                named = source_path(where["artifactLocation"]["uri"])
+
+                # Canonicalise here, before this path becomes a grouping key.
+                #
+                # SARIF chooses the spelling, and `Sources/A.swift` and
+                # `Sources/../Sources/A.swift` are the same file under two of
+                # them. Grouping on the raw string put two findings on one
+                # physical line into two groups of one, and a single marker
+                # approved both — the shared-line rule defeated by punctuation.
+                located = inside_checkout(repo_root, named)
+                if located is None:
+                    report.errors.append(
+                        str(named) + " is outside the checkout, so an exemption "
+                        "there could not be trusted"
+                    )
+                    continue
+                where_file = str(located.relative_to(root))
 
                 # Defaulting a missing startLine to 1 was not fail-closed: a
                 # finding whose location is unknown would be handed line 1, and
@@ -472,14 +535,10 @@ def evaluate(results_dir, repo_root=None) -> Report:
 
     for (path, line), group in sorted(lines.items()):
         if path not in source_cache:
-            candidate = inside_checkout(repo_root, path)
-            if candidate is None:
-                source_cache[path] = None
-                report.errors.append(
-                    path + " is outside the checkout, so an exemption there "
-                    "could not be trusted"
-                )
-            elif candidate.is_file():
+            # Already canonical and already known to be inside the checkout —
+            # both were settled when the finding was read.
+            candidate = root / path
+            if candidate.is_file():
                 source_cache[path] = line_comments(
                     candidate.read_text(errors="replace")
                 )
