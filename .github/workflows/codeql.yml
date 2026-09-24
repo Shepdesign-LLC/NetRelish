@@ -160,14 +160,14 @@ jobs:
       # afternoon loses. This travels with the repo.
       #
       # The logic is in scripts/codeql_gate.py, not inline here. It has had
-      # seventeen defects — five before it was extracted, and twelve more found
+      # twenty defects — five before it was extracted, and fifteen more found
       # by review of the branch that extracted it — every one in its
       # enforcement rather than its design, and every one failing OPEN. A
       # heredoc cannot be tested, so the first five were caught by a human
       # reading it, or not caught at all. It now has a suite in scripts/tests/
       # that the `CodeQL gate self-test` job in ci.yml runs on every push,
       # including while THIS job cannot build the project. The module header
-      # lists all seventeen; read it before adding anything here.
+      # lists all twenty; read it before adding anything here.
       #
       # Only the gate fails the build. netrelish/remote-capable-url-read has two
       # legitimate baseline hits; failing on it would teach everyone to ignore a

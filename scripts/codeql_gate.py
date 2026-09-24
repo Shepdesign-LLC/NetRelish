@@ -27,19 +27,22 @@ Each idea was right; each implementation had a hole. A heredoc cannot be tested,
 so every one of those was caught by a human reading it, or not caught at all.
 
 That list is the HISTORICAL set — the five that existed before this file did.
-Review of the branch that extracted it found TWELVE more, every one of them
+Review of the branch that extracted it found FIFTEEN more, every one of them
 failing open: markers hidden in extended regex literals, in interpolated nested
-strings, and behind a bare regex's own closing delimiter; a trailing marker
-exempting the line below it; ADR citations satisfied by a directory, by a
-symlink, and by a symlinked parent directory; a missing SARIF start line
-defaulting to 1; columnless findings merging on their message; source paths
-escaping the checkout entirely; and two spellings of one path splitting a
-shared line into two. One of the twelve was introduced by the fix for another,
-and defended in review before it was checked.
+strings, and behind a bare regex's own closing delimiter; an escaped delimiter
+ending an extended regex early; a trailing marker exempting the line below it;
+ADR citations satisfied by a directory, by a symlink, by a symlinked parent
+directory, and by a longer number that merely started with a real one; a
+missing SARIF start line defaulting to 1; columnless findings merging on their
+message; malformed columns merging two findings into one; source paths escaping
+the checkout entirely; absolute paths rebased against the working directory
+rather than the checkout being judged; and two spellings of one path splitting
+a shared line into two. One of the fifteen was introduced by the fix for
+another, and defended in review before it was checked.
 
-Seventeen defects, not one of them in the design. That is the case for the
-suite in scripts/tests/, which runs on every push — including while CodeQL
-itself cannot build this project. See scripts/tests/test_codeql_gate.py.
+Twenty defects, not one of them in the design. That is the case for the suite
+in scripts/tests/, which runs on every push — including while CodeQL itself
+cannot build this project. See scripts/tests/test_codeql_gate.py.
 
 The lesson is in the ratio rather than the number: reading this code carefully
 has never once been sufficient. Anything added here needs a test that fails
@@ -82,7 +85,12 @@ GATE = "netrelish/outbound-network-call"
 #
 # Dismissing the alert in the Security tab deliberately does NOT satisfy this:
 # that is invisible from the repository.
-MARKER = re.compile(r"NETRELISH-ALLOW-ENDPOINT:\s*(adr-\d{4})")
+#
+# The trailing guard matters: `\d{4}` alone matched the first four digits of
+# `adr-00070` and captured `adr-0007`, so a malformed citation was silently
+# accepted whenever ADR 0007 happened to exist. The number must end where the
+# citation ends.
+MARKER = re.compile(r"NETRELISH-ALLOW-ENDPOINT:\s*(adr-\d{4})(?![\w-])")
 
 
 # --------------------------------------------------------------------------
@@ -358,16 +366,31 @@ def source_path(uri: str) -> pathlib.Path:
     exemption would block the build with a misleading message.
 
     Fails closed either way, but closed-and-wrong is still wrong.
+
+    An absolute path is left absolute. It used to be rebased against
+    `Path.cwd()`, which is not necessarily the checkout being evaluated: with a
+    `--repo-root` elsewhere, `file:///<cwd>/Sources/A.swift` was rewritten to
+    `Sources/A.swift` and then looked up under the OTHER root. If a file lived
+    there too, the gate read it — and approved the finding using a marker from
+    a checkout the finding had nothing to do with.
+
+    Canonicalising against the root that is actually in use is `inside_checkout`'s
+    job, and it is the only one that knows which root that is.
     """
     parsed = urlparse(uri)
     raw = unquote(parsed.path) if parsed.scheme == "file" else unquote(uri)
-    path = pathlib.Path(raw)
-    if path.is_absolute():
-        try:
-            path = path.relative_to(pathlib.Path.cwd())
-        except ValueError:
-            pass  # genuinely outside the checkout; leave it absolute
-    return path
+    return pathlib.Path(raw)
+
+
+def positive_int(value):
+    """The value if it is a real 1-based SARIF coordinate, else None.
+
+    `isinstance(True, int)` is True in Python, so booleans are excluded
+    explicitly rather than by accident.
+    """
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        return None
+    return value
 
 
 def inside_checkout(repo_root: pathlib.Path, path) -> pathlib.Path | None:
@@ -407,7 +430,14 @@ class Finding:
 
     @property
     def locatable(self) -> bool:
-        """Whether this finding can be told apart from another on its line."""
+        """Whether this finding can be told apart from another on its line.
+
+        Only real columns count. Treating any non-None value as trustworthy
+        meant two distinct findings both reported at `startColumn: 0,
+        endColumn: 0` shared an identity and collapsed into one, which a single
+        marker then approved. Invalid columns carry no position, so they are
+        columnless, and columnless findings are never merged.
+        """
         return self.start_column is not None and self.end_column is not None
 
     def identity(self):
@@ -489,9 +519,8 @@ def evaluate(results_dir, repo_root=None) -> Report:
                 # finding whose location is unknown would be handed line 1, and
                 # a marker that happened to sit there would approve it. An
                 # unlocatable finding cannot be exempted at all.
-                start_line = region.get("startLine")
-                if isinstance(start_line, bool) or not isinstance(start_line, int) \
-                        or start_line < 1:
+                start_line = positive_int(region.get("startLine"))
+                if start_line is None:
                     report.errors.append(
                         "a gate finding in " + where_file + " has no usable "
                         "startLine, so it cannot be located or exempted"
@@ -501,8 +530,11 @@ def evaluate(results_dir, repo_root=None) -> Report:
                 finding = Finding(
                     path=where_file,
                     line=start_line,
-                    start_column=region.get("startColumn"),
-                    end_column=region.get("endColumn"),
+                    # Validated, not merely present: a malformed column is no
+                    # position at all, so the finding counts as columnless and
+                    # is never deduplicated against another.
+                    start_column=positive_int(region.get("startColumn")),
+                    end_column=positive_int(region.get("endColumn")),
                     message=result["message"]["text"],
                 )
                 if finding.locatable:

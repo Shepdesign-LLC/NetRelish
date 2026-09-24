@@ -308,6 +308,28 @@ class CitationTests(unittest.TestCase):
         self.assertIsNone(adr)
         self.assertIn("no docs/adr/0007", report.errors[0])
 
+    def test_a_longer_number_is_not_this_citation(self):
+        # `\d{4}` matched the first four digits of adr-00070 and captured
+        # adr-0007, so a malformed citation rode in on a real ADR.
+        (self.root / "docs" / "adr" / "0007-timestamping.md").write_text("#\n")
+        adr, report = self.cite(" NETRELISH-ALLOW-ENDPOINT: adr-00070")
+        self.assertIsNone(adr)
+        self.assertEqual(report.errors, [])   # no citation at all, not a bad one
+
+    def test_a_suffixed_citation_is_not_this_citation(self):
+        (self.root / "docs" / "adr" / "0007-timestamping.md").write_text("#\n")
+        adr, _ = self.cite(" NETRELISH-ALLOW-ENDPOINT: adr-0007foo")
+        self.assertIsNone(adr)
+
+    def test_the_documented_citation_forms_still_match(self):
+        (self.root / "docs" / "adr" / "0007-timestamping.md").write_text("#\n")
+        for text in (" " + MARKER,
+                     " " + MARKER + " — RFC 3161 timestamping",
+                     " " + MARKER + ", and see below",
+                     " " + MARKER + "."):
+            with self.subTest(text=text):
+                self.assertEqual(self.cite(text)[0], "adr-0007")
+
     def test_comment_without_a_marker_is_not_an_error(self):
         adr, report = self.cite(" just an ordinary comment")
         self.assertIsNone(adr)
@@ -560,6 +582,48 @@ class GateTests(unittest.TestCase):
         report = self.checkout.evaluate()
         self.assertTrue(report.ok)
         self.assertEqual(report.approved[0][0].path, "Sources/A.swift")
+
+    def test_malformed_columns_do_not_merge_two_findings(self):
+        # locatable accepted any non-None column, so two distinct findings both
+        # at startColumn 0 shared an identity and collapsed into one.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL + "; " + CALL)
+        self.checkout.results(sarif(
+            result("Sources/A.swift", 2, start_column=0, end_column=0),
+            result("Sources/A.swift", 2, start_column=0, end_column=0),
+        ))
+        report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertEqual(report.approved, [])
+        self.assertEqual(len(report.blocking), 2)
+
+    def test_absolute_paths_are_judged_against_the_given_root_not_the_cwd(self):
+        # source_path rebased absolute paths against Path.cwd(), so a
+        # file:// URI under the current directory was rewritten relative and
+        # looked up under a DIFFERENT --repo-root. Where a file existed there
+        # too, its marker approved a finding from the other checkout.
+        import os, tempfile
+        with tempfile.TemporaryDirectory() as other:
+            elsewhere = pathlib.Path(other)
+            (elsewhere / "Sources").mkdir()
+            real = elsewhere / "Sources" / "A.swift"
+            real.write_text(CALL + "\n")            # no marker here
+
+            decoy = self.checkout.root / "Sources" / "A.swift"
+            decoy.parent.mkdir(parents=True, exist_ok=True)
+            decoy.write_text("// " + MARKER + "\n" + CALL)   # marker here
+
+            self.checkout.results(sarif(result(real.as_uri(), 1)))
+
+            cwd = os.getcwd()
+            os.chdir(elsewhere)
+            try:
+                report = self.checkout.evaluate()
+            finally:
+                os.chdir(cwd)
+
+        self.assertFalse(report.ok)
+        self.assertEqual(report.approved, [])
+        self.assertTrue(any("outside the checkout" in e for e in report.errors))
 
     def test_a_source_outside_the_checkout_is_not_trusted(self):
         # A SARIF location naming any file on the runner that happens to carry
