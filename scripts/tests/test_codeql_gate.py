@@ -207,6 +207,31 @@ class ScannerTests(unittest.TestCase):
         source = r'let r = #/ a\/# b // ' + MARKER + ' /#'
         self.assertIsNone(self.comment_on(source, 1))
 
+    def test_a_bare_regex_inside_interpolation_keeps_its_punctuation(self):
+        # `/[)]"/` carries the very characters the scanner steers by: the `)`
+        # closed the interpolation and the `"` closed the outer string, so the
+        # marker — which is string content — was recorded as a comment.
+        source = r'let s = "\(/[)]"/) // ' + MARKER + '"'
+        self.assertIsNone(self.comment_on(source, 1))
+
+    def test_division_is_not_mistaken_for_a_regex(self):
+        # The failure in the other direction: reading `a/b` as a regex would
+        # run it up to the comment's own slashes and lose a REAL marker.
+        self.assertIn(MARKER, self.comment_on("let x = a/b  // " + MARKER, 1))
+
+    def test_division_between_two_values_on_one_line(self):
+        self.assertIsNone(self.comment_on("let x = a/b + c/d", 1))
+
+    def test_a_regex_literal_is_opaque(self):
+        self.assertIsNone(self.comment_on("let r = /[a-z]+/", 1))
+
+    def test_a_comment_after_a_regex_literal_still_counts(self):
+        self.assertIn(MARKER, self.comment_on("let r = /[a-z]+/  // " + MARKER, 1))
+
+    def test_a_lone_slash_is_not_a_regex(self):
+        # No closing partner on the line, so it must not swallow the rest.
+        self.assertIn(MARKER, self.comment_on("let x = f(/ )  // " + MARKER, 1))
+
     def test_extended_regex_literal_is_not_a_comment(self):
         # Extended regex ignores whitespace, so the marker inside one reads
         # exactly like an approval to a scanner that does not know the form.
@@ -507,6 +532,14 @@ class GateTests(unittest.TestCase):
         self.checkout.swift(
             "Sources/A.swift",
             'let s = "\\("// ' + MARKER + '")"\n' + CALL,
+        )
+        self.checkout.results(sarif(result("Sources/A.swift", 2)))
+        self.assertFalse(self.checkout.evaluate().ok)
+
+    def test_bare_regex_in_interpolation_marker_does_not_approve(self):
+        self.checkout.swift(
+            "Sources/A.swift",
+            r'let s = "\(/[)]"/) // ' + MARKER + '"\n' + CALL,
         )
         self.checkout.results(sarif(result("Sources/A.swift", 2)))
         self.assertFalse(self.checkout.evaluate().ok)

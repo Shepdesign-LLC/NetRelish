@@ -27,7 +27,7 @@ Each idea was right; each implementation had a hole. A heredoc cannot be tested,
 so every one of those was caught by a human reading it, or not caught at all.
 
 That list is the HISTORICAL set — the five that existed before this file did.
-Review of the branch that extracted it found NINETEEN more, every one of them
+Review of the branch that extracted it found TWENTY more, every one of them
 failing open: markers hidden in extended regex literals, in interpolated nested
 strings, and behind a bare regex's own closing delimiter; an escaped delimiter
 ending an extended regex early; a trailing marker exempting the line below it;
@@ -41,14 +41,16 @@ rebased against the working directory rather than the checkout being judged;
 two spellings of one path splitting a shared line into two; a finding identity
 that ignored endLine, merging two distinct multi-line regions; and — worst of
 them — a SARIF that ran no gate query at all reading as a clean one, which is
-the missing-SARIF false assurance with an extra step.
+the missing-SARIF false assurance with an extra step; and a bare regex inside
+an interpolation whose own `)` and `"` steered the scanner out of the string
+it was in.
 
-Two of the nineteen were produced by fixing another: one introduced outright
+Two of the twenty were produced by fixing another: one introduced outright
 and defended in review before it was checked, one a gap its own predecessor's
 fix did not cover. A fix that is correct about what it checks and silent about
 what it does not is the shape to watch for here.
 
-Twenty-four defects, not one of them in the design. That is the case for the suite
+Twenty-five defects, not one of them in the design. That is the case for the suite
 in scripts/tests/, which runs on every push — including while CodeQL itself
 cannot build this project. See scripts/tests/test_codeql_gate.py.
 
@@ -286,6 +288,25 @@ def line_comments(source: str) -> dict[int, str]:
             advance(end - index)
             continue
 
+        if char == "/" and _regex_may_start(source, index) \
+                and index + 1 < source_length and source[index + 1] not in " \t\n/*":
+            # A bare `/.../` literal. Its contents are pattern text, and that
+            # text can contain the punctuation this scanner steers by: in
+            #
+            #     let s = "\(/[)]"/) // NETRELISH-ALLOW-ENDPOINT: adr-0007"
+            #
+            # the regex's `)` closed the interpolation and its `"` closed the
+            # outer string, so the marker — which is string content — was
+            # recorded as a comment. Making the literal opaque keeps the
+            # scanner inside the construct it is actually in.
+            #
+            # A `/` with no closing partner on the line is not a regex, so it
+            # falls through rather than swallowing the rest of the line.
+            closes = _bare_regex_end(source, index)
+            if closes is not None:
+                advance(closes - index)
+                continue
+
         if char == "\\":
             # An escape in code is opaque: skip it and whatever it escapes.
             #
@@ -401,6 +422,48 @@ def source_path(uri: str) -> pathlib.Path:
         return None
     raw = unquote(parsed.path) if parsed.scheme == "file" else unquote(uri)
     return pathlib.Path(raw)
+
+
+def _regex_may_start(source: str, index: int) -> bool:
+    """Whether a `/` at `index` opens a bare regex rather than dividing.
+
+    Swift resolves this by grammar: `/.../` is a regex where an EXPRESSION is
+    expected, and division after a value. Approximated by the previous
+    significant character — after an identifier, a number, `)`, `]` or a closing
+    quote we are past a value, so the slash divides. Anywhere else (`=`, `(`,
+    `,`, `return`, start of line) an expression is expected.
+
+    Without this, `a/b  // NETRELISH-ALLOW-ENDPOINT: adr-0007` would be read as
+    a regex running up to the comment's own slashes, and a REAL marker would be
+    lost. That direction merely blocks, but blocking a legitimate exemption is
+    still a bug.
+    """
+    scan = index - 1
+    while scan >= 0 and source[scan] in " \t":
+        scan -= 1
+    if scan < 0:
+        return True
+    previous = source[scan]
+    return not (previous.isalnum() or previous in '_)]"')
+
+
+def _bare_regex_end(source: str, index: int) -> int | None:
+    """Where the bare regex opening at `index` ends, or None if it does not.
+
+    Swift's closing delimiter is an unescaped `/` not preceded by whitespace,
+    on the same line. A `/` with no such partner is not a regex at all, so the
+    caller leaves it alone rather than swallowing the rest of the line.
+    """
+    length = len(source)
+    scan = index + 1
+    while scan < length and source[scan] != "\n":
+        if source[scan] == "\\":
+            scan += 2
+            continue
+        if source[scan] == "/" and source[scan - 1] not in " \t":
+            return scan + 1
+        scan += 1
+    return None
 
 
 def declares_gate(sarif) -> bool:
