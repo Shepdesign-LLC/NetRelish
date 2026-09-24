@@ -696,6 +696,25 @@ class GateTests(unittest.TestCase):
         self.assertEqual(report.approved, [])
         self.assertTrue(any("not a local file" in e for e in report.errors))
 
+    def test_a_remote_file_authority_is_refused(self):
+        # `file://attacker/<checkout>/Sources/A.swift` names a file on another
+        # host; discarding the authority resolved its path against this
+        # checkout and approved it from a local marker.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL)
+        local = (self.checkout.root / "Sources" / "A.swift").resolve()
+        self.checkout.results(sarif(result("file://attacker" + str(local), 2)))
+        report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertEqual(report.approved, [])
+        self.assertTrue(any("not a local file" in e for e in report.errors))
+
+    def test_localhost_is_a_local_file_authority(self):
+        # RFC 8089: an empty authority and `localhost` both mean this machine.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL)
+        local = (self.checkout.root / "Sources" / "A.swift").resolve()
+        self.checkout.results(sarif(result("file://localhost" + str(local), 2)))
+        self.assertTrue(self.checkout.evaluate().ok)
+
     def test_an_ordinary_path_containing_a_colon_still_works(self):
         # A colon after a slash is not a scheme, so this must not be refused.
         self.checkout.swift("Sources/A:B.swift", "// " + MARKER + "\n" + CALL)

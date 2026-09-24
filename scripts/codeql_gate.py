@@ -27,7 +27,7 @@ Each idea was right; each implementation had a hole. A heredoc cannot be tested,
 so every one of those was caught by a human reading it, or not caught at all.
 
 That list is the HISTORICAL set — the five that existed before this file did.
-Review of the branch that extracted it found TWENTY-TWO more, every one of them
+Review of the branch that extracted it found TWENTY-THREE more, every one of them
 failing open: markers hidden in extended regex literals, in interpolated nested
 strings, and behind a bare regex's own closing delimiter; an escaped delimiter
 ending an extended regex early; a trailing marker exempting the line below it;
@@ -44,15 +44,17 @@ them — a SARIF that ran no gate query at all reading as a clean one, which is
 the missing-SARIF false assurance with an extra step; a bare regex inside an
 interpolation whose own `)` and `"` steered the scanner out of the string it
 was in, and then the same again for a regex following `return`, which the
-previous-character test read as a value; and a present-but-malformed endLine
-being indistinguishable from an absent one.
+previous-character test read as a value; a present-but-malformed endLine
+being indistinguishable from an absent one; and a `file://host/path` URI whose
+authority was discarded, resolving another machine's path against this
+checkout.
 
-Four of the twenty-two were produced by fixing another: one introduced outright
+Five of the twenty-three were produced by fixing another: one introduced outright
 and defended in review before it was checked, one a gap its own predecessor's
 fix did not cover. A fix that is correct about what it checks and silent about
 what it does not is the shape to watch for here.
 
-Twenty-seven defects, not one of them in the design. That is the case for the suite
+Twenty-eight defects, not one of them in the design. That is the case for the suite
 in scripts/tests/, which runs on every push — including while CodeQL itself
 cannot build this project. See scripts/tests/test_codeql_gate.py.
 
@@ -414,6 +416,12 @@ def source_path(uri: str) -> pathlib.Path:
     contained one, its markers would have been read. A scheme this does not
     understand is not a source file, so the caller fails closed instead.
 
+    The AUTHORITY has to be checked too, which the first version of that guard
+    missed while standing in the same function: `file://attacker/x/A.swift`
+    names a file on another host, and discarding `netloc` resolved its path
+    against this checkout and approved it from a local marker. Per RFC 8089
+    only an empty authority or `localhost` is local.
+
     A relative reference whose first segment contains a colon is invalid per
     RFC 3986 and must be written `./Odd:Name.swift`; urlparse reads the part
     before that colon as a scheme, so such a URI is refused. `Sources/A:B.swift`
@@ -422,8 +430,11 @@ def source_path(uri: str) -> pathlib.Path:
     parsed = urlparse(uri)
     if parsed.scheme not in ("", "file"):
         return None
-    raw = unquote(parsed.path) if parsed.scheme == "file" else unquote(uri)
-    return pathlib.Path(raw)
+    if parsed.scheme == "file":
+        if parsed.netloc.lower() not in ("", "localhost"):
+            return None
+        return pathlib.Path(unquote(parsed.path))
+    return pathlib.Path(unquote(uri))
 
 
 # Swift keywords after which an expression begins, so a `/` following one opens
