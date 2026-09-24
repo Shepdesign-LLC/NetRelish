@@ -31,6 +31,24 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
 
+      # Resolve SwiftPM dependencies BEFORE CodeQL starts tracing.
+      #
+      # The tracer sets DYLD_INSERT_LIBRARIES and injects libtrace.dylib into every
+      # process the build spawns. SwiftPM compiles package manifests inside
+      # `sandbox-exec`, and that spawn then dies with EBADARCH:
+      #
+      #   posix_spawn error: Bad CPU type in executable (86), ["/usr/bin/sandbox-exec", ...]
+      #
+      # It is the tracer, not the packages: Build AppStore, Build Direct and Test run
+      # the same xcodebuild untraced on the same commit and pass in ~2 minutes.
+      # Resolving here populates SourcePackages/ and SwiftPM's manifest cache outside
+      # the tracer, leaving the traced build nothing to do but compile. The
+      # -derivedDataPath must match the build step's or the checkouts are not found.
+      - name: Resolve package dependencies (untraced)
+        run: |
+          xcodebuild -project NetRelish.xcodeproj \
+            -derivedDataPath .build/DerivedData -resolvePackageDependencies
+
       - uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           languages: swift
