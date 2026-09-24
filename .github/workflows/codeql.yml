@@ -1,5 +1,27 @@
 name: CodeQL
 
+# ⚠️ THIS JOB IS CURRENTLY EXPECTED TO FAIL. Do not re-diagnose it from scratch.
+#
+# CodeQL's tracer injects libtrace.dylib via DYLD_INSERT_LIBRARIES, and the
+# architecture-specific helpers Xcode 27 spawns then die with EBADARCH ("Bad CPU
+# type"). Two of them:
+#
+#   sandbox-exec        SwiftPM manifest loading   — worked around below
+#   swift-plugin-server Swift macro expansion      — NO workaround exists
+#
+# So @State and #Preview fail to expand inside the KeyboardShortcuts dependency
+# and the traced build dies with exit 65. The untraced Build AppStore / Build
+# Direct / Test jobs are green: the app is fine, only the traced build is not.
+#
+# It is NOT a CodeQL version problem. The run that passed on main on 2026-09-23
+# used this same action SHA and the same CodeQL 2.27.0; both are pinned and
+# neither moved. The xcode-27 IMAGE moved. `tools: latest` was tried and
+# resolved to 2.27.0 — there is no newer bundle — so no pin, older or newer,
+# addresses this.
+#
+# Nothing here needs changing when it is fixed upstream: the job simply starts
+# passing. Full diagnosis in PR #22.
+#
 # Advanced setup, not default setup. CodeQL analyses Swift by BUILDING it, and
 # default setup would run that build on a GitHub-hosted macos-latest — which is
 # still macOS 26 and has no macOS 27 SDK (see the note on `runs-on` in ci.yml).
@@ -77,19 +99,6 @@ jobs:
         id: init
         with:
           languages: swift
-          # EXPERIMENT, one variable. The default bundle for this action SHA is
-          # CodeQL 2.27.0, and its tracer cannot spawn Xcode 27's helper
-          # executables: sandbox-exec died with EBADARCH (handled above), and
-          # swift-plugin-server now dies the same way, so every Swift macro
-          # (@State, #Preview) fails to expand inside KeyboardShortcuts and the
-          # build fails with exit 65.
-          #
-          # Tracer fixes for a new Xcode are exactly what CodeQL patch releases
-          # carry, and 2.27.1 exists. If this clears it, replace `latest` with
-          # that exact bundle — a floating CLI is the same mistake as an
-          # unpinned action. If it does not, this is an upstream incompatibility
-          # and no workflow flag will fix it.
-          tools: latest
           # Adds .github/codeql on top of the default suite — it does not replace
           # it. `disable-default-queries` stays false, so both run.
           queries: ./.github/codeql

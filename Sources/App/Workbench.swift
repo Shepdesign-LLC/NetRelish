@@ -390,15 +390,3 @@ final class Workbench {
         newTab(url: item.url, interactionState: item.sunkInteractionState, in: target)
     }
 }
-
-// MARK: - TEMPORARY — CodeQL self-test. Deleted in the next commit on this branch.
-//
-// A query nobody has seen fire is not a control, it is a belief. One deliberate
-// violation per query, so that this branch's CodeQL run proves both rules catch
-// something before either is trusted to guard anything.
-//
-// If you are reading this on main, the removal commit was lost. Delete it now.
-private func __codeqlSelfTest_deleteMe(_ url: URL) async throws {
-    _ = try await URLSession.shared.data(from: url)  // netrelish/outbound-network-call
-    _ = try Data(contentsOf: url)                    // netrelish/remote-capable-url-read
-}
