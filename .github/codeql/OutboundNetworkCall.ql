@@ -42,6 +42,9 @@ private predicate networkMethod(Method c, string api) {
       // on purpose: if Apple adds a method, it gets flagged rather than
       // silently skipped, so the list going stale fails safe.
       type.matches(["URLSession%", "NSURLSession%"]) and
+      // Configuration objects never open anything, and a session built from one
+      // is itself a hit, so nothing is lost by leaving them out.
+      not type.matches(["URLSessionConfiguration%", "NSURLSessionConfiguration%"]) and
       not c.getShortName() =
         [
           // Teardown.
@@ -83,7 +86,15 @@ private predicate networkMethod(Method c, string api) {
 private predicate networkFreeFunction(FreeFunction c, string api) {
   api = c.getName() and
   (
-    c.getShortName().matches(["CFStream%", "CFSocket%", "CFHost%", "CFNetwork%"])
+    c.getShortName()
+        .matches([
+          // CFReadStream/CFWriteStream are NOT matched by "CFStream%" — the
+          // prefix is the wrong shape for them, and CFReadStreamCreateForHTTPRequest
+          // is the CFNetwork HTTP entry point, so leaving them out made the
+          // claimed CFNetwork coverage a blind spot.
+          "CFStream%", "CFReadStream%", "CFWriteStream%", "CFHTTP%",
+          "CFSocket%", "CFHost%", "CFNetwork%"
+        ])
     or
     c.getShortName() =
       [

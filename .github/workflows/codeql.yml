@@ -49,17 +49,28 @@ jobs:
           xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
             -derivedDataPath .build/DerivedData -resolvePackageDependencies
 
-      # HYPOTHESIS, not a known-good fix. The pre-resolve above is necessary but
-      # not sufficient: the traced build reloads the package manifests anyway
-      # and spawns sandbox-exec again. Most likely SwiftPM's manifest cache key
-      # includes the environment, and DYLD_INSERT_LIBRARIES changes it, so a
-      # cache warmed outside the tracer can never be hit inside it — which would
-      # mean no amount of pre-warming helps and the sandbox itself has to go.
+      # Proven necessary, and a real trade-off — read before deleting or copying.
       #
-      # `defaults write` cannot fail the build: if Xcode ignores the key, this is
-      # a no-op and the job fails exactly as it does now, which is itself the
-      # answer. Delete this step the moment it is shown not to help.
-      - name: Try disabling SwiftPM's manifest sandbox
+      # WHY: CodeQL's tracer injects libtrace.dylib into every spawned process.
+      # SwiftPM compiles package manifests inside sandbox-exec, and that spawn
+      # dies with EBADARCH. Four runs died here. Pre-resolving above is necessary
+      # but not sufficient: the traced build reloads the manifests regardless,
+      # most likely because SwiftPM's manifest cache key includes the environment
+      # and DYLD_INSERT_LIBRARIES changes it — so a cache warmed outside the
+      # tracer can never be hit inside it, and the sandbox itself has to go.
+      # With this step the build and extraction complete.
+      #
+      # WHAT IT COSTS: manifest evaluation loses its isolation, so Package.swift
+      # code from a dependency — or from a pull request that edits one — runs
+      # unsandboxed here. Three things bound that: the runner is ephemeral and
+      # the default dies with it; this workflow's token is `contents: read`; and
+      # the job already compiles the PR's own code through xcodebuild, which runs
+      # arbitrary build phases anyway, so the marginal exposure is small.
+      #
+      # It is still a downgrade, and it is here because the alternative is no
+      # Swift scanning at all. Revisit when the xcode-27 image or CodeQL's tracer
+      # stops requiring it; this step should not outlive that.
+      - name: Disable SwiftPM's manifest sandbox (see comment — trade-off)
         run: defaults write com.apple.dt.Xcode IDEPackageSupportDisableManifestSandbox -bool YES
 
       - uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
