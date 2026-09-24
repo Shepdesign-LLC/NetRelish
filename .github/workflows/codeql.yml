@@ -77,6 +77,19 @@ jobs:
         id: init
         with:
           languages: swift
+          # EXPERIMENT, one variable. The default bundle for this action SHA is
+          # CodeQL 2.27.0, and its tracer cannot spawn Xcode 27's helper
+          # executables: sandbox-exec died with EBADARCH (handled above), and
+          # swift-plugin-server now dies the same way, so every Swift macro
+          # (@State, #Preview) fails to expand inside KeyboardShortcuts and the
+          # build fails with exit 65.
+          #
+          # Tracer fixes for a new Xcode are exactly what CodeQL patch releases
+          # carry, and 2.27.1 exists. If this clears it, replace `latest` with
+          # that exact bundle — a floating CLI is the same mistake as an
+          # unpinned action. If it does not, this is an upstream incompatibility
+          # and no workflow flag will fix it.
+          tools: latest
           # Adds .github/codeql on top of the default suite — it does not replace
           # it. `disable-default-queries` stays false, so both run.
           queries: ./.github/codeql
