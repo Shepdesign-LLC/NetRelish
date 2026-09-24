@@ -17,6 +17,12 @@
  *       non-negotiable-5
  */
 
+// This query is the gate, so every API it names is unambiguously a network
+// call. The APIs that only MIGHT be remote — `Data(contentsOf:)` and friends,
+// which are equally a local file read — are not here; they are in
+// RemoteCapableURLRead.ql, at a lower severity, because mixing them in would
+// put permanent false positives on the one rule that is supposed to mean
+// something when it fires.
 import swift
 
 /**
@@ -36,28 +42,33 @@ private predicate networkMethod(Method c, string api) {
       or
       type = ["NSURLConnection", "NSURLDownload"]
       or
-      // The quiet ones. `Data(contentsOf:)` on an https URL is a synchronous
-      // HTTP GET that reads like a file read — this is the line an exfiltration
-      // bug is most likely to hide on.
-      type = ["Data", "NSData", "String", "NSString"] and
-      func.matches("init(contentsOf:%")
-      or
-      type = "NSString" and
-      func.matches("string(withContentsOf:%")
-      or
-      type = "URL" and
-      func = ["resourceBytes", "lines"]
-      or
       // The Network framework: raw sockets, TLS, Bonjour.
       type.matches("NW%")
     )
   )
 }
 
-/** Holds if `c` is a free function that opens a connection to a remote host. */
+/**
+ * Holds if `c` is a free function that opens a connection to a remote host:
+ * CFNetwork, or the BSD socket calls Swift imports from Darwin.
+ *
+ * Matched on short name (the name without its argument labels) because the C
+ * imports carry `(_:_:_:)`-style labels whose arity varies by overload, and
+ * restricted to free functions so that a method called `send` or `connect` —
+ * of which there are many — cannot collide. No first-party free function in
+ * this repo uses any of these names.
+ */
 private predicate networkFreeFunction(FreeFunction c, string api) {
   api = c.getName() and
-  api.matches(["CFStream%", "CFSocket%", "CFHost%", "CFNetwork%", "CFURL%Stream%"])
+  (
+    c.getShortName().matches(["CFStream%", "CFSocket%", "CFHost%", "CFNetwork%"])
+    or
+    c.getShortName() =
+      [
+        "socket", "connect", "bind", "listen", "accept", "send", "sendto", "sendmsg", "recv",
+        "recvfrom", "recvmsg", "getaddrinfo", "gethostbyname"
+      ]
+  )
 }
 
 /**
