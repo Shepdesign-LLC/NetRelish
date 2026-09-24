@@ -245,6 +245,21 @@ class CitationTests(unittest.TestCase):
         self.assertIn("0006-one.md", report.errors[0])
         self.assertIn("0006-two.md", report.errors[0])
 
+    def test_a_directory_named_like_an_adr_is_refused(self):
+        # glob() returns directories too, so `0007-placeholder.md/` would
+        # satisfy the citation with no written decision inside it.
+        (self.root / "docs" / "adr" / "0007-placeholder.md").mkdir()
+        adr, report = self.cite(" " + MARKER)
+        self.assertIsNone(adr)
+        self.assertIn("no docs/adr/0007", report.errors[0])
+
+    def test_a_real_adr_beside_a_directory_of_the_same_number(self):
+        (self.root / "docs" / "adr" / "0007-placeholder.md").mkdir()
+        (self.root / "docs" / "adr" / "0007-timestamping.md").write_text("#\n")
+        adr, report = self.cite(" " + MARKER)
+        self.assertEqual(adr, "adr-0007")   # the directory is not a clash
+        self.assertEqual(report.errors, [])
+
     def test_comment_without_a_marker_is_not_an_error(self):
         adr, report = self.cite(" just an ordinary comment")
         self.assertIsNone(adr)
@@ -411,6 +426,41 @@ class GateTests(unittest.TestCase):
         report = self.checkout.evaluate()
         self.assertFalse(report.ok)
         self.assertEqual(len(report.blocking), 2)
+
+    def test_columnless_findings_with_the_same_message_fail_closed(self):
+        # The common case, and the one a message-based key got wrong: two
+        # separate calls on one line usually carry identical text, so keying on
+        # the message merged them and one marker approved both.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL + "; " + CALL)
+        self.checkout.results(sarif(
+            result("Sources/A.swift", 2, message="outbound network call"),
+            result("Sources/A.swift", 2, message="outbound network call"),
+        ))
+        report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertEqual(len(report.blocking), 2)
+        self.assertEqual(report.approved, [])
+
+    def test_a_finding_without_a_start_line_cannot_be_approved(self):
+        # Defaulting to line 1 let a marker on line 1 approve a finding whose
+        # location is unknown.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL)
+        hit = result("Sources/A.swift", 1)
+        del hit["locations"][0]["physicalLocation"]["region"]["startLine"]
+        self.checkout.results(sarif(hit))
+        report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertEqual(report.approved, [])
+        self.assertTrue(any("no usable startLine" in e for e in report.errors))
+
+    def test_a_finding_with_an_invalid_start_line_cannot_be_approved(self):
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL)
+        hit = result("Sources/A.swift", 1)
+        hit["locations"][0]["physicalLocation"]["region"]["startLine"] = 0
+        self.checkout.results(sarif(hit))
+        report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertTrue(any("no usable startLine" in e for e in report.errors))
 
     def test_the_same_finding_in_two_sarif_files_is_one_finding(self):
         # Deduplication must not turn a duplicate report into a shared line.

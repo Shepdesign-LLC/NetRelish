@@ -270,7 +270,13 @@ def cited_adr(comment: str, repo_root: pathlib.Path, report: "Report") -> str | 
 
     citation = found.group(1)
     number = citation[len("adr-"):]
-    matches = sorted(p.name for p in (repo_root / "docs" / "adr").glob(number + "-*.md"))
+    # `is_file()` because glob also returns directories, and a directory named
+    # `0007-placeholder.md/` would otherwise satisfy the citation with no
+    # written decision anywhere in it — an approval backed by nothing.
+    matches = sorted(
+        p.name for p in (repo_root / "docs" / "adr").glob(number + "-*.md")
+        if p.is_file()
+    )
 
     if not matches:
         report.errors.append(
@@ -326,25 +332,26 @@ class Finding:
         self.end_column = end_column
         self.message = message
 
+    @property
+    def locatable(self) -> bool:
+        """Whether this finding can be told apart from another on its line."""
+        return self.start_column is not None and self.end_column is not None
+
     def identity(self):
         """What makes two findings the same call rather than two calls.
 
-        The same result can appear in more than one SARIF file, so findings are
-        deduplicated — but deduplicating too eagerly would quietly merge the
-        very case the shared-line rule exists to catch.
-
-        Columns settle it when they are present: a position is a call site, and
+        Only ever asked of a locatable finding. A position is a call site, and
         the message is only description, so two reports of one position are one
         finding however they are worded.
 
-        When columns are absent there is nothing left to tell two calls on one
-        line apart, so the message stays in the key. That can only split one
-        finding into two, which blocks; merging two into one would approve. Of
-        the two ways to be wrong, this is the one that fails closed.
+        Findings WITHOUT columns are never deduplicated at all, because nothing
+        about them can distinguish one call from another — two separate calls on
+        one line usually carry the identical message, so any key built from the
+        message would merge them, and a single marker would then approve both.
+        That is the shared-line bypass returning through the back door. Keeping
+        every occurrence instead can only over-count, which blocks.
         """
-        if self.start_column is not None and self.end_column is not None:
-            return (self.path, self.line, self.start_column, self.end_column)
-        return (self.path, self.line, None, None, self.message)
+        return (self.path, self.line, self.start_column, self.end_column)
 
 
 class Report:
@@ -374,7 +381,9 @@ def evaluate(results_dir, repo_root=None) -> Report:
         )
         return report
 
-    findings = {}
+    findings = {}   # locatable, deduplicated by position
+    loose = []      # columnless, never deduplicated (see Finding.identity)
+
     for path in paths:
         with open(path) as handle:
             sarif = json.load(handle)
@@ -384,14 +393,32 @@ def evaluate(results_dir, repo_root=None) -> Report:
                     continue
                 where = result["locations"][0]["physicalLocation"]
                 region = where.get("region", {})
+                where_file = str(source_path(where["artifactLocation"]["uri"]))
+
+                # Defaulting a missing startLine to 1 was not fail-closed: a
+                # finding whose location is unknown would be handed line 1, and
+                # a marker that happened to sit there would approve it. An
+                # unlocatable finding cannot be exempted at all.
+                start_line = region.get("startLine")
+                if isinstance(start_line, bool) or not isinstance(start_line, int) \
+                        or start_line < 1:
+                    report.errors.append(
+                        "a gate finding in " + where_file + " has no usable "
+                        "startLine, so it cannot be located or exempted"
+                    )
+                    continue
+
                 finding = Finding(
-                    path=str(source_path(where["artifactLocation"]["uri"])),
-                    line=region.get("startLine", 1),
+                    path=where_file,
+                    line=start_line,
                     start_column=region.get("startColumn"),
                     end_column=region.get("endColumn"),
                     message=result["message"]["text"],
                 )
-                findings[finding.identity()] = finding
+                if finding.locatable:
+                    findings[finding.identity()] = finding
+                else:
+                    loose.append(finding)
 
     # Group by the unit the exemption mechanism can actually address. A marker
     # names a line, not a call, so a line carrying two gate findings cannot be
@@ -399,7 +426,7 @@ def evaluate(results_dir, repo_root=None) -> Report:
     # already-approved one got past the gate. Fail closed instead of inventing
     # an approval the author never wrote.
     lines: dict[tuple, list[Finding]] = {}
-    for finding in findings.values():
+    for finding in list(findings.values()) + loose:
         lines.setdefault((finding.path, finding.line), []).append(finding)
 
     source_cache: dict[str, dict[int, str] | None] = {}
