@@ -583,6 +583,37 @@ class GateTests(unittest.TestCase):
         self.assertTrue(report.ok)
         self.assertEqual(report.approved[0][0].path, "Sources/A.swift")
 
+    def test_an_unsupported_uri_scheme_is_refused(self):
+        # `http://evil` fell through to Path and became the relative path
+        # `http:/evil`, which would have been read had the checkout held one.
+        planted = self.checkout.root / "http:" / "evil"
+        planted.parent.mkdir(parents=True, exist_ok=True)
+        planted.write_text("// " + MARKER + "\n" + CALL)
+        self.checkout.results(sarif(result("http://evil", 2)))
+        report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertEqual(report.approved, [])
+        self.assertTrue(any("not a local file" in e for e in report.errors))
+
+    def test_an_ordinary_path_containing_a_colon_still_works(self):
+        # A colon after a slash is not a scheme, so this must not be refused.
+        self.checkout.swift("Sources/A:B.swift", "// " + MARKER + "\n" + CALL)
+        self.checkout.results(sarif(result("Sources/A:B.swift", 2)))
+        self.assertTrue(self.checkout.evaluate().ok)
+
+    def test_an_impossible_column_range_does_not_merge_two_findings(self):
+        # Each column was validated alone, so startColumn 10 / endColumn 5
+        # passed and two findings carrying it collided.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL + "; " + CALL)
+        self.checkout.results(sarif(
+            result("Sources/A.swift", 2, start_column=10, end_column=5),
+            result("Sources/A.swift", 2, start_column=10, end_column=5),
+        ))
+        report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertEqual(report.approved, [])
+        self.assertEqual(len(report.blocking), 2)
+
     def test_malformed_columns_do_not_merge_two_findings(self):
         # locatable accepted any non-None column, so two distinct findings both
         # at startColumn 0 shared an identity and collapsed into one.

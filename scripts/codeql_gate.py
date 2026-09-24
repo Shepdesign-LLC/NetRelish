@@ -27,20 +27,22 @@ Each idea was right; each implementation had a hole. A heredoc cannot be tested,
 so every one of those was caught by a human reading it, or not caught at all.
 
 That list is the HISTORICAL set — the five that existed before this file did.
-Review of the branch that extracted it found FIFTEEN more, every one of them
+Review of the branch that extracted it found SEVENTEEN more, every one of them
 failing open: markers hidden in extended regex literals, in interpolated nested
 strings, and behind a bare regex's own closing delimiter; an escaped delimiter
 ending an extended regex early; a trailing marker exempting the line below it;
 ADR citations satisfied by a directory, by a symlink, by a symlinked parent
 directory, and by a longer number that merely started with a real one; a
 missing SARIF start line defaulting to 1; columnless findings merging on their
-message; malformed columns merging two findings into one; source paths escaping
-the checkout entirely; absolute paths rebased against the working directory
-rather than the checkout being judged; and two spellings of one path splitting
-a shared line into two. One of the fifteen was introduced by the fix for
-another, and defended in review before it was checked.
+message; malformed columns, and then impossible column RANGES, merging two
+findings into one; source paths escaping the checkout entirely; a URI scheme
+this did not understand becoming a relative path inside it; absolute paths
+rebased against the working directory rather than the checkout being judged;
+and two spellings of one path splitting a shared line into two. One of the
+seventeen was introduced by the fix for another, and defended in review before
+it was checked.
 
-Twenty defects, not one of them in the design. That is the case for the suite
+Twenty-two defects, not one of them in the design. That is the case for the suite
 in scripts/tests/, which runs on every push — including while CodeQL itself
 cannot build this project. See scripts/tests/test_codeql_gate.py.
 
@@ -376,8 +378,21 @@ def source_path(uri: str) -> pathlib.Path:
 
     Canonicalising against the root that is actually in use is `inside_checkout`'s
     job, and it is the only one that knows which root that is.
+
+    Returns None for a URI that does not name a local file. Anything other than
+    `file:` and a plain relative reference used to fall through to `Path`, so
+    `http://evil` became the relative path `http:/evil` — and had the checkout
+    contained one, its markers would have been read. A scheme this does not
+    understand is not a source file, so the caller fails closed instead.
+
+    A relative reference whose first segment contains a colon is invalid per
+    RFC 3986 and must be written `./Odd:Name.swift`; urlparse reads the part
+    before that colon as a scheme, so such a URI is refused. `Sources/A:B.swift`
+    is unaffected — a scheme cannot contain a slash.
     """
     parsed = urlparse(uri)
+    if parsed.scheme not in ("", "file"):
+        return None
     raw = unquote(parsed.path) if parsed.scheme == "file" else unquote(uri)
     return pathlib.Path(raw)
 
@@ -432,13 +447,21 @@ class Finding:
     def locatable(self) -> bool:
         """Whether this finding can be told apart from another on its line.
 
-        Only real columns count. Treating any non-None value as trustworthy
+        Only a real RANGE counts. Treating any non-None value as trustworthy
         meant two distinct findings both reported at `startColumn: 0,
         endColumn: 0` shared an identity and collapsed into one, which a single
-        marker then approved. Invalid columns carry no position, so they are
-        columnless, and columnless findings are never merged.
+        marker then approved. Validating each column on its own was not enough
+        either: `startColumn: 10, endColumn: 5` passed both checks and two
+        findings carrying that same impossible range collided the same way.
+
+        An invalid range carries no position, so it is columnless — and
+        columnless findings are never merged.
         """
-        return self.start_column is not None and self.end_column is not None
+        return (
+            self.start_column is not None
+            and self.end_column is not None
+            and self.end_column >= self.start_column
+        )
 
     def identity(self):
         """What makes two findings the same call rather than two calls.
@@ -497,7 +520,14 @@ def evaluate(results_dir, repo_root=None) -> Report:
                     continue
                 where = result["locations"][0]["physicalLocation"]
                 region = where.get("region", {})
-                named = source_path(where["artifactLocation"]["uri"])
+                uri = where["artifactLocation"]["uri"]
+                named = source_path(uri)
+                if named is None:
+                    report.errors.append(
+                        "a gate finding names " + uri + ", which is not a local "
+                        "file, so it cannot be located or exempted"
+                    )
+                    continue
 
                 # Canonicalise here, before this path becomes a grouping key.
                 #
