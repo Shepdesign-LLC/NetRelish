@@ -1,5 +1,31 @@
 name: CodeQL
 
+# ⚠️ THIS JOB IS CURRENTLY EXPECTED TO FAIL. Do not re-diagnose it from scratch.
+#
+# CodeQL's tracer injects libtrace.dylib via DYLD_INSERT_LIBRARIES, and the
+# architecture-specific helpers Xcode 27 spawns then die with EBADARCH ("Bad CPU
+# type"). Two of them:
+#
+#   sandbox-exec        SwiftPM manifest loading   — worked around below
+#   swift-plugin-server Swift macro expansion      — NO workaround exists
+#
+# So @State and #Preview fail to expand inside the KeyboardShortcuts dependency
+# and the traced build dies with exit 65. The untraced Build AppStore / Build
+# Direct / Test jobs are green: the app is fine, only the traced build is not.
+#
+# It is NOT a CodeQL version problem, and that is tested rather than assumed.
+# 2.27.0 and 2.27.1 were both run against this failure and both died the same
+# way, exit 65 with the same swift-plugin-server EBADARCH. The run that passed
+# on main on 2026-09-23 used this same action SHA and the same CodeQL 2.27.0,
+# both pinned and neither moved — the xcode-27 IMAGE moved. So no `tools:` pin
+# helps, and there is deliberately no `tools:` line here: the action SHA above
+# already pins the bundle through its own src/defaults.json (v4.38.1 -> 2.27.0).
+#
+# Do not spend a cycle re-testing CodeQL versions. That has been done.
+#
+# Nothing here needs changing when it is fixed upstream: the job simply starts
+# passing. Full diagnosis in PR #22.
+#
 # Advanced setup, not default setup. CodeQL analyses Swift by BUILDING it, and
 # default setup would run that build on a GitHub-hosted macos-latest — which is
 # still macOS 26 and has no macOS 27 SDK (see the note on `runs-on` in ci.yml).
@@ -31,19 +57,226 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
 
+      # Resolve SwiftPM dependencies BEFORE CodeQL starts tracing.
+      #
+      # The tracer sets DYLD_INSERT_LIBRARIES and injects libtrace.dylib into every
+      # process the build spawns. SwiftPM compiles package manifests inside
+      # `sandbox-exec`, and that spawn then dies with EBADARCH:
+      #
+      #   posix_spawn error: Bad CPU type in executable (86), ["/usr/bin/sandbox-exec", ...]
+      #
+      # It is the tracer, not the packages: Build AppStore, Build Direct and Test run
+      # the same xcodebuild untraced on the same commit and pass in ~2 minutes.
+      # Resolving here populates SourcePackages/ and SwiftPM's manifest cache outside
+      # the tracer, leaving the traced build nothing to do but compile. The
+      # -derivedDataPath must match the build step's or the checkouts are not found.
+      - name: Resolve package dependencies (untraced)
+        run: |
+          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
+            -derivedDataPath .build/DerivedData -resolvePackageDependencies
+
+      # Proven necessary, and a real trade-off — read before deleting or copying.
+      #
+      # WHY: CodeQL's tracer injects libtrace.dylib into every spawned process.
+      # SwiftPM compiles package manifests inside sandbox-exec, and that spawn
+      # dies with EBADARCH. Four runs died here. Pre-resolving above is necessary
+      # but not sufficient: the traced build reloads the manifests regardless,
+      # most likely because SwiftPM's manifest cache key includes the environment
+      # and DYLD_INSERT_LIBRARIES changes it — so a cache warmed outside the
+      # tracer can never be hit inside it, and the sandbox itself has to go.
+      # With this step the build and extraction complete.
+      #
+      # WHAT IT COSTS: manifest evaluation loses its isolation, so Package.swift
+      # code from a dependency — or from a pull request that edits one — runs
+      # unsandboxed here. Three things bound that: the runner is ephemeral and
+      # the default dies with it; this workflow's token is `contents: read`; and
+      # the job already compiles the PR's own code through xcodebuild, which runs
+      # arbitrary build phases anyway, so the marginal exposure is small.
+      #
+      # It is still a downgrade, and it is here because the alternative is no
+      # Swift scanning at all. Revisit when the xcode-27 image or CodeQL's tracer
+      # stops requiring it; this step should not outlive that.
+      - name: Disable SwiftPM's manifest sandbox (see comment — trade-off)
+        run: defaults write com.apple.dt.Xcode IDEPackageSupportDisableManifestSandbox -bool YES
+
       - uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        id: init
         with:
           languages: swift
+          # Adds .github/codeql on top of the default suite — it does not replace
+          # it. `disable-default-queries` stays false, so both run.
+          queries: ./.github/codeql
+
+      # Compile the custom queries against the CodeQL the runner actually uses,
+      # BEFORE spending eight minutes on a build.
+      #
+      # A broken query otherwise surfaces as "CodeQL job status was
+      # configuration error" only after the whole extraction, with the real
+      # message buried under a few hundred lines of extractor diagnostics. This
+      # turns that into a readable failure in seconds.
+      #
+      # It also prints the CodeQL version, which is NOT necessarily the one the
+      # queries were authored against: the action is pinned by SHA, the CLI it
+      # downloads is not, and qlpack.yml takes codeql/swift-all at "*". If those
+      # ever diverge enough to matter, this step is where it shows up.
+      - name: Compile the custom queries (fail fast, readable error)
+        run: |
+          "${{ steps.init.outputs.codeql-path }}" version --format=terse
+          "${{ steps.init.outputs.codeql-path }}" query compile --warnings=error \
+            --threads=0 .github/codeql/
 
       # Not autobuild: this project builds through a named scheme and
       # configuration, exactly as ci.yml does. Signing is off because CI holds
       # no certificate.
-      - name: Build (unsigned — CI has no certificate)
+      #
+      # BOTH flavours, into one database. CodeQL only sees what the traced build
+      # compiles, so an AppStore-only build leaves every `#if DIRECT_BUILD` line
+      # out of the database entirely — and that is exactly where CLAUDE.md puts
+      # the direct-build licence activation, and where Pickle's GitHub OAuth
+      # device flow will live. A gate blind to the riskiest code in the project
+      # is worse than no gate, because it reads as coverage. Consecutive traced
+      # commands collect into the same database, so this is two invocations, not
+      # two jobs.
+      - name: Build both flavours (unsigned — CI has no certificate)
         run: |
           xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
             -configuration Release-AppStore -derivedDataPath .build/DerivedData \
+            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
+          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (Direct)" \
+            -configuration Release-Direct -derivedDataPath .build/DerivedData \
             -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
 
       - uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           category: "/language:swift"
+          output: .codeql-results
+
+      # analyze uploads findings; it never fails the job on them. Without this
+      # step the gate is a report, not a gate — the CodeQL check can sit green
+      # with an alert on it, so requiring it in branch protection would still let
+      # a fifth endpoint merge. Gating repo-side works too (code scanning's
+      # check-failure severity, or a ruleset), but that is a console toggle a
+      # fork, a clone or a forgetful afternoon loses. This travels with the repo.
+      #
+      # Only the gate fails the build. netrelish/remote-capable-url-read has two
+      # legitimate baseline hits; failing on it would teach everyone to ignore a
+      # red CodeQL job, which is the opposite of what the split was for.
+      - name: Fail if the gate fired
+        run: |
+          python3 - <<'PY'
+          import glob, json, pathlib, re, sys
+          from urllib.parse import unquote, urlparse
+
+          GATE = "netrelish/outbound-network-call"
+
+          # An approved exception is a comment on the flagged line or the one
+          # directly above it, citing the ADR that approved it:
+          #
+          #     // NETRELISH-ALLOW-ENDPOINT: adr-0007 — RFC 3161 timestamping
+          #
+          # It lives beside the code rather than in a list, so it shows up in
+          # every diff that touches the call, cannot drift away from what it
+          # exempts, and dies with the line. The ADR reference is required
+          # because CLAUDE.md already says an uncovered decision gets one, and
+          # an exception with no written reason is how a rule rots.
+          #
+          # Dismissing the alert in the Security tab deliberately does NOT
+          # satisfy this: that is invisible from the repository.
+          MARKER = re.compile(r"NETRELISH-ALLOW-ENDPOINT:\s*(adr-\d{4})")
+
+          def exemption(line):
+              """The marker, but only in a // comment and naming a real ADR.
+
+              Two bypasses this closes. Searching raw source matched the token
+              inside a string literal, so a line like
+              let s = "NETRELISH-ALLOW-ENDPOINT: adr-0001" was an exemption.
+              And checking only the adr-NNNN SHAPE meant adr-9999 passed with
+              no written decision existing at all, which made the ADR
+              requirement decoration rather than a control.
+
+              Still not a Swift parser: a // inside a string literal ahead of
+              the marker would fool it. That is far narrower than either hole
+              above, and closing it properly needs parsed source, not text.
+              """
+              _, sep, comment = line.partition("//")
+              if not sep:
+                  return None
+              found = MARKER.search(comment)
+              if not found:
+                  return None
+              number = found.group(1)[len("adr-"):]
+              if not list(pathlib.Path("docs/adr").glob(number + "-*.md")):
+                  print("::error::" + found.group(1)
+                        + " is cited but no docs/adr/" + number + "-*.md exists")
+                  return None
+              return found.group(1)
+
+          def source_path(uri):
+              """The checkout-relative path for a SARIF artifactLocation.
+
+              SARIF gives a URI, not a filename. CodeQL usually emits a
+              repo-relative one, but a file:///... form (often with a
+              uriBaseId) is equally legal and pathlib.Path would treat the
+              whole thing as a literal relative name. The source would then
+              never open, no marker would be found, and a VALID exemption
+              would block the build with a misleading message.
+
+              Fails closed either way, but closed-and-wrong is still wrong.
+              """
+              parsed = urlparse(uri)
+              raw = unquote(parsed.path) if parsed.scheme == "file" else unquote(uri)
+              path = pathlib.Path(raw)
+              if path.is_absolute():
+                  try:
+                      path = path.relative_to(pathlib.Path.cwd())
+                  except ValueError:
+                      pass  # genuinely outside the checkout; leave it absolute
+              return path
+
+          paths = sorted(glob.glob(".codeql-results/*.sarif"))
+          if not paths:
+              # A missing SARIF must never read as "clean" — that is precisely
+              # the false assurance this whole query pack exists to prevent.
+              print("::error::no SARIF in .codeql-results; the gate did not run")
+              sys.exit(1)
+
+          approved, blocking = [], []
+          for path in paths:
+              with open(path) as f:
+                  sarif = json.load(f)
+              for run in sarif.get("runs", []):
+                  for result in run.get("results", []):
+                      if result.get("ruleId") != GATE:
+                          continue
+                      where = result["locations"][0]["physicalLocation"]
+                      uri = where["artifactLocation"]["uri"]
+                      line = where.get("region", {}).get("startLine", 1)
+
+                      source, found = source_path(uri), None
+                      if source.is_file():
+                          body = source.read_text(errors="replace").splitlines()
+                          for candidate in body[max(0, line - 2):line]:
+                              found = found or exemption(candidate)
+                      else:
+                          print("::error::cannot read " + str(source) + " (from SARIF uri "
+                                + uri + "); an exemption there could not be checked")
+
+                      entry = (str(source), line, result["message"]["text"], found)
+                      (approved if found else blocking).append(entry)
+
+          for uri, line, _, found in approved:
+              print(f"::notice file={uri},line={line}::approved endpoint ({found})")
+          for uri, line, message, _ in blocking:
+              print(f"::error file={uri},line={line}::{message}")
+
+          if approved:
+              print(f"\n{len(approved)} approved exception(s), re-printed every run so they stay visible.")
+
+          if blocking:
+              print(f"\n{GATE} fired {len(blocking)} time(s) with no approved exception. "
+                    "CLAUDE.md non-negotiable 5 permits page loads, StoreKit, RFC 3161 "
+                    "timestamping and direct-build licence activation, and nothing else.")
+              sys.exit(1)
+
+          print(f"{GATE}: clean across {len(paths)} SARIF file(s).")
+          PY

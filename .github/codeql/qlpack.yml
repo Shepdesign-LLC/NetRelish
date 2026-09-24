@@ -1,0 +1,27 @@
+# Two queries that between them enforce CLAUDE.md non-negotiable #5. They are
+# split on purpose, not by accident:
+#
+#   OutboundNetworkCall.ql    error   — the gate. Only APIs that are
+#                                       unambiguously network. Baseline zero,
+#                                       which is what makes it fit to block a
+#                                       merge.
+#   RemoteCapableURLRead.ql   warning — the audit. Data/String(contentsOf:) and
+#                                       URL.resourceBytes, which are a network
+#                                       call or a local file read depending on a
+#                                       value no query can see. Baseline two,
+#                                       both legitimate.
+#
+# Folding the second into the first would park permanent false positives on the
+# rule meant to mean something when it fires. Each file's header says more.
+#
+# Neither is a copy of the rule in another language — they catch the thing prose
+# cannot: a call that reaches the network without looking like it does.
+#
+# `codeql/swift-all` is left unpinned on purpose. The version that resolves is
+# whichever ships in the CodeQL bundle the workflow already pins by SHA, so the
+# two can never drift apart.
+name: netrelish/swift-rules
+version: 0.0.1
+library: false
+dependencies:
+  codeql/swift-all: "*"
