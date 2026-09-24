@@ -13,11 +13,15 @@ name: CodeQL
 # and the traced build dies with exit 65. The untraced Build AppStore / Build
 # Direct / Test jobs are green: the app is fine, only the traced build is not.
 #
-# It is NOT a CodeQL version problem. The run that passed on main on 2026-09-23
-# used this same action SHA and the same CodeQL 2.27.0; both are pinned and
-# neither moved. The xcode-27 IMAGE moved. `tools: latest` was tried and
-# resolved to 2.27.0 — there is no newer bundle — so no pin, older or newer,
-# addresses this.
+# It is NOT a CodeQL version problem, and that is tested rather than assumed.
+# 2.27.0 and 2.27.1 were both run against this failure and both died the same
+# way, exit 65 with the same swift-plugin-server EBADARCH. The run that passed
+# on main on 2026-09-23 used this same action SHA and the same CodeQL 2.27.0,
+# both pinned and neither moved — the xcode-27 IMAGE moved. So no `tools:` pin
+# helps, and there is deliberately no `tools:` line here: the action SHA above
+# already pins the bundle through its own src/defaults.json (v4.38.1 -> 2.27.0).
+#
+# Do not spend a cycle re-testing CodeQL versions. That has been done.
 #
 # Nothing here needs changing when it is fixed upstream: the job simply starts
 # passing. Full diagnosis in PR #22.
@@ -99,18 +103,6 @@ jobs:
         id: init
         with:
           languages: swift
-          # Pinned, and also a TEST. The action SHA above pins the bundle via
-          # its own src/defaults.json — for v4.38.1 that is CodeQL 2.27.0, and
-          # `tools: latest` resolves to the same thing, which is why that
-          # experiment was a no-op.
-          #
-          # codeql-bundle-v2.27.1 exists (it is the default on the action's main
-          # branch). It has never been tried here, and tracer fixes for a new
-          # Xcode are exactly what a patch release carries. If this clears the
-          # swift-plugin-server EBADARCH failure, bump the action SHA to a
-          # release whose default is 2.27.1 and drop this line, so the action
-          # and its CLI move together instead of drifting apart.
-          tools: https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.1/codeql-bundle-osx64.tar.zst
           # Adds .github/codeql on top of the default suite — it does not replace
           # it. `disable-default-queries` stays false, so both run.
           queries: ./.github/codeql
