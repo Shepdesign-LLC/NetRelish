@@ -72,10 +72,22 @@ jobs:
       # Not autobuild: this project builds through a named scheme and
       # configuration, exactly as ci.yml does. Signing is off because CI holds
       # no certificate.
-      - name: Build (unsigned — CI has no certificate)
+      #
+      # BOTH flavours, into one database. CodeQL only sees what the traced build
+      # compiles, so an AppStore-only build leaves every `#if DIRECT_BUILD` line
+      # out of the database entirely — and that is exactly where CLAUDE.md puts
+      # the direct-build licence activation, and where Pickle's GitHub OAuth
+      # device flow will live. A gate blind to the riskiest code in the project
+      # is worse than no gate, because it reads as coverage. Consecutive traced
+      # commands collect into the same database, so this is two invocations, not
+      # two jobs.
+      - name: Build both flavours (unsigned — CI has no certificate)
         run: |
           xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
             -configuration Release-AppStore -derivedDataPath .build/DerivedData \
+            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
+          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (Direct)" \
+            -configuration Release-Direct -derivedDataPath .build/DerivedData \
             -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
 
       - uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
