@@ -152,6 +152,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import glob, json, pathlib, re, sys
+          from urllib.parse import unquote, urlparse
 
           GATE = "netrelish/outbound-network-call"
 
@@ -197,6 +198,28 @@ jobs:
                   return None
               return found.group(1)
 
+          def source_path(uri):
+              """The checkout-relative path for a SARIF artifactLocation.
+
+              SARIF gives a URI, not a filename. CodeQL usually emits a
+              repo-relative one, but a file:///... form (often with a
+              uriBaseId) is equally legal and pathlib.Path would treat the
+              whole thing as a literal relative name. The source would then
+              never open, no marker would be found, and a VALID exemption
+              would block the build with a misleading message.
+
+              Fails closed either way, but closed-and-wrong is still wrong.
+              """
+              parsed = urlparse(uri)
+              raw = unquote(parsed.path) if parsed.scheme == "file" else unquote(uri)
+              path = pathlib.Path(raw)
+              if path.is_absolute():
+                  try:
+                      path = path.relative_to(pathlib.Path.cwd())
+                  except ValueError:
+                      pass  # genuinely outside the checkout; leave it absolute
+              return path
+
           paths = sorted(glob.glob(".codeql-results/*.sarif"))
           if not paths:
               # A missing SARIF must never read as "clean" — that is precisely
@@ -216,13 +239,16 @@ jobs:
                       uri = where["artifactLocation"]["uri"]
                       line = where.get("region", {}).get("startLine", 1)
 
-                      source, found = pathlib.Path(uri), None
+                      source, found = source_path(uri), None
                       if source.is_file():
                           body = source.read_text(errors="replace").splitlines()
                           for candidate in body[max(0, line - 2):line]:
                               found = found or exemption(candidate)
+                      else:
+                          print("::error::cannot read " + str(source) + " (from SARIF uri "
+                                + uri + "); an exemption there could not be checked")
 
-                      entry = (uri, line, result["message"]["text"], found)
+                      entry = (str(source), line, result["message"]["text"], found)
                       (approved if found else blocking).append(entry)
 
           for uri, line, _, found in approved:
