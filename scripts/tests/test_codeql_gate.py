@@ -26,8 +26,23 @@ MARKER = "NETRELISH-ALLOW-ENDPOINT: adr-0007"
 CALL = "_ = try await URLSession.shared.data(from: url)"
 
 
-def sarif(*results):
-    return {"runs": [{"results": list(results)}]}
+def sarif(*results, declares=True):
+    """A SARIF run, by default one that attests the gate query ran.
+
+    Real CodeQL reports the queries it ran in tool metadata, and a clean
+    verdict now requires that evidence — `declares=False` is the report that
+    contains none, which must never read as clean.
+    """
+    run = {"results": list(results)}
+    if declares:
+        run["tool"] = {
+            "driver": {"name": "CodeQL"},
+            "extensions": [{
+                "name": "netrelish/swift-rules",
+                "rules": [{"id": codeql_gate.GATE}],
+            }],
+        }
+    return {"runs": [run]}
 
 
 def result(uri, line, rule=codeql_gate.GATE, message="outbound network call",
@@ -350,6 +365,41 @@ class GateTests(unittest.TestCase):
         self.assertFalse(report.ok)
         self.assertIn("the gate did not run", report.errors[0])
 
+    def test_a_sarif_that_never_ran_the_gate_is_not_clean(self):
+        # `{"runs": []}` produced no gate results, and "no results" was
+        # indistinguishable from "no findings". A query that silently stops
+        # running is how enforcement disappears unnoticed.
+        self.checkout.results({"runs": []})
+        report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertTrue(any("did not run" in e for e in report.errors))
+
+    def test_a_run_without_the_gate_rule_is_not_clean(self):
+        # A real-looking run from an analysis that never loaded this pack.
+        self.checkout.results(sarif(declares=False))
+        report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertTrue(any("did not run" in e for e in report.errors))
+
+    def test_a_gate_result_alone_attests_the_query_ran(self):
+        # Evidence can come from a result as well as from tool metadata.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL)
+        self.checkout.results(sarif(result("Sources/A.swift", 2), declares=False))
+        self.assertTrue(self.checkout.evaluate().ok)
+
+    def test_the_gate_rule_declared_in_the_driver_also_attests(self):
+        self.checkout.results({"runs": [{
+            "tool": {"driver": {"name": "CodeQL",
+                                "rules": [{"id": codeql_gate.GATE}]}},
+            "results": [],
+        }]})
+        self.assertTrue(self.checkout.evaluate().ok)
+
+    def test_attestation_may_come_from_any_sarif_in_the_directory(self):
+        self.checkout.results({"runs": []}, "a.sarif")
+        self.checkout.results(sarif(), "b.sarif")
+        self.assertTrue(self.checkout.evaluate().ok)
+
     def test_clean_sarif_passes(self):
         self.checkout.results(sarif())
         self.assertTrue(self.checkout.evaluate().ok)
@@ -599,6 +649,31 @@ class GateTests(unittest.TestCase):
         # A colon after a slash is not a scheme, so this must not be refused.
         self.checkout.swift("Sources/A:B.swift", "// " + MARKER + "\n" + CALL)
         self.checkout.results(sarif(result("Sources/A:B.swift", 2)))
+        self.assertTrue(self.checkout.evaluate().ok)
+
+    def test_distinct_multi_line_regions_do_not_merge(self):
+        # The identity omitted endLine, so two regions sharing a start and an
+        # end column collapsed however far apart they ended.
+        self.checkout.swift(
+            "Sources/A.swift",
+            "// " + MARKER + "\n_ = a(b(\n  c))\n  d))",
+        )
+        hit_a = result("Sources/A.swift", 2, start_column=5, end_column=9)
+        hit_b = result("Sources/A.swift", 2, start_column=5, end_column=9)
+        hit_a["locations"][0]["physicalLocation"]["region"]["endLine"] = 3
+        hit_b["locations"][0]["physicalLocation"]["region"]["endLine"] = 4
+        self.checkout.results(sarif(hit_a, hit_b))
+        report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertEqual(report.approved, [])
+        self.assertEqual(len(report.blocking), 2)
+
+    def test_a_multi_line_region_is_still_locatable(self):
+        # endColumn < startColumn is normal when the region spans lines.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n_ = a(\n  b)")
+        hit = result("Sources/A.swift", 2, start_column=40, end_column=5)
+        hit["locations"][0]["physicalLocation"]["region"]["endLine"] = 3
+        self.checkout.results(sarif(hit))
         self.assertTrue(self.checkout.evaluate().ok)
 
     def test_an_impossible_column_range_does_not_merge_two_findings(self):

@@ -27,7 +27,7 @@ Each idea was right; each implementation had a hole. A heredoc cannot be tested,
 so every one of those was caught by a human reading it, or not caught at all.
 
 That list is the HISTORICAL set — the five that existed before this file did.
-Review of the branch that extracted it found SEVENTEEN more, every one of them
+Review of the branch that extracted it found NINETEEN more, every one of them
 failing open: markers hidden in extended regex literals, in interpolated nested
 strings, and behind a bare regex's own closing delimiter; an escaped delimiter
 ending an extended regex early; a trailing marker exempting the line below it;
@@ -38,11 +38,17 @@ message; malformed columns, and then impossible column RANGES, merging two
 findings into one; source paths escaping the checkout entirely; a URI scheme
 this did not understand becoming a relative path inside it; absolute paths
 rebased against the working directory rather than the checkout being judged;
-and two spellings of one path splitting a shared line into two. One of the
-seventeen was introduced by the fix for another, and defended in review before
-it was checked.
+two spellings of one path splitting a shared line into two; a finding identity
+that ignored endLine, merging two distinct multi-line regions; and — worst of
+them — a SARIF that ran no gate query at all reading as a clean one, which is
+the missing-SARIF false assurance with an extra step.
 
-Twenty-two defects, not one of them in the design. That is the case for the suite
+Two of the nineteen were produced by fixing another: one introduced outright
+and defended in review before it was checked, one a gap its own predecessor's
+fix did not cover. A fix that is correct about what it checks and silent about
+what it does not is the shape to watch for here.
+
+Twenty-four defects, not one of them in the design. That is the case for the suite
 in scripts/tests/, which runs on every push — including while CodeQL itself
 cannot build this project. See scripts/tests/test_codeql_gate.py.
 
@@ -397,6 +403,33 @@ def source_path(uri: str) -> pathlib.Path:
     return pathlib.Path(raw)
 
 
+def declares_gate(sarif) -> bool:
+    """Whether this SARIF is evidence that the gate query actually ran.
+
+    The module already refuses to read a MISSING SARIF as clean. A present one
+    that says nothing is the same false assurance with an extra step: a report
+    containing `{"runs": []}`, or runs from a analysis that never loaded this
+    pack, produced no gate results — and "no results" was indistinguishable
+    from "no findings". A query that silently stops running is exactly how
+    enforcement disappears without anyone noticing.
+
+    So a clean verdict now requires the rule to appear somewhere: in a run's
+    tool metadata (driver or extension, since a query pack lands in the latter)
+    or in a result. Either is proof the query was part of the analysis.
+    """
+    for run in sarif.get("runs") or []:
+        tool = run.get("tool") or {}
+        components = [tool.get("driver") or {}] + list(tool.get("extensions") or [])
+        for component in components:
+            for rule in component.get("rules") or []:
+                if isinstance(rule, dict) and rule.get("id") == GATE:
+                    return True
+        for result in run.get("results") or []:
+            if result.get("ruleId") == GATE:
+                return True
+    return False
+
+
 def positive_int(value):
     """The value if it is a real 1-based SARIF coordinate, else None.
 
@@ -434,11 +467,14 @@ def inside_checkout(repo_root: pathlib.Path, path) -> pathlib.Path | None:
 class Finding:
     """One gate result, reduced to the parts that decide its fate."""
 
-    __slots__ = ("path", "line", "start_column", "end_column", "message")
+    __slots__ = ("path", "line", "end_line", "start_column", "end_column", "message")
 
-    def __init__(self, path, line, start_column, end_column, message):
+    def __init__(self, path, line, start_column, end_column, message, end_line=None):
         self.path = path
         self.line = line
+        # SARIF: endLine defaults to startLine, so a single-line region is
+        # exactly the case where it is absent.
+        self.end_line = end_line if end_line is not None else line
         self.start_column = start_column
         self.end_column = end_column
         self.message = message
@@ -460,7 +496,8 @@ class Finding:
         return (
             self.start_column is not None
             and self.end_column is not None
-            and self.end_column >= self.start_column
+            and self.end_line >= self.line
+            and (self.end_line > self.line or self.end_column >= self.start_column)
         )
 
     def identity(self):
@@ -476,8 +513,14 @@ class Finding:
         message would merge them, and a single marker would then approve both.
         That is the shared-line bypass returning through the back door. Keeping
         every occurrence instead can only over-count, which blocks.
+
+        `end_line` is in the key because leaving it out merged two distinct
+        multi-line regions that happened to share a start and an end column.
+        Adding a component to this key can only ever SPLIT a group, never merge
+        one, so it errs in the blocking direction.
         """
-        return (self.path, self.line, self.start_column, self.end_column)
+        return (self.path, self.line, self.end_line,
+                self.start_column, self.end_column)
 
 
 class Report:
@@ -511,9 +554,11 @@ def evaluate(results_dir, repo_root=None) -> Report:
     findings = {}   # locatable, deduplicated by position
     loose = []      # columnless, never deduplicated (see Finding.identity)
 
+    attested = False
     for path in paths:
         with open(path) as handle:
             sarif = json.load(handle)
+        attested = declares_gate(sarif) or attested
         for run in sarif.get("runs", []):
             for result in run.get("results", []):
                 if result.get("ruleId") != GATE:
@@ -566,11 +611,19 @@ def evaluate(results_dir, repo_root=None) -> Report:
                     start_column=positive_int(region.get("startColumn")),
                     end_column=positive_int(region.get("endColumn")),
                     message=result["message"]["text"],
+                    end_line=positive_int(region.get("endLine")),
                 )
                 if finding.locatable:
                     findings[finding.identity()] = finding
                 else:
                     loose.append(finding)
+
+    if not attested:
+        report.errors.append(
+            "no SARIF in " + str(results_dir) + " mentions " + GATE
+            + " — the gate query did not run, and a report with no evidence of "
+            "it is not a clean one"
+        )
 
     # Group by the unit the exemption mechanism can actually address. A marker
     # names a line, not a call, so a line carrying two gate findings cannot be
