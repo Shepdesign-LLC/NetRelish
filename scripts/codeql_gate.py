@@ -270,12 +270,16 @@ def cited_adr(comment: str, repo_root: pathlib.Path, report: "Report") -> str | 
 
     citation = found.group(1)
     number = citation[len("adr-"):]
-    # `is_file()` because glob also returns directories, and a directory named
-    # `0007-placeholder.md/` would otherwise satisfy the citation with no
-    # written decision anywhere in it — an approval backed by nothing.
+    # A match counts only if it is a regular file that actually lives here.
+    #
+    # `glob` also returns directories, so `0007-placeholder.md/` would satisfy
+    # the citation with no written decision inside it. And `is_file()` follows
+    # symlinks, so `0007-anything.md -> /etc/hosts` would satisfy it with a
+    # decision that is not in the repository at all. Both are approvals backed
+    # by nothing, which is the failure this ADR requirement exists to prevent.
     matches = sorted(
         p.name for p in (repo_root / "docs" / "adr").glob(number + "-*.md")
-        if p.is_file()
+        if not p.is_symlink() and p.is_file()
     )
 
     if not matches:
@@ -318,6 +322,29 @@ def source_path(uri: str) -> pathlib.Path:
         except ValueError:
             pass  # genuinely outside the checkout; leave it absolute
     return path
+
+
+def inside_checkout(repo_root: pathlib.Path, path: str) -> pathlib.Path | None:
+    """The source file, but only if it really is one of ours.
+
+    SARIF is input, and this one names the file whose comments decide whether a
+    network call is approved. Nothing constrained it: an absolute `file:` URI,
+    or a relative one containing `..`, escaped `repo_root` when joined and was
+    read anyway — so a location pointing at any file on the runner that happens
+    to contain a valid marker was approved.
+
+    Resolution also follows symlinks, so a tracked source file pointing outside
+    the checkout is rejected for the same reason.
+
+    Returns None when the path does not stay inside, which the caller treats as
+    an exemption it could not check, and therefore blocks.
+    """
+    try:
+        resolved = (repo_root / path).resolve()
+        resolved.relative_to(repo_root.resolve())
+    except (ValueError, OSError, RuntimeError):
+        return None
+    return resolved
 
 
 class Finding:
@@ -445,8 +472,14 @@ def evaluate(results_dir, repo_root=None) -> Report:
 
     for (path, line), group in sorted(lines.items()):
         if path not in source_cache:
-            candidate = repo_root / path
-            if candidate.is_file():
+            candidate = inside_checkout(repo_root, path)
+            if candidate is None:
+                source_cache[path] = None
+                report.errors.append(
+                    path + " is outside the checkout, so an exemption there "
+                    "could not be trusted"
+                )
+            elif candidate.is_file():
                 source_cache[path] = line_comments(
                     candidate.read_text(errors="replace")
                 )

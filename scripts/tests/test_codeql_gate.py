@@ -260,6 +260,25 @@ class CitationTests(unittest.TestCase):
         self.assertEqual(adr, "adr-0007")   # the directory is not a clash
         self.assertEqual(report.errors, [])
 
+    def test_a_symlinked_adr_is_refused(self):
+        # is_file() follows symlinks, so this would otherwise accept a decision
+        # that is not in the repository at all.
+        outside = self.root / "elsewhere.md"
+        outside.write_text("# not an ADR\n")
+        (self.root / "docs" / "adr" / "0007-fake.md").symlink_to(outside)
+        adr, report = self.cite(" " + MARKER)
+        self.assertIsNone(adr)
+        self.assertIn("no docs/adr/0007", report.errors[0])
+
+    def test_a_symlink_beside_a_real_adr_is_not_a_clash(self):
+        outside = self.root / "elsewhere.md"
+        outside.write_text("# not an ADR\n")
+        (self.root / "docs" / "adr" / "0007-fake.md").symlink_to(outside)
+        (self.root / "docs" / "adr" / "0007-timestamping.md").write_text("#\n")
+        adr, report = self.cite(" " + MARKER)
+        self.assertEqual(adr, "adr-0007")
+        self.assertEqual(report.errors, [])
+
     def test_comment_without_a_marker_is_not_an_error(self):
         adr, report = self.cite(" just an ordinary comment")
         self.assertIsNone(adr)
@@ -490,6 +509,45 @@ class GateTests(unittest.TestCase):
         report = self.checkout.evaluate()
         self.assertFalse(report.ok)
         self.assertTrue(any("cannot read" in e for e in report.errors))
+
+    def test_a_source_outside_the_checkout_is_not_trusted(self):
+        # A SARIF location naming any file on the runner that happens to carry
+        # a valid marker used to be read, and approved.
+        import tempfile
+        with tempfile.TemporaryDirectory() as elsewhere:
+            planted = pathlib.Path(elsewhere) / "Evil.swift"
+            planted.write_text("// " + MARKER + "\n" + CALL)
+            self.checkout.results(sarif(result(planted.as_uri(), 2)))
+            report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertEqual(report.approved, [])
+        self.assertTrue(any("outside the checkout" in e for e in report.errors))
+
+    def test_a_traversing_relative_uri_is_not_trusted(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as elsewhere:
+            planted = pathlib.Path(elsewhere) / "Evil.swift"
+            planted.write_text("// " + MARKER + "\n" + CALL)
+            hops = pathlib.Path(*([".."] * 12)) / planted.relative_to("/")
+            self.checkout.results(sarif(result(str(hops), 2)))
+            report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertEqual(report.approved, [])
+        self.assertTrue(any("outside the checkout" in e for e in report.errors))
+
+    def test_a_symlinked_source_pointing_outside_is_not_trusted(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as elsewhere:
+            planted = pathlib.Path(elsewhere) / "Evil.swift"
+            planted.write_text("// " + MARKER + "\n" + CALL)
+            link = self.checkout.root / "Sources" / "A.swift"
+            link.parent.mkdir(parents=True, exist_ok=True)
+            link.symlink_to(planted)
+            self.checkout.results(sarif(result("Sources/A.swift", 2)))
+            report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertEqual(report.approved, [])
+        self.assertTrue(any("outside the checkout" in e for e in report.errors))
 
     def test_file_uri_resolves(self):
         path = self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL)
