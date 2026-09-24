@@ -27,7 +27,7 @@ Each idea was right; each implementation had a hole. A heredoc cannot be tested,
 so every one of those was caught by a human reading it, or not caught at all.
 
 That list is the HISTORICAL set — the five that existed before this file did.
-Review of the branch that extracted it found TWENTY more, every one of them
+Review of the branch that extracted it found TWENTY-TWO more, every one of them
 failing open: markers hidden in extended regex literals, in interpolated nested
 strings, and behind a bare regex's own closing delimiter; an escaped delimiter
 ending an extended regex early; a trailing marker exempting the line below it;
@@ -41,16 +41,18 @@ rebased against the working directory rather than the checkout being judged;
 two spellings of one path splitting a shared line into two; a finding identity
 that ignored endLine, merging two distinct multi-line regions; and — worst of
 them — a SARIF that ran no gate query at all reading as a clean one, which is
-the missing-SARIF false assurance with an extra step; and a bare regex inside
-an interpolation whose own `)` and `"` steered the scanner out of the string
-it was in.
+the missing-SARIF false assurance with an extra step; a bare regex inside an
+interpolation whose own `)` and `"` steered the scanner out of the string it
+was in, and then the same again for a regex following `return`, which the
+previous-character test read as a value; and a present-but-malformed endLine
+being indistinguishable from an absent one.
 
-Two of the twenty were produced by fixing another: one introduced outright
+Four of the twenty-two were produced by fixing another: one introduced outright
 and defended in review before it was checked, one a gap its own predecessor's
 fix did not cover. A fix that is correct about what it checks and silent about
 what it does not is the shape to watch for here.
 
-Twenty-five defects, not one of them in the design. That is the case for the suite
+Twenty-seven defects, not one of them in the design. That is the case for the suite
 in scripts/tests/, which runs on every push — including while CodeQL itself
 cannot build this project. See scripts/tests/test_codeql_gate.py.
 
@@ -424,27 +426,52 @@ def source_path(uri: str) -> pathlib.Path:
     return pathlib.Path(raw)
 
 
+# Swift keywords after which an expression begins, so a `/` following one opens
+# a regex rather than dividing. None of these can be an identifier, so reading
+# them this way cannot misfire on a variable name.
+EXPRESSION_KEYWORDS = frozenset({
+    "return", "throw", "try", "await", "case", "where", "in", "is", "as",
+    "if", "guard", "while", "repeat", "else", "do", "defer", "yield",
+    "let", "var", "and", "or", "not", "some", "any", "each",
+})
+
+
 def _regex_may_start(source: str, index: int) -> bool:
     """Whether a `/` at `index` opens a bare regex rather than dividing.
 
     Swift resolves this by grammar: `/.../` is a regex where an EXPRESSION is
     expected, and division after a value. Approximated by the previous
-    significant character — after an identifier, a number, `)`, `]` or a closing
+    significant token — after an identifier, a number, `)`, `]` or a closing
     quote we are past a value, so the slash divides. Anywhere else (`=`, `(`,
-    `,`, `return`, start of line) an expression is expected.
+    `,`, start of line) an expression is expected.
 
-    Without this, `a/b  // NETRELISH-ALLOW-ENDPOINT: adr-0007` would be read as
-    a regex running up to the comment's own slashes, and a REAL marker would be
-    lost. That direction merely blocks, but blocking a legitimate exemption is
-    still a bug.
+    An identifier is not always a value, which the first version of this missed:
+    the keywords below all END an expression context rather than producing one,
+    so `return /[)]"/` is a regex even though the character before the slash is
+    a letter. Left unrecognised, that regex's punctuation was live again and
+    steered the scanner out of the string containing it.
+
+    Going the other way costs something real too: `a/b  //
+    NETRELISH-ALLOW-ENDPOINT: adr-0007` must not be read as a regex running up
+    to the comment's own slashes, because that loses a REAL marker. Only
+    blocks — but blocking a legitimate exemption is still a bug.
     """
     scan = index - 1
     while scan >= 0 and source[scan] in " \t":
         scan -= 1
     if scan < 0:
         return True
+
     previous = source[scan]
-    return not (previous.isalnum() or previous in '_)]"')
+    if previous in ')]"':
+        return False
+    if not (previous.isalnum() or previous == "_"):
+        return True
+
+    end = scan + 1
+    while scan >= 0 and (source[scan].isalnum() or source[scan] == "_"):
+        scan -= 1
+    return source[scan + 1:end] in EXPRESSION_KEYWORDS
 
 
 def _bare_regex_end(source: str, index: int) -> int | None:
@@ -530,14 +557,24 @@ def inside_checkout(repo_root: pathlib.Path, path) -> pathlib.Path | None:
 class Finding:
     """One gate result, reduced to the parts that decide its fate."""
 
-    __slots__ = ("path", "line", "end_line", "start_column", "end_column", "message")
+    __slots__ = ("path", "line", "end_line", "start_column", "end_column",
+                 "message", "trusted")
 
-    def __init__(self, path, line, start_column, end_column, message, end_line=None):
+    def __init__(self, path, line, start_column, end_column, message,
+                 end_line=None, trusted=True):
         self.path = path
         self.line = line
         # SARIF: endLine defaults to startLine, so a single-line region is
         # exactly the case where it is absent.
+        #
+        # `trusted` is how an absent endLine is told apart from a PRESENT but
+        # malformed one. Both arrive here as None, and defaulting both to
+        # startLine let a finding with broken coordinates share an identity
+        # with a sound single-line one — so one marker approved both. A region
+        # that reports an impossible end is not a position, and follows
+        # malformed columns into the columnless path.
         self.end_line = end_line if end_line is not None else line
+        self.trusted = trusted
         self.start_column = start_column
         self.end_column = end_column
         self.message = message
@@ -557,7 +594,8 @@ class Finding:
         columnless findings are never merged.
         """
         return (
-            self.start_column is not None
+            self.trusted
+            and self.start_column is not None
             and self.end_column is not None
             and self.end_line >= self.line
             and (self.end_line > self.line or self.end_column >= self.start_column)
@@ -675,6 +713,9 @@ def evaluate(results_dir, repo_root=None) -> Report:
                     end_column=positive_int(region.get("endColumn")),
                     message=result["message"]["text"],
                     end_line=positive_int(region.get("endLine")),
+                    # Present-but-malformed is not the same as absent.
+                    trusted=("endLine" not in region
+                             or positive_int(region.get("endLine")) is not None),
                 )
                 if finding.locatable:
                     findings[finding.identity()] = finding

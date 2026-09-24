@@ -214,6 +214,24 @@ class ScannerTests(unittest.TestCase):
         source = r'let s = "\(/[)]"/) // ' + MARKER + '"'
         self.assertIsNone(self.comment_on(source, 1))
 
+    def test_a_regex_after_an_expression_keyword_is_opaque(self):
+        # The character before the slash is a letter, but `return` ends an
+        # expression context rather than producing a value — so this is a
+        # regex, and its `)` and `"` must not steer the scanner.
+        source = r'let s = "\({ return /[)]"/ }()) // ' + MARKER + '"'
+        self.assertIsNone(self.comment_on(source, 1))
+
+    def test_a_regex_after_try_is_opaque(self):
+        source = r'let s = "\({ try /[)]"/ }()) // ' + MARKER + '"'
+        self.assertIsNone(self.comment_on(source, 1))
+
+    def test_division_after_a_keyword_is_still_division(self):
+        # `return a/b` divides: the token before the slash is `a`, not `return`.
+        self.assertIn(MARKER, self.comment_on("return a/b  // " + MARKER, 1))
+
+    def test_division_after_a_closing_paren(self):
+        self.assertIn(MARKER, self.comment_on("let x = f(y)/2  // " + MARKER, 1))
+
     def test_division_is_not_mistaken_for_a_regex(self):
         # The failure in the other direction: reading `a/b` as a regex would
         # run it up to the comment's own slashes and lose a REAL marker.
@@ -700,6 +718,30 @@ class GateTests(unittest.TestCase):
         self.assertFalse(report.ok)
         self.assertEqual(report.approved, [])
         self.assertEqual(len(report.blocking), 2)
+
+    def test_a_malformed_end_line_does_not_merge_with_a_sound_finding(self):
+        # Absent and present-but-invalid both became None and defaulted to
+        # startLine, so a finding with broken coordinates shared an identity
+        # with a sound single-line one.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL + "; " + CALL)
+        sound = result("Sources/A.swift", 2, start_column=5, end_column=46)
+        broken = result("Sources/A.swift", 2, start_column=5, end_column=46)
+        broken["locations"][0]["physicalLocation"]["region"]["endLine"] = 0
+        self.checkout.results(sarif(sound, broken))
+        report = self.checkout.evaluate()
+        self.assertFalse(report.ok)
+        self.assertEqual(report.approved, [])
+        self.assertEqual(len(report.blocking), 2)
+
+    def test_an_absent_end_line_is_still_a_single_line_region(self):
+        # The distinction must not cost the ordinary case its deduplication.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL)
+        hit = result("Sources/A.swift", 2, start_column=5, end_column=46)
+        self.checkout.results(sarif(hit), "a.sarif")
+        self.checkout.results(sarif(hit), "b.sarif")
+        report = self.checkout.evaluate()
+        self.assertTrue(report.ok)
+        self.assertEqual(len(report.approved), 1)
 
     def test_a_multi_line_region_is_still_locatable(self):
         # endColumn < startColumn is normal when the region spans lines.
