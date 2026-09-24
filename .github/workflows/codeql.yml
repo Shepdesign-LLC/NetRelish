@@ -68,3 +68,55 @@ jobs:
       - uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           category: "/language:swift"
+          output: .codeql-results
+
+      # analyze uploads findings; it never fails the job on them. Without this
+      # step the gate is a report, not a gate — the CodeQL check can sit green
+      # with an alert on it, so requiring it in branch protection would still let
+      # a fifth endpoint merge. Gating repo-side works too (code scanning's
+      # check-failure severity, or a ruleset), but that is a console toggle a
+      # fork, a clone or a forgetful afternoon loses. This travels with the repo.
+      #
+      # Only the gate fails the build. netrelish/remote-capable-url-read has two
+      # legitimate baseline hits; failing on it would teach everyone to ignore a
+      # red CodeQL job, which is the opposite of what the split was for.
+      - name: Fail if the gate fired
+        run: |
+          python3 - <<'PY'
+          import glob, json, sys
+
+          GATE = "netrelish/outbound-network-call"
+
+          paths = sorted(glob.glob(".codeql-results/*.sarif"))
+          if not paths:
+              # A missing SARIF must never read as "clean" — that is precisely
+              # the false assurance this whole query pack exists to prevent.
+              print("::error::no SARIF in .codeql-results; the gate did not run")
+              sys.exit(1)
+
+          hits = []
+          for path in paths:
+              with open(path) as f:
+                  sarif = json.load(f)
+              for run in sarif.get("runs", []):
+                  for result in run.get("results", []):
+                      if result.get("ruleId") != GATE:
+                          continue
+                      where = result["locations"][0]["physicalLocation"]
+                      hits.append((
+                          where["artifactLocation"]["uri"],
+                          where.get("region", {}).get("startLine", 1),
+                          result["message"]["text"],
+                      ))
+
+          for uri, line, message in hits:
+              print(f"::error file={uri},line={line}::{message}")
+
+          if hits:
+              print(f"\n{GATE} fired {len(hits)} time(s). CLAUDE.md non-negotiable 5 "
+                    "permits page loads, StoreKit, RFC 3161 timestamping and direct-build "
+                    "licence activation, and nothing else.")
+              sys.exit(1)
+
+          print(f"{GATE}: clean across {len(paths)} SARIF file(s).")
+          PY

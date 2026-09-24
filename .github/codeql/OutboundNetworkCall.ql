@@ -37,13 +37,22 @@ private predicate networkMethod(Method c, string api) {
   exists(string type, string func | c.hasQualifiedName(type, func) |
     api = type + "." + func and
     (
-      // Foundation's HTTP stack, in every spelling it has ever had.
-      type.matches(["URLSession%", "NSURLSession%"])
+      // Foundation's HTTP stack, in every spelling it has ever had, minus the
+      // members that only tear a session down. The exclusion is a NEGATIVE list
+      // on purpose: if Apple adds a method, it gets flagged rather than
+      // silently skipped, so the list going stale fails safe.
+      type.matches(["URLSession%", "NSURLSession%"]) and
+      not c.getShortName() =
+        ["invalidateAndCancel", "finishTasksAndInvalidate", "cancel", "reset", "flush"]
       or
       type = ["NSURLConnection", "NSURLDownload"]
       or
-      // The Network framework: raw sockets, TLS, Bonjour.
-      type.matches("NW%")
+      // The Network framework, named types rather than the NW% prefix.
+      // NWPathMonitor is deliberately absent: it reports whether a route exists
+      // and never opens one, so flagging it would be a false positive on the
+      // rule that has to stay clean to be worth blocking a merge with. Unlike
+      // URLSession's method surface, this list is small and barely moves.
+      type = ["NWConnection", "NWConnectionGroup", "NWListener", "NWBrowser"]
     )
   )
 }
