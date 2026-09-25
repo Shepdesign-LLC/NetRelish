@@ -112,10 +112,18 @@ name: CodeQL
 # and the "'self' is immutable" errors are its direct consequence. ONE blocker,
 # not two, and B needs no separate fix.
 #
-# The remaining candidate is an architecture on neither list — arm64e, since dyld
-# refuses an arm64 library inserted into an arm64e process. The probe step below
-# measures it on the runner rather than reasoning about it, because reasoning has
-# now been wrong twice here.
+# MEASURED, run 36094598763. It is not arm64e, and it is not a missing slice:
+#
+#   runner (uname -m):    x86_64      ← the job's shell is translated
+#   swift-plugin-server:  arm64       ← arm64 ONLY
+#   swift-frontend:       arm64       ← arm64 ONLY
+#   libtrace.dylib:       x86_64 arm64
+#
+# Xcode 27 dropped the x86_64 slices from its toolchain binaries while the runner
+# shell is still Rosetta x86_64. That is the whole failure, and it explains the
+# intermittency (which runner you land on) and why only the TRACED build breaks:
+# untraced, the kernel just picks the arm64 slice, which is why ci.yml is green.
+# The fix is on the build step below — run it from an arm64 parent.
 #
 # Nothing here needs changing when it is fixed upstream: the job simply starts
 # passing. Full diagnosis in PR #22.
@@ -261,12 +269,37 @@ jobs:
             lipo -archs "$f" 2>&1 || file "$f" 2>&1 || true
           done
 
+      # `arch -arm64` is load-bearing, and only under the tracer. Measured, not
+      # guessed — the probe step above printed all three facts:
+      #
+      #   runner (uname -m):    x86_64      ← this shell runs under Rosetta
+      #   swift-plugin-server:  arm64       ← arm64 ONLY, no x86_64 slice
+      #   swift-frontend:       arm64       ← arm64 ONLY
+      #   libtrace.dylib:       x86_64 arm64
+      #
+      # Xcode 27's toolchain binaries dropped their x86_64 slices, while the
+      # Actions runner's shell is still translated x86_64. Untraced that is fine:
+      # the kernel picks the arm64 slice and ci.yml is green. Under the tracer it
+      # is not, because DYLD_INSERT_LIBRARIES makes dyld hold the child to the
+      # parent's architecture so the inserted library matches — and for an
+      # arm64-only helper there is no x86_64 slice to hold it to:
+      #
+      #   compiler plugin '…/swift-plugin-server' could not be loaded:
+      #   Bad CPU type in executable
+      #
+      # Running the build from an arm64 parent makes the whole tree arm64, which
+      # the arm64-only toolchain and the fat libtrace can both satisfy.
+      #
+      # Only this workflow needs it: ci.yml is untraced and never had the problem.
+      # Remove it when Xcode's helpers regain x86_64 slices or the runner stops
+      # translating — and check the probe's `runner:` line before believing either.
       - name: Build both flavours (unsigned — CI has no certificate)
         run: |
-          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
+          echo "build parent arch: $(arch -arm64 uname -m)"
+          arch -arm64 xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
             -configuration Release-AppStore -derivedDataPath .build/DerivedData \
             -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
-          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (Direct)" \
+          arch -arm64 xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (Direct)" \
             -configuration Release-Direct -derivedDataPath .build/DerivedData \
             -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
 
