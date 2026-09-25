@@ -7,7 +7,7 @@ name: CodeQL
 # type"). Two of them:
 #
 #   sandbox-exec        SwiftPM manifest loading   — worked around below
-#   swift-plugin-server Swift macro expansion      — NO workaround exists
+#   swift-plugin-server Swift macro expansion      — no workaround found
 #
 # So @State and #Preview fail to expand inside the KeyboardShortcuts dependency
 # and the traced build dies with exit 65. The untraced Build AppStore / Build
@@ -22,6 +22,43 @@ name: CodeQL
 # already pins the bundle through its own src/defaults.json (v4.38.1 -> 2.27.0).
 #
 # Do not spend a cycle re-testing CodeQL versions. That has been done.
+#
+# Also tested and ruled out on 2026-09-25. Do not spend a cycle on either.
+#
+#   1. Excluding swift-plugin-server from tracing. The tracer takes an extra
+#      Lua config: `codeql database init --extra-tracing-config=FILE`, which is
+#      what sets CODEQL_TRACER_EXTRA_CONFIG, and which a workflow reaches
+#      through CODEQL_ACTION_EXTRA_OPTIONS. A matcher with `trace = false` —
+#      the shape upstream's swift config already uses for sandbox-exec — does
+#      fire; the tracer log says "Disabling tracing for language swift".
+#
+#      It does not help, because it is the wrong lever. `trace = false` means
+#      "run no extractor for this process", NOT "do not inject into it". The
+#      preload variable is set once, in the environment of the build command,
+#      and inherited by every descendant — so the library is loaded into the
+#      child before any Lua runs, and an arch-incompatible child dies in dyld
+#      before the matcher is ever consulted. Reproduced against CodeQL 2.27.0:
+#      a child matched by `trace = false` still saw the preload variable set,
+#      identical to an unmatched control.
+#
+#      That is also why sandbox-exec died with EBADARCH while already excluded
+#      upstream, and why removing its SPAWN (the two steps above) is what
+#      fixed it rather than excluding it from tracing.
+#
+#      Caveat on the evidence: that reproduction was on Linux, where the
+#      variable is LD_PRELOAD rather than DYLD_INSERT_LIBRARIES. The Lua
+#      semantics are shared and the sandbox-exec history on this runner agrees
+#      with it, but the macOS injection path is inferred, not observed.
+#
+#   2. Skipping the build. Swift has no `none` build mode — the extractor
+#      declares `autobuild` and `manual` only (swift/codeql-extractor.yml in
+#      the 2.27.0 bundle) — so a traced build is mandatory and there is no
+#      no-build path around the tracer at all.
+#
+# What would fix it is removing the swift-plugin-server SPAWN, the way
+# pre-resolving removed sandbox-exec's. No supported flag for in-process macro
+# expansion was found, so the realistic fix is upstream: the toolchain, the
+# tracer shipping a slice those helpers accept, or the runner image.
 #
 # Nothing here needs changing when it is fixed upstream: the job simply starts
 # passing. Full diagnosis in PR #22.
