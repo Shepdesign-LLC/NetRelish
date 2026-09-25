@@ -2,9 +2,9 @@ name: CodeQL
 
 # ⚠️ THIS JOB IS CURRENTLY EXPECTED TO FAIL. Do not re-diagnose it from scratch.
 #
-# There are TWO separate failures here, and for a while only the louder one was
-# visible. Both were read out of the job logs of runs 36092189970 (932b589) and
-# 36092546432 (6682385), five minutes apart on the same branch.
+# ONE failure with a knock-on, though it read as two for a while. Read out of
+# the job logs of runs 36092189970 (932b589), 36092546432 (6682385) and
+# 36093785096 (8ad8ad4).
 #
 #   A. An architecture mismatch, INTERMITTENT.
 #
@@ -34,7 +34,7 @@ name: CodeQL
 #      appears 14 times on 932b589 and ZERO times on 6682385, two runs five
 #      minutes apart on different runners. Do not read one clean run as fixed.
 #
-#   B. A second failure underneath it, CONSISTENT.
+#   B. Its knock-on, CONSISTENT — and NOT an independent bug; see below.
 #
 #      Four errors in the same dependency, in BOTH runs, only under the traced
 #      build:
@@ -43,10 +43,10 @@ name: CodeQL
 #        error: cannot use mutating member on immutable value: 'self' is immutable
 #
 #      These were always there and were simply buried under A's fourteen lines.
-#      When A produced no output at all (6682385) they were the whole failure.
-#      Cause not established — they are on the x86_64 slice too, so they may be
-#      knock-on from A or independent. Whichever, B is what will still be red
-#      when A clears, so do not call the job fixed on A alone.
+#      When A produced no output at all (6682385) they were the whole failure,
+#      which is why they looked independent. They are not: @State is a macro, run
+#      36093785096 caught the plugin failing to expand it by name, and these are
+#      what that failure looks like downstream. Fixing A fixes these.
 #
 # Either way the traced build dies with exit 65 at "Build both flavours". The
 # untraced Build AppStore / Build Direct / Test jobs are green: the app is fine,
@@ -96,11 +96,26 @@ name: CodeQL
 #      the 2.27.0 bundle) — so a traced build is mandatory and there is no
 #      way around the tracer at all.
 #
-# The untried lead for A is the arch mismatch itself: build only the runner's
-# native architecture under CodeQL, so there is no x86_64 slice for an arm64
-# tracer to fail in. That is a flag on the two xcodebuild calls below, not an
-# upstream wait, and it had not been tried when this comment first claimed the
-# fix had to be upstream. B has no lead yet.
+# TRIED AND WRONG, 2026-09-25, run 36093785096: building one architecture.
+# ONLY_ACTIVE_ARCH=YES produced a pure arm64 compile — the flag did exactly what
+# it claimed — and "Bad CPU type" still occurred. The mismatch theory behind it
+# is also dead on its own terms: libtrace.dylib is a FAT binary carrying both
+# x86_64 and arm64, read straight out of the 2.27.1 osx64 bundle's Mach-O fat
+# header. It was never missing a slice for the build. That theory was inferred
+# from the "…/CodeQL/2.27.1/arm64/…" path and a "SwiftCompile normal x86_64"
+# line, and never measured, which is the same mistake as the version claim above.
+#
+# That run did settle B, though, and it is not a second bug: @State is itself a
+# macro. The log names it — external macro implementation type
+# 'SwiftUIMacros.StateMacro' could not be found for macro 'State()' — expanded by
+# the same plugin server, so when the plugin will not load @State does not apply,
+# and the "'self' is immutable" errors are its direct consequence. ONE blocker,
+# not two, and B needs no separate fix.
+#
+# The remaining candidate is an architecture on neither list — arm64e, since dyld
+# refuses an arm64 library inserted into an arm64e process. The probe step below
+# measures it on the runner rather than reasoning about it, because reasoning has
+# now been wrong twice here.
 #
 # Nothing here needs changing when it is fixed upstream: the job simply starts
 # passing. Full diagnosis in PR #22.
@@ -216,36 +231,44 @@ jobs:
       # is worse than no gate, because it reads as coverage. Consecutive traced
       # commands collect into the same database, so this is two invocations, not
       # two jobs.
-      # ONLY_ACTIVE_ARCH=YES is load-bearing here, and only here — read before
-      # removing it or copying it into ci.yml.
+      # A PROBE, not a fix. Prints the architectures of the two binaries the
+      # EBADARCH failure is between, because every theory about it so far has
+      # been inferred from path names and log wording rather than measured, and
+      # two of them were wrong.
       #
-      # The tracer inserts an arm64 libtrace.dylib (the action installs the
-      # arm64 bundle on this runner). Nothing in project.yml or the xcconfigs
-      # sets ARCHS, so the Release configurations take ARCHS_STANDARD and build
-      # arm64 + x86_64. An arm64 library cannot be inserted into the x86_64
-      # slice's compiler, so dyld refuses it and everything that process then
-      # loads dies with EBADARCH — which is how #Preview stopped expanding
-      # inside KeyboardShortcuts. Building one architecture leaves the tracer
-      # nothing it cannot host.
+      # What is already known and does NOT need re-checking:
+      #   - libtrace.dylib is a fat binary with BOTH x86_64 and arm64 (verified
+      #     by reading the Mach-O fat header of the 2.27.1 osx64 bundle), so
+      #     "the tracer lacks a slice for the build" is ruled out.
+      #   - Building one architecture does not help: ONLY_ACTIVE_ARCH=YES gave a
+      #     pure arm64 compile and "Bad CPU type" still occurred.
       #
-      # It costs nothing CodeQL cares about. The database holds Swift source,
-      # not slices, and the second architecture only ever compiled the same
-      # files again. ci.yml keeps building universal, because that is what ships
-      # and it is untraced, so it never had this problem.
-      #
-      # Remove this when the tracer ships a slice for every architecture the
-      # build targets, and not before — a clean run does not prove it is
-      # unnecessary, because this failure is intermittent.
+      # So the remaining candidate is an architecture neither of those two lists
+      # — arm64e being the obvious one, since dyld will refuse an arm64 library
+      # inserted into an arm64e process. This step settles that from the runner
+      # instead of from reasoning. It must never fail the job.
+      - name: Probe the architectures involved (diagnostic only, never fails)
+        continue-on-error: true
+        run: |
+          echo "runner: $(uname -m)"
+          plugin="$(xcrun --find swift-plugin-server 2>/dev/null || true)"
+          echo "swift-plugin-server: ${plugin:-<not found via xcrun>}"
+          for f in "$plugin" \
+                   "$(xcrun --find swift-frontend 2>/dev/null || true)" \
+                   "$DYLD_INSERT_LIBRARIES"; do
+            [ -n "$f" ] && [ -e "$f" ] || continue
+            echo "--- $f"
+            lipo -archs "$f" 2>&1 || file "$f" 2>&1 || true
+          done
+
       - name: Build both flavours (unsigned — CI has no certificate)
         run: |
           xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
             -configuration Release-AppStore -derivedDataPath .build/DerivedData \
-            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO \
-            ONLY_ACTIVE_ARCH=YES -quiet build
+            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
           xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (Direct)" \
             -configuration Release-Direct -derivedDataPath .build/DerivedData \
-            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO \
-            ONLY_ACTIVE_ARCH=YES -quiet build
+            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
 
       - uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
