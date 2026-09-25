@@ -29,3 +29,7 @@ AuthKey_*.p8
 
 # logs
 *.log
+
+# Python bytecode from scripts/ and its tests
+__pycache__/
+*.pyc

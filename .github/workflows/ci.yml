@@ -1,9 +1,10 @@
 name: CI
 
-# Runs on every push and PR. Three things must hold:
+# Runs on every push and PR. Four things must hold:
 #   1. generated files match their sources (Tokens.swift, Symbols.swift, Sources/Pantry/Models, NetRelish.xcodeproj)
 #   2. both product flavors build — AppStore and Direct (DIRECT_BUILD)
 #   3. the tests pass (hosted NetRelishTests + unhosted GeneratorTests)
+#   4. the non-negotiable-5 gate still enforces what it claims to
 
 # Read-only token. Every job here checks out, regenerates, builds or tests —
 # nothing writes back to the repository. Without this block the workflow
@@ -87,3 +88,16 @@ jobs:
         with:
           name: design-kit-snapshots
           path: design-kit-snapshots/*.png
+
+  gate-tests:
+    name: CodeQL gate self-test
+    # Ubuntu, and not xcode-27, on purpose. This tests scripts/codeql_gate.py,
+    # which is pure Python and touches no Swift — and it MUST keep running while
+    # the CodeQL workflow cannot build this project on the macOS image. A gate
+    # whose only proof of correctness lives inside the job that is currently red
+    # is not proven at all.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+      - name: The gate enforces what it claims to
+        run: python3 -m unittest discover -s scripts/tests -v
