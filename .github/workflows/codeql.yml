@@ -216,14 +216,36 @@ jobs:
       # is worse than no gate, because it reads as coverage. Consecutive traced
       # commands collect into the same database, so this is two invocations, not
       # two jobs.
+      # ONLY_ACTIVE_ARCH=YES is load-bearing here, and only here — read before
+      # removing it or copying it into ci.yml.
+      #
+      # The tracer inserts an arm64 libtrace.dylib (the action installs the
+      # arm64 bundle on this runner). Nothing in project.yml or the xcconfigs
+      # sets ARCHS, so the Release configurations take ARCHS_STANDARD and build
+      # arm64 + x86_64. An arm64 library cannot be inserted into the x86_64
+      # slice's compiler, so dyld refuses it and everything that process then
+      # loads dies with EBADARCH — which is how #Preview stopped expanding
+      # inside KeyboardShortcuts. Building one architecture leaves the tracer
+      # nothing it cannot host.
+      #
+      # It costs nothing CodeQL cares about. The database holds Swift source,
+      # not slices, and the second architecture only ever compiled the same
+      # files again. ci.yml keeps building universal, because that is what ships
+      # and it is untraced, so it never had this problem.
+      #
+      # Remove this when the tracer ships a slice for every architecture the
+      # build targets, and not before — a clean run does not prove it is
+      # unnecessary, because this failure is intermittent.
       - name: Build both flavours (unsigned — CI has no certificate)
         run: |
           xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
             -configuration Release-AppStore -derivedDataPath .build/DerivedData \
-            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
+            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=YES -quiet build
           xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (Direct)" \
             -configuration Release-Direct -derivedDataPath .build/DerivedData \
-            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
+            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=YES -quiet build
 
       - uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
