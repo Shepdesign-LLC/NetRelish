@@ -123,32 +123,26 @@ name: CodeQL
 # shell is still Rosetta x86_64. That explains why only the TRACED build breaks:
 # untraced, the kernel just picks the arm64 slice, which is why ci.yml is green.
 #
-# FIXED, run 36095284643, by `arch -arm64` on the build step below. Controlled
-# comparison rather than a hopeful one — the probe printed `runner: x86_64` in
-# BOTH runs, so the translated shell was unchanged and the wrapper was the only
-# difference:
+# NOT FIXED, and a false alarm worth reading before trying anything: `arch
+# -arm64` on the build step appeared to fix it in run 36095284643 and did not.
+# /usr/bin/arch is SIP-protected, dyld purges DYLD_* across a restricted exec,
+# and the build simply ran untraced. Run 36095774560 then completed the build
+# and failed at finalize with
 #
-#                        c5d7d6a      c2c0166 (arch -arm64)
-#   Bad CPU type              2                          0
-#   could not be loaded       2                          0
-#   'self' is immutable       4                          0
+#   Error: CodeQL could not process any code written in Swift.
 #
-# The macros expand, KeyboardShortcuts compiles, and the build gets all the way
-# into this project's own target. So this is settled; do not reopen it.
+# which is the only one of its symptoms that "the tracer was off" explains and
+# nothing else does. Three of the four signals looked like success:
 #
-# WHAT IS STILL RED, and it is a different failure, in 'NetRelish' rather than a
-# dependency:
+#                        c5d7d6a      arch -arm64 (untraced)
+#   Bad CPU type              2                           0
+#   'self' is immutable       4                           0
+#   build                  fail                     SUCCEEDED
+#   code extracted            -                        NONE
 #
-#   error: the following command failed with exit code 0 but produced no further
-#   output
-#   SwiftCompile normal arm64 (in target 'NetRelish' from project 'NetRelish')
-#
-# Twice, once per flavour, with only warnings around it — no Swift error, no
-# "BUILD FAILED" line, no crash, and an exit code of 0 that xcodebuild treats as
-# failure anyway. That wording is xcodebuild's for a command it cannot account
-# for, which is what the tracer's interception looks like from outside. Cause NOT
-# established. The failure-only step below dumps the tracer log and the extractor
-# diagnostics, because neither reaches the job log while `analyze` is skipped.
+# Had finalize not refused an empty database this would have been a green CodeQL
+# job that had seen no code — the fail-open the gate exists to prevent. Do not
+# reach for `arch` again without reading the probe's DYLD lines first.
 #
 # Nothing here needs changing when it is fixed upstream: the job simply starts
 # passing. Full diagnosis in PR #22.
@@ -293,38 +287,40 @@ jobs:
             echo "--- $f"
             lipo -archs "$f" 2>&1 || file "$f" 2>&1 || true
           done
+          # Does `arch` strip the tracer's injection? This is the question that
+          # decides whether an arm64 parent is reachable at all.
+          echo "DYLD outside arch:      ${DYLD_INSERT_LIBRARIES:-<unset>}"
+          arch -arm64 /bin/sh -c 'echo "DYLD under arch:        ${DYLD_INSERT_LIBRARIES:-<unset>}"' || true
+          arch -arm64 /usr/bin/env DYLD_INSERT_LIBRARIES="$DYLD_INSERT_LIBRARIES" \
+            /bin/sh -c 'echo "DYLD re-set under arch: ${DYLD_INSERT_LIBRARIES:-<unset>}"' || true
+          echo "arch of an arm64 child: $(arch -arm64 /usr/bin/uname -m 2>&1 || true)"
 
-      # `arch -arm64` is load-bearing, and only under the tracer. Measured, not
-      # guessed — the probe step above printed all three facts:
+      # DO NOT wrap this in `arch -arm64`. It looks like it fixes the EBADARCH
+      # failure and it does not — it removes the tracer.
       #
-      #   runner (uname -m):    x86_64      ← this shell runs under Rosetta
-      #   swift-plugin-server:  arm64       ← arm64 ONLY, no x86_64 slice
-      #   swift-frontend:       arm64       ← arm64 ONLY
-      #   libtrace.dylib:       x86_64 arm64
+      # /usr/bin/arch is SIP-protected, and dyld purges DYLD_* when exec'ing a
+      # restricted binary, so xcodebuild ran with no libtrace inserted at all.
+      # Run 36095774560 is what that looks like: Bad CPU type 0, 'self' is
+      # immutable 0, the build SUCCEEDED for the first time — and then
       #
-      # Xcode 27's toolchain binaries dropped their x86_64 slices, while the
-      # Actions runner's shell is still translated x86_64. Untraced that is fine:
-      # the kernel picks the arm64 slice and ci.yml is green. Under the tracer it
-      # is not, because DYLD_INSERT_LIBRARIES makes dyld hold the child to the
-      # parent's architecture so the inserted library matches — and for an
-      # arm64-only helper there is no x86_64 slice to hold it to:
+      #   Error: CodeQL could not process any code written in Swift.
       #
-      #   compiler plugin '…/swift-plugin-server' could not be loaded:
-      #   Bad CPU type in executable
+      # Only the last of those four needs the explanation "tracing was off", and
+      # it is the one that gives the game away. An untraced build passes; that is
+      # what ci.yml does all day. If `database finalize` did not refuse an empty
+      # database, this would have been a GREEN CodeQL job with nothing in it —
+      # the fail-open this whole mechanism exists to prevent.
       #
-      # Running the build from an arm64 parent makes the whole tree arm64, which
-      # the arm64-only toolchain and the fat libtrace can both satisfy.
-      #
-      # Only this workflow needs it: ci.yml is untraced and never had the problem.
-      # Remove it when Xcode's helpers regain x86_64 slices or the runner stops
-      # translating — and check the probe's `runner:` line before believing either.
+      # The probe above measures whether the purge is really what happened, and
+      # whether re-setting the variable past the arch boundary survives. Until
+      # that is answered this stays plain, and the job stays red on the known
+      # EBADARCH failure rather than green on nothing.
       - name: Build both flavours (unsigned — CI has no certificate)
         run: |
-          echo "build parent arch: $(arch -arm64 uname -m)"
-          arch -arm64 xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
+          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
             -configuration Release-AppStore -derivedDataPath .build/DerivedData \
             -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
-          arch -arm64 xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (Direct)" \
+          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (Direct)" \
             -configuration Release-Direct -derivedDataPath .build/DerivedData \
             -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
 
