@@ -120,10 +120,35 @@ name: CodeQL
 #   libtrace.dylib:       x86_64 arm64
 #
 # Xcode 27 dropped the x86_64 slices from its toolchain binaries while the runner
-# shell is still Rosetta x86_64. That is the whole failure, and it explains the
-# intermittency (which runner you land on) and why only the TRACED build breaks:
+# shell is still Rosetta x86_64. That explains why only the TRACED build breaks:
 # untraced, the kernel just picks the arm64 slice, which is why ci.yml is green.
-# The fix is on the build step below — run it from an arm64 parent.
+#
+# FIXED, run 36095284643, by `arch -arm64` on the build step below. Controlled
+# comparison rather than a hopeful one — the probe printed `runner: x86_64` in
+# BOTH runs, so the translated shell was unchanged and the wrapper was the only
+# difference:
+#
+#                        c5d7d6a      c2c0166 (arch -arm64)
+#   Bad CPU type              2                          0
+#   could not be loaded       2                          0
+#   'self' is immutable       4                          0
+#
+# The macros expand, KeyboardShortcuts compiles, and the build gets all the way
+# into this project's own target. So this is settled; do not reopen it.
+#
+# WHAT IS STILL RED, and it is a different failure, in 'NetRelish' rather than a
+# dependency:
+#
+#   error: the following command failed with exit code 0 but produced no further
+#   output
+#   SwiftCompile normal arm64 (in target 'NetRelish' from project 'NetRelish')
+#
+# Twice, once per flavour, with only warnings around it — no Swift error, no
+# "BUILD FAILED" line, no crash, and an exit code of 0 that xcodebuild treats as
+# failure anyway. That wording is xcodebuild's for a command it cannot account
+# for, which is what the tracer's interception looks like from outside. Cause NOT
+# established. The failure-only step below dumps the tracer log and the extractor
+# diagnostics, because neither reaches the job log while `analyze` is skipped.
 #
 # Nothing here needs changing when it is fixed upstream: the job simply starts
 # passing. Full diagnosis in PR #22.
@@ -302,6 +327,41 @@ jobs:
           arch -arm64 xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (Direct)" \
             -configuration Release-Direct -derivedDataPath .build/DerivedData \
             -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
+
+      # Runs only when the build failed, and only to show what the build log
+      # does not. xcodebuild reports the tracer's interception as
+      #
+      #   error: the following command failed with exit code 0 but produced no
+      #   further output
+      #
+      # which names neither the command nor a reason. The tracer keeps its own
+      # log and the extractor writes its own diagnostics; both are on disk and
+      # neither reaches the job log, because `analyze` is skipped when the build
+      # fails. This surfaces them so the next round is not another guess.
+      - name: Dump the tracer log if the build failed (diagnostic only)
+        if: failure()
+        continue-on-error: true
+        run: |
+          log="${CODEQL_TRACER_LOG:-}"
+          if [ -n "$log" ] && [ -f "$log" ]; then
+            echo "=== $log (last 200 lines of $(wc -l < "$log")) ==="
+            tail -n 200 "$log"
+          else
+            echo "no tracer log at '${log:-<CODEQL_TRACER_LOG unset>}'"
+          fi
+          diag="${CODEQL_EXTRACTOR_SWIFT_DIAGNOSTIC_DIR:-}"
+          if [ -n "$diag" ] && [ -d "$diag" ]; then
+            echo "=== extractor diagnostics in $diag ==="
+            find "$diag" -type f -print -exec cat {} \; | head -n 200
+          fi
+          elog="${CODEQL_EXTRACTOR_SWIFT_LOG_DIR:-}"
+          if [ -n "$elog" ] && [ -d "$elog" ]; then
+            echo "=== extractor logs in $elog ==="
+            for f in "$elog"/*; do
+              [ -f "$f" ] || continue
+              echo "--- $f"; tail -n 60 "$f"
+            done
+          fi
 
       - uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
