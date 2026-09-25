@@ -53,7 +53,7 @@ name: CodeQL
 #   2. Skipping the build. Swift has no `none` build mode — the extractor
 #      declares `autobuild` and `manual` only (swift/codeql-extractor.yml in
 #      the 2.27.0 bundle) — so a traced build is mandatory and there is no
-#      no-build path around the tracer at all.
+#      way around the tracer at all.
 #
 # What would fix it is removing the swift-plugin-server SPAWN, the way
 # pre-resolving removed sandbox-exec's. No supported flag for in-process macro
