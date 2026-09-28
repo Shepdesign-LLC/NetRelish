@@ -38,8 +38,9 @@ name: CodeQL
 #      libtrace.dylib is FAT, carrying both slices. The `/arm64/` in that path
 #      names the CodeQL bundle's own build, not the library's architecture.
 #      What IS measured is the reverse mismatch: Xcode 27's toolchain binaries
-#      are arm64-only while the job's shell is Rosetta x86_64. Why that produces
-#      EBADARCH only under the tracer is exactly the open question.
+#      are arm64-only while the job's shell is Rosetta x86_64. That is the
+#      environment and not the cause — the same binaries run fine untraced.
+#      What the tracer adds on top of it is the open question.
 #
 #      It is INTERMITTENT, which earlier notes had wrong: "Bad CPU type"
 #      appears 14 times on 932b589 and ZERO times on 6682385, two runs five
@@ -67,8 +68,10 @@ name: CodeQL
 # logs show the action installing 2.27.1, so that is what CI runs. An earlier
 # note here claimed this SHA pins 2.27.0 through the action's own
 # src/defaults.json — that was asserted, never observed, and the logs contradict
-# it. There is still deliberately no `tools:` line, because nothing yet ties
-# either failure to a CodeQL version: A is an arch mismatch and B is unexplained.
+# it. There is still deliberately no `tools:` line, because nothing yet ties the
+# failure to a CodeQL version — A's mechanism is not established at all, so a
+# version can be neither ruled in nor ruled out on the evidence here, and B is
+# downstream of A rather than a second thing to pin.
 #
 # Tested and ruled out on 2026-09-25 — do not spend a cycle on either. Note
 # these were run BEFORE the arch mismatch above was understood, so they rule out
@@ -131,8 +134,12 @@ name: CodeQL
 #   libtrace.dylib:       x86_64 arm64
 #
 # Xcode 27 dropped the x86_64 slices from its toolchain binaries while the runner
-# shell is still Rosetta x86_64. That explains why only the TRACED build breaks:
-# untraced, the kernel just picks the arm64 slice, which is why ci.yml is green.
+# shell is still Rosetta x86_64. That is the ENVIRONMENT, and it is not the
+# mechanism — do not let it read as one. It cannot be, on its own terms: those
+# same arm64-only binaries run fine untraced, which is why ci.yml is green. So
+# "arm64-only toolchain" alone does not distinguish the traced build from the
+# untraced one, and what the tracer adds on top of it is exactly the open
+# question flagged in A.
 #
 # NOT FIXED, and a false alarm worth reading before trying anything: `arch
 # -arm64` on the build step appeared to fix it in run 36095284643 and did not.
