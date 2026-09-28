@@ -6,29 +6,40 @@ name: CodeQL
 # the job logs of runs 36092189970 (932b589), 36092546432 (6682385) and
 # 36093785096 (8ad8ad4).
 #
-#   A. An architecture mismatch, INTERMITTENT.
+#   A. Something architecture-shaped, INTERMITTENT. The MECHANISM IS NOT
+#      ESTABLISHED — what follows is observation, and the first theory that
+#      fits it is already dead. Read the MEASURED block below before forming
+#      another one.
 #
-#      The tracer injects libtrace.dylib via DYLD_INSERT_LIBRARIES, and the
-#      copy the action installs is arm64:
+#      OBSERVED. The tracer injects libtrace.dylib via DYLD_INSERT_LIBRARIES,
+#      out of the action's arm64 install path:
 #
 #        DYLD_INSERT_LIBRARIES: …/CodeQL/2.27.1/arm64/codeql/tools/osx64/libtrace.dylib
 #
-#      The traced build, meanwhile, compiles x86_64:
+#      the traced build compiles an x86_64 slice:
 #
 #        SwiftCompile normal x86_64 (in target 'KeyboardShortcuts')
 #
-#      An arm64 library cannot be inserted into an x86_64 process, so dyld
-#      refuses it and anything that process then loads fails with EBADARCH:
+#      and processes the build spawns die with EBADARCH:
 #
 #        compiler plugin '…/usr/bin/swift-plugin-server' could not be loaded:
 #        Bad CPU type in executable
 #
-#      which is why #Preview does not expand inside KeyboardShortcuts.
+#      which is why @State does not expand inside KeyboardShortcuts — the log
+#      names the macro, see B.
 #
 #      The build is universal because nothing in project.yml or the xcconfigs
 #      sets ARCHS or ONLY_ACTIVE_ARCH, so the Release configurations take
-#      ARCHS_STANDARD (arm64 + x86_64) and the x86_64 slice is the one that
-#      cannot host the tracer.
+#      ARCHS_STANDARD (arm64 + x86_64).
+#
+#      NOT ESTABLISHED, and do not re-derive it from the two lines above: that
+#      an arm64-only library was refused by an x86_64 process. That was the
+#      first reading, it was never measured, and MEASURED below falsifies it —
+#      libtrace.dylib is FAT, carrying both slices. The `/arm64/` in that path
+#      names the CodeQL bundle's own build, not the library's architecture.
+#      What IS measured is the reverse mismatch: Xcode 27's toolchain binaries
+#      are arm64-only while the job's shell is Rosetta x86_64. Why that produces
+#      EBADARCH only under the tracer is exactly the open question.
 #
 #      It is INTERMITTENT, which earlier notes had wrong: "Bad CPU type"
 #      appears 14 times on 932b589 and ZERO times on 6682385, two runs five
@@ -83,8 +94,8 @@ name: CodeQL
 #      identical to an unmatched control.
 #
 #      That is also why sandbox-exec died with EBADARCH while already excluded
-#      upstream, and why removing its SPAWN (the two steps above) is what
-#      fixed it rather than excluding it from tracing.
+#      upstream, and why removing its SPAWN (the two steps at the top of the
+#      job below) is what fixed it, rather than excluding it from tracing.
 #
 #      Caveat on the evidence: that reproduction was on Linux, where the
 #      variable is LD_PRELOAD rather than DYLD_INSERT_LIBRARIES. The Lua
