@@ -1591,7 +1591,7 @@
 			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 2.0.0;
+				minimumVersion = 3.1.0;
 			};
 		};
 		E00C2BBF00C94D8AE982D00E /* XCRemoteSwiftPackageReference "GRDB.swift" */ = {
