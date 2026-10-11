@@ -167,9 +167,26 @@ name: CodeQL
 # job is expected to fail and an extra step is noise until someone is working
 # on it.
 #
-# Nothing here needs changing when it is fixed upstream: the job simply starts
-# passing. PR #22 has the investigation's history; where it and this comment
-# disagree, this comment is the later measurement and wins.
+# Do not call the gate proven yet. It has never analyzed real Swift successfully:
+# step 7 has failed before `analyze`, and the clean-run SARIF attestation
+# expectation in scripts/codeql_gate.py has not been observed. The gate will
+# reject a clean SARIF unless the rule appears in driver/extension metadata or
+# in a result; that is fail-closed, but whether CodeQL emits the metadata when
+# this query has no findings remains unverified.
+#
+# Before a deliberate canary, require more than one independent run to agree:
+# `analyze` completed, CodeQL finalized a non-empty Swift database, and the
+# resulting SARIF declares netrelish/outbound-network-call. The empty-database
+# case must not be counted as a clean run. Then add one unmarked URLSession call
+# in Sources/, push it, and verify `Fail if the gate fired` fails with that
+# source location. Remove it and verify the workflow returns green. A green run
+# without that deliberate hit proves availability only, not query coverage.
+#
+# Branch protection is separate repository configuration: Ryan must make
+# `Analyze (swift)` a required check on main for a red job to block merges.
+# Until then this workflow reports findings but cannot enforce the merge gate.
+# PR #22 has the investigation's history; the measurements above supersede its
+# earlier hypotheses.
 #
 # Advanced setup, not default setup. CodeQL analyses Swift by BUILDING it, and
 # default setup would run that build on a GitHub-hosted macos-latest — which is
