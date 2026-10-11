@@ -301,12 +301,32 @@ jobs:
       # two jobs.
       - name: Build both flavours (unsigned — CI has no certificate)
         run: |
-          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
-            -configuration Release-AppStore -derivedDataPath .build/DerivedData \
-            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
-          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (Direct)" \
-            -configuration Release-Direct -derivedDataPath .build/DerivedData \
-            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
+          if [[ -z "${DYLD_INSERT_LIBRARIES:-}" ]]; then
+            echo "::error::CodeQL tracer is missing; refusing an untraced build"
+            exit 1
+          fi
+
+          # /usr/bin/arch drops DYLD_* across the architecture transition. Carry
+          # the tracer path in a non-DYLD variable and restore it in the arm64 shell.
+          NETRELISH_CODEQL_TRACE_LIBRARIES="$DYLD_INSERT_LIBRARIES" \
+            /usr/bin/arch -arm64 /bin/bash -c '
+              set -euo pipefail
+              export DYLD_INSERT_LIBRARIES="$NETRELISH_CODEQL_TRACE_LIBRARIES"
+              architecture="$(uname -m)"
+              if [[ "$architecture" != arm64 ]]; then
+                echo "::error::Expected native arm64 shell, got $architecture"
+                exit 1
+              fi
+              printf "Native build architecture: %s\n" "$architecture"
+              printf "CodeQL tracer libraries: %s\n" "$DYLD_INSERT_LIBRARIES"
+
+              xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
+                -configuration Release-AppStore -derivedDataPath .build/DerivedData \
+                -destination "platform=macOS" CODE_SIGNING_ALLOWED=NO -quiet build
+              xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (Direct)" \
+                -configuration Release-Direct -derivedDataPath .build/DerivedData \
+                -destination "platform=macOS" CODE_SIGNING_ALLOWED=NO -quiet build
+            '
 
       - uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
