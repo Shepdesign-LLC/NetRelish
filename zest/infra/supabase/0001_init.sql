@@ -194,6 +194,21 @@ end $$;
 -- GRANTS — explicit, because nothing is automatic any more.
 -- Only service_role. anon and authenticated are granted nothing.
 -- ============================================================
+-- Belt and braces again: strip anything a pre-existing default-privilege
+-- grant attached to these tables. The default-privilege revocation above
+-- only covers select/insert/update/delete, so a project whose old defaults
+-- granted ALL would leave truncate, references and trigger on anon and
+-- authenticated — and RLS does not restrict truncate.
+do $$
+declare t text;
+begin
+  foreach t in array array['users','licenses','devices','team_members','brands',
+                           'designs','modules','documents','publications','assets','usage'] loop
+    execute format('revoke all on public.%I from public, anon, authenticated, service_role', t);
+  end loop;
+end $$;
+revoke all on all sequences in schema public from public, anon, authenticated;
+
 do $$
 declare t text;
 begin
