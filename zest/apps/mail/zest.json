@@ -1,0 +1,12 @@
+{
+  "id": "mail",
+  "name": "ZestMail",
+  "version": "3.1.0",
+  "tagline": "Emails for every brand you run",
+  "entry": "https://zest.netrelish.com/mail/index.html",
+  "icon": "https://zest.netrelish.com/mail/icons/icon-512.png",
+  "fileTypes": [".html", ".mailpress.json"],
+  "capabilities": ["open", "save", "clipboard", "license", "network"],
+  "minShell": "1.0.0",
+  "changelog": "https://zest.netrelish.com/mail/changelog"
+}

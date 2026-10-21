@@ -1,0 +1,1195 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NetRelish — Workstation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light dark;
+  --relish-100:#EFFCCB;--relish-300:#C4F26B;--relish-400:#A9F12E;--relish-500:#93E413;--relish-600:#5CB80F;--relish-800:#3E6413;--relish-900:#1D3506;
+  --bg:#fff;--win:#fff;--pane:oklch(.982 .002 90);--pane-2:oklch(.962 .003 90);--pane-3:oklch(.945 .004 90);--desk:oklch(.93 .005 90);
+  --ink:#111;--ink-2:#6b6b6b;--ink-3:#a3a3a3;
+  --line:oklch(0 0 0/.11);--line-2:oklch(0 0 0/.055);
+  --glass:oklch(1 0 0/.70);--frost:oklch(1 0 0/.55);--spec:oklch(1 0 0/.95);--gloss:oklch(1 0 0/.8);
+  --shadow:0 34px 90px -26px oklch(0 0 0/.34),0 0 0 .5px oklch(0 0 0/.12);
+  --tab-sh:0 1px 2px oklch(0 0 0/.07),0 2px 6px -2px oklch(0 0 0/.08);
+  --amber:#E0A020;--rose:#E8483B;--sky:#3B82F6;
+  --display:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif;
+  --body:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,system-ui,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+  --r:12px;--r-sm:9px;--r-lg:18px;--r-xl:24px;--ease:cubic-bezier(.32,.72,0,1);--t:220ms;
+}
+[data-theme="dark"]{
+  --bg:#0c0c0c;--win:#181818;--pane:#131313;--pane-2:#1e1e1e;--pane-3:#262626;--desk:#070707;
+  --ink:#f4f4f4;--ink-2:#9a9a9a;--ink-3:#606060;
+  --line:oklch(1 0 0/.14);--line-2:oklch(1 0 0/.07);
+  --glass:oklch(.19 0 0/.7);--frost:oklch(.15 0 0/.6);--spec:oklch(1 0 0/.17);--gloss:oklch(1 0 0/.1);
+  --tab-sh:0 1px 2px oklch(0 0 0/.4),0 3px 10px -3px oklch(0 0 0/.5);
+  --relish-100:#20330A;--relish-800:#C4F26B;
+  --shadow:0 44px 100px -22px oklch(0 0 0/.72),0 0 0 .5px oklch(1 0 0/.11);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:radial-gradient(1300px 760px at 20% -12%,oklch(.7 .19 128/.14),transparent 62%),
+  radial-gradient(1000px 640px at 108% 112%,oklch(.55 .13 128/.11),transparent 58%),var(--desk);
+  font:15px/1.5 var(--body);color:var(--ink);display:grid;place-items:center;padding:24px;overflow:hidden;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2.5px solid var(--relish-500);outline-offset:2px;border-radius:8px}
+::selection{background:var(--relish-300);color:var(--relish-900)}
+
+.win{width:min(1580px,100%);height:min(980px,100dvh - 48px);min-width:1120px;background:var(--win);border-radius:18px;
+  box-shadow:var(--shadow);display:grid;grid-template-rows:48px 46px 1fr 44px;overflow:hidden;position:relative;isolation:isolate}
+.win::before{content:'';position:absolute;inset:0 0 auto;height:1px;z-index:80;pointer-events:none;
+  background:linear-gradient(90deg,transparent,var(--spec) 20%,var(--spec) 80%,transparent)}
+
+/* ═══ ROW 1 · chrome + tabs ═══ */
+.bar{display:flex;align-items:center;gap:8px;padding:0 12px;z-index:50;background:var(--glass);
+  backdrop-filter:blur(34px) saturate(190%);-webkit-backdrop-filter:blur(34px) saturate(190%)}
+.lights{display:flex;gap:9px;padding-right:2px}
+.lights i{width:13px;height:13px;border-radius:50%;background:var(--line);transition:background var(--t)}
+.win:hover .lights i:nth-child(1){background:#ff5f57}
+.win:hover .lights i:nth-child(2){background:#febc2e}
+.win:hover .lights i:nth-child(3){background:#28c840}
+.ib{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:var(--ink-2);flex:none;
+  transition:background var(--t),color var(--t),transform 140ms var(--ease)}
+.ib:hover{background:var(--line-2);color:var(--ink)}
+.ib:active{transform:scale(.94)}
+.ib svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+/* the cog mark — transparent, no plate */
+.cog{width:38px;height:38px;flex:none;display:grid;place-items:center;padding:2px;border-radius:11px;
+  transition:transform .35s var(--ease),background .2s}
+.cog:hover{transform:scale(1.08);background:var(--line-2)}
+.cog:active{transform:scale(.96)}
+.cog svg{width:32px;height:32px;filter:drop-shadow(0 1px 2px oklch(0 0 0/.3))}
+
+/* tabs — always visible, always bordered, with depth */
+.tabs{display:flex;gap:6px;align-items:center;overflow-x:auto;overflow-y:hidden;flex:1;min-width:0;scrollbar-width:none;padding:0 2px}
+.tabs::-webkit-scrollbar{display:none}
+.jarchip{display:flex;align-items:center;gap:8px;height:34px;padding:0 13px 0 7px;border-radius:11px;font-size:13.5px;font-weight:600;flex:none;
+  border:1px solid transparent;transition:filter 140ms var(--ease),transform 140ms var(--ease)}
+.jarchip:hover{filter:brightness(1.07);transform:translateY(-1px)}
+.tab{position:relative;display:flex;align-items:center;gap:8px;height:34px;padding:0 9px 0 10px;border-radius:11px;color:var(--ink-2);
+  font-size:13.5px;width:176px;flex:none;border:1px solid var(--line);background:var(--pane-2);box-shadow:var(--tab-sh);
+  transition:all var(--t) var(--ease);overflow:hidden}
+.tab::before{content:'';position:absolute;inset:0 0 auto;height:1px;background:var(--gloss);opacity:.6;pointer-events:none}
+.tab:hover{border-color:var(--ink-3);color:var(--ink);transform:translateY(-1px)}
+.tab[aria-selected="true"]{background:var(--win);border-color:var(--jc,var(--relish-500));color:var(--ink);font-weight:500;
+  box-shadow:0 2px 4px oklch(0 0 0/.1),0 6px 16px -6px oklch(0 0 0/.22),inset 0 1px 0 var(--gloss)}
+.tab[aria-selected="true"]::after{content:'';position:absolute;left:9px;right:9px;bottom:0;height:2px;border-radius:2px 2px 0 0;background:var(--jc,var(--relish-500))}
+.tab.pinned{width:46px;padding:0;justify-content:center}
+.tab.pinned .t,.tab.pinned .x{display:none}
+.tab .fav{width:19px;height:19px;border-radius:6px;flex:none;display:grid;place-items:center;font:600 10px var(--body);
+  background:var(--pane-3);color:var(--ink-2);overflow:hidden}
+.tab .fav.set{background:none}
+.tab .fav svg{width:13px;height:13px}
+.tab .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tab .pl{width:13px;height:13px;flex:none;color:var(--ink-3)}
+.tab .pl svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.2}
+.tab .x{width:19px;height:19px;border-radius:6px;display:grid;place-items:center;color:var(--ink-3);flex:none;opacity:0;transition:opacity .14s}
+.tab:hover .x{opacity:1}
+.tab .x:hover{background:var(--line);color:var(--ink)}
+.tab .x svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.2}
+.tab.dragover{box-shadow:inset 3px 0 0 var(--relish-500)}
+.newtab{width:34px;height:34px;border-radius:11px;border:1px dashed var(--line);display:grid;place-items:center;color:var(--ink-3);flex:none;
+  transition:all var(--t)}
+.newtab:hover{border-color:var(--relish-500);color:var(--relish-600);border-style:solid}
+.newtab svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2}
+
+/* ═══ ROW 2 · full-width search with relish ═══ */
+.searchrow{display:flex;align-items:center;gap:10px;padding:0 14px;background:var(--pane);
+  border-top:2px solid var(--relish-500);border-bottom:.5px solid var(--line);position:relative;z-index:40}
+.searchrow::after{content:'';position:absolute;inset:0 0 auto;height:14px;pointer-events:none;
+  background:linear-gradient(180deg,oklch(.78 .2 128/.14),transparent)}
+.omni{flex:1;height:32px;display:flex;align-items:center;gap:10px;padding:0 6px 0 12px;min-width:0;position:relative;
+  background:var(--win);border:1px solid var(--line);border-radius:10px;transition:all var(--t) var(--ease);box-shadow:inset 0 1px 2px oklch(0 0 0/.04)}
+.omni:focus-within{border-color:var(--relish-500);box-shadow:0 0 0 4px oklch(.78 .2 128/.18)}
+.omni .lk{width:14px;height:14px;color:var(--relish-600);flex:none;fill:none;stroke:currentColor;stroke-width:1.9}
+.omni input{flex:1;min-width:0;background:none;border:0;outline:0;font:14px var(--body);color:var(--ink)}
+.omni input::placeholder{color:var(--ink-3)}
+.omni .acts{display:flex;gap:2px;flex:none}
+.omni .acts button{width:28px;height:26px;border-radius:7px;display:grid;place-items:center;color:var(--ink-2)}
+.omni .acts button:hover{background:var(--relish-100);color:var(--relish-800)}
+.omni .acts svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.devsw{display:flex;align-items:center;gap:9px;height:32px;padding:0 12px 0 10px;border-radius:10px;border:1px solid var(--line);
+  background:var(--win);color:var(--ink-2);font-size:13px;font-weight:500;transition:all var(--t) var(--ease);flex:none}
+.devsw:hover{color:var(--ink);border-color:var(--ink-3)}
+.devsw .track{width:32px;height:19px;border-radius:999px;background:var(--line);position:relative}
+.devsw .track i{position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:var(--win);
+  box-shadow:0 1px 3px oklch(0 0 0/.3);transition:transform var(--t) var(--ease)}
+.devsw[aria-pressed="true"]{background:var(--relish-100);border-color:var(--relish-500);color:var(--relish-800)}
+.devsw[aria-pressed="true"] .track{background:var(--relish-500)}
+.devsw[aria-pressed="true"] .track i{transform:translateX(13px)}
+.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:600 12.5px var(--body);
+  background:var(--relish-100);color:var(--relish-800);border:1px solid var(--line);flex:none;transition:transform 140ms var(--ease);overflow:hidden}
+.avatar:hover{transform:scale(1.07)}
+.avatar img{width:100%;height:100%;object-fit:cover}
+
+/* ═══ BODY · shelf locked open ═══ */
+.body{display:grid;grid-template-columns:238px 1fr 322px;min-height:0;transition:grid-template-columns 300ms var(--ease)}
+.win[data-panel="off"] .body{grid-template-columns:238px 1fr 0}
+
+.shelf{background:var(--pane);border-right:.5px solid var(--line);overflow:hidden auto;padding:12px 10px 26px;min-width:0;overscroll-behavior:contain}
+/* section label = button with depth + info */
+.seclabel{display:flex;align-items:center;gap:9px;width:100%;height:36px;padding:0 11px;border-radius:11px;margin:10px 0 8px;
+  background:linear-gradient(180deg,var(--pane-2),var(--pane-3));border:1px solid var(--line);box-shadow:0 1px 2px oklch(0 0 0/.08),inset 0 1px 0 var(--gloss);
+  font:600 12.5px var(--body);letter-spacing:.02em;color:var(--ink-2);transition:all 160ms var(--ease)}
+.seclabel:first-child{margin-top:2px}
+.seclabel:hover{color:var(--ink);border-color:var(--relish-500);transform:translateY(-1px)}
+.seclabel .sw{width:18px;height:18px;border-radius:6px;display:grid;place-items:center;flex:none;color:#fff}
+.seclabel .sw svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.2}
+.seclabel .nm{flex:1;text-align:left}
+.seclabel .info{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;color:var(--ink-3);flex:none}
+.seclabel:hover .info{color:var(--relish-600)}
+.seclabel .info svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.9}
+.seclabel .add{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;color:var(--ink-3);flex:none}
+.seclabel .add:hover{background:var(--line);color:var(--ink)}
+.row{display:flex;align-items:center;gap:11px;width:100%;height:44px;padding:0 11px;border-radius:var(--r);color:var(--ink-2);
+  text-align:left;transition:background var(--t),color var(--t);position:relative}
+.row:hover{background:var(--line-2);color:var(--ink)}
+.row[aria-current="true"]{background:color-mix(in oklch,var(--jc) 15%,transparent);color:var(--ink)}
+.row .n{flex:1;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.row .c{font-size:12.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.row .gl svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}
+.row .gl.z{color:var(--relish-600)}
+.row.dragover{box-shadow:inset 0 0 0 2px var(--relish-500)}
+.row.dragging{opacity:.4}
+.row.full::after{content:'';position:absolute;right:9px;top:9px;width:7px;height:7px;border-radius:50%;background:var(--relish-500);
+  animation:pulse 2.2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 oklch(.78 .2 128/.6)}70%{box-shadow:0 0 0 7px oklch(.78 .2 128/0)}100%{box-shadow:0 0 0 0 oklch(.78 .2 128/0)}}
+.jarsvg{flex:none;filter:drop-shadow(0 1px 2px oklch(0 0 0/.2))}
+
+/* bench */
+.bench{background:var(--bg);min-width:0;overflow:hidden;display:flex;flex-direction:column;container-type:inline-size;position:relative}
+.scroll{overflow:auto;flex:1;overscroll-behavior:contain}
+.board{padding:32px 44px 90px;max-width:1120px;margin:0 auto}
+.board-h{display:flex;align-items:center;gap:18px;margin-bottom:10px}
+.board-h h1{font:600 30px/1.1 var(--display);letter-spacing:-.025em;margin:0}
+.board-h .d{font-size:14px;color:var(--ink-3);margin-top:5px}
+.board-h .sp{flex:1}
+.cap{display:flex;align-items:center;gap:10px;margin:16px 0 26px}
+.cap .bar{flex:1;max-width:300px;height:8px;border-radius:8px;background:var(--line);overflow:hidden;box-shadow:inset 0 1px 2px oklch(0 0 0/.12)}
+.cap .bar i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--jc),color-mix(in oklch,var(--jc) 70%,#000));
+  transition:width 420ms var(--ease);box-shadow:inset 0 1px 0 oklch(1 0 0/.3)}
+.cap .t{font-size:12.5px;color:var(--ink-3)}
+.sealbanner{display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:var(--r-lg);margin-bottom:24px;
+  background:color-mix(in oklch,var(--jc) 14%,transparent);border:1px solid color-mix(in oklch,var(--jc) 40%,transparent)}
+.sealbanner p{margin:0;font-size:13.5px;color:var(--ink-2)}
+.sect{margin-bottom:30px}
+.sect h2{font:600 15px var(--body);color:var(--ink-2);margin:0 0 13px;display:flex;align-items:center;gap:10px}
+.sect h2 .cnt{font-size:12.5px;color:var(--ink-3);font-weight:400}
+.localtag{font-size:11.5px;font-weight:500;padding:3px 9px;border-radius:999px;background:oklch(.72 .16 70/.16);color:var(--amber)}
+.notes,.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(252px,1fr));gap:12px}
+@container (max-width:700px){.notes,.tiles{grid-template-columns:1fr}}
+.note{background:var(--pane);border:1px solid var(--line);border-radius:var(--r-lg);padding:17px;text-align:left;display:flex;flex-direction:column;
+  gap:8px;min-height:132px;cursor:grab;box-shadow:0 1px 2px oklch(0 0 0/.06);transition:transform 180ms var(--ease),border-color var(--t),box-shadow var(--t)}
+.note:hover{transform:translateY(-3px);border-color:var(--jc);box-shadow:0 12px 26px -14px oklch(0 0 0/.42)}
+.note.dragging{opacity:.4}.note.dragover{box-shadow:inset 0 3px 0 var(--relish-500)}
+.note .nh{display:flex;align-items:center;gap:9px}
+.note .dot{width:11px;height:11px;border-radius:4px;background:var(--jc);flex:none;box-shadow:0 1px 2px oklch(0 0 0/.28),inset 0 1px 0 oklch(1 0 0/.4)}
+.note h4{font:600 15.5px var(--body);margin:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.note p{font-size:13.5px;line-height:1.55;color:var(--ink-2);margin:0;flex:1}
+.note .when{font-size:12px;color:var(--ink-3);display:flex;align-items:center;gap:6px}
+.note .when svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2}
+.blank{padding:28px;border:1.5px dashed var(--line);border-radius:var(--r-lg);color:var(--ink-3);font-size:14px;text-align:center}
+.tile{display:flex;align-items:center;gap:12px;padding:13px 15px;border-radius:var(--r-lg);background:var(--pane);border:1px solid var(--line);
+  text-align:left;cursor:grab;box-shadow:0 1px 2px oklch(0 0 0/.05);transition:transform 160ms var(--ease),border-color var(--t)}
+.tile:hover{transform:translateY(-2px);border-color:var(--ink-3)}
+.tile.dragging{opacity:.4}
+.tile .fav{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font:600 13px var(--body);flex:none;
+  background:var(--pane-3);color:var(--ink-2);box-shadow:inset 0 1px 0 var(--gloss)}
+.tile .fav svg{width:19px;height:19px}
+.tile .tt{flex:1;min-width:0}
+.tile .tt b{display:block;font-size:14.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile .tt small{font-size:12.5px;color:var(--ink-3)}
+.tile .marks{display:flex;gap:6px;color:var(--ink-3);flex:none}
+.tile .marks svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2}
+.kindtag{font-size:11px;padding:3px 8px;border-radius:999px;background:var(--line-2);color:var(--ink-3)}
+.notepage{max-width:780px;margin:0 auto;padding:30px 44px 120px}
+.notepage-h{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+.notepage-h .sp{flex:1}
+.notepage-h .when{font-size:13px;color:var(--ink-3)}
+.ntitle{width:100%;border:0;background:none;outline:0;font:600 32px var(--display);letter-spacing:-.025em;color:var(--ink);margin-bottom:12px}
+.nbody{min-height:48vh;outline:0;font-size:16.5px;line-height:1.75;white-space:pre-wrap}
+.nbody:empty::before,.qn:empty::before{content:attr(data-ph);color:var(--ink-3)}
+
+/* guide pages */
+.guide{max-width:820px;margin:0 auto;padding:42px 46px 110px}
+.guide .gh{display:flex;align-items:center;gap:16px;margin-bottom:26px}
+.guide .gh .sw{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;color:#fff;flex:none;
+  box-shadow:0 8px 20px -8px oklch(0 0 0/.5),inset 0 1px 0 oklch(1 0 0/.35)}
+.guide .gh .sw svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2}
+.guide h1{font:600 34px/1.1 var(--display);letter-spacing:-.025em;margin:0}
+.guide .gh p{margin:6px 0 0;color:var(--ink-3);font-size:14.5px}
+.guide h2{font:600 20px var(--display);letter-spacing:-.015em;margin:34px 0 12px}
+.guide p{font-size:16px;line-height:1.7;color:var(--ink-2);max-width:66ch;margin:0 0 15px}
+.guide strong{color:var(--ink);font-weight:600}
+.guide .two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0 6px}
+@container (max-width:680px){.guide .two{grid-template-columns:1fr}}
+.gcard{background:var(--pane);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px}
+.gcard.is{border-color:color-mix(in oklch,var(--relish-500) 45%,transparent)}
+.gcard h3{font:600 14px var(--body);margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.gcard h3 svg{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.guide p svg,.guide li svg{width:15px;height:15px;vertical-align:-2px;fill:none;stroke:currentColor;stroke-width:2}
+.gcard.is h3{color:var(--relish-600)}
+.gcard.isnt h3{color:var(--rose)}
+.gcard ul{margin:0;padding-left:18px}
+.gcard li{font-size:14px;line-height:1.6;color:var(--ink-2);margin:5px 0}
+.steps{display:grid;gap:10px;margin:18px 0}
+.step{display:flex;gap:14px;align-items:flex-start;padding:15px 17px;border-radius:var(--r-lg);background:var(--pane);border:1px solid var(--line)}
+.step .n{width:26px;height:26px;border-radius:9px;background:var(--relish-500);color:var(--relish-900);display:grid;place-items:center;
+  font:700 13px var(--body);flex:none;box-shadow:inset 0 1px 0 oklch(1 0 0/.4)}
+.step b{display:block;font-size:14.5px;font-weight:600;margin-bottom:3px}
+.step p{margin:0;font-size:13.5px;color:var(--ink-2)}
+.kb{display:inline-flex;gap:5px;margin-left:auto;flex:none}
+
+/* right panel */
+.panel{background:var(--pane);border-left:.5px solid var(--line);overflow:hidden auto;min-width:0;display:flex;flex-direction:column;overscroll-behavior:contain}
+.sec{padding:20px;border-bottom:.5px solid var(--line-2)}
+.sec h3{font:600 15px var(--body);margin:0 0 5px}
+.sec .sub{font-size:13px;color:var(--ink-3);margin-bottom:15px}
+.lab{font-size:12.5px;color:var(--ink-3);margin:0 0 10px;font-weight:500;display:flex;align-items:center;gap:8px}
+.lab .sp{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;height:36px;padding:0 15px;border-radius:var(--r);
+  border:1px solid var(--line);background:linear-gradient(180deg,var(--pane-2),var(--pane-3));font-size:14px;font-weight:500;
+  box-shadow:0 1px 2px oklch(0 0 0/.07),inset 0 1px 0 var(--gloss);transition:all 160ms var(--ease)}
+.btn:hover{transform:translateY(-1px);border-color:var(--ink-3)}
+.btn:active{transform:translateY(0) scale(.98)}
+.btn.primary{background:var(--jc,var(--relish-500));color:var(--relish-900);border-color:transparent;
+  box-shadow:0 1px 2px oklch(0 0 0/.14),inset 0 1px 0 oklch(1 0 0/.22)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.wide{width:100%}.btn+.btn{margin-top:9px}
+.btn.sm{height:30px;padding:0 12px;font-size:13px;border-radius:9px}
+.btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.btn.sm svg{width:14px;height:14px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{font-size:13px;padding:6px 12px;border-radius:999px;background:var(--pane-2);border:1px solid var(--line);color:var(--ink-2)}
+.chip.rel{background:color-mix(in oklch,var(--jc) 18%,transparent);border-color:transparent;color:var(--ink)}
+.qn{min-height:74px;padding:12px 14px;border-radius:var(--r);background:var(--pane-2);border:1px solid var(--line);outline:0;
+  font-size:14px;line-height:1.55;white-space:pre-wrap;margin-bottom:10px}
+.qn:focus{border-color:var(--jc);box-shadow:0 0 0 4px color-mix(in oklch,var(--jc) 22%,transparent)}
+.minirow{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:10px;color:var(--ink-2);text-align:left;font-size:13.5px}
+.minirow:hover{background:var(--line-2);color:var(--ink)}
+.minirow .dot{width:10px;height:10px;border-radius:3.5px;flex:none}
+.minirow span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.minirow em{font-style:normal;font-size:11.5px;color:var(--ink-3)}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.swatches button{width:28px;height:28px;border-radius:9px;border:2px solid transparent;box-shadow:inset 0 1px 0 oklch(1 0 0/.35);transition:transform 140ms var(--ease)}
+.swatches button:hover{transform:scale(1.12)}
+.swatches button[aria-pressed="true"]{border-color:var(--ink)}
+.field{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.field label{font-size:13px;color:var(--ink-2);width:74px;flex:none}
+.field input{flex:1;height:34px;padding:0 11px;border-radius:9px;border:1px solid var(--line);background:var(--pane-2);color:var(--ink);
+  font:14px var(--body);outline:0;min-width:0}
+.field input:focus{border-color:var(--jc)}
+.sec.zest{margin-top:auto;background:var(--pane-2);border-top:.5px solid var(--line);border-bottom:0}
+.zsend{display:flex;gap:8px;margin-top:11px}
+.zsend button{flex:1;height:46px;border-radius:13px;border:1px solid var(--line);display:grid;place-items:center;
+  background:linear-gradient(180deg,var(--pane),var(--pane-2));color:var(--relish-600);box-shadow:inset 0 1px 0 var(--gloss);transition:all 160ms var(--ease)}
+.zsend button:hover{border-color:var(--relish-500);color:var(--relish-800);transform:translateY(-2px)}
+.zsend svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+/* dev panel bits */
+.devhead{padding:16px 20px;background:linear-gradient(180deg,color-mix(in oklch,var(--relish-500) 16%,transparent),transparent);
+  border-bottom:.5px solid var(--line)}
+.devhead .t{display:flex;align-items:center;gap:10px;font:600 14.5px var(--body)}
+.devhead .t .d{width:9px;height:9px;border-radius:50%;background:var(--relish-500);box-shadow:0 0 0 3.5px oklch(.78 .2 128/.22)}
+.devhead p{margin:6px 0 0;font-size:12.5px;color:var(--ink-3)}
+.gallery{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.gcell{padding:13px 12px;border-radius:13px;border:1px solid var(--line);background:linear-gradient(180deg,var(--pane-2),var(--pane-3));
+  text-align:left;box-shadow:inset 0 1px 0 var(--gloss);transition:all 160ms var(--ease)}
+.gcell:hover{border-color:var(--relish-500);transform:translateY(-2px)}
+.gcell .i{width:28px;height:28px;border-radius:9px;background:var(--relish-100);color:var(--relish-800);display:grid;place-items:center;margin-bottom:9px}
+.gcell .i svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.gcell b{display:block;font-size:13px;font-weight:600;margin-bottom:2px}
+.gcell small{font-size:11.5px;color:var(--ink-3);line-height:1.4;display:block}
+.plug{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:11px;background:var(--pane-2);border:1px solid var(--line-2);margin-bottom:7px}
+.plug .pi{width:30px;height:30px;border-radius:9px;background:var(--pane-3);display:grid;place-items:center;color:var(--ink-2);flex:none}
+.plug .pi svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8}
+.plug .pn{flex:1;min-width:0}
+.plug .pn b{display:block;font-size:13.5px;font-weight:600}
+.plug .pn small{font-size:11.5px;color:var(--ink-3);font-family:var(--mono)}
+.vault{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;background:var(--pane-2);border:1px solid var(--line-2);margin-bottom:7px}
+.vault .vk{font-size:12.5px;color:var(--ink-3);width:82px;flex:none}
+.vault .vv{flex:1;font:13px var(--mono);color:var(--ink);letter-spacing:.06em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vault button{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--ink-3);flex:none}
+.vault button:hover{background:var(--line);color:var(--ink)}
+.vault svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8}
+.vaultlock{display:flex;align-items:center;gap:9px;padding:11px 13px;border-radius:12px;background:color-mix(in oklch,var(--amber) 12%,transparent);
+  border:1px solid color-mix(in oklch,var(--amber) 32%,transparent);font-size:12.5px;color:var(--ink-2);margin-bottom:11px}
+.vaultlock svg{width:16px;height:16px;color:var(--amber);fill:none;stroke:currentColor;stroke-width:1.9;flex:none}
+
+/* ═══ bottom bar — small and clean ═══ */
+.foot{height:44px;background:var(--frost);backdrop-filter:blur(40px) saturate(200%);-webkit-backdrop-filter:blur(40px) saturate(200%);
+  border-top:.5px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 14px;position:relative;z-index:30}
+.foot::before{content:'';position:absolute;inset:0 0 auto;height:.5px;background:linear-gradient(90deg,transparent,var(--spec),transparent)}
+.brinebtn{display:flex;align-items:center;gap:9px;height:30px;padding:0 13px 0 11px;border-radius:999px;border:1px solid var(--line);
+  background:var(--pane-2);color:var(--ink-2);font-size:13px;font-weight:500;transition:all var(--t) var(--ease)}
+.brinebtn:hover{color:var(--ink);border-color:var(--ink-3)}
+.brinebtn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8}
+.brinebtn .n{min-width:19px;height:19px;padding:0 6px;border-radius:999px;background:var(--line);font-size:11.5px;display:grid;place-items:center}
+.brinebtn.glow{border-color:var(--relish-500);color:var(--relish-800);background:var(--relish-100);animation:brineglow 2.6s ease-in-out infinite}
+.brinebtn.glow .n{background:var(--relish-500);color:var(--relish-900)}
+@keyframes brineglow{0%,100%{box-shadow:0 0 0 0 oklch(.78 .2 128/.45)}50%{box-shadow:0 0 0 6px oklch(.78 .2 128/0)}}
+.foot .sp{flex:1}
+.foot .meta{font-size:12.5px;color:var(--ink-3);display:flex;align-items:center;gap:10px}
+
+/* ═══ context menu ═══ */
+#ctx{position:fixed;z-index:500;min-width:226px;padding:7px;border-radius:15px;display:none;background:var(--glass);
+  backdrop-filter:blur(40px) saturate(200%);-webkit-backdrop-filter:blur(40px) saturate(200%);border:1px solid var(--line);
+  box-shadow:0 30px 70px -22px oklch(0 0 0/.6),inset 0 1px 0 var(--gloss)}
+#ctx.show{display:block;animation:ctxin 150ms var(--ease)}
+@keyframes ctxin{from{opacity:0;transform:scale(.96) translateY(-4px)}}
+#ctx button{display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;border-radius:9px;font-size:14px;color:var(--ink-2);text-align:left}
+#ctx button:hover{background:var(--relish-100);color:var(--relish-800)}
+#ctx button.danger:hover{background:oklch(.6 .2 25/.15);color:var(--rose)}
+#ctx button svg{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#ctx hr{border:0;border-top:.5px solid var(--line);margin:6px 8px}
+#ctx .cl{font-size:11.5px;color:var(--ink-3);padding:8px 12px 5px;font-weight:500}
+#ctx .cs{display:flex;gap:7px;padding:2px 12px 9px}
+#ctx .cs button{width:26px;height:26px;padding:0;border-radius:8px;border:2px solid transparent}
+#ctx .cs button[aria-pressed="true"]{border-color:var(--ink)}
+#ctx .icons{display:flex;gap:6px;padding:2px 12px 9px;flex-wrap:wrap}
+#ctx .icons button{width:30px;height:30px;padding:0;border-radius:9px;border:1px solid var(--line);background:var(--pane-2);
+  display:grid;place-items:center;color:var(--ink-2)}
+#ctx .icons button:hover{border-color:var(--relish-500);background:var(--relish-100)}
+#ctx .icons button svg{width:15px;height:15px}
+
+/* ═══ popovers ═══ */
+[popover]{border:0;padding:0;background:none;overflow:visible}
+[popover]::backdrop{background:oklch(0 0 0/.36);backdrop-filter:blur(4px)}
+.sheet{background:var(--glass);backdrop-filter:blur(44px) saturate(200%);-webkit-backdrop-filter:blur(44px) saturate(200%);
+  border:1px solid var(--line);border-radius:var(--r-xl);box-shadow:0 44px 100px -26px oklch(0 0 0/.6),inset 0 1px 0 var(--gloss);color:var(--ink)}
+@starting-style{[popover]:popover-open .sheet{opacity:0;transform:scale(.96) translateY(10px)}}
+[popover]:popover-open .sheet{opacity:1;transform:none;transition:opacity 220ms var(--ease),transform 220ms var(--ease)}
+#pal{position:fixed;inset:0;margin:auto;width:min(620px,92vw);height:fit-content;top:14vh;bottom:auto}
+#pal .sheet{overflow:hidden}
+#pal input{width:100%;height:56px;padding:0 22px;border:0;border-bottom:.5px solid var(--line);background:none;outline:0;font:17px var(--body);color:var(--ink)}
+#pal ul{list-style:none;margin:0;padding:8px;max-height:340px;overflow:auto}
+#pal li{display:flex;align-items:center;gap:13px;padding:11px 14px;border-radius:11px;cursor:pointer;font-size:14.5px;color:var(--ink-2)}
+#pal li[aria-selected="true"]{background:var(--relish-100);color:var(--relish-800)}
+#pal li svg{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#pal li .k{margin-left:auto;font-size:12.5px;color:var(--ink-3)}
+#pal .cat{font-size:12.5px;color:var(--ink-3);padding:12px 14px 5px;font-weight:500}
+/* brine modal */
+#brine{position:fixed;inset:0;margin:auto;width:min(640px,92vw);height:fit-content}
+#brine .sheet{padding:24px 26px}
+#brine h3{font:600 20px var(--display);margin:0 0 5px}
+#brine .sub{color:var(--ink-3);font-size:14px;margin-bottom:20px}
+.brow{display:flex;align-items:center;gap:13px;padding:12px 14px;border-radius:13px;background:var(--pane-2);border:1px solid var(--line-2);
+  margin-bottom:8px;cursor:grab;transition:all 160ms var(--ease)}
+.brow:hover{border-color:var(--ink-3)}
+.brow.hot{border-color:var(--relish-500);background:color-mix(in oklch,var(--relish-500) 10%,transparent);
+  box-shadow:0 0 0 0 oklch(.78 .2 128/.4);animation:brineglow 2.6s ease-in-out infinite}
+.brow.dragging{opacity:.4}
+.brow .f{width:30px;height:30px;border-radius:9px;background:var(--pane-3);display:grid;place-items:center;font:600 12px var(--body);color:var(--ink-2);flex:none}
+.brow .bt{flex:1;min-width:0}
+.brow .bt b{display:block;font-size:14px;font-weight:500}
+.brow .bt small{font-size:12px;color:var(--ink-3)}
+.brow .hint{font-size:11.5px;color:var(--relish-600);font-weight:600;flex:none}
+.brow .jars{display:flex;gap:5px;flex:none}
+.brow .jars button{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);display:grid;place-items:center;background:var(--pane)}
+.brow .jars button:hover{transform:scale(1.1)}
+/* profile */
+#prof{position:fixed;top:104px;right:16px;margin:0}
+#prof .sheet{padding:18px;width:322px}
+.applerow{display:flex;align-items:center;gap:11px;padding:11px;border-radius:13px;background:var(--pane-2);margin-bottom:14px;font-size:13px;color:var(--ink-2)}
+.applerow svg{width:20px;height:20px;fill:currentColor;flex:none}
+.avedit{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.avedit .big{width:56px;height:56px;border-radius:50%;background:var(--relish-100);color:var(--relish-800);display:grid;place-items:center;
+  font:600 19px var(--body);flex:none;position:relative;overflow:hidden;border:1px solid var(--line)}
+.avedit .big img{width:100%;height:100%;object-fit:cover}
+.avedit .ch{position:absolute;inset:auto 0 0;height:20px;background:oklch(0 0 0/.55);color:#fff;font-size:9.5px;display:grid;place-items:center}
+.pcard{display:flex;align-items:center;gap:13px;padding:11px;border-radius:13px;width:100%;text-align:left;transition:background var(--t)}
+.pcard:hover{background:var(--line-2)}
+.pcard[aria-current="true"]{background:var(--relish-100)}
+.pcard .av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font:600 14px var(--body);background:var(--pane-2);flex:none}
+.pcard b{display:block;font-size:14.5px;font-weight:600}
+.pcard small{font-size:12.5px;color:var(--ink-3)}
+.protag{margin-left:auto;font:600 10px var(--mono);letter-spacing:.06em;padding:3px 7px;border-radius:999px;background:var(--relish-100);color:var(--relish-800)}
+#ob{position:fixed;inset:0;margin:auto;width:min(700px,92vw);height:fit-content}
+#ob .sheet{padding:34px 36px}
+#ob h2{font:600 26px var(--display);letter-spacing:-.02em;margin:0 0 8px}
+#ob .sub{color:var(--ink-3);font-size:15px;margin-bottom:26px}
+#ob .st3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:26px}
+@media(max-width:700px){#ob .st3{grid-template-columns:1fr}}
+#ob .sc{background:var(--pane-2);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px}
+#ob .sc .ic{width:38px;height:38px;border-radius:12px;background:var(--relish-100);color:var(--relish-800);display:grid;place-items:center;margin-bottom:12px}
+#ob .sc .ic svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7}
+#ob .sc b{display:block;font-size:15px;font-weight:600;margin-bottom:5px}
+#ob .sc p{font-size:13.5px;line-height:1.5;color:var(--ink-2);margin:0}
+#ob .foot2{display:flex;align-items:center;gap:12px}
+kbd{font:12px var(--mono);background:var(--pane-2);border:1px solid var(--line);border-bottom-width:2px;border-radius:7px;padding:3px 7px;color:var(--ink-3)}
+.toast{position:fixed;left:50%;bottom:74px;transform:translateX(-50%) translateY(14px);z-index:210;background:var(--glass);
+  backdrop-filter:blur(34px) saturate(190%);-webkit-backdrop-filter:blur(34px) saturate(190%);border:1px solid var(--line);
+  box-shadow:0 24px 56px -20px oklch(0 0 0/.5);border-radius:999px;padding:12px 20px;display:flex;align-items:center;gap:11px;
+  font-size:14.5px;opacity:0;pointer-events:none;transition:all 260ms var(--ease)}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.toast svg{width:19px;height:19px;color:var(--relish-600);fill:none;stroke:currentColor;stroke-width:1.9}
+@media (prefers-reduced-motion:reduce){*{transition-duration:120ms!important;animation:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+ <symbol id="back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+ <symbol id="fwd" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+ <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+ <symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+ <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+ <symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+ <symbol id="unlock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="3"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/></symbol>
+ <symbol id="pin" viewBox="0 0 24 24"><path d="M9 3h6l-1 6 3.5 3.5H6.5L10 9Z"/><path d="M12 12.5V21"/></symbol>
+ <symbol id="lid" viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="5" rx="2"/><path d="M6 12v5a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3v-5"/></symbol>
+ <symbol id="mark" viewBox="0 0 24 24"><path d="M6 4h12v17l-6-4-6 4Z"/></symbol>
+ <symbol id="pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16Z"/><path d="m14.5 6.5 3 3"/></symbol>
+ <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+ <symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/></symbol>
+ <symbol id="drop" viewBox="0 0 24 24"><path d="M12 4s6 6.6 6 10.3A6 6 0 0 1 6 14.3C6 10.6 12 4 12 4Z"/></symbol>
+ <symbol id="doc" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7Z"/><path d="M14 3v4h4"/></symbol>
+ <symbol id="arrow" viewBox="0 0 24 24"><path d="M5 12h13m-5-5 5 5-5 5"/></symbol>
+ <symbol id="check" viewBox="0 0 24 24"><path d="m5 13 4.5 4.5L19 7"/></symbol>
+ <symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 2.5 14.4 0 17M12 3.5c-2.5 2.6-2.5 14.4 0 17"/></symbol>
+ <symbol id="mail" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="3"/><path d="m3.8 7.5 8.2 6 8.2-6"/></symbol>
+ <symbol id="img" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="3"/><path d="m5.5 16 4-4.5 3 3 2.5-2.5 3.5 4"/><circle cx="9" cy="9.5" r="1.3"/></symbol>
+ <symbol id="swatch" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="6" rx="2.5"/><rect x="3.5" y="14" width="10" height="6" rx="2.5"/><rect x="16" y="14" width="4.5" height="6" rx="2"/></symbol>
+ <symbol id="wp" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M4.5 9.5h4l2.2 7 2-5.5-1.2-1.5h3.5l2.3 7 1.6-4.6c.4-1.2 0-2.4-1.2-2.4"/></symbol>
+ <symbol id="play" viewBox="0 0 24 24"><path d="M8 5.5 18 12 8 18.5Z"/></symbol>
+ <symbol id="stop" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></symbol>
+ <symbol id="alert" viewBox="0 0 24 24"><path d="M12 4.5 21 19.5H3Z"/><path d="M12 10.5v4m0 2.5v.01"/></symbol>
+ <symbol id="copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="3"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+ <symbol id="trash" viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3m-7 4v6m4-6v6M6 7l1 13h10l1-13"/></symbol>
+ <symbol id="box" viewBox="0 0 24 24"><path d="M3 8h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><rect x="2.5" y="4" width="19" height="4.5" rx="1.6"/><path d="M10 12h4"/></symbol>
+ <symbol id="jarplain" viewBox="0 0 24 24"><path d="M9 3h6v2.2a3 3 0 0 0 .6 1.8L17 9v9a3 3 0 0 1-3 3h-4a3 3 0 0 1-3-3V9l1.4-2A3 3 0 0 0 9 5.2Z"/><path d="M7.4 12h9.2"/></symbol>
+ <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8.5v.01"/></symbol>
+ <symbol id="down" viewBox="0 0 24 24"><path d="M12 4v12m-5-5 5 5 5-5M5 20h14"/></symbol>
+ <symbol id="key" viewBox="0 0 24 24"><circle cx="8" cy="12" r="4"/><path d="M12 12h9m-3 0v3m-2-3v2.5"/></symbol>
+ <symbol id="eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+ <symbol id="plug" viewBox="0 0 24 24"><path d="M9 3v6m6-6v6M6.5 9h11v3a5.5 5.5 0 0 1-11 0Z"/><path d="M12 17.5V21"/></symbol>
+ <symbol id="rocket" viewBox="0 0 24 24"><path d="M14 4.5c3.5 1.5 5.5 4.5 5.5 9L15 18H9l-4.5-4.5c0-4.5 2-7.5 5.5-9Z"/><circle cx="12" cy="10" r="2"/><path d="M9 18l-2 3m8-3 2 3"/></symbol>
+ <symbol id="gauge" viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0"/><path d="m12 16 4-5"/></symbol>
+ <symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></symbol>
+ <symbol id="apple" viewBox="0 0 24 24"><path d="M17.05 12.54c-.02-2.3 1.88-3.4 1.96-3.45-1.07-1.56-2.73-1.78-3.32-1.8-1.41-.14-2.76.83-3.48.83s-1.83-.81-3-.79c-1.55.02-2.97.9-3.77 2.28-1.6 2.79-.41 6.91 1.15 9.17.76 1.11 1.67 2.35 2.86 2.3 1.15-.05 1.58-.74 2.97-.74s1.78.74 3 .72c1.24-.02 2.02-1.13 2.78-2.24.87-1.28 1.23-2.52 1.25-2.58-.03-.01-2.4-.92-2.42-3.65M14.9 5.3c.63-.77 1.06-1.83.94-2.9-.91.04-2.01.61-2.67 1.37-.59.68-1.1 1.76-.96 2.8 1.01.08 2.05-.51 2.69-1.27"/></symbol>
+</defs></svg>
+
+<div class="win" id="win" data-dev="false" data-panel="on">
+  <!-- row 1 -->
+  <div class="bar">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <button class="ib" title="Back"><svg><use href="#back"/></svg></button>
+    <button class="cog" id="cogBtn" title="NetRelish"></button>
+    <div class="tabs" id="tabs"></div>
+  </div>
+
+  <!-- row 2 · full-width search -->
+  <div class="searchrow">
+    <div class="omni">
+      <svg class="lk"><use href="#search"/></svg>
+      <input id="url" placeholder="Search, or type a web address" spellcheck="false" aria-label="Search or address">
+      <div class="acts">
+        <button id="bKeep" title="Keep in this jar ⌘D"><svg><use href="#mark"/></svg></button>
+        <button id="bPal" title="Commands ⌘K"><svg><use href="#box"/></svg></button>
+      </div>
+    </div>
+    <button class="devsw" id="tDev" aria-pressed="false" title="Dev ⌘⇧D"><span class="track"><i></i></span>Dev</button>
+    <button class="ib" id="bTheme" title="Appearance"><svg><use href="#sun"/></svg></button>
+    <button class="avatar" id="bProf" title="Profile">RS</button>
+  </div>
+
+  <div class="body" id="body">
+    <aside class="shelf" id="shelf"></aside>
+    <main class="bench" id="bench"></main>
+    <aside class="panel" id="panel"></aside>
+  </div>
+
+  <div class="foot">
+    <button class="brinebtn" id="brineBtn"><svg><use href="#drop"/></svg>Brine<span class="n" id="bn">0</span></button>
+    <span class="sp"></span>
+    <span class="meta"><span id="clock">—</span><kbd>?</kbd></span>
+  </div>
+</div>
+
+<div id="ctx" role="menu"></div>
+<div class="toast" id="toast"><svg><use href="#lid"/></svg><span id="tt"></span></div>
+<div popover id="pal"><div class="sheet"><input id="pq" placeholder="Jars, notes, tabs, commands…" spellcheck="false"><ul id="pl"></ul></div></div>
+<div popover id="brine"><div class="sheet" id="brineBody"></div></div>
+<div popover id="prof"><div class="sheet" id="profBody"></div></div>
+<div popover id="ob"><div class="sheet">
+  <h2>Three things and you're running.</h2>
+  <div class="sub">NetRelish keeps your work in jars. That's the whole idea.</div>
+  <div class="st3">
+    <div class="sc"><div class="ic"><svg><use href="#jarplain"/></svg></div><b>A jar is a project</b><p>It holds the tabs and the notes that go together. Open it and everything comes back.</p></div>
+    <div class="sc"><div class="ic"><svg><use href="#pen"/></svg></div><b>Write it down</b><p>Notes live in the jar. Right-click anything to rename, recolor or move it.</p></div>
+    <div class="sc"><div class="ic"><svg><use href="#drop"/></svg></div><b>Fill it, then seal it</b><p>Jars fill as you add. Full means finished — seal it and it keeps.</p></div>
+  </div>
+  <div class="foot2"><span class="sub" style="margin:0">Click the <b>Jars</b> or <b>Zest</b> header any time to read more.</span>
+    <span style="flex:1"></span><button class="btn primary" id="obGo">Start</button></div>
+</div></div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const uid = () => Math.random().toString(36).slice(2, 8);
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const paint = fn => (document.startViewTransition && !reduce) ? document.startViewTransition(fn) : fn();
+const ico = n => `<svg><use href="#${n}"/></svg>`;
+
+/* ═══ the NetRelish mark — the real one, transparent ═══ */
+const MARK = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 100" width="100%" height="100%"><defs><linearGradient id="nr-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e2c12"></stop><stop offset="1" stop-color="#0d1206"></stop></linearGradient><defs><linearGradient id="nr-gGloss" x1="0" y1="0" x2="0" y2="1"> <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"></stop> <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"></stop> </linearGradient><linearGradient id="nr-gGearSteel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#CBD2DA"></stop><stop offset="1" stop-color="#848D99"></stop></linearGradient><radialGradient id="nr-gHoleSteel" cx="0.5" cy="0.38" r="0.7"><stop offset="0" stop-color="#39404A"></stop><stop offset="1" stop-color="#59626D"></stop></radialGradient><linearGradient id="nr-gGoop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A9F12E"></stop><stop offset="1" stop-color="#5CB80F"></stop></linearGradient></defs></defs><g transform="translate(13.00 13.00) scale(0.7400)"><g transform="translate(0 4.5) " fill="#525A65"><rect x="43.5" y="12" width="13" height="13" rx="4"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(45 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(90 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(135 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(180 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(225 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(270 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(315 50 50)"></rect><circle cx="50" cy="50" r="30"></circle></g><g fill="url(#nr-gGearSteel)"><rect x="43.5" y="12" width="13" height="13" rx="4"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(45 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(90 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(135 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(180 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(225 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(270 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(315 50 50)"></rect><circle cx="50" cy="50" r="30"></circle></g><circle cx="50" cy="50" r="11" fill="url(#nr-gHoleSteel)"></circle><path transform="translate(0 3)" opacity="0.2" fill="#000000" d="M15 42 C13 20, 30 7, 50 7 C70 7, 87 20, 85 42 C85 47, 80 49, 76 46 C74 44, 75 46, 74.5 52 C74 60, 65 60, 65 52 C65 47, 66 45, 63 43 C59 41, 57 44, 55 46 C53 49, 47 50, 46 45 C45.5 42, 47 41, 44 40.5 C40 40, 39 42, 38 44 C37 47, 37 49, 36.5 55 C36 63, 27 63, 27 55 C27 49, 28 45, 25 44 C21 43, 17 46, 15 42 Z"></path><path fill="url(#nr-gGoop)" d="M15 42 C13 20, 30 7, 50 7 C70 7, 87 20, 85 42 C85 47, 80 49, 76 46 C74 44, 75 46, 74.5 52 C74 60, 65 60, 65 52 C65 47, 66 45, 63 43 C59 41, 57 44, 55 46 C53 49, 47 50, 46 45 C45.5 42, 47 41, 44 40.5 C40 40, 39 42, 38 44 C37 47, 37 49, 36.5 55 C36 63, 27 63, 27 55 C27 49, 28 45, 25 44 C21 43, 17 46, 15 42 Z"></path><ellipse cx="37" cy="17" rx="15" ry="6" transform="rotate(-14 37 17)" fill="url(#nr-gGloss)"></ellipse><circle cx="31" cy="26" r="1.7" fill="#4E9110" opacity="0.85"></circle><circle cx="52" cy="16" r="1.7" fill="#4E9110" opacity="0.85"></circle><circle cx="67" cy="27" r="1.7" fill="#4E9110" opacity="0.85"></circle><circle cx="45" cy="32" r="1.7" fill="#D9F98F" opacity="0.9"></circle><circle cx="60" cy="35" r="1.4" fill="#D9F98F" opacity="0.9"></circle><ellipse cx="31.5" cy="71" rx="2.6" ry="3.4" fill="#5CB80F"></ellipse></g></svg>`;
+
+/* ═══ jar ═══ */
+const COLORS = { relish: { n: 'Relish', c: '#93E413', d: '#5CB80F' }, amber: { n: 'Amber', c: '#E0A020', d: '#B87A0C' },
+  sky: { n: 'Sky', c: '#3B82F6', d: '#2563EB' }, rose: { n: 'Rose', c: '#F0525E', d: '#D6273A' },
+  violet: { n: 'Violet', c: '#A78BFA', d: '#7C5CF0' }, teal: { n: 'Teal', c: '#2DD4BF', d: '#0D9488' } };
+const col = j => COLORS[j.color] || COLORS.relish;
+const BODY = 'M4.6 7.6 C4.6 6.3 5.7 5.2 7 5.2 h8 C16.3 5.2 17.4 6.3 17.4 7.6 v11.6 a3.4 3.4 0 0 1 -3.4 3.4 h-6 a3.4 3.4 0 0 1 -3.4 -3.4 z';
+let sn = 0;
+function jarSVG(j, w = 24) {
+  const pct = Math.max(0, Math.min(1, (j.notes.length + j.tabs.length) / (j.cap || 20)));
+  const c = col(j), id = 'k' + (sn++), top = 5.2, bot = 22.6, h = (bot - top) * pct, y = bot - h;
+  return `<svg class="jarsvg" viewBox="0 0 22 26" width="${w}" height="${w * 26 / 22}" style="color:${c.d}" aria-hidden="true">
+    <defs><clipPath id="c${id}"><path d="${BODY}"/></clipPath>
+    <linearGradient id="g${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c.c}"/><stop offset="1" stop-color="${c.d}"/></linearGradient>
+    <linearGradient id="s${id}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".44"/>
+      <stop offset=".35" stop-color="#fff" stop-opacity="0"/><stop offset=".85" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#fff" stop-opacity=".17"/></linearGradient></defs>
+    <path d="${BODY}" fill="currentColor" opacity=".09"/>
+    <g clip-path="url(#c${id})">${h > 0 ? `<rect x="3" y="${y}" width="16" height="${h + .4}" fill="url(#g${id})"/>
+      <ellipse cx="11" cy="${y}" rx="6.5" ry=".9" fill="${c.c}" opacity=".85"/>` : ''}
+      ${pct >= 1 ? `<circle cx="8" cy="10" r="1.1" fill="#fff" opacity=".3"/><circle cx="14" cy="14.5" r=".8" fill="#fff" opacity=".22"/>` : ''}</g>
+    <path d="${BODY}" fill="url(#s${id})"/>
+    <path d="${BODY}" fill="none" stroke="currentColor" stroke-width="1.15" opacity=".6" stroke-linejoin="round"/>
+    <rect x="5.4" y="1.5" width="11.2" height="3.6" rx="1.3" fill="currentColor" opacity=".8"/>
+    <rect x="6.4" y="2.1" width="5" height="1" rx=".5" fill="#fff" opacity=".3"/></svg>`;
+}
+
+const MIN = 6e4, HR = 36e5, DAY = 864e5;
+const ago = ts => { const d = Date.now() - ts; return d < MIN ? 'just now' : d < HR ? Math.round(d / MIN) + ' min ago'
+  : d < DAY ? Math.round(d / HR) + 'h ago' : d < 2 * DAY ? 'yesterday' : d < 7 * DAY ? Math.round(d / DAY) + ' days ago'
+  : new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric' }); };
+const stamp = ts => new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+/* ═══ state ═══ */
+const ZEST = { zest: { name: 'Zest', role: 'Make a brand', icon: 'swatch' }, zestmail: { name: 'ZestMail', role: 'Send something', icon: 'mail' },
+  zestmd: { name: 'Zest MD', role: 'Write it properly', icon: 'doc' }, zestimage: { name: 'ZestImage', role: 'Make a picture', icon: 'img' } };
+const ICONSET = ['globe', 'wp', 'mail', 'doc', 'img', 'key', 'plug', 'box'];
+const now = Date.now();
+const S = {
+  profile: 'ryan',
+  profiles: [{ id: 'ryan', name: 'Ryan Shepherd', sub: 'ryan@shepdesign.com', av: 'RS', apple: true, pro: true },
+             { id: 'personal', name: 'Personal', sub: 'Its own jars and history', av: 'P' }],
+  jar: 'clients', view: { kind: 'jar' }, dev: false, openTab: null,
+  jars: [
+    { id: 'clients', name: 'Clients', color: 'relish', cap: 14,
+      notes: [
+        { id: 'n1', title: 'Edith Head', body: 'Renewal is Nov 3 — SiteGround, card on file is the Amex. She wants the events page split in two before then.\n\nLogin lives in 1Password, not here.', at: now - 26 * HR },
+        { id: 'n2', title: 'Miller Outdoor', body: 'NDA still unsigned. The map plugin is done but do not ship until Allan sends it back.\n\nHe prefers a phone call to email.', at: now - 3 * DAY },
+        { id: 'n3', title: 'GDP — seasonal kits', body: 'Winter set due mid-November. Reuse the autumn train, change the palette only.', at: now - 6 * DAY }],
+      tabs: [
+        { id: 't1', group: 'Edith Head', title: 'edithhead.biz', host: 'edithhead.biz', fav: 'E', icon: 'globe', kind: 'live', pinned: true },
+        { id: 't2', group: 'Edith Head', title: 'SiteGround — Site Tools', host: 'siteground.com', fav: 'S', kind: 'host', locked: true },
+        { id: 't3', group: 'Edith Head', title: 'Local copy', host: 'edithhead.local', fav: 'E', icon: 'wp', kind: 'local', site: 'edithhead' },
+        { id: 't4', group: 'Miller Outdoor', title: 'milleroutdooradvertising.com', host: 'milleroutdooradvertising.com', fav: 'M', kind: 'live' },
+        { id: 't5', group: 'Miller Outdoor', title: 'Local copy', host: 'miller.local', fav: 'M', icon: 'wp', kind: 'local', site: 'miller' },
+        { id: 't6', group: 'GDP', title: 'Great Destinations', host: 'gdpkids.com', fav: 'G', kind: 'live' },
+        { id: 't7', group: 'GDP', title: 'Cloudways', host: 'cloudways.com', fav: 'C', kind: 'host', locked: true }] },
+    { id: 'shepdesign', name: 'Shepdesign', color: 'sky', cap: 12,
+      notes: [{ id: 'n4', title: 'Invoices out', body: 'Edith Head paid. Miller is 14 days late — send the second reminder Friday.', at: now - 2 * DAY }],
+      tabs: [{ id: 't8', title: 'shepdesign.com', host: 'shepdesign.com', fav: 'S', kind: 'live', pinned: true },
+             { id: 't9', title: 'Zoho Mail', host: 'mail.zoho.com', fav: 'Z', icon: 'mail', kind: 'host' },
+             { id: 't10', title: 'Stripe', host: 'dashboard.stripe.com', fav: 'S', kind: 'host', locked: true }] },
+    { id: 'zestbuild', name: 'Zest build', color: 'violet', cap: 10,
+      notes: [{ id: 'n5', title: 'Before launch', body: 'Pick a price. Decide on lifetime licenses. Trademark check on the names.', at: now - 40 * MIN }],
+      tabs: [{ id: 't11', title: 'Vercel', host: 'vercel.com', fav: 'V', kind: 'host' },
+             { id: 't12', title: 'Supabase', host: 'supabase.com', fav: 'S', kind: 'host' },
+             { id: 't13', title: 'Local copy', host: 'zest.local', fav: 'Z', icon: 'wp', kind: 'local', site: 'zestsite' }] },
+    { id: 'reading', name: 'Reading', color: 'amber', cap: 8, notes: [],
+      tabs: [{ id: 't14', title: 'Materials — Apple HIG', host: 'developer.apple.com', fav: 'A', kind: 'live' },
+             { id: 't15', title: 'Query loops in Bricks', host: 'academy.bricksbuilder.io', fav: 'B', kind: 'live' }] },
+  ],
+  sites: [
+    { id: 'edithhead', jar: 'clients', name: 'edithhead.biz', domain: 'edithhead.local', run: true, php: '8.4', wp: '7.1', ssl: true, host: 'SiteGround', live: 'edithhead.biz' },
+    { id: 'miller', jar: 'clients', name: 'Miller Outdoor', domain: 'miller.local', run: false, php: '8.4', wp: '7.0', ssl: true, host: 'Cloudways', live: 'milleroutdooradvertising.com' },
+    { id: 'zestsite', jar: 'zestbuild', name: 'Zest marketing', domain: 'zest.local', run: false, php: '8.4', wp: '7.1', ssl: false, host: 'Vercel', live: 'zest.netrelish.com' }],
+  plugins: [
+    { n: 'DropKit', v: '2.4.1', s: 'Bricks section generator' },
+    { n: 'DropKit Bridge', v: '1.1.0', s: 'Token extraction, ACF data layer' },
+    { n: 'WS Form Pro', v: '1.9.2', s: 'Forms, with the Bento hookup' }],
+  vault: [
+    { k: 'WP admin', v: 'edith / ••••••••••••', m: true },
+    { k: 'SiteGround', v: 'ryan@shepdesign.com / ••••••••', m: true },
+    { k: 'License key', v: 'DK-••••-••••-8827', m: true },
+    { k: 'SFTP host', v: 'sftp.siteground.eu:18765', m: false }],
+  brine: [
+    { id: 'b1', t: 'Swift Package Index — GRDB', h: 'swiftpackageindex.com', f: 'S', hot: false },
+    { id: 'b2', t: 'ACF field groups as code', h: 'advancedcustomfields.com', f: 'A', hot: true },
+    { id: 'b3', t: 'design-first / system', h: 'github.com', f: 'G', hot: false },
+    { id: 'b4', t: 'Cloudways — staging docs', h: 'support.cloudways.com', f: 'C', hot: true }],
+};
+const J = id => S.jars.find(x => x.id === (id || S.jar)) || S.jars[0];
+const SITE = id => S.sites.find(x => x.id === id);
+const fill = j => (j.notes.length + j.tabs.length) / (j.cap || 20);
+const setVars = () => document.documentElement.style.setProperty('--jc', col(J()).c);
+
+/* ═══ shelf ═══ */
+function renderShelf() {
+  $('#shelf').innerHTML = `
+    <button class="seclabel" data-guide="jars">
+      <span class="sw" style="background:linear-gradient(180deg,#A9F12E,#5CB80F)">${ico('jarplain')}</span>
+      <span class="nm">JARS</span>
+      <span class="info" title="What are jars?">${ico('info')}</span>
+      <span class="add" id="newJar" title="New jar">${ico('plus')}</span></button>
+    ${S.jars.map(j => {
+      const c = col(j), f = fill(j);
+      return `<button class="row jarrow ${f >= 1 ? 'full' : ''}" data-jar="${j.id}" data-ctx="jar" draggable="true"
+        aria-current="${S.jar === j.id}" style="--jc:${c.c}">
+        ${jarSVG(j, 24)}<span class="n">${esc(j.name)}</span><span class="c">${j.notes.length + j.tabs.length}/${j.cap}</span></button>`;
+    }).join('')}
+    <button class="seclabel" data-guide="zest" style="margin-top:22px">
+      <span class="sw" style="background:linear-gradient(180deg,#5CB80F,#3E6413)">${ico('swatch')}</span>
+      <span class="nm">ZEST</span>
+      <span class="info" title="What is Zest?">${ico('info')}</span></button>
+    ${Object.entries(ZEST).map(([k, z]) => `<button class="row" data-tool="${k}" aria-current="${S.view.kind === 'tool' && S.view.id === k}">
+      <span class="gl z">${ico(z.icon)}</span><span class="n">${z.name}</span></button>`).join('')}`;
+}
+
+/* ═══ tabs ═══ */
+function renderTabs() {
+  const j = J(), c = col(j);
+  const ordered = [...j.tabs].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+  $('#tabs').innerHTML = `
+    <button class="jarchip" id="jarChip" data-ctx="jar" data-jar="${j.id}"
+      style="background:linear-gradient(180deg,color-mix(in oklch,${c.c} 26%,transparent),color-mix(in oklch,${c.c} 15%,transparent));
+      border-color:color-mix(in oklch,${c.c} 45%,transparent);color:${c.d}">
+      ${jarSVG(j, 19)}<span>${esc(j.name)}</span></button>
+    ${ordered.map(t => `
+      <div class="tab ${t.pinned ? 'pinned' : ''}" role="tab" tabindex="0" draggable="true" data-tab="${t.id}" data-ctx="tab"
+        aria-selected="${S.view.kind === 'page' && S.openTab === t.id}" style="--jc:${c.c}" title="${esc(t.title)}">
+        <span class="fav ${t.icon ? 'set' : ''}">${t.icon ? ico(t.icon) : t.fav}</span>
+        <span class="t">${esc(t.title)}</span>
+        ${t.locked ? `<span class="pl" title="Locked">${ico('lock')}</span>` : `<button class="x" data-close="${t.id}" title="Close">${ico('x')}</button>`}
+      </div>`).join('')}
+    <button class="newtab" id="newTab" title="New tab">${ico('plus')}</button>`;
+}
+
+/* ═══ bench ═══ */
+function renderBench() {
+  const b = $('#bench');
+  const V = { jar: board, note: notePage, page: pageView, tool: () => toolView(S.view.id), guide: () => guideView(S.view.id) };
+  b.innerHTML = `<div class="scroll">${(V[S.view.kind] || board)()}</div>`;
+}
+
+function board() {
+  const j = J(), c = col(j), f = fill(j), n = j.notes.length + j.tabs.length;
+  const groups = {}; j.tabs.forEach(t => { const g = t.group || 'Saved'; (groups[g] ||= []).push(t); });
+  return `<div class="board" style="--jc:${c.c}">
+    <div class="board-h">${jarSVG(j, 54)}
+      <div><h1>${esc(j.name)}</h1><div class="d">${j.notes.length} notes · ${j.tabs.length} tabs</div></div>
+      <div class="sp"></div>
+      <button class="btn" data-act="openall">${ico('arrow')}Open all</button>
+      <button class="btn primary" data-act="newnote">${ico('pen')}New note</button></div>
+    <div class="cap"><div class="bar"><i style="width:${Math.min(100, f * 100)}%"></i></div>
+      <span class="t">${n} of ${j.cap} — ${f >= 1 ? 'full' : Math.round(f * 100) + '% full'}</span></div>
+    ${f >= 1 ? `<div class="sealbanner">${ico('lid')}<div><b>This jar is full.</b><p>Seal it to finish the project, or raise what it holds in the panel.</p></div>
+      <div style="flex:1"></div><button class="btn primary" data-act="sealjar">${ico('lid')}Seal jar</button></div>` : ''}
+    <div class="sect"><h2>Notes <span class="cnt">${j.notes.length}</span></h2>
+      <div class="notes">${j.notes.length ? j.notes.map(noteCard).join('') : '<div class="blank">Nothing written yet. New note, or type in the panel.</div>'}</div></div>
+    ${Object.entries(groups).map(([g, ts]) => {
+      const vis = ts.filter(t => !(t.kind === 'local' && !S.dev)); if (!vis.length) return '';
+      return `<div class="sect"><h2>${esc(g)}<span class="cnt">${vis.length}</span>
+        ${ts.some(t => t.kind === 'local') && S.dev ? '<span class="localtag">has a local copy</span>' : ''}</h2>
+        <div class="tiles">${vis.map(tile).join('')}</div></div>`; }).join('')}
+  </div>`;
+}
+const noteCard = n => `<button class="note" data-note="${n.id}" data-ctx="note" draggable="true">
+  <div class="nh"><span class="dot"></span><h4>${esc(n.title)}</h4></div>
+  <p>${esc(n.body).replace(/\n+/g, ' ').slice(0, 118)}${n.body.length > 118 ? '…' : ''}</p>
+  <span class="when" title="${stamp(n.at)}">${ico('clock')}${ago(n.at)}</span></button>`;
+const tile = t => `<button class="tile" data-tab="${t.id}" data-ctx="tab" draggable="true">
+  <span class="fav">${t.icon ? ico(t.icon) : t.fav}</span>
+  <span class="tt"><b>${esc(t.title)}</b><small>${esc(t.host)}</small></span>
+  <span class="marks">${t.pinned ? ico('pin') : ''}${t.locked ? ico('lock') : ''}</span>
+  ${t.kind === 'host' ? '<span class="kindtag">account</span>' : ''}</button>`;
+
+function notePage() {
+  const j = J(), n = j.notes.find(x => x.id === S.view.id) || j.notes[0];
+  if (!n) return '<div class="board"><div class="blank">No note.</div></div>';
+  return `<div class="notepage" style="--jc:${col(j).c}">
+    <div class="notepage-h"><button class="btn" data-act="backjar">${ico('back')}${esc(j.name)}</button>
+      <div class="sp"></div><span class="when">${stamp(n.at)}</span></div>
+    <input class="ntitle" id="ntitle" value="${esc(n.title)}" data-note="${n.id}" placeholder="Title">
+    <div class="nbody" id="nbody" contenteditable="plaintext-only" data-note="${n.id}" data-ph="Write it down. It stays in ${esc(j.name)}.">${esc(n.body)}</div></div>`;
+}
+function pageView() {
+  const j = J(), t = j.tabs.find(x => x.id === S.openTab);
+  return `<div class="board" style="--jc:${col(j).c};max-width:820px">
+    <div class="board-h">${jarSVG(j, 40)}<div><h1>${t ? esc(t.title) : 'Page'}</h1>
+      <div class="d">${t ? esc(t.host) : ''} · open in ${esc(j.name)}</div></div></div>
+    <p style="font-size:16px;line-height:1.72;color:var(--ink-2);max-width:64ch">The website renders here, with as much room as the window allows. The jar stays open behind it — notes are one panel away, and anything you keep lands in <b>${esc(j.name)}</b>.</p>
+    <p style="font-size:16px;line-height:1.72;color:var(--ink-3);max-width:64ch">Right-click this tab to pin it, lock it, give it a proper icon, or move it to another jar.</p></div>`;
+}
+function toolView(id) {
+  const z = ZEST[id], j = J();
+  return `<div class="board" style="--jc:${col(j).c};max-width:760px">
+    <div class="board-h"><span style="width:54px;height:54px;border-radius:16px;background:var(--relish-100);color:var(--relish-800);display:grid;place-items:center">
+      <svg style="width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:1.7"><use href="#${z.icon}"/></svg></span>
+      <div><h1>${z.name}</h1><div class="d">${z.role} · reading the Shepdesign brand</div></div></div>
+    <p style="font-size:16px;line-height:1.72;color:var(--ink-2);max-width:62ch">${z.name} opens here, inside the jar you're already in. Notes from <b>${esc(j.name)}</b> are one click from becoming a draft.</p>
+    <button class="btn primary" style="margin-top:12px">${ico('plus')}New in ${z.name}</button></div>`;
+}
+
+/* ═══ guide pages ═══ */
+const GUIDES = {
+  jars: {
+    sw: 'linear-gradient(180deg,#A9F12E,#5CB80F)', icon: 'jarplain', title: 'Jars',
+    sub: 'The one idea you have to learn. Everything else follows from it.',
+    html: `
+      <p>A <strong>jar is a project</strong>. It holds the tabs and the notes that go together, and nothing else. A client. A build you're working on. Things you mean to read. Open the jar and every tab comes back the way you left it.</p>
+      <div class="two">
+        <div class="gcard is"><h3>${ico('check')}What a jar is</h3><ul>
+          <li>A working context you return to</li>
+          <li>Tabs <em>and</em> notes in the same place</li>
+          <li>Named, colored and sized by you</li>
+          <li>Something you can finish and seal</li></ul></div>
+        <div class="gcard isnt"><h3>${ico('x')}What a jar isn't</h3><ul>
+          <li>A bookmarks folder — bookmarks don't reopen a working session</li>
+          <li>A pile — jars have a limit on purpose</li>
+          <li>Permanent — full jars are meant to be sealed</li>
+          <li>Shared by default — a jar belongs to one profile</li></ul></div>
+      </div>
+      <h2>The workflow</h2>
+      <div class="steps">
+        <div class="step"><span class="n">1</span><div><b>Make a jar for the thing you're doing</b>
+          <p>Not for a category. "Edith Head redesign" beats "Web work." Give it a color you'll recognise in the sidebar.</p></div></div>
+        <div class="step"><span class="n">2</span><div><b>Keep the tabs that belong to it</b>
+          <p>The live site, the hosting login, the staging copy, the docs page you keep going back to. Press <kbd>⌘D</kbd> or hit the bookmark in the search bar.</p></div></div>
+        <div class="step"><span class="n">3</span><div><b>Write the notes in the same place</b>
+          <p>Passwords go in a password manager. Everything else — the renewal date, what they asked for, what you're waiting on — goes in the jar. Type in the right panel and hit keep, or <kbd>⌘N</kbd> for a full page.</p></div></div>
+        <div class="step"><span class="n">4</span><div><b>Pin what you're always in. Lock what you can't lose.</b>
+          <p>Right-click a tab. Pinned shrinks it to an icon at the front. Locked removes its close button entirely.</p></div></div>
+        <div class="step"><span class="n">5</span><div><b>Watch it fill. Then seal it.</b>
+          <p>The jar fills with relish as you add. Full means the project has everything it needs — seal it and it keeps, exactly as it is. Or raise what it holds and carry on.</p></div></div>
+      </div>
+      <h2>Why the limit</h2>
+      <p>A jar that holds everything is a folder, and folders are where work goes to be forgotten. The limit is a nudge: when a jar fills, either the project is done or it's actually two projects. Both are useful to notice. You can change the number any time — right-click the jar, or use the panel.</p>
+      <h2>Moving things</h2>
+      <p>Drag a note onto another note to reorder. Drag a tab onto a jar in the sidebar to move it there. Drag jars to reorder the sidebar. Right-click anything — jar, tab or note — for rename, recolor, duplicate, move and archive. <strong>Archive never deletes</strong>, and every archive gives you an undo.</p>
+      <h2>The brine</h2>
+      <p>Tabs you stop using drift out of the strip and into the <strong>brine</strong> at the bottom of the window rather than disappearing. When the brine spots one that looks worth keeping, the button glows green. Open it, drag what you want into a jar, and leave the rest to expire.</p>`,
+  },
+  zest: {
+    sw: 'linear-gradient(180deg,#5CB80F,#3E6413)', icon: 'swatch', title: 'Zest',
+    sub: 'Four small tools that share one brand. They live in the sidebar, not in another app.',
+    html: `
+      <p><strong>Zest is a brand system you build once.</strong> Colors, type, spacing, logo. Every tool below reads from it, so what you make looks like the client rather than like a template — and when the brand changes, everything made from it can be regenerated.</p>
+      <h2>The line-up</h2>
+      <div class="steps">
+        <div class="step"><span class="n">1</span><div><b>Zest — make a brand</b>
+          <p>Pick colors and type properly: a real color engine, curated font pairings, contrast checked as you go. Export it as CSS, Tailwind, Figma variables or a WordPress <code>theme.json</code>. This is the source everything else copies.</p></div></div>
+        <div class="step"><span class="n">2</span><div><b>ZestMail — send something</b>
+          <p>Drag blocks, click any text to edit it in place, switch brand and the whole email re-skins. It writes email that survives Outlook, with your sending platform's merge tags already in the footer.</p></div></div>
+        <div class="step"><span class="n">3</span><div><b>Zest MD — write it properly</b>
+          <p>Turn a note into something you can hand over. Read Markdown typeset, export a self-contained document, or publish it to a link in the brand's own skin.</p></div></div>
+        <div class="step"><span class="n">4</span><div><b>ZestImage — make a picture</b>
+          <p>Header images, share cards and social tiles composed from your tokens — type, color, logo, structure. No prompts, no stock. One title renders every size, with the alt text and metadata written in.</p></div></div>
+      </div>
+      <h2>How it connects to your jars</h2>
+      <p>Whatever jar you're in, Zest is one click away in the sidebar — and it knows where it is. Notes from the open jar become a ZestMail draft or a Zest MD document without copying and pasting. Right-click any note and choose <strong>Send to Zest MD</strong>.</p>
+      <h2>The rule behind all of it</h2>
+      <p><strong>Zest composes; it doesn't generate.</strong> There's no model inventing pictures or copy behind your back. Where AI is offered it's optional, it says which model it used, and its output goes through the same checks as anything you paste. You review it. You own it.</p>
+      <h2>One brand, many clients</h2>
+      <p>Each client gets their own brand in Zest. Switch brands and every tool follows — the same email, the same document, the same header image, re-skinned in seconds. That's the whole reason the tools share a sidebar instead of being four separate apps.</p>`,
+  },
+};
+function guideView(id) {
+  const g = GUIDES[id] || GUIDES.jars;
+  return `<div class="guide">
+    <div class="gh"><span class="sw" style="background:${g.sw}">${ico(g.icon)}</span>
+      <div><h1>${g.title}</h1><p>${g.sub}</p></div></div>
+    ${g.html}
+    <div style="margin-top:36px;display:flex;gap:10px">
+      <button class="btn primary" data-act="backjar">${ico('back')}Back to ${esc(J().name)}</button>
+      <button class="btn" data-guide2="${id === 'jars' ? 'zest' : 'jars'}">${ico('arrow')}Read about ${id === 'jars' ? 'Zest' : 'Jars'}</button></div>
+  </div>`;
+}
+
+/* ═══ right panel — inspector, or Dev ═══ */
+function renderPanel() {
+  const p = $('#panel'), j = J(), c = col(j);
+  p.style.setProperty('--jc', c.c);
+  if (S.dev) { p.innerHTML = devPanel(); return; }
+  const quick = `<div class="sec"><p class="lab">Quick note</p>
+    <div class="qn" id="qn" contenteditable="plaintext-only" data-ph="Type here. It lands in ${esc(j.name)}."></div>
+    <button class="btn wide primary" id="qnSave">${ico('pen')}Keep in ${esc(j.name)}</button></div>`;
+  p.innerHTML = `
+    <div class="sec"><h3>${esc(j.name)}</h3><div class="sub">${j.notes.length} notes · ${j.tabs.length} tabs · ${Math.round(fill(j) * 100)}% full</div>
+      <button class="btn wide" data-act="newnote">${ico('pen')}New note</button></div>
+    <div class="sec"><p class="lab">Jar</p>
+      <div class="field"><label>Name</label><input type="text" id="jName" value="${esc(j.name)}"></div>
+      <div class="field"><label>Holds</label><input type="number" id="jCap" min="4" max="60" value="${j.cap}"></div>
+      <p class="lab" style="margin-top:14px">Color</p>
+      <div class="swatches">${Object.entries(COLORS).map(([k, v]) =>
+        `<button data-color="${k}" aria-pressed="${j.color === k}" title="${v.n}" style="background:linear-gradient(180deg,${v.c},${v.d})"></button>`).join('')}</div></div>
+    ${quick}
+    <div class="sec"><p class="lab">Recent notes</p>
+      ${j.notes.slice(0, 4).map(n => `<button class="minirow" data-note="${n.id}">
+        <span class="dot" style="background:${c.c}"></span><span>${esc(n.title)}</span><em>${ago(n.at)}</em></button>`).join('') || '<div class="sub" style="margin:0">None yet.</div>'}</div>
+    <div class="sec zest"><p class="lab">Send to Zest</p><div class="zsend">
+      ${Object.entries(ZEST).filter(([k]) => k !== 'zest').map(([k, z]) => `<button data-send="${k}" title="${z.name}">${ico(z.icon)}</button>`).join('')}</div></div>`;
+}
+
+function devPanel() {
+  const j = J();
+  const sites = S.sites.filter(s => s.jar === j.id);
+  const s = sites[0];
+  return `
+    <div class="devhead"><div class="t"><span class="d"></span>Dev · ${esc(j.name)}</div>
+      <p>${sites.length ? sites.length + ' local ' + (sites.length === 1 ? 'copy' : 'copies') + ' in this jar' : 'No local copies in this jar yet'}</p></div>
+    ${s ? `<div class="sec"><h3>${esc(s.name)}</h3><div class="sub">${s.domain} · live at ${s.live}</div>
+      <button class="btn wide primary" data-sact="toggle" data-id="${s.id}">${ico(s.run ? 'stop' : 'play')}${s.run ? 'Stop this site' : 'Start this site'}</button>
+      <button class="btn wide" data-sact="admin">${ico('wp')}Sign in to WordPress</button>
+      <div class="chips" style="margin-top:12px"><span class="chip ${s.run ? 'rel' : ''}">${s.run ? 'Running' : 'Stopped'}</span>
+        <span class="chip">WP ${s.wp}</span><span class="chip">PHP ${s.php}</span><span class="chip">${esc(s.host)}</span></div></div>` : ''}
+
+    <div class="sec"><p class="lab">Do something${'<span class="sp"></span>'}</p>
+      <div class="gallery">
+        <button class="gcell" data-sact="newlocal"><span class="i">${ico('rocket')}</span><b>New staging site</b><small>A fresh WordPress copy in this jar</small></button>
+        <button class="gcell" data-sact="clone"><span class="i">${ico('copy')}</span><b>Clone the live site</b><small>Pull ${s ? esc(s.live) : 'production'} down</small></button>
+        <button class="gcell" data-sact="backup"><span class="i">${ico('box')}</span><b>Back it up</b><small>Files and database, zipped</small></button>
+        <button class="gcell" data-sact="push"><span class="i">${ico('arrow')}</span><b>Copy to live</b><small>Asks before anything moves</small></button>
+        <button class="gcell" data-sact="mail"><span class="i">${ico('mail')}</span><b>Caught mail</b><small>2 waiting — nothing was sent</small></button>
+        <button class="gcell" data-sact="problems"><span class="i">${ico('alert')}</span><b>Problems</b><small>2 worth a look</small></button>
+      </div></div>
+
+    <div class="sec"><p class="lab">Plugins and tools</p>
+      ${S.plugins.map(p => `<div class="plug"><span class="pi">${ico('plug')}</span>
+        <span class="pn"><b>${p.n}</b><small>v${p.v} · ${p.s}</small></span>
+        <button class="btn sm" data-sact="zip" data-n="${p.n}">${ico('down')}ZIP</button></div>`).join('')}</div>
+
+    <div class="sec"><p class="lab">${ico('key')} Vault<span class="sp"></span><button class="btn sm" data-sact="addsecret">${ico('plus')}Add</button></p>
+      <div class="vaultlock">${ico('lock')}Kept in the macOS Keychain. Touch ID to reveal.</div>
+      ${S.vault.map((v, i) => `<div class="vault"><span class="vk">${esc(v.k)}</span><span class="vv" data-v="${i}">${esc(v.v)}</span>
+        <button data-sact="reveal" data-i="${i}" title="Reveal">${ico('eye')}</button>
+        <button data-sact="copysec" data-i="${i}" title="Copy">${ico('copy')}</button></div>`).join('')}</div>
+
+    <div class="sec zest" style="padding:16px 20px"><p class="lab" style="margin:0">Dev only shows what's in this jar. Switch jars and it follows.</p></div>`;
+}
+
+/* ═══ brine ═══ */
+function renderBrine() {
+  const hot = S.brine.filter(b => b.hot).length;
+  $('#bn').textContent = S.brine.length;
+  $('#brineBtn').classList.toggle('glow', hot > 0);
+  $('#brineBtn').title = hot ? `${hot} worth keeping` : 'Tabs that aged out';
+}
+function brineModal() {
+  const hot = S.brine.filter(b => b.hot).length;
+  $('#brineBody').innerHTML = `
+    <h3>Brine</h3>
+    <div class="sub">${S.brine.length} tabs drifted out of the strip. ${hot ? `<b style="color:var(--relish-600)">${hot} look worth keeping.</b>` : 'Nothing urgent.'} Drag one onto a jar, or use the buttons.</div>
+    ${S.brine.map(b => `<div class="brow ${b.hot ? 'hot' : ''}" data-brine="${b.id}" draggable="true">
+      <span class="f">${b.f}</span>
+      <span class="bt"><b>${esc(b.t)}</b><small>${esc(b.h)}</small></span>
+      ${b.hot ? '<span class="hint">worth keeping</span>' : ''}
+      <span class="jars">${S.jars.map(j => `<button data-bmove="${b.id}:${j.id}" title="Move to ${esc(j.name)}">${jarSVG(j, 17)}</button>`).join('')}</span>
+    </div>`).join('') || '<div class="blank">The brine is empty.</div>'}
+    <p style="font-size:12.5px;color:var(--ink-3);margin:16px 0 0">Anything left here expires in 14 days.</p>`;
+  $('#brine').showPopover();
+}
+
+/* ═══ context menu ═══ */
+const CTX = $('#ctx'); let ctxT = null;
+function menu(x, y, items) {
+  CTX.innerHTML = items.map(it => {
+    if (it === '-') return '<hr>';
+    if (it.colors) return `<div class="cl">Color</div><div class="cs">${Object.entries(COLORS).map(([k, v]) =>
+      `<button data-mcolor="${k}" aria-pressed="${it.current === k}" title="${v.n}" style="background:linear-gradient(180deg,${v.c},${v.d})"></button>`).join('')}</div>`;
+    if (it.icons) return `<div class="cl">Tab icon — favicon, logo or a letter</div><div class="icons">
+      ${ICONSET.map(n => `<button data-micon="${n}" title="${n}">${ico(n)}</button>`).join('')}
+      <button data-micon="" title="Back to the letter" style="font:600 12px var(--body)">${it.letter}</button></div>`;
+    return `<button data-mi="${it.id}" class="${it.danger ? 'danger' : ''}">${ico(it.icon)}${it.label}</button>`;
+  }).join('');
+  CTX.classList.add('show');
+  const r = CTX.getBoundingClientRect();
+  CTX.style.left = Math.min(x, innerWidth - r.width - 12) + 'px';
+  CTX.style.top = Math.min(y, innerHeight - r.height - 12) + 'px';
+}
+const closeMenu = () => CTX.classList.remove('show');
+document.addEventListener('contextmenu', e => {
+  const el = e.target.closest('[data-ctx]'); if (!el) return;
+  e.preventDefault(); const k = el.dataset.ctx;
+  if (k === 'jar') { const j = J(el.dataset.jar); ctxT = { k, id: j.id };
+    menu(e.clientX, e.clientY, [{ id: 'jrename', icon: 'pen', label: 'Rename jar' }, { colors: true, current: j.color }, '-',
+      { id: 'jopen', icon: 'arrow', label: 'Open all tabs' }, { id: 'jnote', icon: 'pen', label: 'New note here' },
+      { id: 'jcap', icon: 'box', label: 'Change how much it holds' }, '-',
+      { id: 'jseal', icon: 'lid', label: 'Seal jar' }, { id: 'jdup', icon: 'copy', label: 'Duplicate' },
+      { id: 'jguide', icon: 'info', label: 'What are jars?' }, '-',
+      { id: 'jarchive', icon: 'trash', label: 'Archive jar', danger: true }]);
+  } else if (k === 'tab') { const t = J().tabs.find(x => x.id === el.dataset.tab); if (!t) return; ctxT = { k, id: t.id };
+    menu(e.clientX, e.clientY, [{ id: 'tpin', icon: 'pin', label: t.pinned ? 'Unpin' : 'Pin to the front' },
+      { id: 'tlock', icon: t.locked ? 'unlock' : 'lock', label: t.locked ? 'Unlock' : 'Lock so it can’t close' },
+      { icons: true, letter: t.fav }, '-',
+      { id: 'tcopy', icon: 'copy', label: 'Copy link' }, { id: 'tnote', icon: 'pen', label: 'Write a note about this' }, '-',
+      ...S.jars.filter(x => x.id !== S.jar).slice(0, 3).map(x => ({ id: 'tmove:' + x.id, icon: 'jarplain', label: 'Move to ' + x.name })), '-',
+      { id: 'tclose', icon: 'x', label: t.locked ? 'Locked — unlock first' : 'Close tab', danger: !t.locked }]);
+  } else if (k === 'note') { const n = J().notes.find(x => x.id === el.dataset.note); if (!n) return; ctxT = { k, id: n.id };
+    menu(e.clientX, e.clientY, [{ id: 'nedit', icon: 'pen', label: 'Edit note' }, { id: 'nrename', icon: 'pen', label: 'Rename' },
+      { id: 'ndup', icon: 'copy', label: 'Duplicate' }, '-',
+      ...S.jars.filter(x => x.id !== S.jar).slice(0, 3).map(x => ({ id: 'nmove:' + x.id, icon: 'jarplain', label: 'Move to ' + x.name })), '-',
+      { id: 'nsend', icon: 'doc', label: 'Send to Zest MD' }, { id: 'narchive', icon: 'trash', label: 'Archive note', danger: true }]);
+  }
+});
+document.addEventListener('click', e => { if (!e.target.closest('#ctx')) closeMenu(); });
+document.addEventListener('scroll', closeMenu, true);
+CTX.addEventListener('click', e => {
+  const cl = e.target.closest('[data-mcolor]');
+  if (cl && ctxT?.k === 'jar') { J(ctxT.id).color = cl.dataset.mcolor; closeMenu(); setVars(); paint(all); return; }
+  const ic = e.target.closest('[data-micon]');
+  if (ic && ctxT?.k === 'tab') { const t = J().tabs.find(x => x.id === ctxT.id); t.icon = ic.dataset.micon || null; closeMenu(); paint(all); toast('Icon set'); return; }
+  const b = e.target.closest('[data-mi]'); if (!b) return;
+  const id = b.dataset.mi; closeMenu();
+  const j = J(), t = ctxT?.k === 'tab' ? j.tabs.find(x => x.id === ctxT.id) : null, n = ctxT?.k === 'note' ? j.notes.find(x => x.id === ctxT.id) : null;
+  const A = {
+    jrename: () => { const v = prompt('Jar name', J(ctxT.id).name); if (v) { J(ctxT.id).name = v; paint(all); } },
+    jcap: () => { const v = prompt('How many things should it hold?', J(ctxT.id).cap); if (v) { J(ctxT.id).cap = Math.max(4, +v || 12); paint(all); } },
+    jopen: () => toast(`${J(ctxT.id).tabs.length} tabs opened`),
+    jnote: () => { S.jar = ctxT.id; newNote(); },
+    jseal: () => sealJar(ctxT.id),
+    jguide: () => go({ kind: 'guide', id: 'jars' }),
+    jdup: () => { const o = J(ctxT.id); S.jars.push({ ...o, id: 'j' + uid(), name: o.name + ' copy', notes: [...o.notes], tabs: [...o.tabs] }); paint(all); },
+    jarchive: () => { const o = J(ctxT.id); S.jars = S.jars.filter(x => x.id !== o.id); if (S.jar === o.id) S.jar = S.jars[0].id; setVars(); paint(all); toast(`${o.name} archived`, () => { S.jars.push(o); paint(all); }); },
+    tpin: () => { t.pinned = !t.pinned; paint(all); },
+    tlock: () => { t.locked = !t.locked; paint(all); toast(t.locked ? 'Locked' : 'Unlocked'); },
+    tcopy: () => toast('Link copied'),
+    tnote: () => { j.notes.unshift({ id: 'n' + uid(), title: t.title, body: t.host + '\n\n', at: Date.now() }); paint(all); toast('Note started'); },
+    tclose: () => { if (t.locked) return toast('That tab is locked'); j.tabs = j.tabs.filter(x => x.id !== t.id); paint(all); },
+    nedit: () => openNote(n.id),
+    nrename: () => { const v = prompt('Note title', n.title); if (v) { n.title = v; n.at = Date.now(); paint(all); } },
+    ndup: () => { j.notes.unshift({ ...n, id: 'n' + uid(), title: n.title + ' copy', at: Date.now() }); paint(all); },
+    nsend: () => { go({ kind: 'tool', id: 'zestmd' }); toast('Opened in Zest MD'); },
+    narchive: () => { j.notes = j.notes.filter(x => x.id !== n.id); paint(all); toast('Archived', () => { j.notes.unshift(n); paint(all); }); },
+  };
+  if (A[id]) return A[id]();
+  if (id?.startsWith('tmove:')) { const to = J(id.split(':')[1]); j.tabs = j.tabs.filter(x => x.id !== t.id); to.tabs.push(t); paint(all); toast(`Moved to ${to.name}`); }
+  if (id?.startsWith('nmove:')) { const to = J(id.split(':')[1]); j.notes = j.notes.filter(x => x.id !== n.id); to.notes.unshift(n); paint(all); toast(`Moved to ${to.name}`); }
+});
+
+/* ═══ drag ═══ */
+let drag = null;
+document.addEventListener('dragstart', e => {
+  const n = e.target.closest('.note'), t = e.target.closest('[data-tab]'), j = e.target.closest('.jarrow'), b = e.target.closest('[data-brine]');
+  if (b) drag = { k: 'brine', id: b.dataset.brine };
+  else if (n) drag = { k: 'note', id: n.dataset.note };
+  else if (t) drag = { k: 'tab', id: t.dataset.tab };
+  else if (j) drag = { k: 'jar', id: j.dataset.jar };
+  if (drag) { e.target.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; }
+});
+document.addEventListener('dragend', () => { drag = null; $$('.dragging,.dragover').forEach(x => x.classList.remove('dragging', 'dragover')); });
+document.addEventListener('dragover', e => {
+  if (!drag) return; const o = e.target.closest('.note,.jarrow,.tab,.tile');
+  $$('.dragover').forEach(x => x.classList.remove('dragover')); if (!o) return;
+  const ok = (drag.k === 'note' && o.classList.contains('note')) || (drag.k === 'jar' && o.classList.contains('jarrow'))
+    || (drag.k === 'brine' && o.classList.contains('jarrow'))
+    || (drag.k === 'tab' && (o.classList.contains('jarrow') || o.classList.contains('tab') || o.classList.contains('tile')));
+  if (ok) { e.preventDefault(); o.classList.add('dragover'); }
+});
+document.addEventListener('drop', e => {
+  if (!drag) return; const o = e.target.closest('.note,.jarrow,.tab,.tile'); if (!o) return;
+  e.preventDefault(); const j = J();
+  if (drag.k === 'brine' && o.classList.contains('jarrow')) {
+    const b = S.brine.find(x => x.id === drag.id), to = J(o.dataset.jar);
+    S.brine = S.brine.filter(x => x.id !== drag.id);
+    to.tabs.push({ id: 't' + uid(), title: b.t, host: b.h, fav: b.f, kind: 'live' });
+    try { $('#brine').hidePopover(); } catch {}
+    paint(all); renderBrine(); toast(`Moved to ${to.name}`);
+  } else if (drag.k === 'note' && o.classList.contains('note')) {
+    const f = j.notes.findIndex(x => x.id === drag.id), t = j.notes.findIndex(x => x.id === o.dataset.note);
+    if (f > -1 && t > -1) { const [m] = j.notes.splice(f, 1); j.notes.splice(t, 0, m); paint(all); }
+  } else if (drag.k === 'tab' && o.classList.contains('jarrow')) {
+    const to = J(o.dataset.jar); if (to.id === j.id) return;
+    const i = j.tabs.findIndex(x => x.id === drag.id); if (i < 0) return;
+    const [m] = j.tabs.splice(i, 1); to.tabs.push(m); paint(all); toast(`Moved to ${to.name}`);
+  } else if (drag.k === 'tab') {
+    const f = j.tabs.findIndex(x => x.id === drag.id), t = j.tabs.findIndex(x => x.id === o.dataset.tab);
+    if (f > -1 && t > -1) { const [m] = j.tabs.splice(f, 1); j.tabs.splice(t, 0, m); paint(all); }
+  } else if (drag.k === 'jar') {
+    const f = S.jars.findIndex(x => x.id === drag.id), t = S.jars.findIndex(x => x.id === o.dataset.jar);
+    if (f > -1 && t > -1) { const [m] = S.jars.splice(f, 1); S.jars.splice(t, 0, m); paint(all); }
+  }
+  drag = null;
+});
+
+/* ═══ actions ═══ */
+const all = () => { setVars(); renderShelf(); renderTabs(); renderBench(); renderPanel(); };
+const go = v => paint(() => { S.view = v; all(); });
+const openJar = id => { S.jar = id; S.openTab = null; setVars(); go({ kind: 'jar' }); };
+const openNote = id => go({ kind: 'note', id });
+function openTab(id) { const t = J().tabs.find(x => x.id === id); if (!t) return; S.openTab = id; $('#url').value = t.host + '/'; go({ kind: 'page', id }); }
+function newNote() {
+  const j = J(), n = { id: 'n' + uid(), title: 'Untitled note', body: '', at: Date.now() };
+  j.notes.unshift(n); paint(() => { S.view = { kind: 'note', id: n.id }; all(); });
+  setTimeout(() => { const el = $('#ntitle'); if (el) { el.focus(); el.select(); } }, 70);
+}
+const sealJar = id => { toast(`${J(id).name} sealed — nothing changes until you open it again`);
+  $(`[data-jar="${id}"]`)?.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.06)' }, { transform: 'scale(1)' }], { duration: 420, easing: 'cubic-bezier(.32,.72,0,1)' }); };
+function setDev(on) { S.dev = on; $('#win').dataset.dev = on; $('#tDev').setAttribute('aria-pressed', on);
+  paint(all); toast(on ? 'Dev on — the right panel is your workbench' : 'Dev off'); }
+let tT;
+function toast(m, undo) {
+  const t = $('#toast'); $('#tt').innerHTML = esc(m) + (undo ? ' <button style="color:var(--relish-600);font-weight:600;margin-left:6px" id="undo">Undo</button>' : '');
+  t.classList.add('show'); clearTimeout(tT); tT = setTimeout(() => t.classList.remove('show'), undo ? 6000 : 2600);
+  if (undo) $('#undo').onclick = () => { t.classList.remove('show'); undo(); };
+}
+
+/* ═══ events ═══ */
+$('#shelf').addEventListener('click', e => {
+  if (e.target.closest('#newJar')) { e.stopPropagation(); const n = { id: 'j' + uid(), name: 'New jar', color: 'teal', cap: 12, notes: [], tabs: [] };
+    S.jars.push(n); openJar(n.id); toast('Jar made — right-click to rename it'); return; }
+  const g = e.target.closest('[data-guide]'); if (g) return go({ kind: 'guide', id: g.dataset.guide });
+  const j = e.target.closest('[data-jar]'); if (j) return openJar(j.dataset.jar);
+  const t = e.target.closest('[data-tool]'); if (t) return go({ kind: 'tool', id: t.dataset.tool });
+});
+$('#tabs').addEventListener('click', e => {
+  const x = e.target.closest('[data-close]'); if (x) { const j = J(); j.tabs = j.tabs.filter(t => t.id !== x.dataset.close); paint(all); return; }
+  const t = e.target.closest('[data-tab]'); if (t) return openTab(t.dataset.tab);
+  if (e.target.closest('#jarChip')) return go({ kind: 'jar' });
+  if (e.target.closest('#newTab')) toast('New tab');
+});
+$('#bench').addEventListener('click', e => {
+  const g2 = e.target.closest('[data-guide2]'); if (g2) return go({ kind: 'guide', id: g2.dataset.guide2 });
+  const n = e.target.closest('.note'); if (n) return openNote(n.dataset.note);
+  const t = e.target.closest('.tile'); if (t) return openTab(t.dataset.tab);
+  const a = e.target.closest('[data-act]'); if (!a) return;
+  ({ newnote: newNote, backjar: () => go({ kind: 'jar' }), openall: () => toast(`${J().tabs.length} tabs opened`),
+     sealjar: () => sealJar(S.jar) }[a.dataset.act] || (() => {}))();
+});
+$('#bench').addEventListener('input', e => {
+  const j = J();
+  const ti = e.target.closest('#ntitle'); if (ti) { const n = j.notes.find(x => x.id === ti.dataset.note); if (n) { n.title = ti.value; n.at = Date.now(); } }
+  const bo = e.target.closest('#nbody'); if (bo) { const n = j.notes.find(x => x.id === bo.dataset.note); if (n) { n.body = bo.innerText; n.at = Date.now(); } }
+});
+$('#panel').addEventListener('click', e => {
+  const n = e.target.closest('[data-note]'); if (n) return openNote(n.dataset.note);
+  const cl = e.target.closest('[data-color]'); if (cl) { J().color = cl.dataset.color; setVars(); paint(all); return; }
+  const snd = e.target.closest('[data-send]'); if (snd) return go({ kind: 'tool', id: snd.dataset.send });
+  if (e.target.closest('#qnSave')) { const el = $('#qn'), tx = el.innerText.trim(); if (!tx) return el.focus();
+    J().notes.unshift({ id: 'n' + uid(), title: tx.split('\n')[0].slice(0, 42) || 'Note', body: tx, at: Date.now() });
+    el.innerHTML = ''; paint(all); toast(`Kept in ${J().name}`); return; }
+  const a = e.target.closest('[data-act]'); if (a && a.dataset.act === 'newnote') return newNote();
+  const s = e.target.closest('[data-sact]'); if (!s) return;
+  const act = s.dataset.sact;
+  if (act === 'toggle') { const si = SITE(s.dataset.id); si.run = !si.run; paint(all); toast(`${si.name} ${si.run ? 'started' : 'stopped'}`); return; }
+  if (act === 'reveal') { const i = +s.dataset.i, el = $(`[data-v="${i}"]`); el.textContent = S.vault[i].m ? 'revealed-for-30s' : S.vault[i].v; toast('Revealed for 30 seconds'); setTimeout(() => { el.textContent = S.vault[i].v; }, 4000); return; }
+  if (act === 'copysec') return toast('Copied — clipboard clears in 30 seconds');
+  if (act === 'zip') return toast(`${s.dataset.n} ZIP downloading`);
+  ({ newlocal: 'A new staging site would be created in this jar', clone: 'Pulling the live site down', backup: 'Backup started',
+     push: 'Nothing moved — this asks first', mail: '2 caught messages', problems: '2 problems worth a look',
+     admin: 'Signing you in', addsecret: 'Add a secret to the vault' }[act] && toast({ newlocal: 'A new staging site would be created in this jar',
+     clone: 'Pulling the live site down', backup: 'Backup started', push: 'Nothing moved — this asks first', mail: '2 caught messages',
+     problems: '2 problems worth a look', admin: 'Signing you in', addsecret: 'Add a secret to the vault' }[act]));
+});
+$('#panel').addEventListener('input', e => {
+  if (e.target.id === 'jName') { J().name = e.target.value; renderShelf(); renderTabs(); }
+  if (e.target.id === 'jCap') { J().cap = Math.max(4, +e.target.value || 12); renderShelf(); renderBench(); }
+});
+$('#tDev').addEventListener('click', () => setDev(!S.dev));
+$('#bKeep').addEventListener('click', () => toast(`Kept in ${J().name}`));
+$('#bTheme').addEventListener('click', () => paint(() => { const r = document.documentElement; r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : 'dark'; }));
+$('#bPal').addEventListener('click', () => openPal());
+$('#cogBtn').innerHTML = MARK;
+$('#cogBtn').addEventListener('click', () => go({ kind: 'guide', id: 'jars' }));
+$('#brineBtn').addEventListener('click', brineModal);
+$('#brineBody').addEventListener('click', e => {
+  const m = e.target.closest('[data-bmove]'); if (!m) return;
+  const [bid, jid] = m.dataset.bmove.split(':'), b = S.brine.find(x => x.id === bid), to = J(jid);
+  S.brine = S.brine.filter(x => x.id !== bid);
+  to.tabs.push({ id: 't' + uid(), title: b.t, host: b.h, fav: b.f, kind: 'live' });
+  brineModal(); renderBrine(); paint(all); toast(`Moved to ${to.name}`);
+});
+$('#obGo').addEventListener('click', () => $('#ob').hidePopover());
+$('#bProf').addEventListener('click', () => { renderProfile(); $('#prof').showPopover(); });
+
+/* ═══ profile ═══ */
+function renderProfile() {
+  const p = S.profiles.find(x => x.id === S.profile);
+  $('#profBody').innerHTML = `
+    <div class="applerow">${ico('apple')}<div><b style="display:block;font-size:13.5px;color:var(--ink)">Signed in with Apple</b>${esc(p.sub)}</div></div>
+    <div class="avedit"><span class="big" id="avBig">${p.img ? `<img src="${p.img}">` : esc(p.av)}<span class="ch">Change</span></span>
+      <div style="flex:1">
+        <div class="field" style="margin-bottom:7px"><label>Name</label><input type="text" id="pName" value="${esc(p.name)}"></div>
+        <div class="field" style="margin:0"><label>Email</label><input type="text" id="pMail" value="${esc(p.sub)}"></div></div></div>
+    <p class="lab">Workbenches${p.pro ? '<span class="sp"></span><span class="protag">PRO</span>' : ''}</p>
+    ${S.profiles.map(x => `<button class="pcard" data-prof="${x.id}" aria-current="${x.id === S.profile}">
+      <span class="av">${x.av}</span><span style="flex:1"><b>${esc(x.name)}</b><small>${esc(x.sub)}</small></span></button>`).join('')}
+    <button class="pcard" data-prof="new"><span class="av">+</span><span><b>Add a workbench</b><small>Its own jars, tabs and notes</small></span>
+      <span class="protag">PRO</span></button>`;
+}
+$('#profBody').addEventListener('click', e => {
+  if (e.target.closest('#avBig')) return toast('Pick a photo, or use your Apple ID picture');
+  const b = e.target.closest('[data-prof]'); if (!b) return;
+  if (b.dataset.prof === 'new') { $('#prof').hidePopover(); return toast('More workbenches are a Pro feature'); }
+  S.profile = b.dataset.prof; const p = S.profiles.find(x => x.id === S.profile);
+  $('#bProf').textContent = p.av; $('#prof').hidePopover(); toast(`Switched to ${p.name}`);
+});
+$('#profBody').addEventListener('input', e => {
+  const p = S.profiles.find(x => x.id === S.profile);
+  if (e.target.id === 'pName') { p.name = e.target.value; p.av = e.target.value.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'; $('#bProf').textContent = p.av; }
+  if (e.target.id === 'pMail') p.sub = e.target.value;
+});
+
+/* ═══ palette ═══ */
+const CMDS = () => [
+  ...S.jars.map((j, n) => ({ c: 'Jars', l: `Open ${j.name}`, i: 'jarplain', k: `⌘${n + 1}`, r: () => openJar(j.id) })),
+  { c: 'Learn', l: 'What are jars?', i: 'info', k: '', r: () => go({ kind: 'guide', id: 'jars' }) },
+  { c: 'Learn', l: 'What is Zest?', i: 'info', k: '', r: () => go({ kind: 'guide', id: 'zest' }) },
+  { c: 'Notes', l: 'New note here', i: 'pen', k: '⌘N', r: newNote },
+  ...J().notes.slice(0, 3).map(n => ({ c: 'Notes', l: n.title, i: 'pen', k: '', r: () => openNote(n.id) })),
+  ...Object.entries(ZEST).map(([k, z]) => ({ c: 'Zest', l: `${z.name} — ${z.role}`, i: z.icon, k: '', r: () => go({ kind: 'tool', id: k }) })),
+  { c: 'Dev', l: S.dev ? 'Turn Dev off' : 'Turn Dev on', i: 'gauge', k: '⌘⇧D', r: () => setDev(!S.dev) },
+  { c: 'Dev', l: 'Open the vault', i: 'key', k: '', r: () => { setDev(true); } },
+  { c: 'View', l: 'Open the brine', i: 'drop', k: '', r: brineModal },
+  { c: 'View', l: 'Switch appearance', i: 'sun', k: '', r: () => { const r = document.documentElement; r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : 'dark'; } },
+];
+let pIdx = 0, pL = [];
+const openPal = () => { $('#pal').showPopover(); $('#pq').value = ''; filt(''); $('#pq').focus(); };
+function filt(q) {
+  pL = q ? CMDS().filter(c => (c.l + c.c).toLowerCase().includes(q.toLowerCase())) : CMDS();
+  pIdx = 0; let h = '', cat = '';
+  pL.forEach((c, i) => { if (c.c !== cat) { cat = c.c; h += `<div class="cat">${cat}</div>`; }
+    h += `<li data-i="${i}" aria-selected="${i === 0}">${ico(c.i)}<span>${esc(c.l)}</span><span class="k">${c.k}</span></li>`; });
+  $('#pl').innerHTML = h || '<div class="cat">Nothing matches</div>';
+}
+const mv = d => { if (!pL.length) return; pIdx = (pIdx + d + pL.length) % pL.length;
+  $$('#pl li').forEach(l => l.setAttribute('aria-selected', +l.dataset.i === pIdx)); $(`#pl li[data-i="${pIdx}"]`)?.scrollIntoView({ block: 'nearest' }); };
+$('#pq').addEventListener('input', e => filt(e.target.value));
+$('#pl').addEventListener('click', e => { const li = e.target.closest('li'); if (!li) return; $('#pal').hidePopover(); pL[+li.dataset.i].r(); });
+
+document.addEventListener('keydown', e => {
+  const mod = e.metaKey || e.ctrlKey;
+  if ($('#pal').matches(':popover-open')) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); return mv(1); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); return mv(-1); }
+    if (e.key === 'Enter') { e.preventDefault(); const c = pL[pIdx]; $('#pal').hidePopover(); c?.r(); return; }
+    return;
+  }
+  if (e.key === 'Escape') closeMenu();
+  if (e.target.isContentEditable || e.target.matches('input')) return;
+  if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); return openPal(); }
+  if (mod && e.key.toLowerCase() === 'n') { e.preventDefault(); return newNote(); }
+  if (mod && e.shiftKey && e.key.toLowerCase() === 'd') { e.preventDefault(); return setDev(!S.dev); }
+  if (mod && /^[1-9]$/.test(e.key)) { const j = S.jars[+e.key - 1]; if (j) { e.preventDefault(); openJar(j.id); } return; }
+  if (e.key === '?') { e.preventDefault(); go({ kind: 'guide', id: 'jars' }); }
+});
+
+const tick = () => $('#clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+tick(); setInterval(tick, 30000);
+setVars(); all(); renderBrine();
+setTimeout(() => { try { $('#ob').showPopover(); } catch {} }, 400);
+})();
+
+</script>
+</body>
+</html>

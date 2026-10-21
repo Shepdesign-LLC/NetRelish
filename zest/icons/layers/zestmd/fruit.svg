@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512">
+<title>Zest MD</title>
+<defs>
+  <linearGradient id="limebg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#132A12"/><stop offset="1" stop-color="#070F06"/></linearGradient>
+  <radialGradient id="limeglow" cx="0.5" cy="0.45" r="0.55"><stop offset="0" stop-color="#6FD13C" stop-opacity="0.32"/><stop offset="1" stop-color="#6FD13C" stop-opacity="0"/></radialGradient>
+  <linearGradient id="limesteel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#CBD2DA"/><stop offset="1" stop-color="#848D99"/></linearGradient>
+  <linearGradient id="limesteelDk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#59626D"/><stop offset="1" stop-color="#39404A"/></linearGradient>
+  <linearGradient id="limepeel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8FE04A"/><stop offset="1" stop-color="#3FAA2A"/></linearGradient>
+  <linearGradient id="limepeelSide" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3FAA2A"/><stop offset="1" stop-color="#8FE04A"/></linearGradient>
+  <radialGradient id="limeflesh" cx="0.5" cy="0.5" r="0.6"><stop offset="0" stop-color="#D8F7A8"/><stop offset="1" stop-color="#8FDD55"/></radialGradient>
+  <linearGradient id="limegloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.7"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
+  <linearGradient id="limejuice" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6FD13C"/><stop offset="1" stop-color="#3FAA2A"/></linearGradient>
+  <filter id="limesh" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="2.2" stdDeviation="2" flood-color="#000" flood-opacity="0.45"/></filter>
+  <filter id="limesoft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.2"/></filter>
+</defs>
+<g id="layer-fruit">
+    <g transform="translate(70 68) rotate(0) scale(1.0) translate(-70 -68)" filter="url(#limesh)">
+    <path d="M70.0,68.0 L89.3,73.2 A20,20 0 0 1 50.7,73.2 Z" fill="url(#limepeel)"/>
+    <path d="M70.0,68.0 L84.8,72.5 A15.5,15.5 0 0 1 55.2,72.5 Z" fill="#F1FBE0"/>
+    <path d="M70.0,68.0 L81.3,71.9 A12,12 0 0 1 58.7,71.9 Z" fill="url(#limeflesh)"/>
+    <line x1="70.0" y1="68.0" x2="76.7" y2="76.7" stroke="#F1FBE0" stroke-opacity="0.85" stroke-width="1.6" stroke-linecap="round"/><line x1="70.0" y1="68.0" x2="70.0" y2="79.0" stroke="#F1FBE0" stroke-opacity="0.85" stroke-width="1.6" stroke-linecap="round"/><line x1="70.0" y1="68.0" x2="63.3" y2="76.7" stroke="#F1FBE0" stroke-opacity="0.85" stroke-width="1.6" stroke-linecap="round"/>
+    <ellipse cx="70.0" cy="74.0" rx="5.6" ry="2.8" transform="rotate(0.0 70.0 74.0)" fill="url(#limegloss)"/>
+  </g>
+    <g filter="url(#limesh)">
+    <path d="M84,44 C90,50 86,60 78,58 C72,56 74,48 80,50" fill="none" stroke="url(#limepeelSide)" stroke-width="5" stroke-linecap="round"/>
+    <path d="M84,44 C90,50 86,60 78,58 C72,56 74,48 80,50" fill="none" stroke="#F1FBE0" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.95" transform="translate(0 1.4)"/>
+    <path d="M84,44 C90,50 86,60 78,58 C72,56 74,48 80,50" fill="none" stroke="#FFFFFF" stroke-width="0.8" stroke-linecap="round" stroke-opacity="0.6" transform="translate(0 -1.5)"/>
+  </g>
+    <g transform="translate(20 84) rotate(20)"><rect x="-1.2800000000000002" y="-0.7200000000000001" width="2.5600000000000005" height="1.4400000000000002" rx="0.7200000000000001" fill="url(#limepeelSide)"/><rect x="-1.2800000000000002" y="-0.7200000000000001" width="2.5600000000000005" height="0.5599999999999999" rx="0.27999999999999997" fill="#fff" fill-opacity="0.45"/></g><g transform="translate(26 88) rotate(-30)"><rect x="-0.96" y="-0.54" width="1.92" height="1.08" rx="0.54" fill="url(#limepeelSide)"/><rect x="-0.96" y="-0.54" width="1.92" height="0.42" rx="0.21" fill="#fff" fill-opacity="0.45"/></g><g transform="translate(34 86) rotate(45)"><rect x="-1.1199999999999999" y="-0.63" width="2.2399999999999998" height="1.26" rx="0.63" fill="url(#limepeelSide)"/><rect x="-1.1199999999999999" y="-0.63" width="2.2399999999999998" height="0.48999999999999994" rx="0.24499999999999997" fill="#fff" fill-opacity="0.45"/></g><g transform="translate(86 90) rotate(10)"><rect x="-1.1199999999999999" y="-0.63" width="2.2399999999999998" height="1.26" rx="0.63" fill="url(#limepeelSide)"/><rect x="-1.1199999999999999" y="-0.63" width="2.2399999999999998" height="0.48999999999999994" rx="0.24499999999999997" fill="#fff" fill-opacity="0.45"/></g><g transform="translate(90 84) rotate(-50)"><rect x="-0.96" y="-0.54" width="1.92" height="1.08" rx="0.54" fill="url(#limepeelSide)"/><rect x="-0.96" y="-0.54" width="1.92" height="0.42" rx="0.21" fill="#fff" fill-opacity="0.45"/></g>
+    <path d="M61.4,86 C61.4,90.0 60.8,94 64,94 C67.2,94 66.6,90.0 66.6,86 Z" fill="url(#limejuice)"/><ellipse cx="63.2" cy="89.6" rx="0.7" ry="2.24" fill="#fff" fill-opacity="0.5"/><path d="M73.4,86 C73.4,89.0 72.8,92 76,92 C79.2,92 78.6,89.0 78.6,86 Z" fill="url(#limejuice)"/><ellipse cx="75.2" cy="88.7" rx="0.7" ry="1.6800000000000002" fill="#fff" fill-opacity="0.5"/>
+  </g>
+
+</svg>

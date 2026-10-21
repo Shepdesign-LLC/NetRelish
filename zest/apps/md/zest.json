@@ -1,0 +1,12 @@
+{
+  "id": "md",
+  "name": "Zest MD",
+  "version": "1.0.0",
+  "tagline": "Markdown reader, exporter, publisher",
+  "entry": "https://zest.netrelish.com/md/index.html",
+  "icon": "https://zest.netrelish.com/md/icons/icon-512.png",
+  "fileTypes": [".md", ".markdown", ".mdx", ".txt"],
+  "capabilities": ["open", "save", "clipboard", "license", "network"],
+  "minShell": "1.0.0",
+  "changelog": "https://zest.netrelish.com/md/changelog"
+}

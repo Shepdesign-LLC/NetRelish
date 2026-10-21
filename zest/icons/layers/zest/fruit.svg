@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512">
+<title>Zest — studio</title>
+<defs>
+  <linearGradient id="lemonbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2A2610"/><stop offset="1" stop-color="#100E06"/></linearGradient>
+  <radialGradient id="lemonglow" cx="0.5" cy="0.45" r="0.55"><stop offset="0" stop-color="#FFD21F" stop-opacity="0.32"/><stop offset="1" stop-color="#FFD21F" stop-opacity="0"/></radialGradient>
+  <linearGradient id="lemonsteel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#CBD2DA"/><stop offset="1" stop-color="#848D99"/></linearGradient>
+  <linearGradient id="lemonsteelDk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#59626D"/><stop offset="1" stop-color="#39404A"/></linearGradient>
+  <linearGradient id="lemonpeel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE45C"/><stop offset="1" stop-color="#F5B800"/></linearGradient>
+  <linearGradient id="lemonpeelSide" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#F5B800"/><stop offset="1" stop-color="#FFE45C"/></linearGradient>
+  <radialGradient id="lemonflesh" cx="0.5" cy="0.5" r="0.6"><stop offset="0" stop-color="#FFF6B0"/><stop offset="1" stop-color="#FFD84A"/></radialGradient>
+  <linearGradient id="lemongloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.7"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
+  <linearGradient id="lemonjuice" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFCF2E"/><stop offset="1" stop-color="#F5B800"/></linearGradient>
+  <filter id="lemonsh" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="2.2" stdDeviation="2" flood-color="#000" flood-opacity="0.45"/></filter>
+  <filter id="lemonsoft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.2"/></filter>
+</defs>
+<g id="layer-fruit">
+    <g transform="translate(50 42) rotate(0) scale(1.0) translate(-50 -42)" filter="url(#lemonsh)">
+    <path d="M50.0,42.0 L76.0,52.5 A28,28 0 0 1 24.0,52.5 Z" fill="url(#lemonpeel)"/>
+    <path d="M50.0,42.0 L71.5,51.6 A23.5,23.5 0 0 1 28.5,51.6 Z" fill="#FFF9DC"/>
+    <path d="M50.0,42.0 L68.0,50.8 A20,20 0 0 1 32.0,50.8 Z" fill="url(#lemonflesh)"/>
+    <line x1="50.0" y1="42.0" x2="60.6" y2="57.8" stroke="#FFF9DC" stroke-opacity="0.85" stroke-width="1.6" stroke-linecap="round"/><line x1="50.0" y1="42.0" x2="50.0" y2="61.0" stroke="#FFF9DC" stroke-opacity="0.85" stroke-width="1.6" stroke-linecap="round"/><line x1="50.0" y1="42.0" x2="39.4" y2="57.8" stroke="#FFF9DC" stroke-opacity="0.85" stroke-width="1.6" stroke-linecap="round"/>
+    <ellipse cx="50.0" cy="56.0" rx="7.8" ry="3.9" transform="rotate(0.0 50.0 56.0)" fill="url(#lemongloss)"/>
+  </g>
+    <g filter="url(#lemonsh)">
+    <path d="M20,78 C16,68 26,60 34,66 C42,72 34,84 26,80 C20,77 24,70 30,72" fill="none" stroke="url(#lemonpeelSide)" stroke-width="5" stroke-linecap="round"/>
+    <path d="M20,78 C16,68 26,60 34,66 C42,72 34,84 26,80 C20,77 24,70 30,72" fill="none" stroke="#FFF9DC" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.95" transform="translate(0 1.4)"/>
+    <path d="M20,78 C16,68 26,60 34,66 C42,72 34,84 26,80 C20,77 24,70 30,72" fill="none" stroke="#FFFFFF" stroke-width="0.8" stroke-linecap="round" stroke-opacity="0.6" transform="translate(0 -1.5)"/>
+  </g>
+    <g transform="translate(72 72) rotate(20)"><rect x="-1.6" y="-0.9" width="3.2" height="1.8" rx="0.9" fill="url(#lemonpeelSide)"/><rect x="-1.6" y="-0.9" width="3.2" height="0.7" rx="0.35" fill="#fff" fill-opacity="0.45"/></g><g transform="translate(78 66) rotate(-30)"><rect x="-1.2800000000000002" y="-0.7200000000000001" width="2.5600000000000005" height="1.4400000000000002" rx="0.7200000000000001" fill="url(#lemonpeelSide)"/><rect x="-1.2800000000000002" y="-0.7200000000000001" width="2.5600000000000005" height="0.5599999999999999" rx="0.27999999999999997" fill="#fff" fill-opacity="0.45"/></g><g transform="translate(70 80) rotate(60)"><rect x="-1.1199999999999999" y="-0.63" width="2.2399999999999998" height="1.26" rx="0.63" fill="url(#lemonpeelSide)"/><rect x="-1.1199999999999999" y="-0.63" width="2.2399999999999998" height="0.48999999999999994" rx="0.24499999999999997" fill="#fff" fill-opacity="0.45"/></g><g transform="translate(80 78) rotate(10)"><rect x="-1.4400000000000002" y="-0.81" width="2.8800000000000003" height="1.62" rx="0.81" fill="url(#lemonpeelSide)"/><rect x="-1.4400000000000002" y="-0.81" width="2.8800000000000003" height="0.63" rx="0.315" fill="#fff" fill-opacity="0.45"/></g><g transform="translate(66 70) rotate(-60)"><rect x="-0.96" y="-0.54" width="1.92" height="1.08" rx="0.54" fill="url(#lemonpeelSide)"/><rect x="-0.96" y="-0.54" width="1.92" height="0.42" rx="0.21" fill="#fff" fill-opacity="0.45"/></g>
+    <path d="M47.4,70 C47.4,74.0 46.8,78 50,78 C53.2,78 52.6,74.0 52.6,70 Z" fill="url(#lemonjuice)"/><ellipse cx="49.2" cy="73.6" rx="0.7" ry="2.24" fill="#fff" fill-opacity="0.5"/>
+  </g>
+
+</svg>
