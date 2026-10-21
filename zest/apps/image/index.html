@@ -110,7 +110,7 @@ header a:hover{color:var(--ink)}
 .pro svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.9;flex:none}
 .pro em{font-style:normal;margin-left:auto;font:600 9.5px var(--mono);letter-spacing:.07em;color:var(--acc);opacity:.8}
 
-.drop{border:1.5px dashed var(--line);border-radius:var(--r);padding:12px;text-align:center;font-size:12px;color:var(--ink-3);transition:all var(--t)}
+.drop{display:block;width:100%;border:1.5px dashed var(--line);border-radius:var(--r);padding:12px;text-align:center;font-size:12px;color:var(--ink-3);transition:all var(--t);cursor:pointer}
 .drop:hover,.drop.over{border-color:var(--acc);color:var(--ink-2)}
 .thumb{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:var(--r);border:1px solid var(--line-2);background:var(--pane);margin-top:8px}
 .thumb img{width:38px;height:38px;object-fit:cover;border-radius:7px}
@@ -160,7 +160,7 @@ footer .sp{flex:1}
     </div>
     <div class="sec">
       <p class="lab">Logo</p>
-      <div class="drop" id="dLogo">Drop an SVG or PNG, or click</div>
+      <button type="button" class="drop" id="dLogo">Drop an SVG or PNG, or click</button>
       <input type="file" id="fLogo" accept="image/svg+xml,image/png" hidden>
       <div class="thumb" id="tLogo" hidden><img alt=""><span></span><button title="Remove"><svg><use href="#i-x"/></svg></button></div>
       <p class="hint">Stays on this machine. Layouts fall back to the brand name without it.</p>
@@ -182,7 +182,7 @@ footer .sp{flex:1}
     </div>
     <div class="sec">
       <p class="lab">Photo</p>
-      <div class="drop" id="dPhoto">Your photo — dropped here, cropped and tinted to the palette. Never invented.</div>
+      <button type="button" class="drop" id="dPhoto">Your photo — dropped here, cropped and tinted to the palette. Never invented.</button>
       <input type="file" id="fPhoto" accept="image/*" hidden>
       <div class="thumb" id="tPhoto" hidden><img alt=""><span></span><button title="Remove"><svg><use href="#i-x"/></svg></button></div>
       <div class="field" id="tintRow" hidden style="margin-top:8px"><label for="cTint">Tint toward the palette — <b id="tintVal">35%</b></label><input type="range" id="cTint" min="0" max="100" value="35"></div>
@@ -263,6 +263,25 @@ const slug = s => String(s || '').toLowerCase().replace(/['’]/g, '').replace(/
 let tT; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tT); tT = setTimeout(() => t.classList.remove('show'), 3200); };
 
 /* ---------- bundled sample brands (zest-brand.json shape, spec §7.3) ---------- */
+/* Brands are untrusted input (imports and localStorage survive tampering).
+   Every brand is forced through this before use: hex-only palette, letters-
+   only font names, clamped numbers. Layouts never see a raw imported string. */
+const HEX = /^#[0-9a-fA-F]{3,8}$/;
+const safeColor = (v, d) => HEX.test(String(v ?? '').trim()) ? String(v).trim() : d;
+const safeFont = v => { v = String(v ?? '').trim(); return /^[A-Za-z0-9 '\-]{1,48}$/.test(v) && !v.includes("''") ? v.replace(/'/g, '') : ''; };
+function sanitizeBrand(b) {
+  b = b && typeof b === 'object' ? b : {};
+  const pal = (q, fall) => { q = q && typeof q === 'object' ? q : {}; const out = {};
+    for (const k of ['primary', 'ink', 'muted', 'paper', 'sheet', 'line', 'dark']) out[k] = safeColor(q[k], (fall && fall[k]) || '#888888');
+    return out; };
+  const light = pal(b.light), f = b.fonts && typeof b.fonts === 'object' ? b.fonts : {};
+  return { zest: 1, name: String(b.name || 'Untitled').slice(0, 48),
+    fonts: { head: safeFont(f.head), body: safeFont(f.body), mono: safeFont(f.mono) },
+    light, dark: pal(b.dark, light),
+    radius: Math.max(0, Math.min(40, +b.radius || 8)),
+    type: { base: Math.max(8, Math.min(32, +(b.type && b.type.base) || 16)), ratio: Math.max(1, Math.min(2, +(b.type && b.type.ratio) || 1.25)) } };
+}
+
 const SAMPLES = [
   { zest: 1, name: 'Shepdesign',
     fonts: { head: 'Bricolage Grotesque', body: 'Geist', mono: 'Geist Mono' },
@@ -293,7 +312,7 @@ const TARGETS = [
 const store = { get(k, d) { try { const v = localStorage.getItem('zestimage:' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
                 set(k, v) { try { localStorage.setItem('zestimage:' + k, JSON.stringify(v)); } catch {} } };
 const S = {
-  brands: store.get('brands', []),       // user-imported, free cap 3
+  brands: store.get('brands', []).map(sanitizeBrand),   // user-imported, free cap 3; re-sanitized on restore
   brandIdx: store.get('brandIdx', 0),    // index into SAMPLES ++ user brands
   mode: store.get('mode', 'light'),
   layout: store.get('layout', 'title'),
@@ -326,9 +345,10 @@ async function loadFamily(family, axes) {
   try {
     const url = `https://fonts.googleapis.com/css2?family=${famParam(family)}${axes || ':wght@400;600;800'}&display=swap`;
     const css = await (await fetch(url, { mode: 'cors' })).text();
-    const faces = css.match(/@font-face\s*{[^}]+}/g) || [];
+    const faces = css.match(/(?:\/\*\s*[a-z0-9-]+\s*\*\/\s*)?@font-face\s*{[^}]+}/g) || [];
     for (const face of faces) {
-      if (!/latin(?!-ext)/.test(face) && faces.length > 4) continue;   // keep latin subsets only
+      // keep latin subsets only — by Google's subset comment, or the latin unicode-range when comments are absent
+      if (faces.length > 4 && !/\/\*\s*latin\s*\*\//.test(face) && !face.includes('U+0000-00FF')) continue;
       const src = face.match(/url\((https:[^)]+\.woff2)\)/);
       if (!src) continue;
       const buf = await (await fetch(src[1], { mode: 'cors' })).arrayBuffer();
@@ -360,7 +380,15 @@ const fam = (b, k) => { const f = (b.fonts || {})[k]; return f && (fontCache.get
 const mctx = document.createElement('canvas').getContext('2d');
 function wrap(text, font, size, weight, maxW, maxLines) {
   mctx.font = `${weight} ${size}px ${font}`;
-  const words = String(text || '').split(/\s+/).filter(Boolean), lines = [];
+  const fitsW = t => mctx.measureText(t).width <= maxW;
+  const words = [];
+  for (const w of String(text || '').split(/\s+/).filter(Boolean)) {
+    if (fitsW(w)) { words.push(w); continue; }
+    let cur = '';                       // a word wider than the column (URL, CJK run) breaks by characters
+    for (const ch of w) { if (cur && !fitsW(cur + ch)) { words.push(cur); cur = ch; } else cur += ch; }
+    if (cur) words.push(cur);
+  }
+  const lines = [];
   let line = '';
   for (const w of words) {
     const t = line ? line + ' ' + w : w;
@@ -383,7 +411,7 @@ const tspans = (lines, x, y, lh, size) => lines.map((l, i) => `<tspan x="${x}" y
 
 /* ---------- shared pieces ---------- */
 const photoDefs = (ph, tint, primary, W, H, id) => ph ? `
-  <filter id="tint${id}"><feColorMatrix type="saturate" values="${(1 - tint * 0.6).toFixed(2)}"/></filter>
+  <filter id="tint${id}"><feColorMatrix type="saturate" values="${(1 - (tint / 100) * 0.6).toFixed(2)}"/></filter>
   <clipPath id="pc${id}"><rect x="0" y="0" width="${W}" height="${H}"/></clipPath>` : '';
 const photoAt = (ph, tint, primary, x, y, w, h, id) => ph ? `
   <g clip-path="url(#pc${id})"><g transform="translate(${x} ${y})">
@@ -434,6 +462,7 @@ const LAYOUTS = {
   }},
   scrim: { n: 'Photo + scrim', d: 'Title over your photo', fn(b, t, c, W, H, ph, id) {
     const M = W * 0.07, u = Math.min(W, H);
+    const fg = S.mode === 'dark' ? t.ink : t.paper;    // dark palette: paper IS the dark bg — use its foreground
     const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, W - M * 2, H * 0.34, u * 0.12, u * 0.045, 1.08);
     const block = ti.lines.length * ti.size * 1.08;
     const base = ph ? photoAt(ph, S.tint, t.primary, 0, 0, W, H, id) : `<rect width="${W}" height="${H}" fill="${t.dark}"/>`;
@@ -441,7 +470,7 @@ const LAYOUTS = {
       <linearGradient id="sc${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.dark}" stop-opacity="0"/><stop offset="1" stop-color="${t.dark}" stop-opacity=".92"/></linearGradient>
       <rect y="${H * 0.38}" width="${W}" height="${H * 0.62}" fill="url(#sc${id})"/>
       ${c.kicker ? `<text x="${M}" y="${H - M - block - u * 0.035}" font-family="${fam(b, 'mono')}" font-size="${u * 0.028}" letter-spacing="${u * 0.004}" fill="${t.primary}">${esc(c.kicker.toUpperCase())}</text>` : ''}
-      <text font-family="${fam(b, 'head')}" font-weight="800" font-size="${ti.size}" fill="${t.paper}" letter-spacing="${-ti.size * 0.02}">${tspans(ti.lines, M, H - M - block + ti.size * 0.86, 1.08, ti.size)}</text>
+      <text font-family="${fam(b, 'head')}" font-weight="800" font-size="${ti.size}" fill="${fg}" letter-spacing="${-ti.size * 0.02}">${tspans(ti.lines, M, H - M - block + ti.size * 0.86, 1.08, ti.size)}</text>
       ${logoAt(S.logo, M, M, u * 0.06) || brandLine(b, t, M, M + u * 0.03, u * 0.026)}`;
   }},
   stat: { n: 'Stat card', d: 'One big number', fn(b, t, c, W, H) {
@@ -535,6 +564,7 @@ function renderChoosers() {
   $('#targetGrid').innerHTML = TARGETS.map(t =>
     `<button class="tchip" data-t="${t.id}" aria-pressed="${t.id === S.target}">${t.n}${t.w ? `<small>${t.w}×${t.h}</small>` : ''}</button>`).join('');
   $('#customRow').hidden = S.target !== 'custom';
+  $('#cw').value = S.custom.w; $('#ch').value = S.custom.h;
 }
 const save = () => { store.set('brands', S.brands); store.set('brandIdx', S.brandIdx); store.set('mode', S.mode); store.set('layout', S.layout); store.set('target', S.target); store.set('custom', S.custom); };
 
@@ -559,6 +589,10 @@ async function exportImage() {
   if (ext() === 'webp' && !canWebp()) { toast('This browser cannot encode WebP — exporting PNG instead.'); $('#eFmt').value = 'png'; }
   const { w, h } = dims(), k = scale(), fmt = ext() === 'webp' ? 'image/webp' : 'image/png';
   const svg = compose(w, h);
+  // Snapshot everything editable BEFORE the awaits — switching controls mid-export must not mislabel the file
+  const name = filename();
+  const rec = { file: name, target: S.target, width: w * k, height: h * k, format: ext(), layout: S.layout,
+    alt, brand: brand().name, mode: S.mode, tint: S.photo ? S.tint : null, content: content() };
   const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
   try {
     const img = new Image();
@@ -568,9 +602,8 @@ async function exportImage() {
     cv.getContext('2d').drawImage(img, 0, 0, w * k, h * k);
     const blob = await new Promise(res => cv.toBlob(res, fmt, 0.92));
     if (!blob) throw new Error('Encoding failed');
-    const name = filename();
     download(name, blob);
-    S.exports.push({ file: name, target: S.target, width: w * k, height: h * k, format: ext(), layout: S.layout, alt, brand: brand().name, mode: S.mode });
+    S.exports.push(rec);
     render();
     toast(`${name} — alt text and manifest are one click away.`);
   } catch (err) { toast(PRODUCT + ': ' + err.message); }
@@ -581,7 +614,7 @@ const ogSnippet = () => { const { w, h } = dims(), k = scale(), alt = esc($('#cA
 
 /* ---------- events ---------- */
 $('#left').addEventListener('input', () => { render(); });
-$('#cAlt').addEventListener('input', () => { S.altTouched = $('#cAlt').value.trim() !== ''; });
+$('#cAlt').addEventListener('input', () => { S.altTouched = true; });   // clearing it is an edit too — never silently refill
 $('#cTint').addEventListener('input', e => { S.tint = +e.target.value; $('#tintVal').textContent = S.tint + '%'; render(); });
 $('#brandList').addEventListener('click', async e => {
   const b = e.target.closest('[data-i]'); if (!b) return;
@@ -598,9 +631,10 @@ async function importBrand(file) {
     const b = JSON.parse(await file.text());
     if (b.zest !== 1 || !b.name || !b.light) throw new Error('Not a zest-brand.json — export one from the Zest studio');
     if (S.brands.length >= FREE_BRANDS) { toast(`Free holds ${FREE_BRANDS} saved brands — unlimited brands arrive with Pro.`); return; }
-    S.brands.push(b); S.brandIdx = SAMPLES.length + S.brands.length - 1; save();
-    renderBrands(); render(); toast(`${b.name} imported.`);
-    await loadBrandFonts(b); render();
+    const clean = sanitizeBrand(b);
+    S.brands.push(clean); S.brandIdx = SAMPLES.length + S.brands.length - 1; save();
+    renderBrands(); render(); toast(`${clean.name} imported.`);
+    await loadBrandFonts(clean); render();
   } catch (err) { toast(err.message); }
 }
 function pickFile(drop, input, handler) {
@@ -608,18 +642,21 @@ function pickFile(drop, input, handler) {
   input.addEventListener('change', e => { handler(e.target.files[0]); input.value = ''; });
 }
 function readAsDataURL(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
-pickFile($('#dLogo'), $('#fLogo'), async f => { if (!f) return; S.logo = await readAsDataURL(f); S.logoName = f.name;
-  $('#tLogo').hidden = false; $('#tLogo img').src = S.logo; $('#tLogo span').textContent = f.name; render(); });
+async function setLogo(f) { if (!f) return; S.logo = await readAsDataURL(f); S.logoName = f.name;
+  $('#tLogo').hidden = false; $('#tLogo img').src = S.logo; $('#tLogo span').textContent = f.name; render(); }
+async function setPhoto(f) { if (!f) return; S.photo = await readAsDataURL(f); S.photoName = f.name;
+  $('#tPhoto').hidden = false; $('#tPhoto img').src = S.photo; $('#tPhoto span').textContent = f.name; $('#tintRow').hidden = false; render(); }
+pickFile($('#dLogo'), $('#fLogo'), setLogo);
 $('#tLogo button').addEventListener('click', () => { S.logo = null; $('#tLogo').hidden = true; render(); });
-pickFile($('#dPhoto'), $('#fPhoto'), async f => { if (!f) return; S.photo = await readAsDataURL(f); S.photoName = f.name;
-  $('#tPhoto').hidden = false; $('#tPhoto img').src = S.photo; $('#tPhoto span').textContent = f.name; $('#tintRow').hidden = false; render(); });
+pickFile($('#dPhoto'), $('#fPhoto'), setPhoto);
 $('#tPhoto button').addEventListener('click', () => { S.photo = null; $('#tPhoto').hidden = true; $('#tintRow').hidden = true; render(); });
 document.addEventListener('dragover', e => { e.preventDefault(); });
 document.addEventListener('drop', async e => {
   e.preventDefault(); const f = e.dataTransfer.files[0]; if (!f) return;
   if (/json$/i.test(f.name)) return importBrand(f);
-  if (/^image\//.test(f.type)) { S.photo = await readAsDataURL(f); S.photoName = f.name;
-    $('#tPhoto').hidden = false; $('#tPhoto img').src = S.photo; $('#tPhoto span').textContent = f.name; $('#tintRow').hidden = false; render(); }
+  if (!/^image\//.test(f.type)) return;
+  if (e.target.closest && e.target.closest('#dLogo')) return setLogo(f);   // a drop on the Logo area is a logo
+  setPhoto(f);
 });
 $('#layoutGrid').addEventListener('click', e => { const b = e.target.closest('[data-l]'); if (!b) return; S.layout = b.dataset.l; save(); renderChoosers(); render(); });
 $('#targetGrid').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; S.target = b.dataset.t; save(); renderChoosers(); render(); });
@@ -634,7 +671,10 @@ $('#bManifest').addEventListener('click', () => {
   const m = { zest: 1, tool: 'image', brand: brand().name, generator: PRODUCT, exports: S.exports };
   download(`${slug(brand().name)}-zest-image.json`, new Blob([JSON.stringify(m, null, 2)], { type: 'application/json' }));
   toast(S.exports.length ? 'Manifest saved — regenerate the whole set from it after a rebrand.' : 'Manifest saved — it fills as you export.'); });
-$('#bOg').addEventListener('click', async () => { try { await navigator.clipboard.writeText(ogSnippet()); toast('OG meta copied — paste it into the page head.'); } catch { toast('Clipboard said no — select and copy from the console instead.'); } });
+$('#bOg').addEventListener('click', async () => { const snip = ogSnippet();
+  try { await navigator.clipboard.writeText(snip); toast('OG meta copied — paste it into the page head.'); }
+  catch { download(filename().replace(/\.(png|webp)$/, '') + '.og.txt', new Blob([snip], { type: 'text/plain' }));
+    toast('Clipboard access was blocked — the snippet saved as a file instead.'); } });
 $$('.pro').forEach(p => p.addEventListener('click', () =>
   toast('Pro arrives with Zest accounts — everything local stays free. zest.netrelish.com has the plan.')));
 document.addEventListener('keydown', e => {
