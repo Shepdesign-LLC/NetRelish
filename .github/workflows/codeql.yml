@@ -1,6 +1,11 @@
 name: CodeQL
 
-# ⚠️ THIS JOB IS CURRENTLY EXPECTED TO FAIL. Do not re-diagnose it from scratch.
+# Earlier tracer failures and their measured outcomes are documented below.
+#
+# The 2026-10-21 rerun (38167700541, attempt 2) exposed a separate launch failure:
+# `/usr/bin/arch -arm64 /bin/bash` selected macOS's arm64e system Bash, but the
+# CodeQL tracer only has arm64 and x86_64 slices. dyld therefore aborted before
+# the traced build started. Install and use Homebrew Bash's arm64 slice instead.
 #
 # ONE failure with a knock-on, though it read as two for a while. Read out of
 # the job logs of runs 36092189970 (932b589), 36092546432 (6682385) and
@@ -261,6 +266,9 @@ jobs:
       - name: Disable SwiftPM's manifest sandbox (see comment — trade-off)
         run: defaults write com.apple.dt.Xcode IDEPackageSupportDisableManifestSandbox -bool YES
 
+      - name: Install arm64-compatible Bash for the traced build
+        run: brew install bash
+
       - uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         id: init
         with:
@@ -307,9 +315,10 @@ jobs:
           fi
 
           # /usr/bin/arch drops DYLD_* across the architecture transition. Carry
-          # the tracer path in a non-DYLD variable and restore it in the arm64 shell.
+          # the tracer path in a non-DYLD variable and restore it in Homebrew Bash;
+          # unlike /bin/bash, its arm64 slice can load CodeQL's tracer library.
           NETRELISH_CODEQL_TRACE_LIBRARIES="$DYLD_INSERT_LIBRARIES" \
-            /usr/bin/arch -arm64 /bin/bash -c '
+            /usr/bin/arch -arm64 /opt/homebrew/bin/bash -c '
               set -euo pipefail
               export DYLD_INSERT_LIBRARIES="$NETRELISH_CODEQL_TRACE_LIBRARIES"
               architecture="$(uname -m)"
