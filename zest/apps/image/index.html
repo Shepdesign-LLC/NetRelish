@@ -7,6 +7,9 @@
 <meta name="description" content="Branded featured images — blog heroes, OG cards, social tiles — composed from your brand tokens. No prompts, no stock. Runs in your browser; images never leave this machine.">
 <meta name="theme-color" content="#120607">
 <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-title" content="ZestImage">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,800&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" crossorigin="anonymous">
 <style>
@@ -16,7 +19,7 @@
   --pane:#1a0e0f; --pane-2:#221314; --pane-3:#2a1719;
   --ink:#f2ecea; --ink-2:#a89a97; --ink-3:#6b5c5a;
   --line:#352023; --line-2:#2a181a;
-  --ok:#8FE04A; --warn:#E0A020;
+  --ok:#7FD6C6; --warn:#F2B56B;
   --display:'Bricolage Grotesque',system-ui,sans-serif; --body:'Geist',system-ui,-apple-system,sans-serif; --mono:'Geist Mono',ui-monospace,Menlo,monospace;
   --r:10px; --r-lg:14px; --ease:cubic-bezier(.32,.72,0,1); --t:180ms;
 }
@@ -236,6 +239,7 @@ footer .sp{flex:1}
       <button class="pro" data-pro="svg"><svg><use href="#i-lock"/></svg>SVG export — edit it later in Figma<em>PRO</em></button>
       <button class="pro" data-pro="xmp"><svg><use href="#i-lock"/></svg>Write XMP/EXIF into the file<em>PRO</em></button>
       <button class="pro" data-pro="s3"><svg><use href="#i-lock"/></svg>Upload — get a pasteable URL<em>PRO</em></button>
+      <button class="pro" data-pro="regen"><svg><use href="#i-lock"/></svg>Regenerate the set from a new brand version<em>PRO</em></button>
       <button class="pro" data-pro="series"><svg><use href="#i-lock"/></svg>Series — one design, twelve titles<em>PRO</em></button>
       <p class="hint">Pro arrives with Zest accounts. The local core stays free — that is the point.</p>
     </div>
@@ -459,7 +463,7 @@ const LAYOUTS = {
       ${c.byline ? `<text x="${M}" y="${y0 + block + u * 0.015}" font-family="${fam(b, 'mono')}" font-size="${u * 0.03}" letter-spacing="${u * 0.003}" fill="${t.muted}">— ${esc(c.byline.toUpperCase())}</text>` : ''}
       ${brandLine(b, t, W - M, H - M * 0.7, u * 0.025, 'end')}`;
   }},
-  series: { n: 'Series', d: 'Part N of M', fn(b, t, c, W, H) {
+  series: { n: 'Numbered series', d: 'Part N of M', fn(b, t, c, W, H) {
     const M = W * 0.08, u = Math.min(W, H);
     const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, W * 0.72 - M, H * 0.46, u * 0.13, u * 0.05, 1.1);
     const block = ti.lines.length * ti.size * 1.1, y0 = (H - block) / 2 + ti.size * 0.9;
@@ -576,7 +580,7 @@ $('#brandList').addEventListener('click', async e => {
 $('#mLight').addEventListener('click', () => { S.mode = 'light'; save(); renderBrands(); render(); });
 $('#mDark').addEventListener('click', () => { S.mode = 'dark'; save(); renderBrands(); render(); });
 $('#bImport').addEventListener('click', () => $('#fBrand').click());
-$('#fBrand').addEventListener('change', e => importBrand(e.target.files[0]));
+$('#fBrand').addEventListener('change', e => { importBrand(e.target.files[0]); e.target.value = ''; });
 async function importBrand(file) {
   if (!file) return;
   try {
@@ -590,7 +594,7 @@ async function importBrand(file) {
 }
 function pickFile(drop, input, handler) {
   drop.addEventListener('click', () => input.click());
-  input.addEventListener('change', e => handler(e.target.files[0]));
+  input.addEventListener('change', e => { handler(e.target.files[0]); input.value = ''; });
 }
 function readAsDataURL(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
 pickFile($('#dLogo'), $('#fLogo'), async f => { if (!f) return; S.logo = await readAsDataURL(f); S.logoName = f.name;
@@ -629,6 +633,9 @@ document.addEventListener('keydown', e => {
 /* ---------- boot ---------- */
 renderBrands(); renderChoosers(); render();
 loadBrandFonts(brand()).then(render);
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
 })();
 </script>
 </body>
