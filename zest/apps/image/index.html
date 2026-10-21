@@ -539,7 +539,18 @@ function renderChoosers() {
 const save = () => { store.set('brands', S.brands); store.set('brandIdx', S.brandIdx); store.set('mode', S.mode); store.set('layout', S.layout); store.set('target', S.target); store.set('custom', S.custom); };
 
 /* ---------- export ---------- */
-const download = (name, blob) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); };
+/* Saving feature-detects the host (spec §6.3 — one file, every surface):
+   the claude.ai viewer mediates saves through its downloads capability;
+   everywhere else the plain anchor works. */
+let hostSave = null;
+if (window.claude && window.claude.use) claude.use('downloads').then(d => { hostSave = d; }).catch(() => {});
+async function download(name, blob) {
+  if (hostSave) {
+    try { await hostSave.save({ filename: name, data: blob }); return; }
+    catch (e) { if (e && e.code === 'declined') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
 let webpOK = null;
 function canWebp() { if (webpOK !== null) return webpOK; const c = document.createElement('canvas'); c.width = c.height = 2; webpOK = c.toDataURL('image/webp').startsWith('data:image/webp'); return webpOK; }
 async function exportImage() {
