@@ -1073,8 +1073,7 @@ function newNote() {
   setTimeout(() => { const el = $('#ntitle'); if (el) { el.focus(); el.select(); } }, 70);
 }
 /* adding to a jar: a drop falls inside the glyph, then the level rises.
-   NOTE Brand Lock v1.1 says one drip (the Seal) — this second one is Ryan's
-   direction from the 2026-10-21 prototype pass; see docs/design/README.md. */
+   Brand Lock v1.2: two drips — the Seal (relish) and this one (jar tint). */
 function dripInto(id, oldPct) {
   if (reduce) return;
   requestAnimationFrame(() => requestAnimationFrame(() => {

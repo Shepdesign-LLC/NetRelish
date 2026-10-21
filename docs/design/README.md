@@ -32,10 +32,9 @@ kit, which is not copy.
 **Decision taken from this pass (2026-10-21, Ryan):** adding to a jar plays
 a drip — a drop falls inside the jar glyph and the liquid rises to the new
 level (shelf row, tab-bar chip and board header; respects reduced motion).
-⚠️ This is a second drip: Brand Lock v1.1 says "One drip in the app: the
-Seal animation. Nowhere else." Ryan directed this one in the prototype
-review; `DESIGN_MANIFEST.md` stays unamended until he confirms the rule
-change (e.g. "two drips: Seal, and the jar-fill on add").
+Ryan confirmed the rule change the same day: Brand Lock is now **v1.2** —
+two drips, the Seal (relish) and the jar fill on add (the jar's tint).
+`DESIGN_MANIFEST.md` carries the amendment and the changelog line.
 
 **Decision taken from this pass (2026-10-21, Ryan):** notes take Markdown,
 not rich text — the ZestMail text-block grammar exactly (`**bold**`,
