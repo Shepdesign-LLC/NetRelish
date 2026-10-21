@@ -29,6 +29,14 @@ Privacy copy check (per the banned lines below): both files were grepped for
 banned copy — the only string match is the hex colour `#E2ECC2` in the design
 kit, which is not copy.
 
+**Decision taken from this pass (2026-10-21, Ryan):** notes take Markdown,
+not rich text — the ZestMail text-block grammar exactly (`**bold**`,
+`*italic*`, `` `code` ``, `[link](url)`, blank line = paragraph; MAIL-PRESS.md
+§2.2). Plain-text storage, so "Send to Zest MD" is lossless and one grammar
+serves the whole line. The workstation prototype implements it: note pages
+render the Markdown and switch to the raw source on click; links are
+http(s)-only and open in a new tab.
+
 ## What these mocks are
 
 The **destination**, not a sprint. `Workstation Desktop` alone spans P5

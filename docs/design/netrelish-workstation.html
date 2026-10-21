@@ -212,7 +212,14 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .notepage-h .sp{flex:1}
 .notepage-h .when{font-size:13px;color:var(--ink-3)}
 .ntitle{width:100%;border:0;background:none;outline:0;font:600 32px var(--display);letter-spacing:-.025em;color:var(--ink);margin-bottom:12px}
-.nbody{min-height:48vh;outline:0;font-size:16.5px;line-height:1.75;white-space:pre-wrap}
+.nbody{min-height:48vh;outline:0;font-size:16.5px;line-height:1.75}
+.nbody[data-mode="edit"]{white-space:pre-wrap}
+.nbody p{margin:0 0 14px}
+.nbody a{color:var(--relish-800);font-weight:500;text-decoration-thickness:1px;text-underline-offset:2.5px}
+.nbody a:hover{text-decoration-thickness:2px}
+.nbody code{font:.86em var(--mono);background:var(--pane-2);border:1px solid var(--line-2);padding:1px 5px;border-radius:6px}
+.mdhint{font-size:12px;color:var(--ink-3);margin:12px 0 0}
+.mdhint code{font:11px var(--mono);background:var(--pane-2);padding:1px 5px;border-radius:5px}
 .nbody:empty::before,.qn:empty::before{content:attr(data-ph);color:var(--ink-3)}
 
 /* guide pages */
@@ -532,6 +539,20 @@ kbd{font:12px var(--mono);background:var(--pane-2);border:1px solid var(--line);
 'use strict';
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+/* Notes take the ZestMail text-block grammar: **bold**, *italic*, [link](url), `code`.
+   Escape first, then wrap — pasted HTML stays dead, links allow http(s) only. */
+const md = s => {
+  const codes = [];
+  return esc(s)
+    .replace(/`([^`\n]+)`/g, (_, c) => (codes.push(c), '\u0000' + (codes.length - 1) + '\u0000'))
+    .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
+    .replace(/\*([^*\n]+)\*/g, '<i>$1</i>')
+    .replace(/\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/\u0000(\d+)\u0000/g, (_, i) => `<code>${codes[+i]}</code>`);
+};
+const mdBlocks = s => s.split(/\n{2,}/).map(p => `<p>${md(p).replace(/\n/g, '<br>')}</p>`).join('');
+const mdStrip = s => s.replace(/\*\*([^*\n]+)\*\*/g, '$1').replace(/\*([^*\n]+)\*/g, '$1')
+  .replace(/`([^`\n]+)`/g, '$1').replace(/\[([^\]\n]+)\]\([^)]*\)/g, '$1');
 const uid = () => Math.random().toString(36).slice(2, 8);
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const paint = fn => (document.startViewTransition && !reduce) ? document.startViewTransition(fn) : fn();
@@ -585,7 +606,7 @@ const S = {
   jars: [
     { id: 'clients', name: 'Clients', color: 'relish', cap: 14,
       notes: [
-        { id: 'n1', title: 'Edith Head', body: 'Renewal is Nov 3 — SiteGround, card on file is the Amex. She wants the events page split in two before then.\n\nLogin lives in 1Password, not here.', at: now - 26 * HR },
+        { id: 'n1', title: 'Edith Head', body: 'Renewal is **Nov 3** — SiteGround, card on file is the Amex. She wants the events page split in two before then.\n\nLogin lives in 1Password, not here.', at: now - 26 * HR },
         { id: 'n2', title: 'Miller Outdoor', body: 'NDA still unsigned. The map plugin is done but do not ship until Allan sends it back.\n\nHe prefers a phone call to email.', at: now - 3 * DAY },
         { id: 'n3', title: 'GDP — seasonal kits', body: 'Winter set due mid-November. Reuse the autumn train, change the palette only.', at: now - 6 * DAY }],
       tabs: [
@@ -602,7 +623,7 @@ const S = {
              { id: 't9', title: 'Zoho Mail', host: 'mail.zoho.com', fav: 'Z', icon: 'mail', kind: 'host' },
              { id: 't10', title: 'Stripe', host: 'dashboard.stripe.com', fav: 'S', kind: 'host', locked: true }] },
     { id: 'zestbuild', name: 'Zest build', color: 'violet', cap: 10,
-      notes: [{ id: 'n5', title: 'Before launch', body: 'Pick a price. Decide on lifetime licenses. Trademark check on the names.', at: now - 40 * MIN }],
+      notes: [{ id: 'n5', title: 'Before launch', body: 'Pick a price. Decide on lifetime licenses. Trademark check — start at [USPTO TESS](https://tmsearch.uspto.gov).', at: now - 40 * MIN }],
       tabs: [{ id: 't11', title: 'Vercel', host: 'vercel.com', fav: 'V', kind: 'host' },
              { id: 't12', title: 'Supabase', host: 'supabase.com', fav: 'S', kind: 'host' },
              { id: 't13', title: 'Local copy', host: 'zest.local', fav: 'Z', icon: 'wp', kind: 'local', site: 'zestsite' }] },
@@ -704,10 +725,11 @@ function board() {
         <div class="tiles">${vis.map(tile).join('')}</div></div>`; }).join('')}
   </div>`;
 }
-const noteCard = n => `<button class="note" data-note="${n.id}" data-ctx="note" draggable="true">
+const noteCard = n => { const prev = mdStrip(n.body).replace(/\n+/g, ' ');
+  return `<button class="note" data-note="${n.id}" data-ctx="note" draggable="true">
   <div class="nh"><span class="dot"></span><h4>${esc(n.title)}</h4></div>
-  <p>${esc(n.body).replace(/\n+/g, ' ').slice(0, 118)}${n.body.length > 118 ? '…' : ''}</p>
-  <span class="when" title="${stamp(n.at)}">${ico('clock')}${ago(n.at)}</span></button>`;
+  <p>${esc(prev.slice(0, 118))}${prev.length > 118 ? '…' : ''}</p>
+  <span class="when" title="${stamp(n.at)}">${ico('clock')}${ago(n.at)}</span></button>`; };
 const tile = t => `<button class="tile" data-tab="${t.id}" data-ctx="tab" draggable="true">
   <span class="fav">${t.icon ? ico(t.icon) : t.fav}</span>
   <span class="tt"><b>${esc(t.title)}</b><small>${esc(t.host)}</small></span>
@@ -721,7 +743,8 @@ function notePage() {
     <div class="notepage-h"><button class="btn" data-act="backjar">${ico('back')}${esc(j.name)}</button>
       <div class="sp"></div><span class="when">${stamp(n.at)}</span></div>
     <input class="ntitle" id="ntitle" value="${esc(n.title)}" data-note="${n.id}" placeholder="Title">
-    <div class="nbody" id="nbody" contenteditable="plaintext-only" data-note="${n.id}" data-ph="Write it down. It stays in ${esc(j.name)}.">${esc(n.body)}</div></div>`;
+    <div class="nbody" id="nbody" data-mode="${n.body.trim() ? 'read' : 'edit'}" contenteditable="${n.body.trim() ? 'false' : 'plaintext-only'}" data-note="${n.id}" data-ph="Write it down. It stays in ${esc(j.name)}.">${n.body.trim() ? mdBlocks(n.body) : ''}</div>
+    <p class="mdhint">Markdown: <code>**bold**</code> · <code>*italic*</code> · <code>[link](url)</code> · <code>\`code\`</code> — click the text to edit, click away to typeset.</p></div>`;
 }
 function pageView() {
   const j = J(), t = j.tabs.find(x => x.id === S.openTab);
@@ -767,7 +790,7 @@ const GUIDES = {
         <div class="step"><span class="n">2</span><div><b>Keep the tabs that belong to it</b>
           <p>The live site, the hosting login, the staging copy, the docs page you keep going back to. Press <kbd>⌘D</kbd> or hit the bookmark in the search bar.</p></div></div>
         <div class="step"><span class="n">3</span><div><b>Write the notes in the same place</b>
-          <p>Passwords go in a password manager. Everything else — the renewal date, what they asked for, what you're waiting on — goes in the jar. Type in the right panel and hit keep, or <kbd>⌘N</kbd> for a full page.</p></div></div>
+          <p>Passwords go in a password manager. Everything else — the renewal date, what they asked for, what you're waiting on — goes in the jar. Type in the right panel and hit keep, or <kbd>⌘N</kbd> for a full page. Notes take Markdown — <code>**bold**</code>, <code>*italic*</code>, <code>[link](url)</code>.</p></div></div>
         <div class="step"><span class="n">4</span><div><b>Pin what you're always in. Lock what you can't lose.</b>
           <p>Right-click a tab. Pinned shrinks it to an icon at the front. Locked removes its close button entirely.</p></div></div>
         <div class="step"><span class="n">5</span><div><b>Watch it fill. Then seal it.</b>
@@ -822,7 +845,7 @@ function renderPanel() {
   p.style.setProperty('--jc', c.c);
   if (S.dev) { p.innerHTML = devPanel(); return; }
   const quick = `<div class="sec"><p class="lab">Quick note</p>
-    <div class="qn" id="qn" contenteditable="plaintext-only" data-ph="Type here. It lands in ${esc(j.name)}."></div>
+    <div class="qn" id="qn" contenteditable="plaintext-only" data-ph="Type here. Markdown works. It lands in ${esc(j.name)}."></div>
     <button class="btn wide primary" id="qnSave">${ico('pen')}Keep in ${esc(j.name)}</button></div>`;
   p.innerHTML = `
     <div class="sec"><h3>${esc(j.name)}</h3><div class="sub">${j.notes.length} notes · ${j.tabs.length} tabs · ${Math.round(fill(j) * 100)}% full</div>
@@ -1022,6 +1045,21 @@ document.addEventListener('drop', e => {
   drag = null;
 });
 
+/* note body: read mode renders the markdown; click to edit the source */
+function noteEditOn(el) {
+  const n = J().notes.find(x => x.id === el.dataset.note); if (!n) return;
+  el.dataset.mode = 'edit'; el.setAttribute('contenteditable', 'plaintext-only');
+  el.innerText = n.body; el.focus();
+  const r = document.createRange(); r.selectNodeContents(el); r.collapse(false);
+  const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+}
+function noteEditOff(el) {
+  const n = J().notes.find(x => x.id === el.dataset.note); if (!n) return;
+  n.body = el.innerText;
+  el.dataset.mode = 'read'; el.setAttribute('contenteditable', 'false');
+  el.innerHTML = n.body.trim() ? mdBlocks(n.body) : '';
+}
+
 /* ═══ actions ═══ */
 const all = () => { setVars(); renderShelf(); renderTabs(); renderBench(); renderPanel(); };
 const go = v => paint(() => { S.view = v; all(); });
@@ -1059,12 +1097,18 @@ $('#tabs').addEventListener('click', e => {
   if (e.target.closest('#newTab')) toast('New tab');
 });
 $('#bench').addEventListener('click', e => {
+  const nb = e.target.closest('#nbody');
+  if (nb) { if (nb.dataset.mode !== 'edit') { if (e.target.closest('a')) return; noteEditOn(nb); } return; }
   const g2 = e.target.closest('[data-guide2]'); if (g2) return go({ kind: 'guide', id: g2.dataset.guide2 });
   const n = e.target.closest('.note'); if (n) return openNote(n.dataset.note);
   const t = e.target.closest('.tile'); if (t) return openTab(t.dataset.tab);
   const a = e.target.closest('[data-act]'); if (!a) return;
   ({ newnote: newNote, backjar: () => go({ kind: 'jar' }), openall: () => toast(`${J().tabs.length} tabs opened`),
      sealjar: () => sealJar(S.jar) }[a.dataset.act] || (() => {}))();
+});
+$('#bench').addEventListener('focusout', e => {
+  const nb = e.target.closest ? e.target.closest('#nbody') : null;
+  if (nb && nb.dataset.mode === 'edit') noteEditOff(nb);
 });
 $('#bench').addEventListener('input', e => {
   const j = J();
