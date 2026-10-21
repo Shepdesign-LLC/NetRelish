@@ -578,8 +578,8 @@ function jarSVG(j, w = 24) {
       <stop offset=".35" stop-color="#fff" stop-opacity="0"/><stop offset=".85" stop-color="#fff" stop-opacity="0"/>
       <stop offset="1" stop-color="#fff" stop-opacity=".17"/></linearGradient></defs>
     <path d="${BODY}" fill="currentColor" opacity=".09"/>
-    <g clip-path="url(#c${id})">${h > 0 ? `<rect x="3" y="${y}" width="16" height="${h + .4}" fill="url(#g${id})"/>
-      <ellipse cx="11" cy="${y}" rx="6.5" ry=".9" fill="${c.c}" opacity=".85"/>` : ''}
+    <g clip-path="url(#c${id})"><g class="liq">${h > 0 ? `<rect x="3" y="${y}" width="16" height="${h + .4}" fill="url(#g${id})"/>
+      <ellipse cx="11" cy="${y}" rx="6.5" ry=".9" fill="${c.c}" opacity=".85"/>` : ''}</g>
       ${pct >= 1 ? `<circle cx="8" cy="10" r="1.1" fill="#fff" opacity=".3"/><circle cx="14" cy="14.5" r=".8" fill="#fff" opacity=".22"/>` : ''}</g>
     <path d="${BODY}" fill="url(#s${id})"/>
     <path d="${BODY}" fill="none" stroke="currentColor" stroke-width="1.15" opacity=".6" stroke-linejoin="round"/>
@@ -987,7 +987,7 @@ CTX.addEventListener('click', e => {
     tpin: () => { t.pinned = !t.pinned; paint(all); },
     tlock: () => { t.locked = !t.locked; paint(all); toast(t.locked ? 'Locked' : 'Unlocked'); },
     tcopy: () => toast('Link copied'),
-    tnote: () => { j.notes.unshift({ id: 'n' + uid(), title: t.title, body: t.host + '\n\n', at: Date.now() }); paint(all); toast('Note started'); },
+    tnote: () => { const was = fill(j); j.notes.unshift({ id: 'n' + uid(), title: t.title, body: t.host + '\n\n', at: Date.now() }); paint(all); dripInto(j.id, was); toast('Note started'); },
     tclose: () => { if (t.locked) return toast('That tab is locked'); j.tabs = j.tabs.filter(x => x.id !== t.id); paint(all); },
     nedit: () => openNote(n.id),
     nrename: () => { const v = prompt('Note title', n.title); if (v) { n.title = v; n.at = Date.now(); paint(all); } },
@@ -996,8 +996,8 @@ CTX.addEventListener('click', e => {
     narchive: () => { j.notes = j.notes.filter(x => x.id !== n.id); paint(all); toast('Archived', () => { j.notes.unshift(n); paint(all); }); },
   };
   if (A[id]) return A[id]();
-  if (id?.startsWith('tmove:')) { const to = J(id.split(':')[1]); j.tabs = j.tabs.filter(x => x.id !== t.id); to.tabs.push(t); paint(all); toast(`Moved to ${to.name}`); }
-  if (id?.startsWith('nmove:')) { const to = J(id.split(':')[1]); j.notes = j.notes.filter(x => x.id !== n.id); to.notes.unshift(n); paint(all); toast(`Moved to ${to.name}`); }
+  if (id?.startsWith('tmove:')) { const to = J(id.split(':')[1]), was = fill(to); j.tabs = j.tabs.filter(x => x.id !== t.id); to.tabs.push(t); paint(all); dripInto(to.id, was); toast(`Moved to ${to.name}`); }
+  if (id?.startsWith('nmove:')) { const to = J(id.split(':')[1]), was = fill(to); j.notes = j.notes.filter(x => x.id !== n.id); to.notes.unshift(n); paint(all); dripInto(to.id, was); toast(`Moved to ${to.name}`); }
 });
 
 /* ═══ drag ═══ */
@@ -1023,18 +1023,19 @@ document.addEventListener('drop', e => {
   if (!drag) return; const o = e.target.closest('.note,.jarrow,.tab,.tile'); if (!o) return;
   e.preventDefault(); const j = J();
   if (drag.k === 'brine' && o.classList.contains('jarrow')) {
-    const b = S.brine.find(x => x.id === drag.id), to = J(o.dataset.jar);
+    const b = S.brine.find(x => x.id === drag.id), to = J(o.dataset.jar), was = fill(to);
     S.brine = S.brine.filter(x => x.id !== drag.id);
     to.tabs.push({ id: 't' + uid(), title: b.t, host: b.h, fav: b.f, kind: 'live' });
     try { $('#brine').hidePopover(); } catch {}
-    paint(all); renderBrine(); toast(`Moved to ${to.name}`);
+    paint(all); renderBrine(); dripInto(to.id, was); toast(`Moved to ${to.name}`);
   } else if (drag.k === 'note' && o.classList.contains('note')) {
     const f = j.notes.findIndex(x => x.id === drag.id), t = j.notes.findIndex(x => x.id === o.dataset.note);
     if (f > -1 && t > -1) { const [m] = j.notes.splice(f, 1); j.notes.splice(t, 0, m); paint(all); }
   } else if (drag.k === 'tab' && o.classList.contains('jarrow')) {
     const to = J(o.dataset.jar); if (to.id === j.id) return;
     const i = j.tabs.findIndex(x => x.id === drag.id); if (i < 0) return;
-    const [m] = j.tabs.splice(i, 1); to.tabs.push(m); paint(all); toast(`Moved to ${to.name}`);
+    const was = fill(to);
+    const [m] = j.tabs.splice(i, 1); to.tabs.push(m); paint(all); dripInto(to.id, was); toast(`Moved to ${to.name}`);
   } else if (drag.k === 'tab') {
     const f = j.tabs.findIndex(x => x.id === drag.id), t = j.tabs.findIndex(x => x.id === o.dataset.tab);
     if (f > -1 && t > -1) { const [m] = j.tabs.splice(f, 1); j.tabs.splice(t, 0, m); paint(all); }
@@ -1067,9 +1068,39 @@ const openJar = id => { S.jar = id; S.openTab = null; setVars(); go({ kind: 'jar
 const openNote = id => go({ kind: 'note', id });
 function openTab(id) { const t = J().tabs.find(x => x.id === id); if (!t) return; S.openTab = id; $('#url').value = t.host + '/'; go({ kind: 'page', id }); }
 function newNote() {
-  const j = J(), n = { id: 'n' + uid(), title: 'Untitled note', body: '', at: Date.now() };
-  j.notes.unshift(n); paint(() => { S.view = { kind: 'note', id: n.id }; all(); });
+  const j = J(), was = fill(j), n = { id: 'n' + uid(), title: 'Untitled note', body: '', at: Date.now() };
+  j.notes.unshift(n); paint(() => { S.view = { kind: 'note', id: n.id }; all(); }); dripInto(j.id, was);
   setTimeout(() => { const el = $('#ntitle'); if (el) { el.focus(); el.select(); } }, 70);
+}
+/* adding to a jar: a drop falls inside the glyph, then the level rises.
+   NOTE Brand Lock v1.1 says one drip (the Seal) — this second one is Ryan's
+   direction from the 2026-10-21 prototype pass; see docs/design/README.md. */
+function dripInto(id, oldPct) {
+  if (reduce) return;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const j = J(id), c = col(j);
+    const pct = Math.max(0, Math.min(1, (j.notes.length + j.tabs.length) / (j.cap || 20)));
+    const top = 5.2, bot = 22.6, surf = bot - (bot - top) * pct;
+    const hosts = [document.querySelector(`.jarrow[data-jar="${id}"] .jarsvg`)];
+    if (id === S.jar) hosts.push($('#jarChip .jarsvg'), document.querySelector('.board-h .jarsvg'));
+    hosts.filter(Boolean).forEach(svg => {
+      const clip = svg.querySelector('g[clip-path]'); if (!clip) return;
+      const d = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+      d.setAttribute('cx', 11); d.setAttribute('cy', 6.2); d.setAttribute('rx', 1.1); d.setAttribute('ry', 1.5);
+      d.setAttribute('fill', c.c); clip.appendChild(d);
+      d.animate([
+        { transform: 'translateY(0) scaleY(.7)', opacity: .95 },
+        { transform: `translateY(${(surf - 7.5).toFixed(1)}px) scaleY(1.15)`, opacity: .9 }
+      ], { duration: 300, easing: 'cubic-bezier(.5,0,.9,.6)' }).onfinish = () => d.remove();
+      const liq = svg.querySelector('.liq');
+      if (liq) {
+        liq.style.transformBox = 'fill-box'; liq.style.transformOrigin = 'center bottom';
+        const from = pct > 0 ? Math.max(0, Math.min(1, (oldPct ?? pct) / pct)) : 1;
+        liq.animate([{ transform: `scaleY(${from})` }, { transform: 'scaleY(1)' }],
+          { duration: 420, delay: 240, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'backwards' });
+      }
+    });
+  }));
 }
 const sealJar = id => { toast(`${J(id).name} sealed — nothing changes until you open it again`);
   $(`[data-jar="${id}"]`)?.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.06)' }, { transform: 'scale(1)' }], { duration: 420, easing: 'cubic-bezier(.32,.72,0,1)' }); };
@@ -1120,8 +1151,9 @@ $('#panel').addEventListener('click', e => {
   const cl = e.target.closest('[data-color]'); if (cl) { J().color = cl.dataset.color; setVars(); paint(all); return; }
   const snd = e.target.closest('[data-send]'); if (snd) return go({ kind: 'tool', id: snd.dataset.send });
   if (e.target.closest('#qnSave')) { const el = $('#qn'), tx = el.innerText.trim(); if (!tx) return el.focus();
-    J().notes.unshift({ id: 'n' + uid(), title: tx.split('\n')[0].slice(0, 42) || 'Note', body: tx, at: Date.now() });
-    el.innerHTML = ''; paint(all); toast(`Kept in ${J().name}`); return; }
+    const jq = J(), was = fill(jq);
+    jq.notes.unshift({ id: 'n' + uid(), title: tx.split('\n')[0].slice(0, 42) || 'Note', body: tx, at: Date.now() });
+    el.innerHTML = ''; paint(all); dripInto(jq.id, was); toast(`Kept in ${jq.name}`); return; }
   const a = e.target.closest('[data-act]'); if (a && a.dataset.act === 'newnote') return newNote();
   const s = e.target.closest('[data-sact]'); if (!s) return;
   const act = s.dataset.sact;
@@ -1148,10 +1180,10 @@ $('#cogBtn').addEventListener('click', () => go({ kind: 'guide', id: 'jars' }));
 $('#brineBtn').addEventListener('click', brineModal);
 $('#brineBody').addEventListener('click', e => {
   const m = e.target.closest('[data-bmove]'); if (!m) return;
-  const [bid, jid] = m.dataset.bmove.split(':'), b = S.brine.find(x => x.id === bid), to = J(jid);
+  const [bid, jid] = m.dataset.bmove.split(':'), b = S.brine.find(x => x.id === bid), to = J(jid), was = fill(to);
   S.brine = S.brine.filter(x => x.id !== bid);
   to.tabs.push({ id: 't' + uid(), title: b.t, host: b.h, fav: b.f, kind: 'live' });
-  brineModal(); renderBrine(); paint(all); toast(`Moved to ${to.name}`);
+  brineModal(); renderBrine(); paint(all); dripInto(to.id, was); toast(`Moved to ${to.name}`);
 });
 $('#obGo').addEventListener('click', () => $('#ob').hidePopover());
 $('#bProf').addEventListener('click', () => { renderProfile(); $('#prof').showPopover(); });

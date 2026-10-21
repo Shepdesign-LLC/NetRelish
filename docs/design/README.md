@@ -29,6 +29,14 @@ Privacy copy check (per the banned lines below): both files were grepped for
 banned copy — the only string match is the hex colour `#E2ECC2` in the design
 kit, which is not copy.
 
+**Decision taken from this pass (2026-10-21, Ryan):** adding to a jar plays
+a drip — a drop falls inside the jar glyph and the liquid rises to the new
+level (shelf row, tab-bar chip and board header; respects reduced motion).
+⚠️ This is a second drip: Brand Lock v1.1 says "One drip in the app: the
+Seal animation. Nowhere else." Ryan directed this one in the prototype
+review; `DESIGN_MANIFEST.md` stays unamended until he confirms the rule
+change (e.g. "two drips: Seal, and the jar-fill on add").
+
 **Decision taken from this pass (2026-10-21, Ryan):** notes take Markdown,
 not rich text — the ZestMail text-block grammar exactly (`**bold**`,
 `*italic*`, `` `code` ``, `[link](url)`, blank line = paragraph; MAIL-PRESS.md
