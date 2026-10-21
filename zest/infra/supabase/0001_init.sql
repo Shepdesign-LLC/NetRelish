@@ -28,6 +28,7 @@ alter default privileges for role postgres in schema public
   revoke usage, select on sequences from anon, authenticated, service_role;
 
 create extension if not exists pgcrypto;
+create extension if not exists citext;   -- users.email below is citext; not enabled by default on a fresh database
 
 -- ------------------------------------------------------------
 -- enums

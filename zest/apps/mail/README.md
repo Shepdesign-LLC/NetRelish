@@ -23,7 +23,7 @@ npx vercel --prod
 Then in Vercel → Project → Settings → Environment Variables:
 
 - `ANTHROPIC_API_KEY` — your key
-- `MAILPRESS_TOKEN` — any long random string (optional but recommended); enter the same value in the app under Claude → Proxy token. `MAILPRESS_TOKEN` and the `x-mailpress-token` request header are internal names kept verbatim per ZEST-SPEC §2 — the ZestMail rename does not touch them.
+- `MAILPRESS_TOKEN` — any long random string (**required** — the proxy fails closed without it, so an unset token can't become an open proxy on your API key); enter the same value in the app under Claude → Proxy token. `MAILPRESS_TOKEN` and the `x-mailpress-token` request header are internal names kept verbatim per ZEST-SPEC §2 — the ZestMail rename does not touch them.
 
 In the app, leave the API key field empty and Route on Auto: hosted pages use the proxy automatically.
 

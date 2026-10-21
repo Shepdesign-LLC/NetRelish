@@ -1,10 +1,12 @@
 // Vercel serverless function — the key never leaves the server.
 // Set ANTHROPIC_API_KEY in Vercel → Project → Settings → Environment Variables.
-// Optional: set MAILPRESS_TOKEN and enter the same value in the app's "Proxy token" field
-// so random visitors can't spend your credits through /api/claude.
+// Required: set MAILPRESS_TOKEN and enter the same value in the app's "Proxy token" field.
+// The proxy fails closed without it — otherwise anyone who finds /api/claude can spend
+// your credits. (Fail-closed per PR #33 review; was optional in the original bundle.)
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
-  if (process.env.MAILPRESS_TOKEN && req.headers['x-mailpress-token'] !== process.env.MAILPRESS_TOKEN) return res.status(401).json({ error: 'Bad proxy token' });
+  if (!process.env.MAILPRESS_TOKEN) return res.status(503).json({ error: 'MAILPRESS_TOKEN is not set on the server — the proxy stays closed until it is' });
+  if (req.headers['x-mailpress-token'] !== process.env.MAILPRESS_TOKEN) return res.status(401).json({ error: 'Bad proxy token' });
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY is not set on the server' });
   const { model, max_tokens, system, messages } = req.body || {};
   if (!model || !messages) return res.status(400).json({ error: 'model and messages are required' });
