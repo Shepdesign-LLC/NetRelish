@@ -600,8 +600,8 @@ const ICONSET = ['globe', 'wp', 'mail', 'doc', 'img', 'key', 'plug', 'box'];
 const now = Date.now();
 const S = {
   profile: 'ryan',
-  profiles: [{ id: 'ryan', name: 'Ryan Shepherd', sub: 'ryan@shepdesign.com', av: 'RS', apple: true, pro: true },
-             { id: 'personal', name: 'Personal', sub: 'Its own jars and history', av: 'P' }],
+  profiles: [{ id: 'ryan', name: 'Ryan Shepherd', sub: 'ryan@shepdesign.com', av: 'RS', color: 'relish', apple: true, pro: true },
+             { id: 'personal', name: 'Personal', sub: 'Its own jars and history', av: 'P', color: 'amber' }],
   jar: 'clients', view: { kind: 'jar' }, dev: false, openTab: null,
   jars: [
     { id: 'clients', name: 'Clients', color: 'relish', cap: 14,
@@ -1157,17 +1157,24 @@ $('#obGo').addEventListener('click', () => $('#ob').hidePopover());
 $('#bProf').addEventListener('click', () => { renderProfile(); $('#prof').showPopover(); });
 
 /* ═══ profile ═══ */
+/* Workbench avatars wear their jar colour — gradient tile, ink picked for contrast */
+function avPaint(prof) {
+  const c = COLORS[prof.color] || COLORS.relish;
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(c.c.slice(i, i + 2), 16) / 255);
+  const ink = (.2126 * r + .7152 * g + .0722 * b) > .6 ? '#14181f' : '#fff';
+  return `background:linear-gradient(180deg,${c.c},${c.d});color:${ink};box-shadow:inset 0 1px 0 oklch(1 0 0/.35)`;
+}
 function renderProfile() {
   const p = S.profiles.find(x => x.id === S.profile);
   $('#profBody').innerHTML = `
     <div class="applerow">${ico('apple')}<div><b style="display:block;font-size:13.5px;color:var(--ink)">Signed in with Apple</b>${esc(p.sub)}</div></div>
-    <div class="avedit"><span class="big" id="avBig">${p.img ? `<img src="${p.img}">` : esc(p.av)}<span class="ch">Change</span></span>
+    <div class="avedit"><span class="big" id="avBig" style="${p.img ? '' : avPaint(p)}">${p.img ? `<img src="${p.img}">` : esc(p.av)}<span class="ch">Change</span></span>
       <div style="flex:1">
         <div class="field" style="margin-bottom:7px"><label>Name</label><input type="text" id="pName" value="${esc(p.name)}"></div>
         <div class="field" style="margin:0"><label>Email</label><input type="text" id="pMail" value="${esc(p.sub)}"></div></div></div>
     <p class="lab">Workbenches${p.pro ? '<span class="sp"></span><span class="protag">PRO</span>' : ''}</p>
     ${S.profiles.map(x => `<button class="pcard" data-prof="${x.id}" aria-current="${x.id === S.profile}">
-      <span class="av">${x.av}</span><span style="flex:1"><b>${esc(x.name)}</b><small>${esc(x.sub)}</small></span></button>`).join('')}
+      <span class="av" style="${avPaint(x)}">${x.av}</span><span style="flex:1"><b>${esc(x.name)}</b><small>${esc(x.sub)}</small></span></button>`).join('')}
     <button class="pcard" data-prof="new"><span class="av">+</span><span><b>Add a workbench</b><small>Its own jars, tabs and notes</small></span>
       <span class="protag">PRO</span></button>`;
 }
