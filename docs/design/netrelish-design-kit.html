@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetRelish — Design Kit v1.1</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600&display=swap" rel="stylesheet">
+<style>
+/* NetRelish tokens — Brand Lock v1.1 (2026-09-12). Neutral base, relish accents, the mark untouched. */
+:root{
+  --relish-100:#EFFCCB; --relish-300:#C4F26B; --relish-400:#A9F12E; --relish-500:#93E413;
+  --relish-600:#5CB80F; --relish-700:#4E9110; --relish-800:#3E6413; --relish-900:#1D3506;
+  --bg:#ffffff; --bg-2:oklch(0.975 0.002 90); --desk:oklch(0.93 0.005 90); --win:#ffffff;
+  --pane:oklch(0.985 0.002 90); --pane-2:oklch(0.965 0.003 90);
+  --ink:#111111; --ink-2:#6b6b6b; --ink-3:#a3a3a3;
+  --line:oklch(0 0 0 / .10); --line-2:oklch(0 0 0 / .05); --glass:oklch(1 0 0 / .72);
+  --display:"Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --body:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+  --mono:ui-monospace, "SF Mono", Menlo, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0a0a0a; --bg-2:#111111; --desk:#0c0c0c; --win:#1a1a1a; --pane:#161616; --pane-2:#111111;
+    --ink:#f2f2f2; --ink-2:#9a9a9a; --ink-3:#5c5c5c;
+    --line:oklch(1 0 0 / .12); --line-2:oklch(1 0 0 / .06); --glass:oklch(0.12 0 0 / .7);
+    --relish-100:#1F3308; --relish-300:#3E6413; --relish-800:#C4F26B; --relish-900:#0D1206;
+  }
+}
+/* changelog
+   1.1  2026-09-12  neutral base + relish accents (supersedes 1.0 dark-glass world)
+*/
+
+html.dark{--bg:#0a0a0a;--bg-2:#111111;--desk:#0c0c0c;--win:#1a1a1a;--pane:#161616;--pane-2:#111111;--ink:#f2f2f2;--ink-2:#9a9a9a;--ink-3:#5c5c5c;--line:oklch(1 0 0 / .12);--line-2:oklch(1 0 0 / .06);--glass:oklch(0.12 0 0 / .7);--relish-100:#1F3308;--relish-300:#3E6413;--relish-800:#C4F26B;--relish-900:#0D1206}
+html.light{--bg:#ffffff;--bg-2:oklch(0.975 0.002 90);--desk:oklch(0.93 0.005 90);--win:#ffffff;--pane:oklch(0.985 0.002 90);--pane-2:oklch(0.965 0.003 90);--ink:#111111;--ink-2:#6b6b6b;--ink-3:#a3a3a3;--line:oklch(0 0 0 / .10);--line-2:oklch(0 0 0 / .05);--glass:oklch(1 0 0 / .72);--relish-100:#EFFCCB;--relish-300:#C4F26B;--relish-800:#3E6413;--relish-900:#1D3506}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:0 28px}
+h1,h2,h3{font-family:var(--display);font-weight:500;letter-spacing:-.02em;margin:0}
+h1{font-size:40px;line-height:1.05}h2{font-size:26px;margin-bottom:6px}h3{font-size:16px;margin-bottom:10px}
+p{margin:0}
+.muted{color:var(--ink-2)}.hint{color:var(--ink-3);font-size:13px}
+.mono{font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
+kbd{font-family:var(--mono);font-size:.85em;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;background:var(--bg-2)}
+nav{position:sticky;top:0;z-index:5;background:color-mix(in oklab,var(--bg) 86%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-2)}
+nav .wrap{display:flex;align-items:center;gap:16px;height:56px}
+nav .brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:600;margin-right:auto}
+nav .brand svg{width:30px;height:30px}
+nav a{color:var(--ink-2);font-size:14px;text-decoration:none}
+.toggle{height:32px;padding:0 12px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:13px;cursor:pointer}
+section{padding:56px 0;border-top:1px solid var(--line-2)}
+.head{display:flex;align-items:baseline;gap:14px;margin-bottom:26px}
+.head .mono{margin-left:auto}
+.grid{display:grid;gap:18px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}.g4{grid-template-columns:repeat(4,minmax(0,1fr))}.g6{grid-template-columns:repeat(6,minmax(0,1fr))}
+.card{border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:18px}
+.card.pane{background:var(--pane)}
+.spec{border:1px dashed var(--line);border-radius:12px;padding:22px;display:grid;place-items:center;background:var(--bg-2);min-height:150px;position:relative}
+.spec .label{position:absolute;left:12px;bottom:10px}
+.mark{filter:drop-shadow(0 2px 6px rgba(0,0,0,.18))}
+.clear{position:relative;padding:24px;border:1px dashed var(--relish-600);border-radius:8px}
+.clear::after{content:"¼ w clear space";position:absolute;right:8px;top:6px;font-family:var(--mono);font-size:10px;color:var(--relish-600)}
+.sw{border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.sw i{display:block;height:64px}
+.sw div{padding:8px 10px;font-size:12px}
+.sw .mono{display:block;font-size:10.5px}
+.type div{padding:10px 0;border-bottom:1px solid var(--line-2);display:flex;align-items:baseline;gap:18px}
+.type .mono{width:190px;flex:none}
+.btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:var(--r);font-size:15px;font-weight:500;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.btn.relish{background:var(--relish-500);color:var(--relish-900);border-color:var(--relish-600)}
+.btn.text{border-color:transparent;background:transparent}
+.btn.sm{height:32px;font-size:12.5px;padding:0 12px}
+.btn svg{width:16px;height:16px}
+svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tabs{display:flex;align-items:flex-end;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--line-2);background:var(--pane);border-radius:10px 10px 0 0;overflow:hidden}
+.tab{position:relative;display:flex;align-items:center;gap:7px;height:30px;padding:0 12px;border-radius:8px 8px 0 0;font-size:12.5px;color:var(--ink-2);white-space:nowrap;border:1px solid transparent;border-bottom:0;overflow:hidden}
+.tab .fav{width:12px;height:12px;border-radius:3px;background:var(--line)}
+.tab.on{background:var(--bg);color:var(--ink);border-color:var(--line-2);margin-bottom:-1px}
+.tab.on .fav{background:var(--relish-500)}
+.tab.on .lip{position:absolute;top:-1px;left:10px;width:54px;height:12px}
+.tab .life{position:absolute;left:12px;right:12px;bottom:0;height:2px;background:var(--line-2)}
+.tab .life i{display:block;height:100%;background:var(--relish-500)}
+.tab.sinking{opacity:.5}
+.shelf{display:flex;gap:8px;align-items:center}
+.jar{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;position:relative}
+.jar svg{width:24px;height:29px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.15))}
+.jar.on{background:var(--relish-100)}
+.jar .n{position:absolute;right:4px;bottom:3px;font-family:var(--mono);font-size:9px;color:var(--ink-3)}
+.jar.on .n{color:var(--relish-800)}
+.jar .badge{position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--relish-500)}
+.address{height:30px;border-radius:9px;background:var(--pane-2);border:1px solid var(--line-2);display:flex;align-items:center;gap:8px;padding:0 6px 0 10px;color:var(--ink-2);font-size:12.5px}
+.address .url{flex:1;color:var(--ink);text-align:center}
+.ib{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--ink-2);background:transparent;border:0}
+.ib.seal svg{width:18px;height:18px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:11.5px;padding:3px 9px;border-radius:99px;background:var(--pane-2);border:1px solid var(--line-2);color:var(--ink-2)}
+.chip.acc{background:var(--relish-100);border-color:var(--relish-300);color:var(--relish-800)}
+.chip.add{border-style:dashed;color:var(--ink-3)}
+.bar{height:6px;border-radius:4px;background:var(--line-2);overflow:hidden}.bar i{display:block;height:100%;width:58%;background:var(--relish-500)}
+.state{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);padding:3px 8px;border-radius:99px;background:var(--pane-2);border:1px solid var(--line-2)}
+.state i{width:7px;height:7px;border-radius:50%;background:var(--relish-500)}
+.tray{border-top:1px solid var(--line-2);background:var(--glass);backdrop-filter:blur(18px) saturate(160%);display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:0 0 10px 10px}
+.tray .label{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2)}
+.tray .label svg{width:20px;height:22px}
+.count{font-family:var(--mono);font-size:11px;color:var(--relish-800);background:var(--relish-100);padding:1px 6px;border-radius:99px}
+.item{display:flex;align-items:center;gap:7px;height:32px;padding:0 10px;border-radius:8px;background:var(--win);border:1px solid var(--line-2);font-size:12px;color:var(--ink-2);white-space:nowrap}
+.item .fav{width:11px;height:11px;border-radius:3px;background:var(--line)}
+.insp{border:1px solid var(--line);border-radius:12px;background:var(--pane);padding:14px;display:flex;flex-direction:column;gap:14px;max-width:280px}
+.k{font-size:11px;color:var(--ink-3);margin-bottom:6px}
+.recipe{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:9px;border:1px solid var(--line-2);background:var(--win);font-size:12.5px}
+.recipe svg{width:22px;height:26px}
+/* seal demo */
+.stage{border:1px solid var(--line);border-radius:12px;background:var(--bg-2);padding:18px;position:relative;overflow:hidden}
+.win{background:var(--bg);border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative}
+.wbar{display:flex;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line-2)}
+.wbody{display:grid;grid-template-columns:50px 1fr;min-height:150px}
+.wshelf{border-right:1px solid var(--line-2);padding:8px 0;display:flex;flex-direction:column;align-items:center;gap:8px}
+.wshelf .jar{width:34px;height:34px}.wshelf .jar svg{width:20px;height:24px}
+.jar .lidcap{position:absolute;top:5px;left:50%;width:12px;height:4px;margin-left:-6px;border-radius:2px;background:linear-gradient(#FDFEF8,#AEBC97);transform:translateY(-8px);opacity:0}
+.jar .jdrip{position:absolute;top:10px;left:13px;width:4px;height:0;border-radius:0 0 3px 3px;background:linear-gradient(#A9F12E,#5CB80F)}
+.ln{height:8px;border-radius:4px;background:var(--line-2);margin:6px 18px}
+.wcard{position:absolute;left:70px;top:56px;width:190px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:11px;color:var(--ink-2);display:flex;gap:8px;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.08)}
+.wcard .fav{width:12px;height:12px;border-radius:3px;background:var(--relish-500)}
+.toast{position:absolute;right:16px;bottom:16px;font-size:11px;color:var(--relish-900);background:var(--relish-100);border:1px solid var(--relish-300);border-radius:8px;padding:5px 9px;opacity:0}
+@keyframes seal{0%{opacity:0;transform:none}12%,52%{opacity:1;transform:none}74%{opacity:1;transform:translate(-48px,-32px) scale(.16)}78%{opacity:0;transform:translate(-48px,-32px) scale(.08)}100%{opacity:0;transform:none}}
+@keyframes tabgone{0%,58%{opacity:1;max-width:180px}76%,100%{opacity:0;max-width:0;padding:0;border-width:0}}
+@keyframes lidon{0%,74%{transform:translateY(-8px);opacity:0}82%,100%{transform:none;opacity:1}}
+@keyframes jdrip{0%,82%{height:0}92%,100%{height:8px}}
+@keyframes toast{0%,78%{opacity:0}85%,96%{opacity:1}100%{opacity:0}}
+.stage .wcard{animation:seal 4.4s cubic-bezier(.2,.7,.2,1) infinite}
+.stage .tab.on{animation:tabgone 4.4s ease-out infinite}
+.stage .jar.on .lidcap{animation:lidon 4.4s ease-out infinite}
+.stage .jar.on .jdrip{animation:jdrip 4.4s ease-out infinite}
+.stage .toast{animation:toast 4.4s ease-out infinite}
+@media (prefers-reduced-motion:reduce){.stage *{animation:none!important}}
+/* layouts */
+.lay{border:1px solid var(--line);border-radius:10px;background:var(--bg);overflow:hidden;display:grid;font-size:9px;color:var(--ink-3);font-family:var(--mono)}
+.lay div{border:1px solid var(--line-2);display:grid;place-items:center;padding:4px;text-align:center}
+.lay.mac{aspect-ratio:16/10;grid-template-columns:22px 1fr 60px;grid-template-rows:16px 1fr 18px}
+.lay.mac .tb{grid-column:1/4}.lay.mac .tr{grid-column:1/4}
+.lay.phone{aspect-ratio:9/19.5;grid-template-rows:1fr 30px 26px;width:120px;margin:0 auto}
+.lay.duo{aspect-ratio:1.1;grid-template-columns:22px 1fr 56px;grid-template-rows:14px 1fr 16px;width:210px;margin:0 auto}
+.lay.duo .tb{grid-column:1/4}.lay.duo .tr{grid-column:1/4}
+.lay.pad{aspect-ratio:4/3;grid-template-columns:34px 1fr 60px;grid-template-rows:16px 1fr 18px}
+.lay.pad .tb{grid-column:1/4}.lay.pad .tr{grid-column:1/4}
+.dd{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.dd .card h3{display:flex;align-items:center;gap:8px}
+.ok{color:var(--relish-600)}.no{color:#d64545}
+.dd ul{margin:0;padding-left:18px;color:var(--ink-2);font-size:14px;display:grid;gap:6px}
+footer{padding:40px 0;border-top:1px solid var(--line-2);color:var(--ink-3);font-size:13px}
+@media (max-width:860px){.g3,.g4,.g6,.g2,.dd{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="nr-mark" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e2c12"></stop><stop offset="1" stop-color="#0d1206"></stop></linearGradient><defs><linearGradient id="gGloss" x1="0" y1="0" x2="0" y2="1"> <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"></stop> <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"></stop> </linearGradient><linearGradient id="gGearSteel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#CBD2DA"></stop><stop offset="1" stop-color="#848D99"></stop></linearGradient><radialGradient id="gHoleSteel" cx="0.5" cy="0.38" r="0.7"><stop offset="0" stop-color="#39404A"></stop><stop offset="1" stop-color="#59626D"></stop></radialGradient><linearGradient id="gGoop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A9F12E"></stop><stop offset="1" stop-color="#5CB80F"></stop></linearGradient></defs></defs><path d="M100.00,50.00L99.99,63.06L99.95,67.23L99.89,70.26L99.80,72.72L99.69,74.82L99.56,76.68L99.40,78.34L99.22,79.86L99.01,81.26L98.77,82.55L98.51,83.76L98.22,84.89L97.91,85.95L97.57,86.95L97.20,87.89L96.81,88.78L96.39,89.63L95.94,90.43L95.46,91.18L94.94,91.90L94.40,92.58L93.83,93.22L93.22,93.83L92.58,94.40L91.90,94.94L91.18,95.46L90.43,95.94L89.63,96.39L88.78,96.81L87.89,97.20L86.95,97.57L85.95,97.91L84.89,98.22L83.76,98.51L82.55,98.77L81.26,99.01L79.86,99.22L78.34,99.40L76.68,99.56L74.82,99.69L72.72,99.80L70.26,99.89L67.23,99.95L63.06,99.99L50.00,100.00L36.94,99.99L32.77,99.95L29.74,99.89L27.28,99.80L25.18,99.69L23.32,99.56L21.66,99.40L20.14,99.22L18.74,99.01L17.45,98.77L16.24,98.51L15.11,98.22L14.05,97.91L13.05,97.57L12.11,97.20L11.22,96.81L10.37,96.39L9.57,95.94L8.82,95.46L8.10,94.94L7.42,94.40L6.78,93.83L6.17,93.22L5.60,92.58L5.06,91.90L4.54,91.18L4.06,90.43L3.61,89.63L3.19,88.78L2.80,87.89L2.43,86.95L2.09,85.95L1.78,84.89L1.49,83.76L1.23,82.55L0.99,81.26L0.78,79.86L0.60,78.34L0.44,76.68L0.31,74.82L0.20,72.72L0.11,70.26L0.05,67.23L0.01,63.06L0.00,50.00L0.01,36.94L0.05,32.77L0.11,29.74L0.20,27.28L0.31,25.18L0.44,23.32L0.60,21.66L0.78,20.14L0.99,18.74L1.23,17.45L1.49,16.24L1.78,15.11L2.09,14.05L2.43,13.05L2.80,12.11L3.19,11.22L3.61,10.37L4.06,9.57L4.54,8.82L5.06,8.10L5.60,7.42L6.17,6.78L6.78,6.17L7.42,5.60L8.10,5.06L8.82,4.54L9.57,4.06L10.37,3.61L11.22,3.19L12.11,2.80L13.05,2.43L14.05,2.09L15.11,1.78L16.24,1.49L17.45,1.23L18.74,0.99L20.14,0.78L21.66,0.60L23.32,0.44L25.18,0.31L27.28,0.20L29.74,0.11L32.77,0.05L36.94,0.01L50.00,0.00L63.06,0.01L67.23,0.05L70.26,0.11L72.72,0.20L74.82,0.31L76.68,0.44L78.34,0.60L79.86,0.78L81.26,0.99L82.55,1.23L83.76,1.49L84.89,1.78L85.95,2.09L86.95,2.43L87.89,2.80L88.78,3.19L89.63,3.61L90.43,4.06L91.18,4.54L91.90,5.06L92.58,5.60L93.22,6.17L93.83,6.78L94.40,7.42L94.94,8.10L95.46,8.82L95.94,9.57L96.39,10.37L96.81,11.22L97.20,12.11L97.57,13.05L97.91,14.05L98.22,15.11L98.51,16.24L98.77,17.45L99.01,18.74L99.22,20.14L99.40,21.66L99.56,23.32L99.69,25.18L99.80,27.28L99.89,29.74L99.95,32.77L99.99,36.94L100.00,50.00Z" fill="url(#g)"></path><g transform="translate(13.00 13.00) scale(0.7400)"><g transform="translate(0 4.5) " fill="#525A65"><rect x="43.5" y="12" width="13" height="13" rx="4"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(45 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(90 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(135 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(180 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(225 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(270 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(315 50 50)"></rect><circle cx="50" cy="50" r="30"></circle></g><g fill="url(#gGearSteel)"><rect x="43.5" y="12" width="13" height="13" rx="4"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(45 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(90 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(135 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(180 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(225 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(270 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(315 50 50)"></rect><circle cx="50" cy="50" r="30"></circle></g><circle cx="50" cy="50" r="11" fill="url(#gHoleSteel)"></circle><path transform="translate(0 3)" opacity="0.2" fill="#000000" d="M15 42 C13 20, 30 7, 50 7 C70 7, 87 20, 85 42 C85 47, 80 49, 76 46 C74 44, 75 46, 74.5 52 C74 60, 65 60, 65 52 C65 47, 66 45, 63 43 C59 41, 57 44, 55 46 C53 49, 47 50, 46 45 C45.5 42, 47 41, 44 40.5 C40 40, 39 42, 38 44 C37 47, 37 49, 36.5 55 C36 63, 27 63, 27 55 C27 49, 28 45, 25 44 C21 43, 17 46, 15 42 Z"></path><path fill="url(#gGoop)" d="M15 42 C13 20, 30 7, 50 7 C70 7, 87 20, 85 42 C85 47, 80 49, 76 46 C74 44, 75 46, 74.5 52 C74 60, 65 60, 65 52 C65 47, 66 45, 63 43 C59 41, 57 44, 55 46 C53 49, 47 50, 46 45 C45.5 42, 47 41, 44 40.5 C40 40, 39 42, 38 44 C37 47, 37 49, 36.5 55 C36 63, 27 63, 27 55 C27 49, 28 45, 25 44 C21 43, 17 46, 15 42 Z"></path><ellipse cx="37" cy="17" rx="15" ry="6" transform="rotate(-14 37 17)" fill="url(#gGloss)"></ellipse><circle cx="31" cy="26" r="1.7" fill="#4E9110" opacity="0.85"></circle><circle cx="52" cy="16" r="1.7" fill="#4E9110" opacity="0.85"></circle><circle cx="67" cy="27" r="1.7" fill="#4E9110" opacity="0.85"></circle><circle cx="45" cy="32" r="1.7" fill="#D9F98F" opacity="0.9"></circle><circle cx="60" cy="35" r="1.4" fill="#D9F98F" opacity="0.9"></circle><ellipse cx="31.5" cy="71" rx="2.6" ry="3.4" fill="#5CB80F"></ellipse></g></symbol>
+  <defs>
+    <linearGradient id="goop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A9F12E"/><stop offset="1" stop-color="#5CB80F"/></linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".6"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <linearGradient id="lid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FDFEF8"/><stop offset="1" stop-color="#AEBC97"/></linearGradient>
+    <linearGradient id="jarg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EFFCCB"/><stop offset="1" stop-color="#5FA30C"/></linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#CBD2DA"/><stop offset="1" stop-color="#848D99"/></linearGradient>
+    <linearGradient id="bowl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C9D8A4"/><stop offset="1" stop-color="#8B9C63"/></linearGradient>
+  </defs>
+  <symbol id="nr-drip" viewBox="0 0 320 90" preserveAspectRatio="none">
+    <path fill="url(#goop)" d="M0 0H320V12C300 12 292 18 286 34C282 46 278 50 274 40C270 30 270 16 262 14C240 12 214 12 202 16C190 20 186 46 182 66C180 82 172 82 170 66C168 46 164 20 156 16C144 12 104 12 96 18C92 24 90 34 86 30C82 26 80 18 70 16C48 13 24 13 0 10Z"/>
+    <path fill="#000" opacity=".18" d="M0 10C24 13 48 13 70 16C80 18 82 26 86 30C90 34 92 24 96 18C104 12 144 12 156 16C164 20 168 46 170 66C172 82 180 82 182 66C186 46 190 20 202 16C214 12 240 12 262 14C270 16 270 30 274 40C278 50 282 46 286 34C292 18 300 12 320 12V15C300 15 294 22 288 38C284 50 278 54 272 44C268 34 268 20 260 18C240 16 216 16 204 20C192 24 190 50 186 68C184 86 168 86 166 68C162 50 160 24 154 20C142 16 106 16 98 22C94 28 92 38 86 34C80 30 78 22 68 20C48 17 24 17 0 14Z"/>
+    <ellipse cx="60" cy="5" rx="34" ry="3" fill="url(#gloss)"/>
+    <ellipse cx="220" cy="5" rx="40" ry="3" fill="url(#gloss)"/>
+    <circle cx="118" cy="9" r="1.8" fill="#4E9110" opacity=".85"/><circle cx="176" cy="30" r="1.6" fill="#D9F98F" opacity=".9"/><circle cx="252" cy="10" r="1.8" fill="#4E9110" opacity=".85"/><circle cx="40" cy="9" r="1.4" fill="#D9F98F" opacity=".9"/>
+  </symbol>
+  <symbol id="nr-jar" viewBox="0 0 36 44">
+    <rect class="jar-lid" x="8.5" y="1" width="19" height="7" rx="3" fill="url(#lid)"/>
+    <path d="M10 8H26V11C30.5 12.8 33 16 33 20V36A7 7 0 0 1 26 43H10A7 7 0 0 1 3 36V20C3 16 5.5 12.8 10 11Z" fill="url(#jarg)"/>
+    <path d="M8.5 17C6.6 18.5 5.6 20 5.6 22V34" stroke="rgba(255,255,255,.55)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="nr-bowl" viewBox="0 0 40 44">
+    <rect x="6" y="20" width="28" height="5" rx="2.5" fill="#E2ECC2"/>
+    <path d="M9 25H31V27A11 11 0 0 1 9 27Z" fill="url(#bowl)"/>
+    <circle cx="15" cy="13" r="2.2" fill="#93E413" opacity=".8"/><circle cx="21" cy="8" r="1.7" fill="#93E413" opacity=".55"/><circle cx="26" cy="14" r="1.9" fill="#93E413" opacity=".7"/>
+  </symbol>
+  <symbol id="nr-lock" viewBox="0 0 30 42">
+    <path d="M7 16V11a8 8 0 0 1 16 0v5" fill="none" stroke="#5B8A2E" stroke-width="3.4" stroke-linecap="round"/>
+    <rect x="3" y="16" width="24" height="20" rx="5" fill="#5B8A2E"/><rect x="3" y="16" width="24" height="8" rx="4" fill="rgba(255,255,255,.28)"/><circle cx="15" cy="26" r="3" fill="#EFFCCB"/>
+  </symbol>
+  <symbol id="nr-recipe" viewBox="0 0 40 44">
+    <circle cx="20" cy="24" r="14" fill="url(#steel)"/><circle cx="20" cy="24" r="9" fill="#39404A"/>
+    <path d="M20 24l7-4" stroke="#EFFCCB" stroke-width="3" stroke-linecap="round"/><circle cx="20" cy="24" r="2.2" fill="#93E413"/>
+    <rect x="16" y="2" width="8" height="8" rx="2" fill="url(#steel)"/>
+  </symbol>
+  <symbol id="nr-seal" viewBox="0 0 24 24">
+    <rect x="4" y="3" width="16" height="5" rx="2" fill="url(#lid)"/><path d="M6 8h12v10a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3z" fill="url(#jarg)"/><path d="M8.5 12c-.8.7-1 1.2-1 2v4" stroke="rgba(255,255,255,.6)" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="nr-cog" viewBox="0 0 100 100"><defs><linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e2c12"></stop><stop offset="1" stop-color="#0d1206"></stop></linearGradient><defs><linearGradient id="gGloss2" x1="0" y1="0" x2="0" y2="1"> <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"></stop> <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"></stop> </linearGradient><linearGradient id="gGearSteel2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#CBD2DA"></stop><stop offset="1" stop-color="#848D99"></stop></linearGradient><radialGradient id="gHoleSteel2" cx="0.5" cy="0.38" r="0.7"><stop offset="0" stop-color="#39404A"></stop><stop offset="1" stop-color="#59626D"></stop></radialGradient><linearGradient id="gGoop2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A9F12E"></stop><stop offset="1" stop-color="#5CB80F"></stop></linearGradient></defs></defs><g><g transform="translate(0 4.5) " fill="#525A65"><rect x="43.5" y="12" width="13" height="13" rx="4"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(45 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(90 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(135 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(180 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(225 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(270 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(315 50 50)"></rect><circle cx="50" cy="50" r="30"></circle></g><g fill="url(#gGearSteel2)"><rect x="43.5" y="12" width="13" height="13" rx="4"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(45 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(90 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(135 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(180 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(225 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(270 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(315 50 50)"></rect><circle cx="50" cy="50" r="30"></circle></g><circle cx="50" cy="50" r="11" fill="url(#gHoleSteel2)"></circle><path transform="translate(0 3)" opacity="0.2" fill="#000000" d="M15 42 C13 20, 30 7, 50 7 C70 7, 87 20, 85 42 C85 47, 80 49, 76 46 C74 44, 75 46, 74.5 52 C74 60, 65 60, 65 52 C65 47, 66 45, 63 43 C59 41, 57 44, 55 46 C53 49, 47 50, 46 45 C45.5 42, 47 41, 44 40.5 C40 40, 39 42, 38 44 C37 47, 37 49, 36.5 55 C36 63, 27 63, 27 55 C27 49, 28 45, 25 44 C21 43, 17 46, 15 42 Z"></path><path fill="url(#gGoop2)" d="M15 42 C13 20, 30 7, 50 7 C70 7, 87 20, 85 42 C85 47, 80 49, 76 46 C74 44, 75 46, 74.5 52 C74 60, 65 60, 65 52 C65 47, 66 45, 63 43 C59 41, 57 44, 55 46 C53 49, 47 50, 46 45 C45.5 42, 47 41, 44 40.5 C40 40, 39 42, 38 44 C37 47, 37 49, 36.5 55 C36 63, 27 63, 27 55 C27 49, 28 45, 25 44 C21 43, 17 46, 15 42 Z"></path><ellipse cx="37" cy="17" rx="15" ry="6" transform="rotate(-14 37 17)" fill="url(#gGloss2)"></ellipse><circle cx="31" cy="26" r="1.7" fill="#4E9110" opacity="0.85"></circle><circle cx="52" cy="16" r="1.7" fill="#4E9110" opacity="0.85"></circle><circle cx="67" cy="27" r="1.7" fill="#4E9110" opacity="0.85"></circle><circle cx="45" cy="32" r="1.7" fill="#D9F98F" opacity="0.9"></circle><circle cx="60" cy="35" r="1.4" fill="#D9F98F" opacity="0.9"></circle><ellipse cx="31.5" cy="71" rx="2.6" ry="3.4" fill="#5CB80F"></ellipse></g></symbol>
+  <symbol id="nr-lip" viewBox="0 0 60 14" preserveAspectRatio="none">
+    <path fill="url(#goop)" d="M0 0H60V3C54 3 52 5 50 9C49 12 47 12 46 9C45 5 44 3 40 3C32 3 28 3 24 4C21 5 20 9 18 11C17 13 15 13 14 11C13 8 12 4 8 3C5 3 2 3 0 2Z"/>
+    <ellipse cx="30" cy="1.2" rx="14" ry="1" fill="url(#gloss)"/>
+    <circle cx="20" cy="4" r=".8" fill="#4E9110" opacity=".85"/><circle cx="44" cy="4" r=".7" fill="#D9F98F" opacity=".9"/>
+  </symbol>
+</svg>
+
+<nav><div class="wrap">
+  <span class="brand"><svg><use href="#nr-cog"/></svg>NetRelish · Design Kit <span class="mono">v1.1</span></span>
+  <a href="#mark">Mark</a><a href="#color">Color</a><a href="#type">Type</a><a href="#components">Components</a><a href="#motion">Motion</a><a href="#layouts">Layouts</a><a href="#rules">Rules</a>
+  <button class="toggle" id="toggle">Dark</button>
+</div></nav>
+
+<header style="padding:64px 0 24px"><div class="wrap">
+  <h1>Every screen starts here.</h1>
+  <p class="muted" style="font-size:18px;max-width:40em;margin-top:12px">The visual companion to <code>DESIGN_MANIFEST.md</code>. Tokens, symbols, components, motion, and platform layouts — inspect them in light and dark, then build from them. Nothing here drifts without a version bump.</p>
+</div></header>
+
+<section id="mark"><div class="wrap">
+  <div class="head"><h2>The mark</h2><span class="mono">logo.svg · logo-cog.svg</span></div>
+  <div class="grid g3">
+    <div class="spec"><div class="clear"><svg class="mark" style="width:96px;height:96px"><use href="#nr-mark"/></svg></div><span class="label mono">App icon · Dock, titlebar, iOS</span></div>
+    <div class="spec"><div class="clear"><svg class="mark" style="width:110px;height:110px"><use href="#nr-cog"/></svg></div><span class="label mono">The cog · site, onboarding, empty states</span></div>
+    <div class="spec" style="gap:14px;grid-auto-flow:column;align-items:end">
+      <svg class="mark" style="width:24px;height:24px"><use href="#nr-mark"/></svg><svg class="mark" style="width:32px;height:32px"><use href="#nr-mark"/></svg><svg class="mark" style="width:48px;height:48px"><use href="#nr-mark"/></svg><svg class="mark" style="width:64px;height:64px"><use href="#nr-cog"/></svg>
+      <span class="label mono">24 · 32 · 48 · 64 — minimum 24</span>
+    </div>
+  </div>
+  <p class="hint" style="margin-top:14px">Never redrawn, recolored, outlined, cropped, rotated, or animated. No wordmark — the name is set beside it in Bricolage Grotesque 600. One drop-shadow, nothing else.</p>
+</div></section>
+
+<section id="color"><div class="wrap">
+  <div class="head"><h2>Color</h2><span class="mono">tokens.css</span></div>
+  <h3>Neutral base</h3>
+  <div class="grid g6" style="margin-bottom:22px">
+    <div class="sw"><i style="background:var(--bg)"></i><div>bg<span class="mono">--bg</span></div></div>
+    <div class="sw"><i style="background:var(--pane)"></i><div>pane<span class="mono">--pane / --bg-2</span></div></div>
+    <div class="sw"><i style="background:var(--pane-2)"></i><div>pane-2<span class="mono">--pane-2</span></div></div>
+    <div class="sw"><i style="background:var(--ink)"></i><div>ink<span class="mono">--ink</span></div></div>
+    <div class="sw"><i style="background:var(--ink-2)"></i><div>ink-2<span class="mono">--ink-2</span></div></div>
+    <div class="sw"><i style="background:var(--ink-3)"></i><div>ink-3<span class="mono">--ink-3</span></div></div>
+  </div>
+  <h3>Relish — the one accent</h3>
+  <div class="grid g6">
+    <div class="sw"><i style="background:var(--relish-100)"></i><div>100 · tints<span class="mono">--relish-100</span></div></div>
+    <div class="sw"><i style="background:var(--relish-300)"></i><div>300 · chip borders<span class="mono">--relish-300</span></div></div>
+    <div class="sw"><i style="background:var(--relish-500)"></i><div>500 · fills<span class="mono">--relish-500 #93E413</span></div></div>
+    <div class="sw"><i style="background:var(--relish-600)"></i><div>600 · strokes<span class="mono">--relish-600 #5CB80F</span></div></div>
+    <div class="sw"><i style="background:var(--relish-800)"></i><div>800 · text on tint<span class="mono">--relish-800</span></div></div>
+    <div class="sw"><i style="background:var(--relish-900)"></i><div>900 · text on fill<span class="mono">--relish-900 #1D3506</span></div></div>
+  </div>
+  <p class="hint" style="margin-top:14px">Allowed: primary button · active tab lip · active jar tint · seal glyph · shelf-life bars · badges · bullets · highlight · Pro card · focus ring · the Seal animation. Nowhere else.</p>
+</div></section>
+
+<section id="type"><div class="wrap">
+  <div class="head"><h2>Type</h2><span class="mono">Bricolage Grotesque 500/600 · system body · system mono</span></div>
+  <div class="type">
+    <div><span class="mono">Display · Bricolage 500 · 30</span><span style="font-family:var(--display);font-weight:500;font-size:30px;letter-spacing:-.02em">Keep the pages that matter.</span></div>
+    <div><span class="mono">Name · Bricolage 600 · 18</span><span style="font-family:var(--display);font-weight:600;font-size:18px">NetRelish</span></div>
+    <div><span class="mono">Title · system 500 · 13.5</span><span style="font-weight:500;font-size:13.5px">What is System Designer?</span></div>
+    <div><span class="mono">Reading · system 400 · 15/1.65</span><span style="font-size:15px">The definition of the model is stored in a human readable format called MSON.</span></div>
+    <div><span class="mono">Chrome · system 400 · 13</span><span style="font-size:13px">Drag onto a jar, or press ⌘1–9</span></div>
+    <div><span class="mono">Caption · system 400 · 12</span><span style="font-size:12px;color:var(--ink-3)">designfirst.io · captured 2 min ago</span></div>
+    <div><span class="mono">Utility · mono · 11.5</span><span class="mono">brine · 7 · sinks in 4d</span></div>
+  </div>
+</div></section>
+
+<section id="components"><div class="wrap">
+  <div class="head"><h2>Components</h2><span class="mono">symbols.svg · §7</span></div>
+  <div class="grid g2">
+    <div class="card pane">
+      <h3>Buttons</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn relish"><svg viewBox="0 0 24 24"><use href="#nr-seal"/></svg>Seal to Reference</button>
+        <button class="btn">Download</button>
+        <button class="btn text">Cancel</button>
+        <button class="btn relish sm">Get Pro</button>
+        <button class="btn sm">Add label</button>
+      </div>
+      <p class="hint" style="margin-top:12px">One relish button per view. Never two primaries.</p>
+    </div>
+    <div class="card pane">
+      <h3>Address bar</h3>
+      <div class="address">
+        <svg class="i" viewBox="0 0 24 24" style="color:var(--ink-3)"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        <span class="url">designfirst.io/systemdesigner/documentation</span>
+        <button class="ib"><svg class="i" viewBox="0 0 24 24"><path d="M6 4h12v17l-6-4-6 4z"/></svg></button>
+        <button class="ib seal"><svg viewBox="0 0 24 24"><use href="#nr-seal"/></svg></button>
+      </div>
+      <p class="hint" style="margin-top:12px">Capture (bookmark) and Seal (jar-lid glyph) live at the trailing edge. 28 pt hit areas.</p>
+    </div>
+    <div class="card pane" style="grid-column:1/3;padding-bottom:0">
+      <h3>Tabs</h3>
+      <div class="tabs">
+        <div class="tab"><svg class="i" viewBox="0 0 24 24" style="width:12px;height:12px;color:var(--relish-600)"><path d="M12 17v5M8 3h8l-1 7 3 3H6l3-3z"/></svg><span class="fav"></span>App Intents — Apple Developer</div>
+        <div class="tab on"><svg class="lip"><use href="#nr-lip"/></svg><span class="fav"></span>What is System Designer?</div>
+        <div class="tab"><span class="fav"></span>GRDB.swift · GitHub<span class="life"><i style="width:44%"></i></span></div>
+        <div class="tab sinking"><span class="fav"></span>Foundation Models — Overview<span class="life"><i style="width:8%"></i></span></div>
+      </div>
+      <p class="hint" style="padding:12px 0">Pinned (pin glyph, no bar) · Active (lip + relish favicon well) · Shelf life (2 pt bar = life remaining) · Sinking (opacity .5).</p>
+    </div>
+    <div class="card pane">
+      <h3>Shelf</h3>
+      <div class="shelf">
+        <span class="jar on"><svg><use href="#nr-jar"/></svg><span class="n">1</span></span>
+        <span class="jar"><svg><use href="#nr-jar"/></svg><span class="n">2</span></span>
+        <span class="jar"><svg><use href="#nr-jar"/></svg><span class="n">3</span><span class="badge"></span></span>
+        <span class="jar"><svg><use href="#nr-jar"/></svg><span class="n">4</span></span>
+        <span class="jar"><svg style="width:20px;height:24px"><use href="#nr-recipe"/></svg></span>
+        <span class="jar"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+      </div>
+      <p class="hint" style="margin-top:12px">Active = relish-100 tint. Badge = new items. Vertical in the app; shown horizontal here.</p>
+    </div>
+    <div class="card pane">
+      <h3>Chips, pills, bars</h3>
+      <div class="chips" style="margin-bottom:10px"><span class="chip acc">tooling</span><span class="chip">netrelish</span><span class="chip">docs</span><span class="chip add">Add</span></div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px"><span class="state"><i></i>Unsorted · page</span><span class="count">7</span></div>
+      <div class="bar"><i></i></div>
+    </div>
+    <div class="card pane">
+      <h3>Inspector</h3>
+      <div class="insp">
+        <div><div style="font-weight:500;font-size:13.5px">What is System Designer?</div><div class="hint">designfirst.io · captured 2 min ago</div></div>
+        <div><div class="k">Shelf life</div><div style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--ink-2)"><span class="bar" style="flex:1"><i></i></span>sinks in 4d</div></div>
+        <div><div class="k">On seal</div><div class="recipe"><svg><use href="#nr-recipe"/></svg>Summarize and label</div></div>
+        <button class="btn relish sm" style="width:100%;justify-content:center"><svg viewBox="0 0 24 24"><use href="#nr-seal"/></svg>Seal to Reference</button>
+      </div>
+    </div>
+    <div class="card pane" style="padding:0;overflow:hidden">
+      <h3 style="padding:18px 18px 0">Brine tray</h3>
+      <p class="hint" style="padding:0 18px 12px">The only frosted surface in the app.</p>
+      <div class="tray">
+        <div class="label"><svg><use href="#nr-bowl"/></svg>Brine <span class="count">7</span></div>
+        <div class="item"><span class="fav"></span>swiftpackageindex.com — GRDB</div>
+        <div class="item"><span class="fav"></span>github.com/design-first</div>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<section id="motion"><div class="wrap">
+  <div class="head"><h2>Motion</h2><span class="mono">base 200 ms · seal 900 ms · sink 600 ms</span></div>
+  <div class="grid g2">
+    <div class="stage">
+      <div class="win">
+        <div class="wbar"><span class="tab"><span class="fav"></span>developer.apple.com</span><span class="tab on"><svg class="lip"><use href="#nr-lip"/></svg><span class="fav"></span>designfirst.io</span><span class="tab"><span class="fav"></span>github.com</span></div>
+        <div class="wbody">
+          <div class="wshelf"><span class="jar on"><span class="lidcap"></span><span class="jdrip"></span><svg><use href="#nr-jar"/></svg></span><span class="jar"><svg><use href="#nr-jar"/></svg></span><span class="jar"><svg><use href="#nr-jar"/></svg></span></div>
+          <div style="padding:14px 0"><div class="ln" style="width:50%;height:12px;background:var(--line)"></div><div class="ln"></div><div class="ln" style="width:80%"></div><div class="ln" style="height:44px"></div><div class="ln" style="width:70%"></div></div>
+        </div>
+        <div class="wcard"><span class="fav"></span>System Designer — Design First</div>
+        <div class="toast">Sealed to Reference</div>
+      </div>
+    </div>
+    <div class="card pane">
+      <h3>The Seal — the one signature animation</h3>
+      <p class="muted" style="font-size:14px">Card lifts, shrinks toward the active jar, the lid caps it, one drip runs, a toast confirms. 900 ms on one curve. The tab in the strip collapses at the same time so the tab count visibly drops.</p>
+      <p class="muted" style="font-size:14px;margin-top:10px"><b>Sink</b> is its quieter sibling: an idle tab dims and slides into the tray over 600 ms.</p>
+      <p class="hint" style="margin-top:10px">Reduced motion: both become 200 ms crossfades. No bounce, no parallax, no pulsing glows.</p>
+    </div>
+  </div>
+</div></section>
+
+<section id="layouts"><div class="wrap">
+  <div class="head"><h2>Platform layouts</h2><span class="mono">same tokens, same objects</span></div>
+  <div class="grid g4">
+    <div class="card"><h3>macOS</h3><div class="lay mac"><div class="tb">titlebar 44</div><div>shelf</div><div>bench</div><div>inspector 260</div><div class="tr">brine 56</div></div><p class="hint" style="margin-top:10px">Min 980×640. Split is a bench mode.</p></div>
+    <div class="card"><h3>iPhone · Duo closed</h3><div class="lay phone"><div>bench</div><div>brine sheet</div><div>shelf = tab bar</div></div><p class="hint" style="margin-top:10px">Jars as tabs, inspector as sheet.</p></div>
+    <div class="card"><h3>iPhone Duo open</h3><div class="lay duo"><div class="tb">bar</div><div>shelf</div><div>bench</div><div>insp</div><div class="tr">brine</div></div><p class="hint" style="margin-top:10px">The macOS layout at 60%.</p></div>
+    <div class="card"><h3>iPad</h3><div class="lay pad"><div class="tb">titlebar</div><div>shelf 72</div><div>bench</div><div>inspector</div><div class="tr">brine</div></div><p class="hint" style="margin-top:10px">Three columns; sidebar collapses.</p></div>
+  </div>
+</div></section>
+
+<section id="rules"><div class="wrap">
+  <div class="head"><h2>Do / Don't</h2></div>
+  <div class="dd">
+    <div class="card"><h3><span class="ok">●</span> Do</h3><ul><li>Jar glyph for every jar</li><li>One relish button per view</li><li>Lip on the active tab only</li><li>Hairlines between regions</li><li>The mark, unchanged, one shadow</li><li>System glyphs at 1.7 stroke</li><li>Sentence case</li></ul></div>
+    <div class="card"><h3><span class="no">●</span> Don't</h3><ul><li>Folder icons, emoji, or colored dots for jars</li><li>Relish outlines, text, or backgrounds</li><li>Lips on hover or on every tab</li><li>Panel shadows, cards inside cards</li><li>Tinted, rotated, cropped, or animated marks</li><li>Mixed icon sets, filled icons</li><li>Title Case, ALL CAPS labels</li></ul></div>
+  </div>
+</div></section>
+
+<footer><div class="wrap">NetRelish Design Kit v1.1 · 2026-09-15 · Source of truth: DESIGN_MANIFEST.md · © Shepdesign LLC</div></footer>
+
+<script>
+const h=document.documentElement,b=document.getElementById('toggle');
+const prefers=matchMedia('(prefers-color-scheme: dark)').matches;
+let dark=prefers; const apply=()=>{h.classList.toggle('dark',dark);h.classList.toggle('light',!dark);b.textContent=dark?'Light':'Dark'}; apply();
+b.onclick=()=>{dark=!dark;apply()};
+</script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-# NetRelish Design Manifest — v1.1 (consolidated)
+# NetRelish Design Manifest — v1.2
 
 The single source of truth for the brand and UI across macOS, iOS, and the marketing site. Brand Lock v1.1 is folded in here. Every screen is built from this document, `tokens.css`, and `symbols.svg`. Nothing drifts without a version bump and a changelog line at the bottom.
 
@@ -68,7 +68,7 @@ Not relish: links (use `--nr-fg` underlined), selection (system), toolbar icons,
 | `#nr-jar` | A jar (project) | Wherever a jar is meant. Filled body, hairline shoulder. Variants: `#nr-jar-smart` (adds filter glyph), `#nr-jar-pickle` (adds `</>`). |
 | `#nr-seal` | Seal action | Relish. |
 | `#nr-lip` | Active tab lip | Relish, `--lip-h` tall. |
-| `#nr-drip` | The one drip | Seal animation only. |
+| `#nr-drip` | The drip | Two placements: the Seal animation (relish), and the jar fill when something lands in a jar (the jar's tint). Nowhere else. |
 | `#nr-sink` | Sinking / sunk state | Neutral. |
 | Everything else | SF Symbols, line weight matching system | No emoji. No custom icons beyond this table. |
 
@@ -84,13 +84,14 @@ Not relish: links (use `--nr-fg` underlined), selection (system), toolbar icons,
 | **Secondary button** | Hairline border, `--nr-fg` text, no fill. |
 | **Badge** | `--relish-100` bg, `--relish-700` text, `--r-1`, tabular numerals. |
 | **Shelf-life bar** | 2pt, `--relish-500` → `--nr-warn` under 20%, `--nr-hairline` track. |
-| **Seal** | ⌘S in a tab. Glyph pulses once, the drip falls (`--t-seal`, `--ease-jar`), tab closes, jar count badge increments. The only animation longer than `--t-base`. |
+| **Seal** | ⌘S in a tab. Glyph pulses once, the drip falls (`--t-seal`, `--ease-jar`), tab closes, jar count badge increments. The longest animation in the app. |
+| **Jar fill (add)** | Something lands in a jar: a `#nr-drip` in the jar's tint falls inside the glyph, then the fill rises to the new level (`--ease-jar`). Shorter than `--t-seal`. |
 | **Ask the Pantry** | System search field, `--nr-surface`, results as plain rows with `#nr-jar` provenance chips. No chat bubbles. |
 | **Empty states** | `logo-cog.svg` at 40–64pt, one line of copy, one primary button. |
 
 ## 9 · Motion
 
-`--t-fast` for hover/focus, `--t-base` for layout, `--t-seal` for Seal only. `--ease-out` default; `--ease-jar` for anything a jar does (drop into shelf, settle, switch). Respect Reduce Motion: Seal becomes a fade.
+`--t-fast` for hover/focus, `--t-base` for layout, `--t-seal` for Seal only. `--ease-out` default; `--ease-jar` for anything a jar does (drop into shelf, settle, switch). Respect Reduce Motion: Seal becomes a fade; the jar-fill drip becomes a plain level change.
 
 ## 10 · Platforms
 
@@ -114,6 +115,7 @@ Dark-green glass · gradient text in the product · relish backgrounds · a seco
 ---
 
 ## Changelog
+- **v1.2 (Oct 21 2026)** — second drip approved: the jar fill plays a `#nr-drip` in the jar's tint when something lands in a jar; Seal keeps the relish drip. Decided by Ryan in the workstation prototype review (`docs/design/netrelish-workstation.html` implements it).
 - **v1.1.2 (Sept 21 2026)** — relish-100/300/700/ink take the Sept 15 Design Kit values, per the v1.1 note that the earlier file wins on values. relish-500 unchanged.
 - **v1.1.1 (Sept 16 2026)** — `tokens.css` OKLCH values re-derived exactly from their hex fallbacks; the v1.1 numbers were approximations that rendered darker (relish-500 came out `#9CE700`). Hexes unchanged. Decided by Ryan, ADR 0001.
 - **v1.1 (consolidated, Sept 16 2026)** — merged Brand Lock v1.1 + Design Manifest v1.1 into one file. Token values re-derived; original file wins on values if recovered.

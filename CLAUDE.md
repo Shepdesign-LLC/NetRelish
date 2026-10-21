@@ -31,12 +31,12 @@ Native macOS browser with a pantry. Swift. Mac App Store. This file is the contr
 | Billing | StoreKit 2 in App Store build. Paddle or Lemon Squeezy (merchant of record) in direct build. |
 | Site | Separate repo `netrelish-site`, Astro static, plain CSS from `tokens.css`. |
 
-## Brand (locked — Brand Lock v1.1, full rules in `/design/DESIGN_MANIFEST.md`)
+## Brand (locked — Brand Lock v1.2, full rules in `/design/DESIGN_MANIFEST.md`)
 - `logo.svg` (app icon, titlebar) and `logo-cog.svg` (site, About window, onboarding). Never redrawn, recolored, or cropped.
 - Neutral base, system type, hairlines. The product is the hero; the brand is carried by the mark and the objects, not by color washes.
 - Relish (`--relish-500`, `#93E413`) is the single accent and appears **only** in the exhaustive placement list in the manifest. Anywhere else is a bug.
 - Jar icons (`#nr-jar`) wherever a jar is meant. System line icons (SF Symbols) for everything else. No emoji in UI.
-- One drip in the app: the Seal animation. Nowhere else.
+- Two drips in the app: the Seal animation (relish), and the jar fill when something lands in a jar (the jar's tint). Nowhere else.
 - Never: dark-green glass surfaces, gradient text in the product, relish as a background, cheesy pantry puns in headlines.
 
 ## Vocabulary (use these words in code, UI, and commits)

@@ -1,0 +1,86 @@
+{
+  "Zest": {
+    "fruit": "lemon",
+    "name": "Lemon",
+    "peel": [
+      "#FFE45C",
+      "#F5B800"
+    ],
+    "flesh": [
+      "#FFF6B0",
+      "#FFD84A"
+    ],
+    "pith": "#FFF9DC",
+    "juice": "#FFCF2E",
+    "bg": [
+      "#2A2610",
+      "#100E06"
+    ],
+    "glow": "#FFD21F",
+    "accent": "#F2B705",
+    "accentInk": "#8A6500"
+  },
+  "ZestMail": {
+    "fruit": "orange",
+    "name": "Orange",
+    "peel": [
+      "#FFA63D",
+      "#F06A00"
+    ],
+    "flesh": [
+      "#FFD59A",
+      "#FF9A2E"
+    ],
+    "pith": "#FFF0DC",
+    "juice": "#FF8A1F",
+    "bg": [
+      "#2C1A0C",
+      "#120A04"
+    ],
+    "glow": "#FF8A1F",
+    "accent": "#F5761A",
+    "accentInk": "#9A4600"
+  },
+  "Zest MD": {
+    "fruit": "lime",
+    "name": "Lime",
+    "peel": [
+      "#8FE04A",
+      "#3FAA2A"
+    ],
+    "flesh": [
+      "#D8F7A8",
+      "#8FDD55"
+    ],
+    "pith": "#F1FBE0",
+    "juice": "#6FD13C",
+    "bg": [
+      "#132A12",
+      "#070F06"
+    ],
+    "glow": "#6FD13C",
+    "accent": "#4FBF3A",
+    "accentInk": "#24741B"
+  },
+  "ZestImage": {
+    "fruit": "grapefruit",
+    "name": "Grapefruit",
+    "peel": [
+      "#FF9A8A",
+      "#E8483B"
+    ],
+    "flesh": [
+      "#FFC7B8",
+      "#FF6E6A"
+    ],
+    "pith": "#FFEDE8",
+    "juice": "#FF6470",
+    "bg": [
+      "#2E1214",
+      "#120607"
+    ],
+    "glow": "#FF6470",
+    "accent": "#F0525E",
+    "accentInk": "#A8232F"
+  }
+}

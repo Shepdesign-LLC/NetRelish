@@ -13,6 +13,37 @@ copied here because they are the current targets:
 `NetRelish iOS.dc.html` (five iPhone frames) and `ios-frame.jsx` stay in the
 Claude Design project; fetch them the same way when iOS is scheduled.
 
+## Zest-bundle prototypes (2026-10)
+
+Two more files arrived with the Zest bundle (2026-10) and live here:
+
+- `netrelish-workstation.html` — standalone interactive HTML prototype of the
+  workstation: right-click context menus and drag-and-drop of tabs, jars and
+  brine rows. It needs no runtime; open it in a browser. Same caveat as the
+  `.dc.html` mocks: a destination, not a sprint.
+- `netrelish-design-kit.html` — Design Kit v1.1, a single page built on the
+  Brand Lock v1.1 tokens (dated 2026-09-15).
+
+Privacy copy check (per the banned lines below): both files were grepped for
+"end-to-end encrypted", "we can't read", and "E2E". Neither carries any of the
+banned copy — the only string match is the hex colour `#E2ECC2` in the design
+kit, which is not copy.
+
+**Decision taken from this pass (2026-10-21, Ryan):** adding to a jar plays
+a drip — a drop falls inside the jar glyph and the liquid rises to the new
+level (shelf row, tab-bar chip and board header; respects reduced motion).
+Ryan confirmed the rule change the same day: Brand Lock is now **v1.2** —
+two drips, the Seal (relish) and the jar fill on add (the jar's tint).
+`DESIGN_MANIFEST.md` carries the amendment and the changelog line.
+
+**Decision taken from this pass (2026-10-21, Ryan):** notes take Markdown,
+not rich text — the ZestMail text-block grammar exactly (`**bold**`,
+`*italic*`, `` `code` ``, `[link](url)`, blank line = paragraph; MAIL-PRESS.md
+§2.2). Plain-text storage, so "Send to Zest MD" is lossless and one grammar
+serves the whole line. The workstation prototype implements it: note pages
+render the Markdown and switch to the raw source on click; links are
+http(s)-only and open in a new tab.
+
 ## What these mocks are
 
 The **destination**, not a sprint. `Workstation Desktop` alone spans P5
