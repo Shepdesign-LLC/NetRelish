@@ -1,7 +1,24 @@
 # ZestImage
 
-Not built yet. This is the build brief, distilled from `../../docs/ZEST-SPEC.md`
-§7.4; where they differ, the spec wins.
+The free local core is built: `index.html` is the whole app. Open it over
+http and everything below marked Free works — eight layouts, every target,
+PNG/WebP at 1× and 2×, the filename pattern, required alt text, the OG
+snippet and the `zest-image.json` manifest. Pro features are visible and
+greyed per ZEST-SPEC §4.3; they arrive with Zest accounts.
+
+## Run locally
+
+```bash
+npx serve .          # any http server works; file:// blocks font loading
+```
+
+Brand fonts load from Google Fonts and degrade to system type offline.
+Photos, logos and brands stay in this browser — nothing is uploaded.
+
+---
+
+The build brief below is distilled from `../../docs/ZEST-SPEC.md` §7.4;
+where they differ, the spec wins.
 
 Branded featured images — blog hero, OG card, social tile — composed from the
 brand system, not generated. The image is typography, colour, the logo, and

@@ -1,0 +1,12 @@
+{
+  "id": "image",
+  "name": "ZestImage",
+  "version": "1.0.0",
+  "tagline": "Featured images that look like your brand, not like a prompt",
+  "entry": "https://zest.netrelish.com/image/index.html",
+  "icon": "https://zest.netrelish.com/image/icons/icon-512.png",
+  "fileTypes": [".json", ".png", ".webp"],
+  "capabilities": ["open", "save", "clipboard", "license", "network"],
+  "minShell": "1.0.0",
+  "changelog": "https://zest.netrelish.com/image/changelog"
+}
