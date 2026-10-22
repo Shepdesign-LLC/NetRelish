@@ -66,9 +66,12 @@ header a:hover{color:var(--ink)}
 .hint b{color:var(--ink-2);font-weight:500}
 .hint code{font:10.5px var(--mono);background:var(--pane-2);padding:1px 4px;border-radius:4px}
 
-.brandrow{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:var(--r);border:1px solid var(--line-2);background:var(--pane);margin-bottom:6px;text-align:left;transition:border-color var(--t)}
+.brandrow{display:flex;align-items:stretch;width:100%;border-radius:var(--r);border:1px solid var(--line-2);background:var(--pane);margin-bottom:6px;overflow:hidden;transition:border-color var(--t)}
 .brandrow:hover{border-color:var(--ink-3)}
 .brandrow[aria-current="true"]{border-color:var(--acc)}
+.brandrow .bsel{flex:1;display:flex;align-items:center;gap:10px;padding:8px 10px;text-align:left;min-width:0}
+.brandrow .bdel{padding:0 11px;color:var(--ink-3);font-size:15px;border-left:1px solid var(--line-2)}
+.brandrow .bdel:hover{color:var(--acc)}
 .brandrow .dots{display:flex;gap:3px;flex:none}
 .brandrow .dots i{width:10px;height:10px;border-radius:4px;box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
 .brandrow b{flex:1;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -152,7 +155,7 @@ footer .sp{flex:1}
       <p class="lab">Brand<span class="sp"></span><button class="btn sm" id="bImport">Import</button></p>
       <div id="brandList"></div>
       <input type="file" id="fBrand" accept=".json,application/json" hidden>
-      <p class="hint">A <code>zest-brand.json</code> from the Zest studio. Drop one anywhere on the page. <b id="brandCount"></b></p>
+      <p class="hint">A <code>zest-brand.json</code> from the Zest studio. Drop one anywhere on the page. Re-importing a name updates it; × removes. <b id="brandCount"></b></p>
       <div class="modes" style="margin-top:9px">
         <button class="btn sm" id="mLight" aria-pressed="true">Light</button>
         <button class="btn sm" id="mDark" aria-pressed="false">Dark</button>
@@ -251,7 +254,7 @@ footer .sp{flex:1}
   <span class="sp"></span>
   <span>Fonts load from Google Fonts and nothing else is fetched.</span>
 </footer>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (() => {
@@ -324,8 +327,9 @@ const allBrands = () => [...SAMPLES, ...S.brands];
 const brand = () => allBrands()[Math.min(S.brandIdx, allBrands().length - 1)];
 const tokens = () => brand()[S.mode] || brand().light;
 const target = () => TARGETS.find(t => t.id === S.target) || TARGETS[0];
+const clampDim = v => Math.min(4096, Math.max(100, +v || 0)) || 1200;
 const dims = () => S.target === 'custom'
-  ? { w: Math.max(100, +S.custom.w || 1200), h: Math.max(100, +S.custom.h || 800) }
+  ? { w: clampDim(S.custom.w), h: clampDim(S.custom.h || 800) }
   : { w: target().w, h: target().h };
 const content = () => ({
   title: $('#cTitle').value.trim(), kicker: $('#cKicker').value.trim(), byline: $('#cByline').value.trim(),
@@ -335,15 +339,20 @@ const content = () => ({
 
 /* ---------- fonts: fetch Google CSS, embed woff2 as data URIs, register for measuring ---------- */
 const FALL = { head: 'system-ui, -apple-system, sans-serif', body: 'system-ui, -apple-system, sans-serif', mono: 'ui-monospace, Menlo, monospace' };
-const fontCache = new Map();           // family -> { css (data-uri @font-face rules), ok }
+const fontCache = new Map();           // `${family}|${axes}` -> { css (data-uri @font-face rules), ok }
 let fontsWarned = false;
 const famParam = f => f.trim().replace(/ /g, '+');
+const axesFor = (b, role) => role === 'head'
+  ? ((b.fonts || {}).head === 'Bricolage Grotesque' ? ':opsz,wght@12..96,500;12..96,600;12..96,800' : ':wght@500;600;800')
+  : role === 'body' ? ':wght@400;500;600' : ':wght@400;500';
+const famKey = (b, role) => { const f = (b.fonts || {})[role]; return f ? f + '|' + axesFor(b, role) : ''; };
 async function loadFamily(family, axes) {
-  if (fontCache.has(family)) return fontCache.get(family);
+  const key = family + '|' + axes;
+  if (fontCache.has(key)) return fontCache.get(key);
   const entry = { css: '', ok: false };
-  fontCache.set(family, entry);
+  fontCache.set(key, entry);
   try {
-    const url = `https://fonts.googleapis.com/css2?family=${famParam(family)}${axes || ':wght@400;600;800'}&display=swap`;
+    const url = `https://fonts.googleapis.com/css2?family=${famParam(family)}${axes}&display=swap`;
     const css = await (await fetch(url, { mode: 'cors' })).text();
     const faces = css.match(/(?:\/\*\s*[a-z0-9-]+\s*\*\/\s*)?@font-face\s*{[^}]+}/g) || [];
     for (const face of faces) {
@@ -367,14 +376,12 @@ async function loadFamily(family, axes) {
 }
 async function loadBrandFonts(b) {
   const f = b.fonts || {};
-  await Promise.all([
-    f.head && loadFamily(f.head, f.head === 'Bricolage Grotesque' ? ':opsz,wght@12..96,500;12..96,600;12..96,800' : ':wght@500;600;800'),
-    f.body && loadFamily(f.body, ':wght@400;500;600'),
-    f.mono && loadFamily(f.mono, ':wght@400;500'),
-  ].filter(Boolean));
+  await Promise.all(['head', 'body', 'mono'].filter(r => f[r]).map(r => loadFamily(f[r], axesFor(b, r))));
 }
-const fontCSS = b => ['head', 'body', 'mono'].map(k => (fontCache.get((b.fonts || {})[k]) || {}).css || '').join('');
-const fam = (b, k) => { const f = (b.fonts || {})[k]; return f && (fontCache.get(f) || {}).ok ? `'${f}', ${FALL[k]}` : FALL[k]; };
+const fontCSS = b => { const seen = new Set(); return ['head', 'body', 'mono'].map(r => {
+  const k = famKey(b, r); if (!k || seen.has(k)) return ''; seen.add(k);
+  return (fontCache.get(k) || {}).css || ''; }).join(''); };
+const fam = (b, r) => { const f = (b.fonts || {})[r]; return f && (fontCache.get(famKey(b, r)) || {}).ok ? `'${f}', ${FALL[r]}` : FALL[r]; };
 
 /* ---------- text measuring + wrapping ---------- */
 const mctx = document.createElement('canvas').getContext('2d');
@@ -406,6 +413,14 @@ function fit(text, font, weight, maxW, maxH, startSize, minSize, lh) {
   }
   const size = minSize, r = wrap(text, font, size, weight, maxW, Math.max(1, Math.floor(maxH / (size * lh))));
   return { size, lines: r.lines };
+}
+function fitOne(text, font, weight, maxW, startSize, minSize) {
+  for (let size = startSize; size >= minSize; size -= Math.max(1, size * 0.06)) {
+    const r = wrap(text, font, size, weight, maxW, 1);
+    if (r.lines.length === 1 && !r.clipped) return { size, lines: [r.lines[0]] };
+  }
+  const r = wrap(text, font, minSize, weight, maxW, 1);
+  return { size: minSize, lines: [(r.lines[0] || '') + (r.clipped ? '…' : '')] };
 }
 const tspans = (lines, x, y, lh, size) => lines.map((l, i) => `<tspan x="${x}" y="${(y + i * size * lh).toFixed(1)}">${esc(l)}</tspan>`).join('');
 
@@ -475,7 +490,7 @@ const LAYOUTS = {
   }},
   stat: { n: 'Stat card', d: 'One big number', fn(b, t, c, W, H) {
     const M = W * 0.08, u = Math.min(W, H);
-    const st = fit(c.stat || '0', fam(b, 'head'), 800, W - M * 2, H * 0.5, u * 0.42, u * 0.1, 1);
+    const st = fitOne(c.stat || '0', fam(b, 'head'), 800, W - M * 2, u * 0.42, u * 0.1);
     return `<rect width="${W}" height="${H}" fill="${t.paper}"/>
       ${c.title ? `<text x="${M}" y="${M + u * 0.03}" font-family="${fam(b, 'mono')}" font-size="${u * 0.03}" letter-spacing="${u * 0.004}" fill="${t.muted}">${esc(c.title.toUpperCase())}</text>` : ''}
       <text x="${M}" y="${H * 0.56}" font-family="${fam(b, 'head')}" font-weight="800" font-size="${st.size}" fill="${t.primary}" letter-spacing="${-st.size * 0.03}">${esc(st.lines[0] || '')}</text>
@@ -505,7 +520,7 @@ const LAYOUTS = {
   }},
   logo: { n: 'Logo lockup', d: 'Just the brand', fn(b, t, c, W, H) {
     const u = Math.min(W, H);
-    const nm = fit(b.name || 'Brand', fam(b, 'head'), 800, W * 0.8, H * 0.2, u * 0.11, u * 0.04, 1.05);
+    const nm = fitOne(b.name || 'Brand', fam(b, 'head'), 800, W * 0.8, u * 0.11, u * 0.04);
     const hasLogo = !!S.logo, ly = H / 2 - (hasLogo ? u * 0.16 : u * 0.05);
     return `<rect width="${W}" height="${H}" fill="${t.paper}"/>
       ${hasLogo ? `<image href="${S.logo}" x="${W / 2 - u * 0.11}" y="${ly - u * 0.02}" width="${u * 0.22}" height="${u * 0.22}" preserveAspectRatio="xMidYMid meet"/>` : ''}
@@ -549,10 +564,12 @@ function render() {
 function renderBrands() {
   const list = allBrands();
   $('#brandList').innerHTML = list.map((b, i) => {
-    const t = b[S.mode] || b.light;
-    return `<button class="brandrow" data-i="${i}" aria-current="${i === S.brandIdx}">
+    const t = b[S.mode] || b.light, yours = i >= SAMPLES.length;
+    return `<div class="brandrow" aria-current="${i === S.brandIdx}">
+      <button class="bsel" data-i="${i}">
       <span class="dots"><i style="background:${esc(t.primary)}"></i><i style="background:${esc(t.ink)}"></i><i style="background:${esc(t.paper)};outline:1px solid ${esc(t.line)}"></i></span>
-      <b>${esc(b.name)}</b><small>${i < SAMPLES.length ? 'sample' : 'yours'}</small></button>`;
+      <b>${esc(b.name)}</b><small>${yours ? 'yours' : 'sample'}</small></button>
+      ${yours ? `<button class="bdel" data-del="${i}" aria-label="Remove ${esc(b.name)}" title="Remove ${esc(b.name)}">×</button>` : ''}</div>`;
   }).join('');
   $('#brandCount').textContent = `${S.brands.length} of ${FREE_BRANDS} saved brands used.`;
   $('#mLight').setAttribute('aria-pressed', S.mode === 'light');
@@ -610,13 +627,23 @@ async function exportImage() {
   finally { URL.revokeObjectURL(url); }
 }
 const ogSnippet = () => { const { w, h } = dims(), k = scale(), alt = esc($('#cAlt').value.trim() || altDefault());
-  return `<meta property="og:image" content="/images/${filename()}">\n<meta property="og:image:width" content="${w * k}">\n<meta property="og:image:height" content="${h * k}">\n<meta property="og:image:alt" content="${alt}">\n<meta name="twitter:card" content="summary_large_image">`; };
+  return `<meta property="og:image" content="https://your-site.example/images/${filename()}">\n<meta property="og:image:width" content="${w * k}">\n<meta property="og:image:height" content="${h * k}">\n<meta property="og:image:alt" content="${alt}">\n<meta name="twitter:card" content="summary_large_image">`; };
 
 /* ---------- events ---------- */
 $('#left').addEventListener('input', () => { render(); });
 $('#cAlt').addEventListener('input', () => { S.altTouched = true; });   // clearing it is an edit too — never silently refill
 $('#cTint').addEventListener('input', e => { S.tint = +e.target.value; $('#tintVal').textContent = S.tint + '%'; render(); });
 $('#brandList').addEventListener('click', async e => {
+  const d = e.target.closest('[data-del]');
+  if (d) {
+    const abs = +d.dataset.del, rel = abs - SAMPLES.length, gone = S.brands[rel];
+    if (!gone) return;
+    S.brands.splice(rel, 1);
+    if (S.brandIdx === abs) S.brandIdx = 0;
+    else if (S.brandIdx > abs) S.brandIdx--;
+    save(); renderBrands(); render(); toast(`${gone.name} removed.`);
+    return;
+  }
   const b = e.target.closest('[data-i]'); if (!b) return;
   S.brandIdx = +b.dataset.i; save(); renderBrands(); render();
   await loadBrandFonts(brand()); render();
@@ -630,10 +657,13 @@ async function importBrand(file) {
   try {
     const b = JSON.parse(await file.text());
     if (b.zest !== 1 || !b.name || !b.light) throw new Error('Not a zest-brand.json — export one from the Zest studio');
-    if (S.brands.length >= FREE_BRANDS) { toast(`Free holds ${FREE_BRANDS} saved brands — unlimited brands arrive with Pro.`); return; }
+    const replaces = S.brands.some(x => x.name.toLowerCase() === String(b.name).slice(0, 48).toLowerCase());
+    if (!replaces && S.brands.length >= FREE_BRANDS) { toast(`Free holds ${FREE_BRANDS} saved brands — remove one (×), or unlimited brands arrive with Pro.`); return; }
     const clean = sanitizeBrand(b);
-    S.brands.push(clean); S.brandIdx = SAMPLES.length + S.brands.length - 1; save();
-    renderBrands(); render(); toast(`${clean.name} imported.`);
+    const existing = S.brands.findIndex(x => x.name.toLowerCase() === clean.name.toLowerCase());
+    if (existing >= 0) { S.brands[existing] = clean; S.brandIdx = SAMPLES.length + existing; }
+    else { S.brands.push(clean); S.brandIdx = SAMPLES.length + S.brands.length - 1; }
+    save(); renderBrands(); render(); toast(`${clean.name} ${existing >= 0 ? 'updated' : 'imported'}.`);
     await loadBrandFonts(clean); render();
   } catch (err) { toast(err.message); }
 }
@@ -672,7 +702,7 @@ $('#bManifest').addEventListener('click', () => {
   download(`${slug(brand().name)}-zest-image.json`, new Blob([JSON.stringify(m, null, 2)], { type: 'application/json' }));
   toast(S.exports.length ? 'Manifest saved — regenerate the whole set from it after a rebrand.' : 'Manifest saved — it fills as you export.'); });
 $('#bOg').addEventListener('click', async () => { const snip = ogSnippet();
-  try { await navigator.clipboard.writeText(snip); toast('OG meta copied — paste it into the page head.'); }
+  try { await navigator.clipboard.writeText(snip); toast('OG meta copied — swap your-site.example for where the image is hosted.'); }
   catch { download(filename().replace(/\.(png|webp)$/, '') + '.og.txt', new Blob([snip], { type: 'text/plain' }));
     toast('Clipboard access was blocked — the snippet saved as a file instead.'); } });
 $$('.pro').forEach(p => p.addEventListener('click', () =>
