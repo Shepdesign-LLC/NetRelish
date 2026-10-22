@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --paper:#f2f3f5; --sheet:#ffffff; --ink:#1b2130; --ink-2:#4b5363; --ink-3:#8a92a3; --rule:#dde0e6;
+  --paper:#f2f3f5; --sheet:#ffffff; --ink:#1b2130; --ink-2:#4b5363; --ink-3:#5f6879; --rule:#dde0e6; /* ink-3: 4.58:1 worst-case on the light surfaces — small helper text needs 4.5:1 */
   --accent:#1f4ed8; --accent-soft:#e8eefc; --on-accent:#fff; --code-bg:#f5f6f9;
   --ok:#0f766e; --warn:#b45309; --err:#be123c; --ok-soft:#e3f5f2; --warn-soft:#fdf0e1; --err-soft:#fde5ea;
   --ui:'Geist',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -107,9 +107,9 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .tagbar{display:flex; gap:6px; align-items:center; margin:0 0 8px}
 .tagbar select{flex:1; background:var(--paper); border:1px solid var(--rule); border-radius:6px; padding:5px 8px; font-size:12.5px; color:var(--ink)}
 .tagbar .btn{border:1px solid var(--rule); height:30px; font-size:12.5px}
-.canvas .empty{padding:60px 36px; text-align:center; color:#8a92a3; font:14px/1.5 var(--ui)}
+.canvas .empty{padding:60px 36px; text-align:center; color:#5f6879; font:14px/1.5 var(--ui)} /* literal: the email canvas stays white in both app themes */
 .canvas .empty b{display:block; color:#4b5363; font-size:16px; margin-bottom:6px}
-.canvas .ph{background:repeating-linear-gradient(45deg,#f0f1f4,#f0f1f4 8px,#e6e8ee 8px,#e6e8ee 16px); color:#8a92a3; font:12px var(--ui); display:flex; align-items:center; justify-content:center; text-align:center; padding:12px}
+.canvas .ph{background:repeating-linear-gradient(45deg,#f0f1f4,#f0f1f4 8px,#e6e8ee 8px,#e6e8ee 16px); color:#5f6879; font:12px var(--ui); display:flex; align-items:center; justify-content:center; text-align:center; padding:12px}
 .center iframe{border:0; background:#fff; box-shadow:0 20px 50px -20px rgba(10,14,24,.35); border-radius:6px; height:100%; min-height:600px; display:block; margin:0 auto; transition:width .18s}
 
 /* inspector */

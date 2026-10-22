@@ -21,10 +21,10 @@
 <!-- ===== Document styles (also inlined into exports) ===== -->
 <style id="doc-css">
 :root{
-  --paper:#f2f3f5; --sheet:#ffffff; --ink:#1b2130; --ink-2:#4b5363; --ink-3:#8a92a3;
+  --paper:#f2f3f5; --sheet:#ffffff; --ink:#1b2130; --ink-2:#4b5363; --ink-3:#5f6879; /* ink-3: 4.58:1 worst-case on the light surfaces — small helper text needs 4.5:1 */
   --rule:#dde0e6; --accent:#1f4ed8; --accent-soft:#e8eefc; --code-bg:#f5f6f9;
   --on-accent:#ffffff; --radius:8px;
-  --c-comment:#8a92a3; --c-kw:#7c3aed; --c-str:#0f766e; --c-num:#b45309; --c-fn:#1f4ed8; --c-var:#be123c;
+  --c-comment:#5f6879; --c-kw:#7c3aed; --c-str:#0f766e; --c-num:#b45309; --c-fn:#1f4ed8; --c-var:#be123c;
   --doc-font:'Geist',system-ui,-apple-system,'Segoe UI',sans-serif;
   --ui-font:'Geist',system-ui,-apple-system,'Segoe UI',sans-serif;
   --mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -647,13 +647,13 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   const FONT_CHOICES = { doc: ['geist','instrument','manrope','bricolage','newsreader','jet','geistMono','system'], ui: ['geist','instrument','manrope','bricolage','system'], mono: ['geistMono','jet','sysmono'] };
   const FONT_NAMES = { geist: 'Geist', instrument: 'Instrument Sans', manrope: 'Manrope', bricolage: 'Bricolage Grotesque', newsreader: 'Newsreader (serif)', jet: 'JetBrains Mono', geistMono: 'Geist Mono', system: 'System sans', sysmono: 'System mono' };
   const SYN = {
-    light: ['#8a92a3','#7c3aed','#0f766e','#b45309','#1f4ed8','#be123c'],
+    light: ['#5f6879','#7c3aed','#0f766e','#b45309','#1f4ed8','#be123c'],
     dark:  ['#7c8494','#c4a7ff','#7fd6c6','#f2b56b','#8fb0ff','#ff8fa8']
   };
   // tokens: paper, sheet, ink, ink-2, ink-3, rule, accent, accent-soft, code-bg, on-accent, then syntax: comment, kw, str, num, fn, var
   const SKINS = {
     press:     { name: 'Default',   desc: 'Cool ink, neutral paper', fonts: [F.geist, F.geist, F.geistMono], radius: '8px',
-      light: ['#f2f3f5','#ffffff','#1b2130','#4b5363','#8a92a3','#dde0e6','#1f4ed8','#e8eefc','#f5f6f9','#ffffff', ...SYN.light],
+      light: ['#f2f3f5','#ffffff','#1b2130','#4b5363','#5f6879','#dde0e6','#1f4ed8','#e8eefc','#f5f6f9','#ffffff', ...SYN.light],
       dark:  ['#111419','#181c22','#e7e9ee','#b4bac6','#7c8494','#2a3039','#8fb0ff','#1d2740','#12151b','#0f1420', ...SYN.dark] },
     developer: { name: 'Developer', desc: 'GitHub-grade palette, JetBrains Mono for code', fonts: [F.geist, F.geist, F.jet], radius: '6px',
       light: ['#f6f8fa','#ffffff','#1f2328','#57606a','#8b949e','#d0d7de','#0969da','#ddf4ff','#f6f8fa','#ffffff', '#6e7781','#cf222e','#0a3069','#0550ae','#8250df','#953800'],
