@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZestImage — featured images from your brand</title>
+<meta name="description" content="Branded featured images — blog heroes, OG cards, social tiles — composed from your brand tokens. No prompts, no stock. Runs in your browser; images never leave this machine.">
+<meta name="theme-color" content="#120607">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-title" content="ZestImage">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,800&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" crossorigin="anonymous">
+<style>
+:root{
+  --acc:#F0525E; --acc-ink:#A8232F; --flesh:#FFC7B8; --pith:#FFEDE8; --juice:#FF6470;
+  --night:#120607; --bgtop:#2E1214;
+  --pane:#1a0e0f; --pane-2:#221314; --pane-3:#2a1719;
+  --ink:#f2ecea; --ink-2:#a89a97; --ink-3:#6b5c5a;
+  --line:#352023; --line-2:#2a181a;
+  --ok:#7FD6C6; --warn:#F2B56B;
+  --display:'Bricolage Grotesque',system-ui,sans-serif; --body:'Geist',system-ui,-apple-system,sans-serif; --mono:'Geist Mono',ui-monospace,Menlo,monospace;
+  --r:10px; --r-lg:14px; --ease:cubic-bezier(.32,.72,0,1); --t:180ms;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:linear-gradient(180deg,var(--bgtop),var(--night) 420px);color:var(--ink);font:14px/1.5 var(--body);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--ink)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:6px}
+::selection{background:var(--flesh);color:var(--acc-ink)}
+
+header{display:flex;align-items:center;gap:14px;padding:0 18px;height:56px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font:600 17px var(--display);letter-spacing:-.02em}
+.mark{width:28px;height:28px;border-radius:9px;background:linear-gradient(180deg,#FF9A8A,#E8483B);color:#fff;display:grid;place-items:center;font:800 15px var(--display);box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+header .tag{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+header .sp{flex:1}
+header a{color:var(--ink-2);text-decoration:none;font-size:13px}
+header a:hover{color:var(--ink)}
+
+.app{display:grid;grid-template-columns:300px 1fr 324px;min-height:calc(100dvh - 57px)}
+@media(max-width:1100px){.app{grid-template-columns:1fr;min-height:0}.stagewrap{order:-1;min-height:46vh}}
+.panel{padding:16px;border-right:1px solid var(--line);overflow-y:auto}
+.panel.right{border-right:0;border-left:1px solid var(--line)}
+@media(max-width:1100px){.panel,.panel.right{border:0;border-top:1px solid var(--line)}}
+.sec{margin-bottom:22px}
+.lab{display:flex;align-items:center;gap:8px;font:600 11.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px}
+.lab .sp{flex:1}
+.field{margin-bottom:9px}
+.field label{display:block;font-size:12px;color:var(--ink-2);margin-bottom:4px}
+.field input[type=text],.field input[type=number],.field select,.field textarea{width:100%;background:var(--pane);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;outline:0;transition:border-color var(--t)}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--acc)}
+.field textarea{resize:vertical;min-height:54px;font-size:13px;line-height:1.45}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:34px;padding:0 13px;border-radius:var(--r);border:1px solid var(--line);background:var(--pane-2);font-size:13px;font-weight:500;transition:all var(--t) var(--ease)}
+.btn:hover{border-color:var(--ink-3);transform:translateY(-1px)}
+.btn:active{transform:none}
+.btn.acc{background:var(--acc);border-color:transparent;color:#fff;font-weight:600}
+.btn.acc:hover{filter:brightness(1.08)}
+.btn.wide{width:100%}
+.btn.sm{height:28px;padding:0 10px;font-size:12px;border-radius:8px}
+.btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+.btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.hint{font-size:11.5px;color:var(--ink-3);line-height:1.5;margin:6px 0 0}
+.hint b{color:var(--ink-2);font-weight:500}
+.hint code{font:10.5px var(--mono);background:var(--pane-2);padding:1px 4px;border-radius:4px}
+
+.brandrow{display:flex;align-items:stretch;width:100%;border-radius:var(--r);border:1px solid var(--line-2);background:var(--pane);margin-bottom:6px;overflow:hidden;transition:border-color var(--t)}
+.brandrow:hover{border-color:var(--ink-3)}
+.brandrow[aria-current="true"]{border-color:var(--acc)}
+.brandrow .bsel{flex:1;display:flex;align-items:center;gap:10px;padding:8px 10px;text-align:left;min-width:0}
+.brandrow .bdel{padding:0 11px;color:var(--ink-3);font-size:15px;border-left:1px solid var(--line-2)}
+.brandrow .bdel:hover{color:var(--acc)}
+.brandrow .dots{display:flex;gap:3px;flex:none}
+.brandrow .dots i{width:10px;height:10px;border-radius:4px;box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.brandrow b{flex:1;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brandrow small{font-size:10.5px;color:var(--ink-3);font-family:var(--mono)}
+.modes{display:flex;gap:6px}
+.modes .btn[aria-pressed="true"]{border-color:var(--acc);color:var(--acc)}
+
+.lgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.lcell{border:1px solid var(--line);border-radius:var(--r);background:var(--pane);padding:9px 10px;text-align:left;transition:all var(--t) var(--ease)}
+.lcell:hover{border-color:var(--ink-3);transform:translateY(-1px)}
+.lcell[aria-pressed="true"]{border-color:var(--acc);background:var(--pane-2)}
+.lcell b{display:block;font-size:12px;font-weight:600}
+.lcell small{font-size:10.5px;color:var(--ink-3);line-height:1.3;display:block}
+.tgrid{display:flex;flex-wrap:wrap;gap:6px}
+.tchip{border:1px solid var(--line);border-radius:999px;background:var(--pane);padding:5px 11px;font-size:12px;transition:all var(--t)}
+.tchip:hover{border-color:var(--ink-3)}
+.tchip[aria-pressed="true"]{border-color:var(--acc);color:var(--acc)}
+.tchip small{color:var(--ink-3);font-size:10px;font-family:var(--mono);margin-left:5px}
+
+.stagewrap{display:flex;flex-direction:column;min-width:0;background:
+  radial-gradient(900px 480px at 50% -10%,rgba(255,100,112,.08),transparent 60%)}
+.stagebar{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:12px;color:var(--ink-3)}
+.stagebar .fn{font-family:var(--mono);color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stagebar .sp{flex:1}
+.stage{flex:1;display:grid;place-items:center;padding:10px 26px 26px;min-height:0}
+.frame{position:relative;max-width:100%;box-shadow:0 30px 80px -24px rgba(0,0,0,.7),0 0 0 1px var(--line)}
+#stageSvg > svg{display:block;width:100%;height:auto} /* outer preview svg only — photoAt()'s nested viewport keeps its own dimensions */
+.safe{position:absolute;inset:0;pointer-events:none;display:none}
+.safe.on{display:block}
+.safe i{position:absolute;inset:6% 7%;border:1.5px dashed rgba(255,100,112,.65);border-radius:4px}
+.safe em{position:absolute;top:2%;left:7%;font:500 10px var(--mono);letter-spacing:.06em;color:var(--juice);font-style:normal}
+
+.alt textarea{min-height:64px}
+.alt.err textarea{border-color:var(--acc);animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+.req{color:var(--juice);font-size:10px;font-family:var(--mono);letter-spacing:.05em}
+.pro{display:flex;align-items:center;gap:9px;width:100%;padding:8px 11px;border-radius:var(--r);border:1px dashed var(--line);background:none;color:var(--ink-3);font-size:12.5px;text-align:left;margin-bottom:6px}
+.pro:hover{color:var(--ink-2);border-color:var(--ink-3)}
+.pro svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.9;flex:none}
+.pro em{font-style:normal;margin-left:auto;font:600 9.5px var(--mono);letter-spacing:.07em;color:var(--acc);opacity:.8}
+
+.drop{display:block;width:100%;border:1.5px dashed var(--line);border-radius:var(--r);padding:12px;text-align:center;font-size:12px;color:var(--ink-3);transition:all var(--t);cursor:pointer}
+.drop:hover,.drop.over{border-color:var(--acc);color:var(--ink-2)}
+.thumb{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:var(--r);border:1px solid var(--line-2);background:var(--pane);margin-top:8px}
+.thumb img{width:38px;height:38px;object-fit:cover;border-radius:7px}
+.thumb span{flex:1;font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.thumb button{color:var(--ink-3)} .thumb button:hover{color:var(--ink)}
+.thumb button svg{display:block;width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+input[type=range]{width:100%;accent-color:var(--acc)}
+
+footer{padding:14px 18px;border-top:1px solid var(--line);display:flex;gap:16px;align-items:center;font-size:12px;color:var(--ink-3);flex-wrap:wrap}
+footer .sp{flex:1}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);z-index:50;background:var(--pane-2);
+  border:1px solid var(--line);border-radius:999px;padding:10px 18px;font-size:13px;opacity:0;pointer-events:none;
+  transition:all 240ms var(--ease);box-shadow:0 18px 44px -16px rgba(0,0,0,.6);max-width:min(92vw,520px)}
+.toast.show{opacity:1;transform:translateX(-50%)}
+@media(prefers-reduced-motion:reduce){*{transition-duration:1ms!important;animation:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+ <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v12m-5-5 5 5 5-5M5 20h14"/></symbol>
+ <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="3"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+ <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+ <symbol id="i-img" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="3"/><path d="m5.5 16 4-4.5 3 3 2.5-2.5 3.5 4"/><circle cx="9" cy="9.5" r="1.3"/></symbol>
+ <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+ <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7Z"/><path d="M14 3v4h4"/></symbol>
+ <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5Z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></symbol>
+ <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+</defs></svg>
+
+<header>
+  <div class="brand"><span class="mark">Z</span>ZestImage</div>
+  <span class="tag">Grapefruit · composed, not generated</span>
+  <span class="sp"></span>
+  <a href="https://zest.netrelish.com" rel="noopener">Zest</a>
+</header>
+
+<div class="app">
+  <aside class="panel" id="left">
+    <div class="sec">
+      <p class="lab">Brand<span class="sp"></span><button class="btn sm" id="bImport">Import</button></p>
+      <div id="brandList"></div>
+      <input type="file" id="fBrand" accept=".json,application/json" hidden>
+      <p class="hint">A <code>zest-brand.json</code> from the Zest studio. Drop one anywhere on the page. Re-importing a name updates it; × removes. <b id="brandCount"></b></p>
+      <div class="modes" style="margin-top:9px">
+        <button class="btn sm" id="mLight" aria-pressed="true">Light</button>
+        <button class="btn sm" id="mDark" aria-pressed="false">Dark</button>
+      </div>
+    </div>
+    <div class="sec">
+      <p class="lab">Logo</p>
+      <button type="button" class="drop" id="dLogo">Drop an SVG or PNG, or click</button>
+      <input type="file" id="fLogo" accept="image/svg+xml,image/png" hidden>
+      <div class="thumb" id="tLogo" hidden><img alt=""><span></span><button title="Remove"><svg><use href="#i-x"/></svg></button></div>
+      <p class="hint">Stays on this machine. Layouts fall back to the brand name without it.</p>
+    </div>
+    <div class="sec">
+      <p class="lab">Content</p>
+      <div class="field"><label for="cTitle">Title</label><textarea id="cTitle" rows="2">Zest launches today</textarea></div>
+      <div class="field"><label for="cKicker">Kicker</label><input type="text" id="cKicker" value="Announcement"></div>
+      <div class="field"><label for="cByline">Byline</label><input type="text" id="cByline" value="Ryan Shepherd · netrelish.com"></div>
+      <div class="row2">
+        <div class="field"><label for="cStat">Stat</label><input type="text" id="cStat" value="4×"></div>
+        <div class="field"><label for="cStatLabel">Stat label</label><input type="text" id="cStatLabel" value="tools, one brand"></div>
+      </div>
+      <div class="field"><label for="cQuote">Quote</label><textarea id="cQuote" rows="2">It looks like us, not like AI.</textarea></div>
+      <div class="row2">
+        <div class="field"><label for="cSeriesN">Part</label><input type="number" id="cSeriesN" value="3" min="1"></div>
+        <div class="field"><label for="cSeriesOf">of</label><input type="number" id="cSeriesOf" value="7" min="1"></div>
+      </div>
+    </div>
+    <div class="sec">
+      <p class="lab">Photo</p>
+      <button type="button" class="drop" id="dPhoto">Your photo — dropped here, cropped and tinted to the palette. Never invented.</button>
+      <input type="file" id="fPhoto" accept="image/*" hidden>
+      <div class="thumb" id="tPhoto" hidden><img alt=""><span></span><button title="Remove"><svg><use href="#i-x"/></svg></button></div>
+      <div class="field" id="tintRow" hidden style="margin-top:8px"><label for="cTint">Tint toward the palette — <b id="tintVal">35%</b></label><input type="range" id="cTint" min="0" max="100" value="35"></div>
+    </div>
+  </aside>
+
+  <main class="stagewrap">
+    <div class="stagebar">
+      <span class="fn" id="fname">—</span>
+      <span class="sp"></span>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" id="safeTgl" checked> Safe zone</label>
+      <span id="dims"></span>
+    </div>
+    <div class="stage"><div class="frame" id="frame"><div id="stageSvg"></div>
+      <div class="safe" id="safe"><em>SAFE ZONE — keep text inside</em><i></i></div>
+    </div></div>
+  </main>
+
+  <aside class="panel right">
+    <div class="sec">
+      <p class="lab">Layout</p>
+      <div class="lgrid" id="layoutGrid"></div>
+    </div>
+    <div class="sec">
+      <p class="lab">Target</p>
+      <div class="tgrid" id="targetGrid"></div>
+      <div class="row2" id="customRow" hidden style="margin-top:8px">
+        <div class="field"><label for="cw">Width</label><input type="number" id="cw" value="1200" min="100" max="4096"></div>
+        <div class="field"><label for="ch">Height</label><input type="number" id="ch" value="800" min="100" max="4096"></div>
+      </div>
+    </div>
+    <div class="sec alt" id="altSec">
+      <p class="lab">Alt text <span class="req">REQUIRED</span></p>
+      <div class="field"><textarea id="cAlt" placeholder="What the image shows, for screen readers."></textarea></div>
+      <p class="hint">Required before export — screen readers read this. Pre-filled from the title and kicker; say what matters.</p>
+    </div>
+    <div class="sec">
+      <p class="lab">Export</p>
+      <div class="row2" style="margin-bottom:8px">
+        <div class="field"><label for="eFmt">Format</label><select id="eFmt"><option value="png">PNG</option><option value="webp">WebP</option></select></div>
+        <div class="field"><label for="eScale">Scale</label><select id="eScale"><option value="1">1×</option><option value="2" selected>2×</option></select></div>
+      </div>
+      <button class="btn acc wide" id="bExport"><svg><use href="#i-down"/></svg>Export image</button>
+      <div class="row2" style="margin-top:8px">
+        <button class="btn sm" id="bAlt"><svg><use href="#i-doc"/></svg>alt.txt</button>
+        <button class="btn sm" id="bManifest"><svg><use href="#i-save"/></svg>Manifest</button>
+      </div>
+      <button class="btn sm wide" id="bOg" style="margin-top:8px"><svg><use href="#i-copy"/></svg>Copy OG meta snippet</button>
+      <p class="hint" id="exCount"></p>
+    </div>
+    <div class="sec">
+      <p class="lab">Pro</p>
+      <button class="pro" data-pro="batch"><svg><use href="#i-lock"/></svg>Export every size from one title<em>PRO</em></button>
+      <button class="pro" data-pro="svg"><svg><use href="#i-lock"/></svg>SVG export — edit it later in Figma<em>PRO</em></button>
+      <button class="pro" data-pro="xmp"><svg><use href="#i-lock"/></svg>Write XMP/EXIF into the file<em>PRO</em></button>
+      <button class="pro" data-pro="s3"><svg><use href="#i-lock"/></svg>Upload — get a pasteable URL<em>PRO</em></button>
+      <button class="pro" data-pro="regen"><svg><use href="#i-lock"/></svg>Regenerate the set from a new brand version<em>PRO</em></button>
+      <button class="pro" data-pro="series"><svg><use href="#i-lock"/></svg>Series — one design, twelve titles<em>PRO</em></button>
+      <p class="hint">Pro arrives with Zest accounts. The local core stays free — that is the point.</p>
+    </div>
+  </aside>
+</div>
+
+<footer>
+  <span>Runs in your browser. Your images and logo never leave this machine.</span>
+  <span class="sp"></span>
+  <span>Fonts load from Google Fonts and nothing else is fetched.</span>
+</footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+const PRODUCT = 'ZestImage';
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const slug = s => String(s || '').toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'untitled';
+let tT; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tT); tT = setTimeout(() => t.classList.remove('show'), 3200); };
+
+/* ---------- bundled sample brands (zest-brand.json shape, spec §7.3) ---------- */
+/* Brands are untrusted input (imports and localStorage survive tampering).
+   Every brand is forced through this before use: hex-only palette, letters-
+   only font names, clamped numbers. Layouts never see a raw imported string. */
+const HEX = /^#[0-9a-fA-F]{3,8}$/;
+const safeColor = (v, d) => HEX.test(String(v ?? '').trim()) ? String(v).trim() : d;
+const safeFont = v => { v = String(v ?? '').trim(); return /^[A-Za-z0-9 '\-]{1,48}$/.test(v) && !v.includes("''") ? v.replace(/'/g, '') : ''; };
+const safeLogo = v => typeof v === 'string' && v.length <= 1500000 && /^data:image\/(png|jpe?g|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(v) ? v : null;
+function sanitizeBrand(b) {
+  b = b && typeof b === 'object' ? b : {};
+  const pal = (q, fall) => { q = q && typeof q === 'object' ? q : {}; const out = {};
+    for (const k of ['primary', 'ink', 'muted', 'paper', 'sheet', 'line', 'dark']) out[k] = safeColor(q[k], (fall && fall[k]) || '#888888');
+    return out; };
+  const light = pal(b.light), f = b.fonts && typeof b.fonts === 'object' ? b.fonts : {};
+  return { zest: 1, name: String(b.name || 'Untitled').slice(0, 48),
+    logo: safeLogo(b.logo),
+    fonts: { head: safeFont(f.head), body: safeFont(f.body), mono: safeFont(f.mono) },
+    light, dark: pal(b.dark, light),
+    radius: Math.max(0, Math.min(40, +b.radius || 8)),
+    type: { base: Math.max(8, Math.min(32, +(b.type && b.type.base) || 16)), ratio: Math.max(1, Math.min(2, +(b.type && b.type.ratio) || 1.25)) } };
+}
+
+const SAMPLES = [
+  { zest: 1, name: 'Shepdesign',
+    fonts: { head: 'Bricolage Grotesque', body: 'Geist', mono: 'Geist Mono' },
+    light: { primary: '#1f4ed8', ink: '#1b2130', muted: '#4b5363', paper: '#f2f3f5', sheet: '#ffffff', line: '#dde0e6', dark: '#1b2130' },
+    dark:  { primary: '#8fb0ff', ink: '#e7e9ee', muted: '#b4bac6', paper: '#111419', sheet: '#181c22', line: '#2a3039', dark: '#0f1420' },
+    radius: 8, type: { base: 16, ratio: 1.25 } },
+  { zest: 1, name: 'Zest',
+    fonts: { head: 'Bricolage Grotesque', body: 'Geist', mono: 'Geist Mono' },
+    light: { primary: '#5f7a0d', ink: '#14181f', muted: '#5f6866', paper: '#f4f5f2', sheet: '#ffffff', line: '#dde1da', dark: '#14181f' },
+    dark:  { primary: '#b9e02f', ink: '#eef1ec', muted: '#9aa39f', paper: '#0d1013', sheet: '#161b20', line: '#262c2f', dark: '#0d1013' },
+    radius: 10, type: { base: 16, ratio: 1.25 } },
+];
+const FREE_BRANDS = 3;
+
+/* ---------- targets (spec §7.4) ---------- */
+const TARGETS = [
+  { id: 'og',        n: 'OG / Twitter', w: 1200, h: 630,  safe: true },
+  { id: 'blog',      n: 'Blog',         w: 1600, h: 900 },
+  { id: 'blog-sm',   n: 'Blog small',   w: 1200, h: 675 },
+  { id: 'square',    n: 'Square',       w: 1080, h: 1080 },
+  { id: 'portrait',  n: 'Portrait',     w: 1080, h: 1350 },
+  { id: 'story',     n: 'Story',        w: 1080, h: 1920 },
+  { id: 'pinterest', n: 'Pinterest',    w: 1000, h: 1500 },
+  { id: 'custom',    n: 'Custom',       w: 0,    h: 0 },
+];
+
+/* ---------- state ---------- */
+const store = { get(k, d) { try { const v = localStorage.getItem('zestimage:' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+                set(k, v) { try { localStorage.setItem('zestimage:' + k, JSON.stringify(v)); } catch {} } };
+const S = {
+  brands: store.get('brands', []).map(sanitizeBrand),   // user-imported, free cap 3; re-sanitized on restore
+  brandIdx: store.get('brandIdx', 0),    // index into SAMPLES ++ user brands
+  mode: store.get('mode', 'light'),
+  layout: store.get('layout', 'title'),
+  target: store.get('target', 'og'),
+  custom: store.get('custom', { w: 1200, h: 800 }),
+  tint: 35, altTouched: false, exports: [], logo: null, logoName: '', photo: null, photoName: '',
+};
+const allBrands = () => [...SAMPLES, ...S.brands];
+const brand = () => allBrands()[Math.min(S.brandIdx, allBrands().length - 1)];
+const tokens = () => brand()[S.mode] || brand().light;
+const target = () => TARGETS.find(t => t.id === S.target) || TARGETS[0];
+const clampDim = v => Math.min(4096, Math.max(100, +v || 0)) || 1200;
+const dims = () => S.target === 'custom'
+  ? { w: clampDim(S.custom.w), h: clampDim(S.custom.h || 800) }
+  : { w: target().w, h: target().h };
+const content = () => ({
+  title: $('#cTitle').value.trim(), kicker: $('#cKicker').value.trim(), byline: $('#cByline').value.trim(),
+  stat: $('#cStat').value.trim(), statLabel: $('#cStatLabel').value.trim(),
+  quote: $('#cQuote').value.trim(), n: +$('#cSeriesN').value || 1, of: +$('#cSeriesOf').value || 1,
+});
+
+/* ---------- fonts: fetch Google CSS, embed woff2 as data URIs, register for measuring ---------- */
+const FALL = { head: 'system-ui, -apple-system, sans-serif', body: 'system-ui, -apple-system, sans-serif', mono: 'ui-monospace, Menlo, monospace' };
+const fontCache = new Map();           // `${family}|${axes}` -> { css (data-uri @font-face rules), ok:true } — successful loads only
+const fontLoads = new Map();           // in-flight promises, so concurrent callers await one fetch instead of reading a half-built entry
+let fontsWarned = false;
+const famParam = f => f.trim().replace(/ /g, '+');
+const axesFor = (b, role) => role === 'head'
+  ? ((b.fonts || {}).head === 'Bricolage Grotesque' ? ':opsz,wght@12..96,500;12..96,600;12..96,800' : ':wght@500;600;800')
+  : role === 'body' ? ':wght@400;500;600' : ':wght@400;500';
+const famKey = (b, role) => { const f = (b.fonts || {})[role]; return f ? f + '|' + axesFor(b, role) : ''; };
+async function fetchFaces(entry, family, axes) {
+  const url = `https://fonts.googleapis.com/css2?family=${famParam(family)}${axes}&display=swap`;
+  const css = await (await fetch(url, { mode: 'cors' })).text();
+  const faces = css.match(/(?:\/\*\s*[a-z0-9-]+\s*\*\/\s*)?@font-face\s*{[^}]+}/g) || [];
+  for (const face of faces) {
+    // keep latin subsets only — by Google's subset comment, or the latin unicode-range when comments are absent
+    if (faces.length > 4 && !/\/\*\s*latin\s*\*\//.test(face) && !face.includes('U+0000-00FF')) continue;
+    const src = face.match(/url\((https:[^)]+\.woff2)\)/);
+    if (!src) continue;
+    const buf = await (await fetch(src[1], { mode: 'cors' })).arrayBuffer();
+    let bin = ''; const bytes = new Uint8Array(buf);
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    const dataUri = 'data:font/woff2;base64,' + btoa(bin);
+    entry.css += face.replace(src[1], dataUri) + '\n';
+    const w = (face.match(/font-weight:\s*([\d ]+)/) || [])[1] || '400';
+    const ff = new FontFace(family, `url(${dataUri})`, { weight: w.trim().split(' ')[0] });
+    await ff.load(); document.fonts.add(ff);
+  }
+  entry.ok = entry.css.length > 0;
+}
+function loadFamily(family, axes) {
+  const key = family + '|' + axes;
+  if (fontCache.has(key)) return Promise.resolve(fontCache.get(key));
+  if (fontLoads.has(key)) return fontLoads.get(key);
+  const p = (async () => {
+    const entry = { css: '', ok: false };
+    try {
+      await fetchFaces(entry, family, axes);
+      if (!entry.ok && axes) await fetchFaces(entry, family, '');   // some families reject weighted requests (DM Serif Display is 400-only) — take their default faces
+    } catch { /* offline or blocked — fall back below */ }
+    fontLoads.delete(key);
+    if (entry.ok) fontCache.set(key, entry);   // failures stay uncached, so the next brand selection or import retries
+    else if (!fontsWarned) { fontsWarned = true; toast('Brand fonts could not load — using system type for now.'); }
+    return entry;
+  })();
+  fontLoads.set(key, p);
+  return p;
+}
+async function loadBrandFonts(b) {
+  const f = b.fonts || {};
+  await Promise.all(['head', 'body', 'mono'].filter(r => f[r]).map(r => loadFamily(f[r], axesFor(b, r))));
+}
+const fontCSS = b => { const seen = new Set(); return ['head', 'body', 'mono'].map(r => {
+  const k = famKey(b, r); if (!k || seen.has(k)) return ''; seen.add(k);
+  return (fontCache.get(k) || {}).css || ''; }).join(''); };
+const fam = (b, r) => { const f = (b.fonts || {})[r]; return f && (fontCache.get(famKey(b, r)) || {}).ok ? `'${f}', ${FALL[r]}` : FALL[r]; };
+
+/* ---------- text measuring + wrapping ---------- */
+const mctx = document.createElement('canvas').getContext('2d');
+function wrap(text, font, size, weight, maxW, maxLines) {
+  mctx.font = `${weight} ${size}px ${font}`;
+  const fitsW = t => mctx.measureText(t).width <= maxW;
+  const words = [];
+  for (const w of String(text || '').split(/\s+/).filter(Boolean)) {
+    if (fitsW(w)) { words.push(w); continue; }
+    let cur = '';                       // a word wider than the column (URL, CJK run) breaks by characters
+    for (const ch of w) { if (cur && !fitsW(cur + ch)) { words.push(cur); cur = ch; } else cur += ch; }
+    if (cur) words.push(cur);
+  }
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const t = line ? line + ' ' + w : w;
+    if (mctx.measureText(t).width <= maxW || !line) line = t;
+    else { lines.push(line); line = w; if (maxLines && lines.length === maxLines) return { lines, clipped: true }; }
+  }
+  if (line) lines.push(line);
+  return { lines, clipped: false };
+}
+function fit(text, font, weight, maxW, maxH, startSize, minSize, lh) {
+  for (let size = startSize; size >= minSize; size -= Math.max(2, size * 0.06)) {
+    const maxLines = Math.max(1, Math.floor(maxH / (size * lh)));
+    const r = wrap(text, font, size, weight, maxW, maxLines + 1);
+    if (!r.clipped && r.lines.length <= maxLines) return { size, lines: r.lines };
+  }
+  const size = minSize, r = wrap(text, font, size, weight, maxW, Math.max(1, Math.floor(maxH / (size * lh))));
+  return { size, lines: r.lines };
+}
+function fitOne(text, font, weight, maxW, startSize, minSize) {
+  for (let size = startSize; size >= minSize; size -= Math.max(1, size * 0.06)) {
+    const r = wrap(text, font, size, weight, maxW, 1);
+    if (r.lines.length === 1 && !r.clipped) return { size, lines: [r.lines[0]] };
+  }
+  const r = wrap(text, font, minSize, weight, maxW, 1);
+  return { size: minSize, lines: [(r.lines[0] || '') + (r.clipped ? '…' : '')] };
+}
+const tspans = (lines, x, y, lh, size) => lines.map((l, i) => `<tspan x="${x}" y="${(y + i * size * lh).toFixed(1)}">${esc(l)}</tspan>`).join('');
+
+/* ---------- shared pieces ---------- */
+const lum = h => { h = String(h).slice(1); if (h.length < 6) h = h.split('').map(c => c + c).join(''); const n = parseInt(h.slice(0, 6), 16) || 0; return 0.2126 * (n >> 16 & 255) + 0.7152 * (n >> 8 & 255) + 0.0722 * (n & 255); };
+const photoDefs = (ph, tint, primary, W, H, id) => ph ? `
+  <filter id="tint${id}"><feColorMatrix type="saturate" values="${(1 - (tint / 100) * 0.6).toFixed(2)}"/></filter>
+  <clipPath id="pc${id}"><rect x="0" y="0" width="${W}" height="${H}"/></clipPath>` : '';
+const photoAt = (ph, tint, primary, x, y, w, h, id) => ph ? `
+  <g clip-path="url(#pc${id})"><g transform="translate(${x} ${y})">
+    <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid slice" style="overflow:hidden">
+      <image href="${ph}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" filter="url(#tint${id})"/>
+    </svg>
+    <rect width="${w}" height="${h}" fill="${primary}" opacity="${(tint / 100 * 0.42).toFixed(2)}" style="mix-blend-mode:multiply"/>
+  </g></g>` : '';
+const logoAt = (logo, x, y, h) => logo ? `<image href="${logo}" x="${x}" y="${y}" height="${h}" width="${h * 4}" preserveAspectRatio="xMinYMid meet"/>` : '';
+const brandLine = (b, t, x, y, size, anchor) =>
+  `<text x="${x}" y="${y}" font-family="${fam(b, 'mono')}" font-size="${size}" letter-spacing="${size * 0.12}" fill="${t.muted}" text-anchor="${anchor || 'start'}">${esc(b.name.toUpperCase())}</text>`;
+
+/* ---------- the eight layouts (spec §7.4) — pure functions over tokens ---------- */
+const LAYOUTS = {
+  title: { n: 'Title card', d: 'The headline, set properly', fn(b, t, c, W, H, ph) {
+    const M = W * 0.08, u = Math.min(W, H);
+    const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, W - M * 2, H * 0.52, u * 0.16, u * 0.05, 1.08);
+    const block = ti.lines.length * ti.size * 1.08, y0 = (H - block) / 2 + ti.size * 0.86;
+    return `<rect width="${W}" height="${H}" fill="${t.paper}"/>
+      <rect x="${M}" y="${y0 - ti.size * 1.32}" width="${u * 0.085}" height="${u * 0.012}" rx="${u * 0.006}" fill="${t.primary}"/>
+      <text font-family="${fam(b, 'head')}" font-weight="800" font-size="${ti.size}" fill="${t.ink}" letter-spacing="${-ti.size * 0.02}">${tspans(ti.lines, M, y0, 1.08, ti.size)}</text>
+      ${c.byline ? `<text x="${M}" y="${H - M * 0.72}" font-family="${fam(b, 'body')}" font-size="${u * 0.032}" fill="${t.muted}">${esc(c.byline)}</text>` : ''}
+      ${logoAt(S.logo, W - M - u * 0.26, H - M * 0.72 - u * 0.058, u * 0.065) || brandLine(b, t, W - M, H - M * 0.72, u * 0.026, 'end')}`;
+  }},
+  kicker: { n: 'Kicker + title', d: 'Eyebrow in the accent', fn(b, t, c, W, H) {
+    const M = W * 0.08, u = Math.min(W, H);
+    const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, W - M * 2, H * 0.46, u * 0.145, u * 0.05, 1.1);
+    const kY = H * 0.22;
+    return `<rect width="${W}" height="${H}" fill="${t.paper}"/>
+      <text x="${M}" y="${kY}" font-family="${fam(b, 'mono')}" font-size="${u * 0.034}" letter-spacing="${u * 0.005}" fill="${t.primary}">${esc((c.kicker || 'Kicker').toUpperCase())}</text>
+      <rect x="${M}" y="${kY + u * 0.022}" width="${W - M * 2}" height="1.5" fill="${t.line}"/>
+      <text font-family="${fam(b, 'head')}" font-weight="800" font-size="${ti.size}" fill="${t.ink}" letter-spacing="${-ti.size * 0.02}">${tspans(ti.lines, M, kY + u * 0.075 + ti.size * 0.86, 1.1, ti.size)}</text>
+      ${c.byline ? `<text x="${M}" y="${H - M * 0.72}" font-family="${fam(b, 'body')}" font-size="${u * 0.03}" fill="${t.muted}">${esc(c.byline)}</text>` : ''}
+      ${logoAt(S.logo, W - M - u * 0.26, H - M * 0.72 - u * 0.055, u * 0.06) || brandLine(b, t, W - M, H - M * 0.72, u * 0.025, 'end')}`;
+  }},
+  split: { n: 'Split', d: 'Text left, photo right', fn(b, t, c, W, H, ph, id) {
+    const pw = W * 0.44, M = W * 0.055, u = Math.min(W, H), tw = W - pw;
+    const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, tw - M * 2, H * 0.5, u * 0.12, u * 0.045, 1.1);
+    const block = ti.lines.length * ti.size * 1.1, y0 = (H - block) / 2 + ti.size * 0.86;
+    const right = ph ? photoAt(ph, S.tint, t.primary, tw, 0, pw, H, id)
+      : `<rect x="${tw}" width="${pw}" height="${H}" fill="${t.primary}"/>
+         <text x="${tw + pw / 2}" y="${H / 2 + u * 0.14}" font-family="${fam(b, 'head')}" font-weight="800" font-size="${u * 0.42}" fill="${t.paper}" opacity=".3" text-anchor="middle">${esc((b.name || 'Z')[0].toUpperCase())}</text>`;
+    return `<rect width="${W}" height="${H}" fill="${t.sheet}"/>${right}
+      <rect x="${tw - 1}" width="2" height="${H}" fill="${t.line}"/>
+      ${c.kicker ? `<text x="${M}" y="${y0 - ti.size * 1.35}" font-family="${fam(b, 'mono')}" font-size="${u * 0.03}" letter-spacing="${u * 0.004}" fill="${t.primary}">${esc(c.kicker.toUpperCase())}</text>` : ''}
+      <text font-family="${fam(b, 'head')}" font-weight="800" font-size="${ti.size}" fill="${t.ink}" letter-spacing="${-ti.size * 0.02}">${tspans(ti.lines, M, y0, 1.1, ti.size)}</text>
+      ${c.byline ? `<text x="${M}" y="${H - M}" font-family="${fam(b, 'body')}" font-size="${u * 0.028}" fill="${t.muted}">${esc(c.byline)}</text>` : ''}`;
+  }},
+  scrim: { n: 'Photo + scrim', d: 'Title over your photo', fn(b, t, c, W, H, ph, id) {
+    const M = W * 0.07, u = Math.min(W, H);
+    const fg = Math.abs(lum(t.ink) - lum(t.dark)) >= Math.abs(lum(t.paper) - lum(t.dark)) ? t.ink : t.paper;  // whichever contrasts with the scrim — mode alone lies when an import without dark tokens copied light into dark
+    const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, W - M * 2, H * 0.34, u * 0.12, u * 0.045, 1.08);
+    const block = ti.lines.length * ti.size * 1.08;
+    const base = ph ? photoAt(ph, S.tint, t.primary, 0, 0, W, H, id) : `<rect width="${W}" height="${H}" fill="${t.dark}"/>`;
+    return `${base}
+      <linearGradient id="sc${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.dark}" stop-opacity="0"/><stop offset="1" stop-color="${t.dark}" stop-opacity=".92"/></linearGradient>
+      <rect y="${H * 0.38}" width="${W}" height="${H * 0.62}" fill="url(#sc${id})"/>
+      ${c.kicker ? `<text x="${M}" y="${H - M - block - u * 0.035}" font-family="${fam(b, 'mono')}" font-size="${u * 0.028}" letter-spacing="${u * 0.004}" fill="${t.primary}">${esc(c.kicker.toUpperCase())}</text>` : ''}
+      <text font-family="${fam(b, 'head')}" font-weight="800" font-size="${ti.size}" fill="${fg}" letter-spacing="${-ti.size * 0.02}">${tspans(ti.lines, M, H - M - block + ti.size * 0.86, 1.08, ti.size)}</text>
+      ${logoAt(S.logo, M, M, u * 0.06) || brandLine(b, t, M, M + u * 0.03, u * 0.026)}`;
+  }},
+  stat: { n: 'Stat card', d: 'One big number', fn(b, t, c, W, H) {
+    const M = W * 0.08, u = Math.min(W, H);
+    const st = fitOne(c.stat || '0', fam(b, 'head'), 800, W - M * 2, u * 0.42, u * 0.1);
+    return `<rect width="${W}" height="${H}" fill="${t.paper}"/>
+      ${c.title ? `<text x="${M}" y="${M + u * 0.03}" font-family="${fam(b, 'mono')}" font-size="${u * 0.03}" letter-spacing="${u * 0.004}" fill="${t.muted}">${esc(c.title.toUpperCase())}</text>` : ''}
+      <text x="${M}" y="${H * 0.56}" font-family="${fam(b, 'head')}" font-weight="800" font-size="${st.size}" fill="${t.primary}" letter-spacing="${-st.size * 0.03}">${esc(st.lines[0] || '')}</text>
+      ${c.statLabel ? `<text x="${M}" y="${H * 0.56 + u * 0.085}" font-family="${fam(b, 'body')}" font-weight="500" font-size="${u * 0.052}" fill="${t.ink}">${esc(c.statLabel)}</text>` : ''}
+      ${logoAt(S.logo, W - M - u * 0.26, H - M * 0.8 - u * 0.055, u * 0.06) || brandLine(b, t, W - M, H - M * 0.8, u * 0.025, 'end')}`;
+  }},
+  quote: { n: 'Quote card', d: 'Said out loud', fn(b, t, c, W, H) {
+    const M = W * 0.09, u = Math.min(W, H);
+    const q = fit(c.quote || c.title || '—', fam(b, 'head'), 600, W - M * 2, H * 0.5, u * 0.105, u * 0.042, 1.22);
+    const block = q.lines.length * q.size * 1.22, y0 = (H - block) / 2 + q.size * 0.8;
+    return `<rect width="${W}" height="${H}" fill="${t.sheet}"/>
+      <text x="${M - u * 0.012}" y="${y0 - q.size * 0.55}" font-family="${fam(b, 'head')}" font-weight="800" font-size="${u * 0.22}" fill="${t.primary}" opacity=".9">“</text>
+      <text font-family="${fam(b, 'head')}" font-weight="600" font-size="${q.size}" fill="${t.ink}" letter-spacing="${-q.size * 0.012}">${tspans(q.lines, M, y0, 1.22, q.size)}</text>
+      ${c.byline ? `<text x="${M}" y="${y0 + block + u * 0.015}" font-family="${fam(b, 'mono')}" font-size="${u * 0.03}" letter-spacing="${u * 0.003}" fill="${t.muted}">— ${esc(c.byline.toUpperCase())}</text>` : ''}
+      ${brandLine(b, t, W - M, H - M * 0.7, u * 0.025, 'end')}`;
+  }},
+  series: { n: 'Numbered series', d: 'Part N of M', fn(b, t, c, W, H) {
+    const M = W * 0.08, u = Math.min(W, H);
+    const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, W * 0.72 - M, H * 0.46, u * 0.13, u * 0.05, 1.1);
+    const block = ti.lines.length * ti.size * 1.1, y0 = (H - block) / 2 + ti.size * 0.9;
+    return `<rect width="${W}" height="${H}" fill="${t.paper}"/>
+      <text x="${W * 0.99}" y="${H * 0.92}" font-family="${fam(b, 'head')}" font-weight="800" font-size="${H * 0.95}" fill="${t.primary}" opacity=".09" text-anchor="end">${c.n}</text>
+      <g><rect x="${M}" y="${y0 - ti.size * 1.1 - u * 0.055}" width="${u * 0.012 * ((('PART ' + c.n + ' OF ' + c.of).length) * 2.1 + 4)}" height="${u * 0.055}" rx="${u * 0.0275}" fill="${t.primary}" opacity=".14"/>
+      <text x="${M + u * 0.022}" y="${y0 - ti.size * 1.1 - u * 0.018}" font-family="${fam(b, 'mono')}" font-weight="500" font-size="${u * 0.026}" letter-spacing="${u * 0.003}" fill="${t.primary}">PART ${c.n} OF ${c.of}</text></g>
+      <text font-family="${fam(b, 'head')}" font-weight="800" font-size="${ti.size}" fill="${t.ink}" letter-spacing="${-ti.size * 0.02}">${tspans(ti.lines, M, y0, 1.1, ti.size)}</text>
+      ${c.byline ? `<text x="${M}" y="${H - M * 0.75}" font-family="${fam(b, 'body')}" font-size="${u * 0.029}" fill="${t.muted}">${esc(c.byline)}</text>` : ''}`;
+  }},
+  logo: { n: 'Logo lockup', d: 'Just the brand', fn(b, t, c, W, H) {
+    const u = Math.min(W, H);
+    const nm = fitOne(b.name || 'Brand', fam(b, 'head'), 800, W * 0.8, u * 0.11, u * 0.04);
+    const hasLogo = !!S.logo, ly = H / 2 - (hasLogo ? u * 0.16 : u * 0.05);
+    return `<rect width="${W}" height="${H}" fill="${t.paper}"/>
+      ${hasLogo ? `<image href="${S.logo}" x="${W / 2 - u * 0.11}" y="${ly - u * 0.02}" width="${u * 0.22}" height="${u * 0.22}" preserveAspectRatio="xMidYMid meet"/>` : ''}
+      <text x="${W / 2}" y="${hasLogo ? ly + u * 0.3 : H / 2 + nm.size * 0.3}" font-family="${fam(b, 'head')}" font-weight="800" font-size="${nm.size}" fill="${t.ink}" letter-spacing="${-nm.size * 0.02}" text-anchor="middle">${esc(nm.lines[0] || '')}</text>
+      ${c.byline ? `<text x="${W / 2}" y="${(hasLogo ? ly + u * 0.3 : H / 2 + nm.size * 0.3) + u * 0.06}" font-family="${fam(b, 'body')}" font-size="${u * 0.03}" fill="${t.muted}" text-anchor="middle">${esc(c.byline)}</text>` : ''}
+      <rect x="${W / 2 - u * 0.04}" y="${H - u * 0.09}" width="${u * 0.08}" height="${u * 0.01}" rx="${u * 0.005}" fill="${t.primary}"/>`;
+  }},
+};
+
+/* ---------- compose ---------- */
+let svgN = 0;
+function compose(W, H) {
+  const b = brand(), t = tokens(), c = content(), id = ++svgN;
+  const body = LAYOUTS[S.layout].fn(b, t, c, W, H, S.photo, id);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+<style>${fontCSS(b)}</style>
+<defs>${photoDefs(S.photo, S.tint, t.primary, W, H, id)}</defs>
+${body}</svg>`;
+}
+
+/* ---------- filename + metadata (spec: {brand}-{slug}-{target}.{ext}) ---------- */
+const ext = () => $('#eFmt').value;
+const scale = () => +$('#eScale').value;
+const filename = () => `${slug(brand().name)}-${slug(content().title)}-${S.target}${scale() === 2 ? '@2x' : ''}.${ext()}`;
+const altDefault = () => { const c = content(); return [c.kicker, c.title].filter(Boolean).join(' — '); };
+
+/* ---------- render ---------- */
+function render() {
+  const { w, h } = dims();
+  const svg = compose(w, h);
+  const host = $('#stageSvg'); host.innerHTML = svg;
+  const f = $('#frame'); f.style.aspectRatio = `${w} / ${h}`;
+  f.style.width = h > w ? 'auto' : 'min(100%, 880px)';
+  f.style.height = h > w ? 'min(62vh, 640px)' : 'auto';
+  $('#dims').textContent = `${w} × ${h}${scale() === 2 ? ' → ' + w * 2 + ' × ' + h * 2 : ''}`;
+  $('#fname').textContent = filename();
+  $('#safe').classList.toggle('on', !!target().safe && $('#safeTgl').checked);
+  if (!S.altTouched) $('#cAlt').value = altDefault();
+  $('#exCount').textContent = S.exports.length ? `${S.exports.length} exported this session — the manifest lists them all.` : 'The manifest records every export so a rebrand can regenerate the set.';
+}
+function renderBrands() {
+  const list = allBrands();
+  $('#brandList').innerHTML = list.map((b, i) => {
+    const t = b[S.mode] || b.light, yours = i >= SAMPLES.length;
+    return `<div class="brandrow" aria-current="${i === S.brandIdx}">
+      <button class="bsel" data-i="${i}">
+      <span class="dots"><i style="background:${esc(t.primary)}"></i><i style="background:${esc(t.ink)}"></i><i style="background:${esc(t.paper)};outline:1px solid ${esc(t.line)}"></i></span>
+      <b>${esc(b.name)}</b><small>${yours ? 'yours' : 'sample'}</small></button>
+      ${yours ? `<button class="bdel" data-del="${i}" aria-label="Remove ${esc(b.name)}" title="Remove ${esc(b.name)}">×</button>` : ''}</div>`;
+  }).join('');
+  $('#brandCount').textContent = `${S.brands.length} of ${FREE_BRANDS} saved brands used.`;
+  $('#mLight').setAttribute('aria-pressed', S.mode === 'light');
+  $('#mDark').setAttribute('aria-pressed', S.mode === 'dark');
+}
+let logoFromBrand = false;                 // a brand-supplied logo follows the brand; a hand-dropped one survives brand switches
+function syncBrandLogo() {
+  const bl = brand().logo || null;
+  if (bl) { S.logo = bl; S.logoName = brand().name + ' logo'; logoFromBrand = true; }
+  else if (logoFromBrand) { S.logo = null; S.logoName = ''; logoFromBrand = false; }
+  $('#tLogo').hidden = !S.logo;
+  if (S.logo) { $('#tLogo img').src = S.logo; $('#tLogo span').textContent = S.logoName; }
+}
+function renderChoosers() {
+  $('#layoutGrid').innerHTML = Object.entries(LAYOUTS).map(([k, l]) =>
+    `<button class="lcell" data-l="${k}" aria-pressed="${k === S.layout}"><b>${l.n}</b><small>${l.d}</small></button>`).join('');
+  $('#targetGrid').innerHTML = TARGETS.map(t =>
+    `<button class="tchip" data-t="${t.id}" aria-pressed="${t.id === S.target}">${t.n}${t.w ? `<small>${t.w}×${t.h}</small>` : ''}</button>`).join('');
+  $('#customRow').hidden = S.target !== 'custom';
+  $('#cw').value = S.custom.w; $('#ch').value = S.custom.h;
+}
+const save = () => { store.set('brands', S.brands); store.set('brandIdx', S.brandIdx); store.set('mode', S.mode); store.set('layout', S.layout); store.set('target', S.target); store.set('custom', S.custom); };
+
+/* ---------- export ---------- */
+/* Saving feature-detects the host (spec §6.3 — one file, every surface):
+   the claude.ai viewer mediates saves through its downloads capability;
+   everywhere else the plain anchor works. */
+let hostSave = null;
+if (window.claude && window.claude.use) claude.use('downloads').then(d => { hostSave = d; }).catch(() => {});
+async function download(name, blob) {             // resolves true only when the save was not cancelled
+  if (hostSave) {
+    try { await hostSave.save({ filename: name, data: blob }); return true; }
+    catch (e) { if (e && e.code === 'declined') return false; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  return true;
+}
+let webpOK = null;
+function canWebp() { if (webpOK !== null) return webpOK; const c = document.createElement('canvas'); c.width = c.height = 2; webpOK = c.toDataURL('image/webp').startsWith('data:image/webp'); return webpOK; }
+async function exportImage() {
+  const alt = $('#cAlt').value.trim();
+  if (!alt) { const s = $('#altSec'); s.classList.add('err'); setTimeout(() => s.classList.remove('err'), 600); $('#cAlt').focus(); toast('Alt text first — someone will hear this image instead of seeing it.'); return; }
+  if (ext() === 'webp' && !canWebp()) { toast('This browser cannot encode WebP — exporting PNG instead.'); $('#eFmt').value = 'png'; }
+  await loadBrandFonts(brand());   // settle fonts before composing, so the file matches the preview rather than a mid-load fallback (failed loads keep system type)
+  const { w, h } = dims(), k = scale(), fmt = ext() === 'webp' ? 'image/webp' : 'image/png';
+  const svg = compose(w, h);
+  // Snapshot everything editable AFTER the font wait and BEFORE the raster awaits — switching controls mid-export must not mislabel the file
+  const name = filename();
+  const rec = { file: name, target: S.target, width: w * k, height: h * k, format: ext(), layout: S.layout,
+    alt, brand: brand().name, mode: S.mode, tint: S.photo ? S.tint : null, content: content() };
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  try {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error('The SVG would not rasterise')); img.src = url; });
+    await (img.decode ? img.decode().catch(() => {}) : 0);
+    const cv = document.createElement('canvas'); cv.width = w * k; cv.height = h * k;
+    cv.getContext('2d').drawImage(img, 0, 0, w * k, h * k);
+    const blob = await new Promise(res => cv.toBlob(res, fmt, 0.92));
+    if (!blob) throw new Error('Encoding failed');
+    if (!await download(name, blob)) { toast('Export cancelled — nothing saved or recorded.'); return; }
+    S.exports.push(rec);
+    render();
+    toast(`${name} — alt text and manifest are one click away.`);
+  } catch (err) { toast(PRODUCT + ': ' + err.message); }
+  finally { URL.revokeObjectURL(url); }
+}
+const ogSnippet = () => { const { w, h } = dims(), k = scale(), alt = esc($('#cAlt').value.trim() || altDefault());
+  return `<meta property="og:image" content="https://your-site.example/images/${filename()}">\n<meta property="og:image:width" content="${w * k}">\n<meta property="og:image:height" content="${h * k}">\n<meta property="og:image:alt" content="${alt}">\n<meta name="twitter:card" content="summary_large_image">`; };
+
+/* ---------- events ---------- */
+$('#left').addEventListener('input', () => { render(); });
+$('#cAlt').addEventListener('input', () => { S.altTouched = true; });   // clearing it is an edit too — never silently refill
+$('#cTint').addEventListener('input', e => { S.tint = +e.target.value; $('#tintVal').textContent = S.tint + '%'; render(); });
+$('#brandList').addEventListener('click', async e => {
+  const d = e.target.closest('[data-del]');
+  if (d) {
+    const abs = +d.dataset.del, rel = abs - SAMPLES.length, gone = S.brands[rel];
+    if (!gone) return;
+    S.brands.splice(rel, 1);
+    if (S.brandIdx === abs) S.brandIdx = 0;
+    else if (S.brandIdx > abs) S.brandIdx--;
+    save(); renderBrands(); syncBrandLogo(); render(); toast(`${gone.name} removed.`);
+    await loadBrandFonts(brand()); render();   // the replacement selection needs its fonts, same as choosing it by hand
+    return;
+  }
+  const b = e.target.closest('[data-i]'); if (!b) return;
+  S.brandIdx = +b.dataset.i; save(); renderBrands(); syncBrandLogo(); render();
+  await loadBrandFonts(brand()); render();
+});
+$('#mLight').addEventListener('click', () => { S.mode = 'light'; save(); renderBrands(); render(); });
+$('#mDark').addEventListener('click', () => { S.mode = 'dark'; save(); renderBrands(); render(); });
+$('#bImport').addEventListener('click', () => $('#fBrand').click());
+$('#fBrand').addEventListener('change', e => { importBrand(e.target.files[0]); e.target.value = ''; });
+async function importBrand(file) {
+  if (!file) return;
+  try {
+    const b = JSON.parse(await file.text());
+    if (b.zest !== 1 || !b.name || !b.light) throw new Error('Not a zest-brand.json — export one from the Zest studio');
+    const replaces = S.brands.some(x => x.name.toLowerCase() === String(b.name).slice(0, 48).toLowerCase());
+    if (!replaces && S.brands.length >= FREE_BRANDS) { toast(`Free holds ${FREE_BRANDS} saved brands — remove one (×), or unlimited brands arrive with Pro.`); return; }
+    const clean = sanitizeBrand(b);
+    const existing = S.brands.findIndex(x => x.name.toLowerCase() === clean.name.toLowerCase());
+    if (existing >= 0) { S.brands[existing] = clean; S.brandIdx = SAMPLES.length + existing; }
+    else { S.brands.push(clean); S.brandIdx = SAMPLES.length + S.brands.length - 1; }
+    save(); renderBrands(); syncBrandLogo(); render(); toast(`${clean.name} ${existing >= 0 ? 'updated' : 'imported'}.`);
+    await loadBrandFonts(clean); render();
+  } catch (err) { toast(err.message); }
+}
+function pickFile(drop, input, handler) {
+  drop.addEventListener('click', () => input.click());
+  input.addEventListener('change', e => { handler(e.target.files[0]); input.value = ''; });
+}
+function readAsDataURL(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
+async function setLogo(f) { if (!f) return; S.logo = await readAsDataURL(f); S.logoName = f.name; logoFromBrand = false;
+  $('#tLogo').hidden = false; $('#tLogo img').src = S.logo; $('#tLogo span').textContent = f.name; render(); }
+async function setPhoto(f) { if (!f) return; S.photo = await readAsDataURL(f); S.photoName = f.name;
+  $('#tPhoto').hidden = false; $('#tPhoto img').src = S.photo; $('#tPhoto span').textContent = f.name; $('#tintRow').hidden = false; render(); }
+pickFile($('#dLogo'), $('#fLogo'), setLogo);
+$('#tLogo button').addEventListener('click', () => { S.logo = null; S.logoName = ''; logoFromBrand = false; $('#tLogo').hidden = true; render(); });
+pickFile($('#dPhoto'), $('#fPhoto'), setPhoto);
+$('#tPhoto button').addEventListener('click', () => { S.photo = null; $('#tPhoto').hidden = true; $('#tintRow').hidden = true; render(); });
+document.addEventListener('dragover', e => { e.preventDefault(); });
+document.addEventListener('drop', async e => {
+  e.preventDefault(); const f = e.dataTransfer.files[0]; if (!f) return;
+  if (/json$/i.test(f.name)) return importBrand(f);
+  if (!/^image\//.test(f.type)) return;
+  if (e.target.closest && e.target.closest('#dLogo')) return setLogo(f);   // a drop on the Logo area is a logo
+  setPhoto(f);
+});
+$('#layoutGrid').addEventListener('click', e => { const b = e.target.closest('[data-l]'); if (!b) return; S.layout = b.dataset.l; save(); renderChoosers(); render(); });
+$('#targetGrid').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; S.target = b.dataset.t; save(); renderChoosers(); render(); });
+$('#customRow').addEventListener('input', () => { S.custom = { w: +$('#cw').value, h: +$('#ch').value }; save(); render(); });
+$('#safeTgl').addEventListener('change', render);
+$('#eFmt').addEventListener('change', render);
+$('#eScale').addEventListener('change', render);
+$('#bExport').addEventListener('click', exportImage);
+$('#bAlt').addEventListener('click', () => { const alt = $('#cAlt').value.trim() || altDefault();
+  download(filename().replace(/\.(png|webp)$/, '') + '.alt.txt', new Blob([alt], { type: 'text/plain' })); });
+$('#bManifest').addEventListener('click', async () => {
+  const m = { zest: 1, tool: 'image', brand: brand().name, generator: PRODUCT, exports: S.exports };
+  const saved = await download(`${slug(brand().name)}-zest-image.json`, new Blob([JSON.stringify(m, null, 2)], { type: 'application/json' }));
+  toast(!saved ? 'Manifest save cancelled.' : S.exports.length ? 'Manifest saved — regenerate the whole set from it after a rebrand.' : 'Manifest saved — it fills as you export.'); });
+$('#bOg').addEventListener('click', async () => { const snip = ogSnippet();
+  try { await navigator.clipboard.writeText(snip); toast('OG meta copied — swap your-site.example for where the image is hosted.'); }
+  catch { const saved = await download(filename().replace(/\.(png|webp)$/, '') + '.og.txt', new Blob([snip], { type: 'text/plain' }));
+    toast(saved ? 'Clipboard access was blocked — the snippet saved as a file instead.' : 'Cancelled — nothing saved.'); } });
+$$('.pro').forEach(p => p.addEventListener('click', () =>
+  toast('Pro arrives with Zest accounts — everything local stays free. zest.netrelish.com has the plan.')));
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'e') { e.preventDefault(); exportImage(); }
+});
+
+/* ---------- boot ---------- */
+renderBrands(); renderChoosers(); syncBrandLogo(); render();
+loadBrandFonts(brand()).then(render);
+if ('serviceWorker' in navigator && window.isSecureContext) {   // localhost counts as secure, so the documented `npx serve .` flow gets the offline shell too
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+})();
+</script>
+</body>
+</html>

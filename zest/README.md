@@ -16,7 +16,7 @@ follows are `docs/PRESS-TOOLS.md` §1.
 | **Zest** (studio) | Lemon / dial | Not yet in this repo. Lives at zest.netrelish.com when built — the studio is the home page (spec §8 and §11, decision 5) |
 | **ZestMail** | Orange / envelope | `apps/mail` |
 | **Zest MD** | Lime / page | `apps/md` |
-| **ZestImage** | Grapefruit / frame | Spec §7.4 only. Stub at `apps/image` — its README is the build brief |
+| **ZestImage** | Grapefruit / frame | `apps/image` — free local core built; Pro greyed until accounts |
 
 ## This directory
 
@@ -29,7 +29,7 @@ zest/
   apps/
     mail/             ZestMail: index.html, /api/claude proxy, zest.json, icons
     md/               Zest MD: index.html, sw.js, manifest.webmanifest, zest.json, icons
-    image/            ZestImage: README (build brief) only — no app yet
+    image/            ZestImage: index.html, zest.json, icons — free core built
     store/            landing-page draft (index.html); the §10 pricing/terms/account pages are not built
   icons/              the four app icons: svg/, layers/, png/, mono/, fruits.json —
                       and showcase.html, which renders the family in a browser
@@ -48,7 +48,8 @@ null origin, which breaks the service worker and any API call.
   `/api/claude` on `http://localhost:3000`. Without the proxy:
   `npx serve .` and use your own key via the app's Direct route.
 - **Zest MD** — `cd apps/md && npx serve .`. Static, no build step.
-- **Zest (studio), ZestImage** — nothing to run yet.
+- **ZestImage** — `cd apps/image && npx serve .`. Static, no build step.
+- **Zest (studio)** — nothing to run yet.
 
 ## Status against ZEST-SPEC §10, Milestone 1
 
@@ -70,7 +71,8 @@ Not done:
 - `can()` gating with upgrade prompts
 - Pricing page, terms, privacy, refund policy, changelog
 - Account page with Export everything
-- The studio and ZestImage apps do not exist yet
+- The studio app does not exist yet (ZestImage's free core now does — Pro
+  features wait on accounts)
 
 ## Not the browser
 
