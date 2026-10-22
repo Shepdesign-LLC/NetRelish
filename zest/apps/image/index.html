@@ -24,6 +24,7 @@
   --r:10px; --r-lg:14px; --ease:cubic-bezier(.32,.72,0,1); --t:180ms;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{height:100%;margin:0}
 body{background:linear-gradient(180deg,var(--bgtop),var(--night) 420px);color:var(--ink);font:14px/1.5 var(--body);-webkit-font-smoothing:antialiased}
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
@@ -119,6 +120,7 @@ header a:hover{color:var(--ink)}
 .thumb img{width:38px;height:38px;object-fit:cover;border-radius:7px}
 .thumb span{flex:1;font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .thumb button{color:var(--ink-3)} .thumb button:hover{color:var(--ink)}
+.thumb button svg{display:block;width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 input[type=range]{width:100%;accent-color:var(--acc)}
 
 footer{padding:14px 18px;border-top:1px solid var(--line);display:flex;gap:16px;align-items:center;font-size:12px;color:var(--ink-3);flex-wrap:wrap}
@@ -272,6 +274,7 @@ let tT; const toast = m => { const t = $('#toast'); t.textContent = m; t.classLi
 const HEX = /^#[0-9a-fA-F]{3,8}$/;
 const safeColor = (v, d) => HEX.test(String(v ?? '').trim()) ? String(v).trim() : d;
 const safeFont = v => { v = String(v ?? '').trim(); return /^[A-Za-z0-9 '\-]{1,48}$/.test(v) && !v.includes("''") ? v.replace(/'/g, '') : ''; };
+const safeLogo = v => typeof v === 'string' && v.length <= 1500000 && /^data:image\/(png|jpe?g|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(v) ? v : null;
 function sanitizeBrand(b) {
   b = b && typeof b === 'object' ? b : {};
   const pal = (q, fall) => { q = q && typeof q === 'object' ? q : {}; const out = {};
@@ -279,6 +282,7 @@ function sanitizeBrand(b) {
     return out; };
   const light = pal(b.light), f = b.fonts && typeof b.fonts === 'object' ? b.fonts : {};
   return { zest: 1, name: String(b.name || 'Untitled').slice(0, 48),
+    logo: safeLogo(b.logo),
     fonts: { head: safeFont(f.head), body: safeFont(f.body), mono: safeFont(f.mono) },
     light, dark: pal(b.dark, light),
     radius: Math.max(0, Math.min(40, +b.radius || 8)),
@@ -425,6 +429,7 @@ function fitOne(text, font, weight, maxW, startSize, minSize) {
 const tspans = (lines, x, y, lh, size) => lines.map((l, i) => `<tspan x="${x}" y="${(y + i * size * lh).toFixed(1)}">${esc(l)}</tspan>`).join('');
 
 /* ---------- shared pieces ---------- */
+const lum = h => { h = String(h).slice(1); if (h.length < 6) h = h.split('').map(c => c + c).join(''); const n = parseInt(h.slice(0, 6), 16) || 0; return 0.2126 * (n >> 16 & 255) + 0.7152 * (n >> 8 & 255) + 0.0722 * (n & 255); };
 const photoDefs = (ph, tint, primary, W, H, id) => ph ? `
   <filter id="tint${id}"><feColorMatrix type="saturate" values="${(1 - (tint / 100) * 0.6).toFixed(2)}"/></filter>
   <clipPath id="pc${id}"><rect x="0" y="0" width="${W}" height="${H}"/></clipPath>` : '';
@@ -477,7 +482,7 @@ const LAYOUTS = {
   }},
   scrim: { n: 'Photo + scrim', d: 'Title over your photo', fn(b, t, c, W, H, ph, id) {
     const M = W * 0.07, u = Math.min(W, H);
-    const fg = S.mode === 'dark' ? t.ink : t.paper;    // dark palette: paper IS the dark bg — use its foreground
+    const fg = Math.abs(lum(t.ink) - lum(t.dark)) >= Math.abs(lum(t.paper) - lum(t.dark)) ? t.ink : t.paper;  // whichever contrasts with the scrim — mode alone lies when an import without dark tokens copied light into dark
     const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, W - M * 2, H * 0.34, u * 0.12, u * 0.045, 1.08);
     const block = ti.lines.length * ti.size * 1.08;
     const base = ph ? photoAt(ph, S.tint, t.primary, 0, 0, W, H, id) : `<rect width="${W}" height="${H}" fill="${t.dark}"/>`;
@@ -575,6 +580,14 @@ function renderBrands() {
   $('#mLight').setAttribute('aria-pressed', S.mode === 'light');
   $('#mDark').setAttribute('aria-pressed', S.mode === 'dark');
 }
+let logoFromBrand = false;                 // a brand-supplied logo follows the brand; a hand-dropped one survives brand switches
+function syncBrandLogo() {
+  const bl = brand().logo || null;
+  if (bl) { S.logo = bl; S.logoName = brand().name + ' logo'; logoFromBrand = true; }
+  else if (logoFromBrand) { S.logo = null; S.logoName = ''; logoFromBrand = false; }
+  $('#tLogo').hidden = !S.logo;
+  if (S.logo) { $('#tLogo img').src = S.logo; $('#tLogo span').textContent = S.logoName; }
+}
 function renderChoosers() {
   $('#layoutGrid').innerHTML = Object.entries(LAYOUTS).map(([k, l]) =>
     `<button class="lcell" data-l="${k}" aria-pressed="${k === S.layout}"><b>${l.n}</b><small>${l.d}</small></button>`).join('');
@@ -591,12 +604,13 @@ const save = () => { store.set('brands', S.brands); store.set('brandIdx', S.bran
    everywhere else the plain anchor works. */
 let hostSave = null;
 if (window.claude && window.claude.use) claude.use('downloads').then(d => { hostSave = d; }).catch(() => {});
-async function download(name, blob) {
+async function download(name, blob) {             // resolves true only when the save was not cancelled
   if (hostSave) {
-    try { await hostSave.save({ filename: name, data: blob }); return; }
-    catch (e) { if (e && e.code === 'declined') return; }
+    try { await hostSave.save({ filename: name, data: blob }); return true; }
+    catch (e) { if (e && e.code === 'declined') return false; }
   }
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  return true;
 }
 let webpOK = null;
 function canWebp() { if (webpOK !== null) return webpOK; const c = document.createElement('canvas'); c.width = c.height = 2; webpOK = c.toDataURL('image/webp').startsWith('data:image/webp'); return webpOK; }
@@ -619,7 +633,7 @@ async function exportImage() {
     cv.getContext('2d').drawImage(img, 0, 0, w * k, h * k);
     const blob = await new Promise(res => cv.toBlob(res, fmt, 0.92));
     if (!blob) throw new Error('Encoding failed');
-    download(name, blob);
+    if (!await download(name, blob)) { toast('Export cancelled — nothing saved or recorded.'); return; }
     S.exports.push(rec);
     render();
     toast(`${name} — alt text and manifest are one click away.`);
@@ -641,11 +655,12 @@ $('#brandList').addEventListener('click', async e => {
     S.brands.splice(rel, 1);
     if (S.brandIdx === abs) S.brandIdx = 0;
     else if (S.brandIdx > abs) S.brandIdx--;
-    save(); renderBrands(); render(); toast(`${gone.name} removed.`);
+    save(); renderBrands(); syncBrandLogo(); render(); toast(`${gone.name} removed.`);
+    await loadBrandFonts(brand()); render();   // the replacement selection needs its fonts, same as choosing it by hand
     return;
   }
   const b = e.target.closest('[data-i]'); if (!b) return;
-  S.brandIdx = +b.dataset.i; save(); renderBrands(); render();
+  S.brandIdx = +b.dataset.i; save(); renderBrands(); syncBrandLogo(); render();
   await loadBrandFonts(brand()); render();
 });
 $('#mLight').addEventListener('click', () => { S.mode = 'light'; save(); renderBrands(); render(); });
@@ -663,7 +678,7 @@ async function importBrand(file) {
     const existing = S.brands.findIndex(x => x.name.toLowerCase() === clean.name.toLowerCase());
     if (existing >= 0) { S.brands[existing] = clean; S.brandIdx = SAMPLES.length + existing; }
     else { S.brands.push(clean); S.brandIdx = SAMPLES.length + S.brands.length - 1; }
-    save(); renderBrands(); render(); toast(`${clean.name} ${existing >= 0 ? 'updated' : 'imported'}.`);
+    save(); renderBrands(); syncBrandLogo(); render(); toast(`${clean.name} ${existing >= 0 ? 'updated' : 'imported'}.`);
     await loadBrandFonts(clean); render();
   } catch (err) { toast(err.message); }
 }
@@ -672,12 +687,12 @@ function pickFile(drop, input, handler) {
   input.addEventListener('change', e => { handler(e.target.files[0]); input.value = ''; });
 }
 function readAsDataURL(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
-async function setLogo(f) { if (!f) return; S.logo = await readAsDataURL(f); S.logoName = f.name;
+async function setLogo(f) { if (!f) return; S.logo = await readAsDataURL(f); S.logoName = f.name; logoFromBrand = false;
   $('#tLogo').hidden = false; $('#tLogo img').src = S.logo; $('#tLogo span').textContent = f.name; render(); }
 async function setPhoto(f) { if (!f) return; S.photo = await readAsDataURL(f); S.photoName = f.name;
   $('#tPhoto').hidden = false; $('#tPhoto img').src = S.photo; $('#tPhoto span').textContent = f.name; $('#tintRow').hidden = false; render(); }
 pickFile($('#dLogo'), $('#fLogo'), setLogo);
-$('#tLogo button').addEventListener('click', () => { S.logo = null; $('#tLogo').hidden = true; render(); });
+$('#tLogo button').addEventListener('click', () => { S.logo = null; S.logoName = ''; logoFromBrand = false; $('#tLogo').hidden = true; render(); });
 pickFile($('#dPhoto'), $('#fPhoto'), setPhoto);
 $('#tPhoto button').addEventListener('click', () => { S.photo = null; $('#tPhoto').hidden = true; $('#tintRow').hidden = true; render(); });
 document.addEventListener('dragover', e => { e.preventDefault(); });
@@ -697,14 +712,14 @@ $('#eScale').addEventListener('change', render);
 $('#bExport').addEventListener('click', exportImage);
 $('#bAlt').addEventListener('click', () => { const alt = $('#cAlt').value.trim() || altDefault();
   download(filename().replace(/\.(png|webp)$/, '') + '.alt.txt', new Blob([alt], { type: 'text/plain' })); });
-$('#bManifest').addEventListener('click', () => {
+$('#bManifest').addEventListener('click', async () => {
   const m = { zest: 1, tool: 'image', brand: brand().name, generator: PRODUCT, exports: S.exports };
-  download(`${slug(brand().name)}-zest-image.json`, new Blob([JSON.stringify(m, null, 2)], { type: 'application/json' }));
-  toast(S.exports.length ? 'Manifest saved — regenerate the whole set from it after a rebrand.' : 'Manifest saved — it fills as you export.'); });
+  const saved = await download(`${slug(brand().name)}-zest-image.json`, new Blob([JSON.stringify(m, null, 2)], { type: 'application/json' }));
+  toast(!saved ? 'Manifest save cancelled.' : S.exports.length ? 'Manifest saved — regenerate the whole set from it after a rebrand.' : 'Manifest saved — it fills as you export.'); });
 $('#bOg').addEventListener('click', async () => { const snip = ogSnippet();
   try { await navigator.clipboard.writeText(snip); toast('OG meta copied — swap your-site.example for where the image is hosted.'); }
-  catch { download(filename().replace(/\.(png|webp)$/, '') + '.og.txt', new Blob([snip], { type: 'text/plain' }));
-    toast('Clipboard access was blocked — the snippet saved as a file instead.'); } });
+  catch { const saved = await download(filename().replace(/\.(png|webp)$/, '') + '.og.txt', new Blob([snip], { type: 'text/plain' }));
+    toast(saved ? 'Clipboard access was blocked — the snippet saved as a file instead.' : 'Cancelled — nothing saved.'); } });
 $$('.pro').forEach(p => p.addEventListener('click', () =>
   toast('Pro arrives with Zest accounts — everything local stays free. zest.netrelish.com has the plan.')));
 document.addEventListener('keydown', e => {
@@ -712,7 +727,7 @@ document.addEventListener('keydown', e => {
 });
 
 /* ---------- boot ---------- */
-renderBrands(); renderChoosers(); render();
+renderBrands(); renderChoosers(); syncBrandLogo(); render();
 loadBrandFonts(brand()).then(render);
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
