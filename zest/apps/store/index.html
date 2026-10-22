@@ -126,14 +126,15 @@ nav a:hover{color:var(--ink)}
 
 /* pricing */
 .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:44px;align-items:start}
-.plan{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:30px;position:relative}
-.plan.feature{border-color:var(--zest-500);background:linear-gradient(180deg,rgba(166,204,28,.07),transparent 40%)}
+/* Pricing sits in a .light section — sheet cards and dark-context text tokens, like .flow .box. */
+.plan{background:var(--sheet);border:1px solid var(--line-light);border-radius:var(--r-lg);padding:30px;position:relative}
+.plan.feature{border-color:var(--zest-500);background:linear-gradient(180deg,rgba(166,204,28,.07),transparent 40%) var(--sheet)}
 .plan .tag{position:absolute;top:-11px;left:30px;background:var(--zest-500);color:var(--pith);font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;border-radius:999px}
 .amount{font:800 46px var(--display);letter-spacing:-.03em;margin:14px 0 22px}
-.amount span{display:block;font:400 13px var(--body);color:var(--muted);letter-spacing:0;margin-top:6px}
+.amount span{display:block;font:400 13px var(--body);color:var(--muted-dark);letter-spacing:0;margin-top:6px}
 .plan .ticks{grid-template-columns:1fr;margin-bottom:26px}
 .plan .btn{width:100%}
-.price-note{margin-top:26px;font-size:14px;color:var(--muted)}
+.price-note{margin-top:26px;font-size:14px;color:var(--muted-dark)}
 
 /* waitlist */
 .waitlist{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:clamp(32px,5vw,56px);text-align:center;position:relative;overflow:hidden}
@@ -727,7 +728,7 @@ footer a{text-decoration:none} footer a:hover{color:var(--ink)}
     <div class="kicker">Pricing</div>
     <h2>The tools are free. The cloud is not.</h2>
     <p class="lede">You can't copy-protect an HTML file and it's dishonest to pretend otherwise. So the tools stay free and local — that's the demo and the point. What's paid is everything a single file can't do alone.</p>
-    <div class="plans" style="color:var(--ink-dark)"><div class="plan ">
+    <div class="plans"><div class="plan ">
   
   <h3>Free</h3><div class="amount">$0<span>forever</span></div>
   <ul class="ticks"><li>Every tool, running locally</li><li>Unlimited palettes and exports</li><li>One brand, saved in your browser</li><li>Bring your own AI key</li></ul>
@@ -740,7 +741,7 @@ footer a{text-decoration:none} footer a:hover{color:var(--ink)}
   <h3>Suite</h3><div class="amount">$15<span>per month, or $129 a year</span></div>
   <ul class="ticks"><li>Everything in Pro</li><li>Every tool, one license</li><li>Custom domains for publishing</li><li>500 AI drafts a month</li><li>3 team seats</li></ul>
   <a class="btn ghost" href="#waitlist">Join the waitlist</a></div></div>
-    <p class="price-note" style="color:var(--muted-dark)">Lifetime licenses available at launch. 14-day refunds, no questions, through the billing portal. Export everything you've made — designs, documents, images, tokens — from your account at any time.</p>
+    <p class="price-note">Lifetime licenses available at launch. 14-day refunds, no questions, through the billing portal. Export everything you've made — designs, documents, images, tokens — from your account at any time.</p>
   </div>
 </section>
 
