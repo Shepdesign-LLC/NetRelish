@@ -99,7 +99,7 @@ header a:hover{color:var(--ink)}
 .stagebar .sp{flex:1}
 .stage{flex:1;display:grid;place-items:center;padding:10px 26px 26px;min-height:0}
 .frame{position:relative;max-width:100%;box-shadow:0 30px 80px -24px rgba(0,0,0,.7),0 0 0 1px var(--line)}
-.frame svg{display:block;width:100%;height:auto}
+#stageSvg > svg{display:block;width:100%;height:auto} /* outer preview svg only — photoAt()'s nested viewport keeps its own dimensions */
 .safe{position:absolute;inset:0;pointer-events:none;display:none}
 .safe.on{display:block}
 .safe i{position:absolute;inset:6% 7%;border:1.5px dashed rgba(255,100,112,.65);border-radius:4px}
@@ -343,40 +343,51 @@ const content = () => ({
 
 /* ---------- fonts: fetch Google CSS, embed woff2 as data URIs, register for measuring ---------- */
 const FALL = { head: 'system-ui, -apple-system, sans-serif', body: 'system-ui, -apple-system, sans-serif', mono: 'ui-monospace, Menlo, monospace' };
-const fontCache = new Map();           // `${family}|${axes}` -> { css (data-uri @font-face rules), ok }
+const fontCache = new Map();           // `${family}|${axes}` -> { css (data-uri @font-face rules), ok:true } — successful loads only
+const fontLoads = new Map();           // in-flight promises, so concurrent callers await one fetch instead of reading a half-built entry
 let fontsWarned = false;
 const famParam = f => f.trim().replace(/ /g, '+');
 const axesFor = (b, role) => role === 'head'
   ? ((b.fonts || {}).head === 'Bricolage Grotesque' ? ':opsz,wght@12..96,500;12..96,600;12..96,800' : ':wght@500;600;800')
   : role === 'body' ? ':wght@400;500;600' : ':wght@400;500';
 const famKey = (b, role) => { const f = (b.fonts || {})[role]; return f ? f + '|' + axesFor(b, role) : ''; };
-async function loadFamily(family, axes) {
+async function fetchFaces(entry, family, axes) {
+  const url = `https://fonts.googleapis.com/css2?family=${famParam(family)}${axes}&display=swap`;
+  const css = await (await fetch(url, { mode: 'cors' })).text();
+  const faces = css.match(/(?:\/\*\s*[a-z0-9-]+\s*\*\/\s*)?@font-face\s*{[^}]+}/g) || [];
+  for (const face of faces) {
+    // keep latin subsets only — by Google's subset comment, or the latin unicode-range when comments are absent
+    if (faces.length > 4 && !/\/\*\s*latin\s*\*\//.test(face) && !face.includes('U+0000-00FF')) continue;
+    const src = face.match(/url\((https:[^)]+\.woff2)\)/);
+    if (!src) continue;
+    const buf = await (await fetch(src[1], { mode: 'cors' })).arrayBuffer();
+    let bin = ''; const bytes = new Uint8Array(buf);
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    const dataUri = 'data:font/woff2;base64,' + btoa(bin);
+    entry.css += face.replace(src[1], dataUri) + '\n';
+    const w = (face.match(/font-weight:\s*([\d ]+)/) || [])[1] || '400';
+    const ff = new FontFace(family, `url(${dataUri})`, { weight: w.trim().split(' ')[0] });
+    await ff.load(); document.fonts.add(ff);
+  }
+  entry.ok = entry.css.length > 0;
+}
+function loadFamily(family, axes) {
   const key = family + '|' + axes;
-  if (fontCache.has(key)) return fontCache.get(key);
-  const entry = { css: '', ok: false };
-  fontCache.set(key, entry);
-  try {
-    const url = `https://fonts.googleapis.com/css2?family=${famParam(family)}${axes}&display=swap`;
-    const css = await (await fetch(url, { mode: 'cors' })).text();
-    const faces = css.match(/(?:\/\*\s*[a-z0-9-]+\s*\*\/\s*)?@font-face\s*{[^}]+}/g) || [];
-    for (const face of faces) {
-      // keep latin subsets only — by Google's subset comment, or the latin unicode-range when comments are absent
-      if (faces.length > 4 && !/\/\*\s*latin\s*\*\//.test(face) && !face.includes('U+0000-00FF')) continue;
-      const src = face.match(/url\((https:[^)]+\.woff2)\)/);
-      if (!src) continue;
-      const buf = await (await fetch(src[1], { mode: 'cors' })).arrayBuffer();
-      let bin = ''; const bytes = new Uint8Array(buf);
-      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-      const dataUri = 'data:font/woff2;base64,' + btoa(bin);
-      entry.css += face.replace(src[1], dataUri) + '\n';
-      const w = (face.match(/font-weight:\s*([\d ]+)/) || [])[1] || '400';
-      const ff = new FontFace(family, `url(${dataUri})`, { weight: w.trim().split(' ')[0] });
-      await ff.load(); document.fonts.add(ff);
-    }
-    entry.ok = entry.css.length > 0;
-  } catch { /* offline or blocked — fall back below */ }
-  if (!entry.ok && !fontsWarned) { fontsWarned = true; toast('Brand fonts could not load — using system type for now.'); }
-  return entry;
+  if (fontCache.has(key)) return Promise.resolve(fontCache.get(key));
+  if (fontLoads.has(key)) return fontLoads.get(key);
+  const p = (async () => {
+    const entry = { css: '', ok: false };
+    try {
+      await fetchFaces(entry, family, axes);
+      if (!entry.ok && axes) await fetchFaces(entry, family, '');   // some families reject weighted requests (DM Serif Display is 400-only) — take their default faces
+    } catch { /* offline or blocked — fall back below */ }
+    fontLoads.delete(key);
+    if (entry.ok) fontCache.set(key, entry);   // failures stay uncached, so the next brand selection or import retries
+    else if (!fontsWarned) { fontsWarned = true; toast('Brand fonts could not load — using system type for now.'); }
+    return entry;
+  })();
+  fontLoads.set(key, p);
+  return p;
 }
 async function loadBrandFonts(b) {
   const f = b.fonts || {};
@@ -618,9 +629,10 @@ async function exportImage() {
   const alt = $('#cAlt').value.trim();
   if (!alt) { const s = $('#altSec'); s.classList.add('err'); setTimeout(() => s.classList.remove('err'), 600); $('#cAlt').focus(); toast('Alt text first — someone will hear this image instead of seeing it.'); return; }
   if (ext() === 'webp' && !canWebp()) { toast('This browser cannot encode WebP — exporting PNG instead.'); $('#eFmt').value = 'png'; }
+  await loadBrandFonts(brand());   // settle fonts before composing, so the file matches the preview rather than a mid-load fallback (failed loads keep system type)
   const { w, h } = dims(), k = scale(), fmt = ext() === 'webp' ? 'image/webp' : 'image/png';
   const svg = compose(w, h);
-  // Snapshot everything editable BEFORE the awaits — switching controls mid-export must not mislabel the file
+  // Snapshot everything editable AFTER the font wait and BEFORE the raster awaits — switching controls mid-export must not mislabel the file
   const name = filename();
   const rec = { file: name, target: S.target, width: w * k, height: h * k, format: ext(), layout: S.layout,
     alt, brand: brand().name, mode: S.mode, tint: S.photo ? S.tint : null, content: content() };
@@ -729,7 +741,7 @@ document.addEventListener('keydown', e => {
 /* ---------- boot ---------- */
 renderBrands(); renderChoosers(); syncBrandLogo(); render();
 loadBrandFonts(brand()).then(render);
-if ('serviceWorker' in navigator && location.protocol === 'https:') {
+if ('serviceWorker' in navigator && window.isSecureContext) {   // localhost counts as secure, so the documented `npx serve .` flow gets the offline shell too
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 })();
