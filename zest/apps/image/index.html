@@ -17,7 +17,7 @@
   --acc:#F0525E; --acc-ink:#A8232F; --flesh:#FFC7B8; --pith:#FFEDE8; --juice:#FF6470;
   --night:#120607; --bgtop:#2E1214;
   --pane:#1a0e0f; --pane-2:#221314; --pane-3:#2a1719;
-  --ink:#f2ecea; --ink-2:#a89a97; --ink-3:#6b5c5a;
+  --ink:#f2ecea; --ink-2:#a89a97; --ink-3:#948481; /* 4.76:1 on the darkest-vs-lightest declared bgs — 10–12px helper text needs 4.5:1 */
   --line:#352023; --line-2:#2a181a;
   --ok:#7FD6C6; --warn:#F2B56B;
   --display:'Bricolage Grotesque',system-ui,sans-serif; --body:'Geist',system-ui,-apple-system,sans-serif; --mono:'Geist Mono',ui-monospace,Menlo,monospace;
@@ -57,7 +57,7 @@ header a:hover{color:var(--ink)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:34px;padding:0 13px;border-radius:var(--r);border:1px solid var(--line);background:var(--pane-2);font-size:13px;font-weight:500;transition:all var(--t) var(--ease)}
 .btn:hover{border-color:var(--ink-3);transform:translateY(-1px)}
 .btn:active{transform:none}
-.btn.acc{background:var(--acc);border-color:transparent;color:#fff;font-weight:600}
+.btn.acc{background:var(--acc);border-color:transparent;color:var(--night);font-weight:600} /* night on grapefruit = 5.76:1; white was 3.46:1 */
 .btn.acc:hover{filter:brightness(1.08)}
 .btn.wide{width:100%}
 .btn.sm{height:28px;padding:0 10px;font-size:12px;border-radius:8px}
@@ -626,10 +626,10 @@ async function download(name, blob) {             // resolves true only when the
 let webpOK = null;
 function canWebp() { if (webpOK !== null) return webpOK; const c = document.createElement('canvas'); c.width = c.height = 2; webpOK = c.toDataURL('image/webp').startsWith('data:image/webp'); return webpOK; }
 async function exportImage() {
-  const alt = $('#cAlt').value.trim();
-  if (!alt) { const s = $('#altSec'); s.classList.add('err'); setTimeout(() => s.classList.remove('err'), 600); $('#cAlt').focus(); toast('Alt text first — someone will hear this image instead of seeing it.'); return; }
   if (ext() === 'webp' && !canWebp()) { toast('This browser cannot encode WebP — exporting PNG instead.'); $('#eFmt').value = 'png'; }
   await loadBrandFonts(brand());   // settle fonts before composing, so the file matches the preview rather than a mid-load fallback (failed loads keep system type)
+  const alt = $('#cAlt').value.trim();   // read + validate after the font wait, with the rest of the snapshot — edits made during the load must count
+  if (!alt) { const s = $('#altSec'); s.classList.add('err'); setTimeout(() => s.classList.remove('err'), 600); $('#cAlt').focus(); toast('Alt text first — someone will hear this image instead of seeing it.'); return; }
   const { w, h } = dims(), k = scale(), fmt = ext() === 'webp' ? 'image/webp' : 'image/png';
   const svg = compose(w, h);
   // Snapshot everything editable AFTER the font wait and BEFORE the raster awaits — switching controls mid-export must not mislabel the file
