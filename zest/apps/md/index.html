@@ -76,7 +76,7 @@ html[data-theme="dark"]{
 .doc pre code{background:none; border:0; padding:0; font-size:1em; white-space:pre}
 .doc .pre-tools{position:absolute; top:8px; right:8px; display:flex; gap:8px; align-items:center; font:500 11px/1 var(--ui-font)}
 .doc .pre-tools .lang{color:var(--ink-3); letter-spacing:.02em}
-.doc .copy{font:500 11px/1 var(--ui-font); color:var(--ink-3); background:var(--sheet); border:1px solid var(--rule); border-radius:calc(var(--radius)/2); padding:5px 9px; cursor:pointer; transition:opacity .12s,color .12s,background .12s} /* subdued via ink-3, not opacity — .6 composited ink-2 to ~3:1 */
+.doc .copy{font:500 11px/1 var(--ui-font); color:var(--ink-2); background:var(--sheet); border:1px solid var(--rule); border-radius:calc(var(--radius)/2); padding:5px 9px; cursor:pointer; transition:opacity .12s,color .12s,background .12s} /* ink-2, no opacity dimming: the only token passing 4.5:1 on sheet in every skin (ink-3 fails in six of seven) */
 .doc pre:hover .copy,.doc .table-wrap:hover .copy,.doc .diagram:hover .copy,.doc .copy:focus-visible,.doc .copy:hover{opacity:1}
 .doc .copy:hover{color:var(--accent); border-color:var(--accent)}
 .doc .copy.done{color:var(--on-accent); background:var(--accent); border-color:var(--accent); opacity:1}
