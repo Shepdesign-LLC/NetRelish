@@ -19,15 +19,16 @@ self.addEventListener('fetch', e => {
     // network — "Nothing is uploaded" — serve the cached shell and let the
     // page read its own location. Fail closed if the shell isn't cached.
     if (e.request.mode === 'navigate' && (url.searchParams.has('title') || url.searchParams.has('text'))) {
-      e.respondWith(caches.match('/index.html').then(r => r || Response.error()));
+      e.respondWith(caches.open(VERSION).then(c => c.match('/index.html')).then(r => r || Response.error()));
       return;
     }
+    // Lookups are scoped to THIS app's cache — a global caches.match() could serve another Zest app's shell on a shared origin.
     e.respondWith(fetch(e.request).then(r => { if (r.ok) { const copy = r.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); } return r; })
-      .catch(() => caches.match(e.request).then(r => r || caches.match('/index.html'))));
+      .catch(() => caches.open(VERSION).then(c => c.match(e.request).then(r => r || c.match('/index.html')))));
     return;
   }
   // Fonts, KaTeX, Mermaid: cache first, fill on first use
   if (RUNTIME_HOSTS.includes(url.hostname)) {
-    e.respondWith(caches.match(e.request).then(hit => hit || fetch(e.request).then(r => { if (r.ok) { const copy = r.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); } return r; })));
+    e.respondWith(caches.open(VERSION).then(c => c.match(e.request).then(hit => hit || fetch(e.request).then(r => { if (r.ok) { const copy = r.clone(); c.put(e.request, copy); } return r; }))));
   }
 });

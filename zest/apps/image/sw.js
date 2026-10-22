@@ -12,14 +12,15 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
-  // App shell: network first (so deploys land), cache fallback (so offline works); only successful responses are cached
+  // App shell: network first (so deploys land), cache fallback (so offline works); only successful responses are cached.
+  // Lookups are scoped to THIS app's cache — a global caches.match() could serve another Zest app's shell on a shared origin.
   if (url.origin === location.origin) {
     e.respondWith(fetch(e.request).then(r => { if (r.ok) { const copy = r.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); } return r; })
-      .catch(() => caches.match(e.request).then(r => r || caches.match('/index.html'))));
+      .catch(() => caches.open(VERSION).then(c => c.match(e.request).then(r => r || c.match('/index.html')))));
     return;
   }
   // Brand fonts: cache first, fill on first successful use
   if (RUNTIME_HOSTS.includes(url.hostname)) {
-    e.respondWith(caches.match(e.request).then(hit => hit || fetch(e.request).then(r => { if (r.ok) { const copy = r.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); } return r; })));
+    e.respondWith(caches.open(VERSION).then(c => c.match(e.request).then(hit => hit || fetch(e.request).then(r => { if (r.ok) { const copy = r.clone(); c.put(e.request, copy); } return r; }))));
   }
 });
