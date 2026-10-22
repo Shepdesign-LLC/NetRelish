@@ -704,7 +704,7 @@ ${preheader}${content}
   });
   function renderModules() {
     const mods = store.get('modules', []); const el = $('#mods'); if (!el) return;
-    el.innerHTML = mods.length ? mods.map(m => `<div class="lib-item" draggable="true" data-mod="${m.id}"><b>${esc(m.name)}</b><span>${BLOCKS[m.type] ? BLOCKS[m.type].name : m.type} · <a href="#" data-rmmod="${m.id}" style="color:var(--ink-3)">remove</a></span></div>`).join('') : '<div class="lib-item" style="cursor:default;opacity:.7"><b>No modules yet</b><span>Select a block, then “Save as module”</span></div>';
+    el.innerHTML = mods.length ? mods.map(m => `<div class="lib-item" draggable="true" data-mod="${m.id}"><b>${esc(m.name)}</b><span>${BLOCKS[m.type] ? BLOCKS[m.type].name : m.type} · <a href="#" data-rmmod="${m.id}" style="color:var(--ink-3)">remove</a></span></div>`).join('') : '<div class="lib-item" style="cursor:default"><b>No modules yet</b><span>Select a block, then “Save as module”</span></div>';
   }
   function renderBrandPanel() {
     const b = brand(), p = $('#panelBrand');
