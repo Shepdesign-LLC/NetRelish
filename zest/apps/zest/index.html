@@ -19,7 +19,7 @@
   --pane:#1a1609; --pane-2:#221d0c; --pane-3:#2a2410;
   --ink:#f2efe4; --ink-2:#aaa389; --ink-3:#958e76; /* ink-3 ≥4.5:1 on every pane — verified by the contrast harness */
   --line:#383114; --line-2:#2c260f;
-  --ok:#8fd6a9; --warn:#f2b56b; --bad:#ff9d8a;
+  --ok:#8fd6a9; --warn:#f2b56b; --bad:#ff8a66; /* a coral clearly apart from grapefruit's peel #FF9A8A */
   --display:'Bricolage Grotesque',system-ui,sans-serif; --body:'Geist',system-ui,-apple-system,sans-serif; --mono:'Geist Mono',ui-monospace,Menlo,monospace;
   --r:10px; --r-lg:14px; --ease:cubic-bezier(.32,.72,0,1); --t:180ms;
 }
@@ -30,7 +30,7 @@ body{background:linear-gradient(180deg,var(--bgtop),var(--night) 420px) var(--bg
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 input,select,textarea{font:inherit;color:var(--ink)}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:6px}
-::selection{background:var(--flesh);color:var(--acc-ink)}
+::selection{background:var(--flesh);color:var(--night)} /* night on flesh: 11.6:1 — acc-ink only managed 3.85:1 here */
 
 header{display:flex;align-items:center;gap:14px;padding:0 18px;height:56px;border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;gap:10px;font:600 17px var(--display);letter-spacing:-.02em}
@@ -178,7 +178,7 @@ footer .sp{flex:1}
   <div class="brand"><span class="mark">Z</span>Zest</div>
   <span class="tag">Lemon · build the brand once</span>
   <span class="sp"></span>
-  <a href="https://zest.netrelish.com" rel="noopener">Tools</a>
+  <a href="https://zest.netrelish.com/#tools" rel="noopener">Tools</a>
 </header>
 
 <div class="app">
@@ -331,7 +331,7 @@ footer .sp{flex:1}
 </div>
 
 <footer>
-  <span>Runs in your browser. Brands, fonts and your logo never leave this machine.</span>
+  <span>Runs in your browser. Nothing is uploaded — brands, fonts and your logo stay on this machine.</span>
   <span class="sp"></span>
   <span>Fonts load from Google Fonts and nothing else is fetched.</span>
 </footer>
@@ -489,6 +489,9 @@ function sanitizeBrand(b) {           // imports and localStorage survive tamper
   const locks = {};
   for (const [m, p] of [['light', light], ['dark', dark]]) { const d = derived(p);
     for (const k of DERIVED) if (p[k] !== d[k]) locks[m + ':' + k] = true; }
+  // role locks the user set survive reloads and brand save/load — only known keys, only literal true
+  const inLocks = b.locks && typeof b.locks === 'object' ? b.locks : {};
+  for (const m of ['light', 'dark']) for (const k of [...ROLES, ...DERIVED]) if (inLocks[m + ':' + k] === true) locks[m + ':' + k] = true;
   return { name: String(b.name || 'Untitled').slice(0, 48),
     light, dark,
     locks, fonts: { head: pick(fonts.head, [...FONTS, ...customNames()], f.fonts.head), body: pick(fonts.body, [...FONTS, ...customNames()], f.fonts.body), mono: pick(fonts.mono, [...FONTS, ...customNames()], f.fonts.mono) },
@@ -517,7 +520,7 @@ const idb = () => new Promise((res, rej) => { const q = indexedDB.open('zeststud
   q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
 async function loadCustomFonts() {
   try { const db = await idb(); const all = await new Promise((res, rej) => { const t = db.transaction('fonts').objectStore('fonts').getAll(); t.onsuccess = () => res(t.result); t.onerror = () => rej(t.error); });
-    for (const f of all) { try { const ff = new FontFace(f.name, f.data); await ff.load(); document.fonts.add(ff); customs.push({ name: f.name, format: f.format }); } catch {} }
+    for (const f of all) { try { const ff = new FontFace(f.name, f.data); await ff.load(); document.fonts.add(ff); customs.push({ name: f.name, format: f.format, url: URL.createObjectURL(new Blob([f.data])) }); } catch {} }
   } catch {}
 }
 async function addCustomFont(file) {
@@ -528,7 +531,7 @@ async function addCustomFont(file) {
   try { const ff = new FontFace(name, data.slice(0)); await ff.load(); document.fonts.add(ff); }
   catch { toast('That file would not load as a font.'); return; }
   try { const db = await idb(); await new Promise((res, rej) => { const t = db.transaction('fonts', 'readwrite').objectStore('fonts').put({ name, data, format: file.name.split('.').pop().toLowerCase() }); t.onsuccess = res; t.onerror = () => rej(t.error); }); } catch {}
-  if (!customs.some(c => c.name === name)) customs.push({ name, format: file.name.split('.').pop().toLowerCase() });
+  if (!customs.some(c => c.name === name)) customs.push({ name, format: file.name.split('.').pop().toLowerCase(), url: URL.createObjectURL(new Blob([data])) });
   renderFonts(); toast(`${name} added — it is in the font menus now.`);
 }
 async function removeCustomFont(name) {
@@ -554,7 +557,7 @@ function previewDoc() {
   const customFaces = customs.filter(c => [S.fonts.head, S.fonts.body, S.fonts.mono].includes(c.name));
   return `<!doctype html><html><head><meta charset="utf-8">${gf ? `<link href="${esc(gf)}" rel="stylesheet">` : ''}
 <style>
-${customFaces.map(c => `/* ${esc(c.name)} is loaded by the host page via FontFace; the preview falls back if isolated */`).join('\n')}
+${customFaces.map(c => `@font-face{font-family:'${esc(c.name)}';src:url('${c.url}');font-display:swap}`).join('\n')}
 :root{--primary:${t.primary};--ink:${t.ink};--muted:${t.muted};--paper:${t.paper};--sheet:${t.sheet};--line:${t.line};--dark:${t.dark};--r:${S.radius}px}
 *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:${S.type.base}px/1.6 ${famCss(S.fonts.body)}}
 .wrap{max-width:820px;margin:0 auto;padding:${sp.s4}px ${sp.s4}px ${sp.s6}px}
@@ -722,6 +725,11 @@ async function download(name, text, type) {        // resolves true only when th
     try { await hostSave.save({ filename: name, data: blob }); return true; }
     catch (e) { if (e && e.code === 'declined') return false; }
   }
+  // installed PWA (spec §6.3's middle tier): native save panel via the File System Access API
+  if (window.showSaveFilePicker && matchMedia('(display-mode: standalone)').matches) {
+    try { const h = await showSaveFilePicker({ suggestedName: name }); const w = await h.createWritable(); await w.write(blob); await w.close(); return true; }
+    catch (e) { if (e && e.name === 'AbortError') return false; }
+  }
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   return true;
 }
@@ -871,8 +879,16 @@ $$('[data-send]').forEach(b => b.addEventListener('click', async () => {
   toast(`${name} — ${notes[tool]}.`);
 }));
 
+const PRO_WHY = {  // §4.3: a one-line reason per feature, not one toast for all
+  cloud: 'Cloud brand systems need a Zest account — saves stay in this browser until then.',
+  fonts: 'The cloud font library needs an account — your fonts stay in this browser for now.',
+  figma: 'Figma variables export arrives with Pro.',
+  bricks: 'Bricks classes and WordPress theme.json arrive with Pro.',
+  sheet: 'The brand sheet PDF arrives with Pro.',
+  pairings: 'Model-assisted pairings are metered — they arrive with Pro accounts.',
+};
 $$('.pro').forEach(p => p.addEventListener('click', () =>
-  toast('Pro arrives with Zest accounts — everything local stays free. zest.netrelish.com has the plan.')));
+  toast((PRO_WHY[p.dataset.pro] || 'Pro arrives with Zest accounts.') + ' The local core stays free — zest.netrelish.com has the plan.')));
 
 document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'e') { e.preventDefault(); $('#xBrand').click(); }
