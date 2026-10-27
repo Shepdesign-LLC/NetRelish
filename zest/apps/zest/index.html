@@ -1,0 +1,904 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zest — build the brand once</title>
+<meta name="description" content="The brand studio. Pick the colours and type once — every Zest tool inherits them. OKLCH palettes, font pairings, type and spacing scales, WCAG audit, tokens out. Runs in your browser; nothing is uploaded.">
+<meta name="theme-color" content="#100E06">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-title" content="Zest">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,800&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" crossorigin="anonymous">
+<style>
+:root{
+  --acc:#F2B705; --acc-ink:#8A6500; --flesh:#FFD84A; --pith:#FFF9DC; --juice:#FFCF2E;
+  --night:#100E06; --bgtop:#2A2610;
+  --pane:#1a1609; --pane-2:#221d0c; --pane-3:#2a2410;
+  --ink:#f2efe4; --ink-2:#aaa389; --ink-3:#958e76; /* ink-3 ≥4.5:1 on every pane — verified by the contrast harness */
+  --line:#383114; --line-2:#2c260f;
+  --ok:#8fd6a9; --warn:#f2b56b; --bad:#ff9d8a;
+  --display:'Bricolage Grotesque',system-ui,sans-serif; --body:'Geist',system-ui,-apple-system,sans-serif; --mono:'Geist Mono',ui-monospace,Menlo,monospace;
+  --r:10px; --r-lg:14px; --ease:cubic-bezier(.32,.72,0,1); --t:180ms;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:linear-gradient(180deg,var(--bgtop),var(--night) 420px) var(--bgtop);color:var(--ink);font:14px/1.5 var(--body);-webkit-font-smoothing:antialiased} /* explicit color under the gradient: the lighter stop, so contrast tooling audits the worst case */
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--ink)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:6px}
+::selection{background:var(--flesh);color:var(--acc-ink)}
+
+header{display:flex;align-items:center;gap:14px;padding:0 18px;height:56px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font:600 17px var(--display);letter-spacing:-.02em}
+.mark{width:28px;height:28px;border-radius:9px;background:linear-gradient(180deg,#FFE45C,#F5B800);color:#100E06;display:grid;place-items:center;font:800 15px var(--display);box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+header .tag{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+header .sp{flex:1}
+header a{color:var(--ink-2);text-decoration:none;font-size:13px}
+header a:hover{color:var(--ink)}
+
+.app{display:grid;grid-template-columns:318px 1fr 336px;min-height:calc(100dvh - 57px)}
+@media(max-width:1180px){.app{grid-template-columns:1fr;min-height:0}.stagewrap{order:-1;min-height:48vh}}
+.panel{padding:16px;border-right:1px solid var(--line);overflow-y:auto}
+.panel.right{border-right:0;border-left:1px solid var(--line)}
+@media(max-width:1180px){.panel,.panel.right{border:0;border-top:1px solid var(--line)}}
+.sec{margin-bottom:22px}
+.lab{display:flex;align-items:center;gap:8px;font:600 11.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px}
+.lab .sp{flex:1}
+.field{margin-bottom:9px}
+.field label{display:block;font-size:12px;color:var(--ink-2);margin-bottom:4px}
+.field input[type=text],.field input[type=number],.field select{width:100%;background:var(--pane);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;outline:0;transition:border-color var(--t)}
+.field input:focus,.field select:focus{border-color:var(--acc)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:34px;padding:0 13px;border-radius:var(--r);border:1px solid var(--line);background:var(--pane-2);font-size:13px;font-weight:500;transition:all var(--t) var(--ease)}
+.btn:hover{border-color:var(--ink-3);transform:translateY(-1px)}
+.btn:active{transform:none}
+.btn.acc{background:var(--acc);border-color:transparent;color:var(--night);font-weight:600}
+.btn.acc:hover{filter:brightness(1.06)}
+.btn.wide{width:100%}
+.btn.sm{height:28px;padding:0 10px;font-size:12px;border-radius:8px}
+.btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+.btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.hint{font-size:11.5px;color:var(--ink-3);line-height:1.5;margin:6px 0 0}
+.hint b{color:var(--ink-2);font-weight:500}
+.hint code{font:10.5px var(--mono);background:var(--pane-2);padding:1px 4px;border-radius:4px}
+
+.modes{display:flex;gap:6px}
+.modes .btn[aria-pressed="true"]{border-color:var(--acc);color:var(--acc)}
+
+/* roles */
+.role{display:grid;grid-template-columns:26px 30px 1fr 86px;gap:8px;align-items:center;margin-bottom:7px}
+.role .lock{width:26px;height:26px;display:grid;place-items:center;border-radius:7px;color:var(--ink-3)}
+.role .lock[aria-pressed="true"]{color:var(--acc)}
+.role .lock:hover{background:var(--pane-2);color:var(--ink)}
+.role .lock svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.role input[type=color]{width:30px;height:30px;padding:0;border:1px solid var(--line);border-radius:8px;background:none;cursor:pointer}
+.role input[type=color]::-webkit-color-swatch-wrapper{padding:2px}
+.role input[type=color]::-webkit-color-swatch{border:0;border-radius:5px}
+.role b{font-size:12.5px;font-weight:500}
+.role small{display:block;font:10.5px var(--mono);color:var(--ink-3)}
+.role .hex{font:11.5px var(--mono);background:var(--pane);border:1px solid var(--line);border-radius:8px;padding:5px 7px;width:100%;outline:0}
+.role .hex:focus{border-color:var(--acc)}
+.role[data-derived="true"] b::after{content:" · auto";font:10px var(--mono);color:var(--ink-3)}
+.role[aria-current="true"]{background:var(--pane);border-radius:var(--r);outline:1px solid var(--line)}
+
+.sliders{background:var(--pane);border:1px solid var(--line-2);border-radius:var(--r);padding:10px 12px;margin-top:10px}
+.sliders .sl{display:grid;grid-template-columns:18px 1fr 52px;gap:8px;align-items:center;margin:6px 0}
+.sliders .sl b{font:600 10.5px var(--mono);color:var(--ink-3)}
+.sliders .sl output{font:11px var(--mono);color:var(--ink-2);text-align:right}
+input[type=range]{width:100%;accent-color:var(--acc)}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;background:var(--pane);padding:4px 10px 4px 5px;font-size:12px;transition:all var(--t)}
+.chip:hover{border-color:var(--ink-3)}
+.chip i{width:16px;height:16px;border-radius:50%;box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+.ramp{display:grid;grid-template-columns:repeat(11,1fr);border-radius:var(--r);overflow:hidden;border:1px solid var(--line);height:34px;margin-top:4px}
+.ramp button{position:relative}
+.ramp button:hover::after{content:attr(data-hex);position:absolute;left:50%;bottom:110%;transform:translateX(-50%);background:var(--pane-2);border:1px solid var(--line);color:var(--ink);font:10px var(--mono);padding:2px 6px;border-radius:6px;white-space:nowrap;z-index:5}
+
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.pcell{border:1px solid var(--line);border-radius:var(--r);background:var(--pane);padding:8px 10px;text-align:left;transition:all var(--t) var(--ease)}
+.pcell:hover{border-color:var(--ink-3);transform:translateY(-1px)}
+.pcell .dots{display:flex;gap:3px;margin-bottom:5px}
+.pcell .dots i{width:11px;height:11px;border-radius:4px;box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.pcell b{display:block;font-size:12px;font-weight:600}
+
+/* stage */
+.stagewrap{display:flex;flex-direction:column;min-width:0;background:radial-gradient(900px 480px at 50% -10%,rgba(255,207,46,.07),transparent 60%)}
+.stagebar{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:12px;color:var(--ink-3)}
+.stagebar .fn{font-family:var(--mono);color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stagebar .sp{flex:1}
+.stage{flex:1;padding:10px 26px 26px;min-height:0;display:grid;place-items:start center}
+.frame{width:min(100%,880px);border-radius:14px;overflow:hidden;box-shadow:0 30px 80px -24px rgba(0,0,0,.7),0 0 0 1px var(--line)}
+
+/* type + pairing lists */
+.pairs{display:grid;gap:6px;max-height:260px;overflow:auto;padding-right:2px}
+.pair{border:1px solid var(--line);border-radius:var(--r);background:var(--pane);padding:8px 11px;text-align:left;transition:all var(--t)}
+.pair:hover{border-color:var(--ink-3)}
+.pair[aria-pressed="true"]{border-color:var(--acc)}
+.pair b{display:block;font-size:13px;font-weight:600}
+.pair small{font-size:11px;color:var(--ink-3)}
+
+/* audit */
+.audit{display:grid;gap:5px}
+.arow{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;background:var(--pane);border:1px solid var(--line-2);border-radius:9px;padding:6px 9px;font-size:12px}
+.arow .pr{display:flex;align-items:center;gap:6px}
+.arow .pr i{width:14px;height:14px;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.arow output{font:11px var(--mono);color:var(--ink-2)}
+.badge{font:600 10px var(--mono);letter-spacing:.04em;padding:2px 7px;border-radius:999px}
+.badge.ok{background:rgba(143,214,169,.15);color:var(--ok)}
+.badge.bad{background:rgba(255,157,138,.15);color:var(--bad)}
+
+.pro{display:flex;align-items:center;gap:9px;width:100%;padding:8px 11px;border-radius:var(--r);border:1px dashed var(--line);background:none;color:var(--ink-3);font-size:12.5px;text-align:left;margin-bottom:6px}
+.pro:hover{color:var(--ink-2);border-color:var(--ink-3)}
+.pro svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.9;flex:none}
+.pro em{font-style:normal;margin-left:auto;font:600 9.5px var(--mono);letter-spacing:.07em;color:var(--acc);opacity:.85}
+
+.drop{display:block;width:100%;border:1.5px dashed var(--line);border-radius:var(--r);padding:12px;text-align:center;font-size:12px;color:var(--ink-3);transition:all var(--t);cursor:pointer}
+.drop:hover,.drop.over{border-color:var(--acc);color:var(--ink-2)}
+.thumb{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:var(--r);border:1px solid var(--line-2);background:var(--pane);margin-top:8px}
+.thumb img{width:38px;height:38px;object-fit:contain;border-radius:7px;background:#fff}
+.thumb span{flex:1;font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.thumb button{color:var(--ink-2)} .thumb button:hover{color:var(--ink)}
+.thumb button svg{display:block;width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+.savedrow{display:flex;align-items:stretch;width:100%;border-radius:var(--r);border:1px solid var(--line-2);background:var(--pane);margin-bottom:6px;overflow:hidden}
+.savedrow .bsel{flex:1;display:flex;align-items:center;gap:10px;padding:8px 10px;text-align:left;min-width:0}
+.savedrow .bdel{padding:0 11px;color:var(--ink-2);font-size:15px;border-left:1px solid var(--line-2)}
+.savedrow .bdel:hover{color:var(--acc)}
+.savedrow b{flex:1;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.savedrow .dots{display:flex;gap:3px;flex:none}
+.savedrow .dots i{width:10px;height:10px;border-radius:4px;box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+
+footer{padding:14px 18px;border-top:1px solid var(--line);display:flex;gap:16px;align-items:center;font-size:12px;color:var(--ink-3);flex-wrap:wrap}
+footer .sp{flex:1}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);z-index:50;background:var(--pane-2);
+  border:1px solid var(--line);border-radius:999px;padding:10px 18px;font-size:13px;opacity:0;pointer-events:none;
+  transition:all 240ms var(--ease);box-shadow:0 18px 44px -16px rgba(0,0,0,.6);max-width:min(92vw,560px)}
+.toast.show{opacity:1;transform:translateX(-50%)}
+@media(prefers-reduced-motion:reduce){*{transition-duration:1ms!important;animation:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+ <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v12m-5-5 5 5 5-5M5 20h14"/></symbol>
+ <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="3"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+ <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+ <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="3"/><path d="M8 10V7a4 4 0 0 1 7.6-1.7"/></symbol>
+ <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+ <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12h13M13 6l6 6-6 6"/></symbol>
+ <symbol id="i-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="15" cy="9" r="1.2"/><circle cx="9" cy="15" r="1.2"/></symbol>
+ <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 6 .4l3-3a4 4 0 1 0-5.6-5.6l-1.2 1.2M14 10a4 4 0 0 0-6-.4l-3 3a4 4 0 1 0 5.6 5.6l1.2-1.2"/></symbol>
+</defs></svg>
+
+<header>
+  <div class="brand"><span class="mark">Z</span>Zest</div>
+  <span class="tag">Lemon · build the brand once</span>
+  <span class="sp"></span>
+  <a href="https://zest.netrelish.com" rel="noopener">Tools</a>
+</header>
+
+<div class="app">
+  <aside class="panel" id="left">
+    <div class="sec">
+      <p class="lab">Brand<span class="sp"></span><button class="btn sm" id="bSave">Save</button></p>
+      <div class="field"><input type="text" id="bName" value="New brand" aria-label="Brand name"></div>
+      <div id="savedList"></div>
+      <p class="hint">Saved brands live in this browser. Cloud, named and versioned, arrives with Pro.</p>
+    </div>
+    <div class="sec">
+      <p class="lab">Editing<span class="sp"></span><button class="btn sm" id="bDerive" title="Derive the dark palette from the light roles">Derive dark</button></p>
+      <div class="modes">
+        <button class="btn sm" id="mLight" aria-pressed="true">Light</button>
+        <button class="btn sm" id="mDark" aria-pressed="false">Dark</button>
+      </div>
+    </div>
+    <div class="sec">
+      <p class="lab">Roles<span class="sp"></span><button class="btn sm" id="bShuffle" title="Shuffle unlocked roles within the harmony"><svg><use href="#i-dice"/></svg>Shuffle</button></p>
+      <div id="roles"></div>
+      <div class="sliders" id="sliders">
+        <div class="sl"><b>L</b><input type="range" id="sL" min="0" max="100" step="0.5"><output id="oL"></output></div>
+        <div class="sl"><b>C</b><input type="range" id="sC" min="0" max="0.35" step="0.002"><output id="oC"></output></div>
+        <div class="sl"><b>H</b><input type="range" id="sH" min="0" max="360" step="1"><output id="oH"></output></div>
+        <p class="hint" id="slHint">OKLCH, gamut-mapped to sRGB. Pick a role above to edit it here.</p>
+      </div>
+    </div>
+    <div class="sec">
+      <p class="lab">Harmony</p>
+      <div class="field"><select id="harmony" aria-label="Harmony">
+        <option value="complementary">Complementary</option>
+        <option value="analogous">Analogous</option>
+        <option value="triadic">Triadic</option>
+        <option value="split">Split-complementary</option>
+        <option value="tetradic">Tetradic</option>
+        <option value="mono">Monochrome</option>
+      </select></div>
+      <div class="chips" id="harmonyChips"></div>
+      <p class="hint">Companions of the primary. Click one to send it to the selected role.</p>
+    </div>
+    <div class="sec">
+      <p class="lab">Ramp</p>
+      <div class="ramp" id="ramp"></div>
+      <p class="hint">Eleven steps on the primary's hue — exported with the tokens. Click to copy.</p>
+    </div>
+    <div class="sec">
+      <p class="lab">Presets</p>
+      <div class="pgrid" id="presets"></div>
+    </div>
+  </aside>
+
+  <main class="stagewrap">
+    <div class="stagebar">
+      <span class="fn" id="fname">—</span>
+      <span class="sp"></span>
+      <span>Preview</span>
+      <div class="modes">
+        <button class="btn sm" id="pvLight" aria-pressed="true">Light</button>
+        <button class="btn sm" id="pvDark" aria-pressed="false">Dark</button>
+      </div>
+    </div>
+    <div class="stage"><div class="frame"><iframe id="pv" title="Live brand preview" style="display:block;width:100%;height:640px;border:0;background:#fff"></iframe></div></div>
+  </main>
+
+  <aside class="panel right">
+    <div class="sec">
+      <p class="lab">Type</p>
+      <div class="pairs" id="pairs"></div>
+      <div class="row2" style="margin-top:9px">
+        <div class="field"><label for="fHead">Heading</label><select id="fHead"></select></div>
+        <div class="field"><label for="fBody">Body</label><select id="fBody"></select></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label for="fMono">Mono</label><select id="fMono"></select></div>
+        <div class="field"><label for="tRatio">Scale ratio</label><select id="tRatio">
+          <option value="1.125">1.125 — major second</option>
+          <option value="1.2">1.2 — minor third</option>
+          <option value="1.25" selected>1.25 — major third</option>
+          <option value="1.333">1.333 — perfect fourth</option>
+          <option value="1.414">1.414 — augmented fourth</option>
+          <option value="1.5">1.5 — perfect fifth</option>
+        </select></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label for="tBase">Base size</label><input type="number" id="tBase" value="16" min="12" max="24"></div>
+        <div class="field"><label for="radius">Radius — <b id="radVal">8px</b></label><input type="range" id="radius" min="0" max="24" value="8" style="margin-top:9px"></div>
+      </div>
+    </div>
+    <div class="sec">
+      <p class="lab">Your fonts</p>
+      <button type="button" class="drop" id="dFont">Drop a .woff2 / .ttf / .otf, or click</button>
+      <input type="file" id="fFont" accept=".woff2,.woff,.ttf,.otf" hidden>
+      <div id="fontList"></div>
+      <p class="hint">Stored in this browser (IndexedDB), usable in every select above. A cloud font library arrives with Pro.</p>
+    </div>
+    <div class="sec">
+      <p class="lab">Spacing</p>
+      <div class="row2">
+        <div class="field"><label for="spUnit">Unit</label><select id="spUnit"><option>2</option><option selected>4</option><option>6</option><option>8</option></select></div>
+        <div class="field"><label for="spDensity">Density</label><select id="spDensity"><option value="compact">Compact</option><option value="comfortable" selected>Comfortable</option><option value="spacious">Spacious</option></select></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label for="btnSize">Buttons</label><select id="btnSize"><option value="sm">Small</option><option value="md" selected>Medium</option><option value="lg">Large</option></select></div>
+        <div class="field"><label for="btnShape">Shape</label><select id="btnShape"><option value="rounded" selected>Rounded</option><option value="pill">Pill</option><option value="square">Square</option></select></div>
+      </div>
+    </div>
+    <div class="sec">
+      <p class="lab">Logo <span style="font:500 10px var(--mono);color:var(--ink-3)">FOR THE IMAGE KIT</span></p>
+      <button type="button" class="drop" id="dLogo">Drop an SVG or PNG, or click</button>
+      <input type="file" id="fLogo" accept="image/svg+xml,image/png,image/jpeg" hidden>
+      <div class="thumb" id="tLogo" hidden><img alt=""><span></span><button title="Remove"><svg><use href="#i-x"/></svg></button></div>
+      <p class="hint">Rides inside <code>zest-brand.json</code> so ZestImage can compose with it. Stays on this machine.</p>
+    </div>
+    <div class="sec">
+      <p class="lab">Contrast audit</p>
+      <div class="audit" id="audit"></div>
+      <p class="hint">WCAG 2.1 — 4.5:1 for text, 3:1 for the hairline. Both palettes, recomputed as you edit.</p>
+    </div>
+    <div class="sec">
+      <p class="lab">Export</p>
+      <button class="btn acc wide" id="xBrand"><svg><use href="#i-down"/></svg>zest-brand.json</button>
+      <div class="row2" style="margin-top:8px">
+        <button class="btn sm" id="xCss">CSS variables</button>
+        <button class="btn sm" id="xTailwind">Tailwind</button>
+      </div>
+      <div class="row2" style="margin-top:8px">
+        <button class="btn sm" id="xFontface">@font-face</button>
+        <button class="btn sm" id="xShare"><svg><use href="#i-link"/></svg>Share link</button>
+      </div>
+      <p class="hint" id="xNote">One file is the handoff — every Zest tool reads it.</p>
+    </div>
+    <div class="sec">
+      <p class="lab">Send to</p>
+      <button class="btn wide" data-send="image" style="margin-bottom:7px"><svg><use href="#i-send"/></svg>ZestImage — tokens + logo</button>
+      <button class="btn wide" data-send="mail" style="margin-bottom:7px"><svg><use href="#i-send"/></svg>ZestMail — brand</button>
+      <button class="btn wide" data-send="md"><svg><use href="#i-send"/></svg>Zest MD — skin</button>
+      <p class="hint">In the browser this is a download and an import on the other side. Inside NetRelish it becomes a direct handoff.</p>
+    </div>
+    <div class="sec">
+      <p class="lab">Pro</p>
+      <button class="pro" data-pro="cloud"><svg><use href="#i-lock"/></svg>Cloud brand systems — named, versioned, shared<em>PRO</em></button>
+      <button class="pro" data-pro="fonts"><svg><use href="#i-lock"/></svg>Cloud font library across tools and devices<em>PRO</em></button>
+      <button class="pro" data-pro="figma"><svg><use href="#i-lock"/></svg>Figma variables JSON export<em>PRO</em></button>
+      <button class="pro" data-pro="bricks"><svg><use href="#i-lock"/></svg>Bricks global classes + WordPress theme.json<em>PRO</em></button>
+      <button class="pro" data-pro="sheet"><svg><use href="#i-lock"/></svg>Brand sheet — the client-facing PDF<em>PRO</em></button>
+      <button class="pro" data-pro="pairings"><svg><use href="#i-lock"/></svg>Model-assisted font pairings<em>PRO</em></button>
+      <p class="hint">Pro arrives with Zest accounts. The local core stays free — that is the point.</p>
+    </div>
+  </aside>
+</div>
+
+<footer>
+  <span>Runs in your browser. Brands, fonts and your logo never leave this machine.</span>
+  <span class="sp"></span>
+  <span>Fonts load from Google Fonts and nothing else is fetched.</span>
+</footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+const PRODUCT = 'Zest';
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const slug = s => String(s || '').toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'untitled';
+let tT; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tT); tT = setTimeout(() => t.classList.remove('show'), 3400); };
+
+/* ---------- colour: hex ⇄ sRGB ⇄ OKLCH, with gamut mapping ---------- */
+const hex2rgb = x => { x = String(x).replace('#', ''); if (x.length === 3) x = [...x].map(c => c + c).join(''); const n = parseInt(x.slice(0, 6), 16) || 0; return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const rgb2hex = ([r, g, b]) => '#' + [r, g, b].map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+const HEXRE = /^#[0-9a-fA-F]{6}$/;
+const s2l = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+const l2s = v => { v = Math.max(0, Math.min(1, v)); return 255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055); };
+function rgb2oklch([r, g, b]) {
+  const [lr, lg, lb] = [r, g, b].map(s2l);
+  const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb);
+  const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb);
+  const s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb);
+  const L = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s;
+  const A = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s;
+  const B = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
+  const C = Math.hypot(A, B); let H = Math.atan2(B, A) * 180 / Math.PI; if (H < 0) H += 360;
+  return { L, C, H };
+}
+function oklch2rgbRaw({ L, C, H }) {
+  const A = C * Math.cos(H * Math.PI / 180), B = C * Math.sin(H * Math.PI / 180);
+  const l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3;
+  const m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3;
+  const s = (L - 0.0894841775 * A - 1.2914855480 * B) ** 3;
+  return [
+    +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
+  ];
+}
+const inGamut = lin => lin.every(v => v >= -1e-4 && v <= 1 + 1e-4);
+function oklch2hex(c) {               // chroma-reduce until the colour fits sRGB
+  let lo = 0, hi = c.C, C = c.C;
+  if (!inGamut(oklch2rgbRaw(c))) {
+    for (let i = 0; i < 18; i++) { C = (lo + hi) / 2; if (inGamut(oklch2rgbRaw({ ...c, C }))) lo = C; else hi = C; }
+    C = lo;
+  }
+  return rgb2hex(oklch2rgbRaw({ ...c, C }).map(l2s));
+}
+const hex2oklch = h => rgb2oklch(hex2rgb(h));
+const mix = (a, b, t) => rgb2hex(hex2rgb(a).map((v, i) => v + (hex2rgb(b)[i] - v) * t));
+const lum = h => { const [r, g, b] = hex2rgb(h).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const ratio = (a, b) => { const l1 = Math.max(lum(a), lum(b)), l2 = Math.min(lum(a), lum(b)); return (l1 + 0.05) / (l2 + 0.05); };
+const onColor = h => lum(h) > 0.4 ? '#0f1420' : '#ffffff';   // same rule Zest MD's derive() uses for on-accent
+
+/* ---------- derivation — Zest MD's custom-skin formulas, verbatim (spec §7.3) ---------- */
+function derived(p) {                 // p = {primary, ink, paper, dark}; returns {muted, sheet, line}
+  const isDark = lum(p.paper) < 0.35;
+  const sheet = isDark ? mix(p.paper, '#ffffff', 0.035) : (lum(p.paper) > 0.8 ? '#ffffff' : mix(p.paper, '#ffffff', 0.7));
+  return { muted: mix(p.ink, p.paper, 0.3), sheet, line: mix(sheet, p.ink, isDark ? 0.16 : 0.12) };
+}
+function deriveDark(light) {          // ink and paper swap roles, the primary keeps its hue — Zest MD's other-mode rule
+  const roles = {
+    primary: mix(light.primary, '#ffffff', 0.3),
+    ink: mix(light.paper, '#ffffff', 0.45),
+    paper: mix(light.ink, '#000000', 0.55),
+    dark: mix(light.ink, '#000000', 0.7),
+  };
+  return { ...roles, ...derived(roles) };
+}
+
+/* custom fonts registry — declared ahead of the state block, which consults it */
+let customs = [];                     // [{name, format}]
+const customNames = () => customs.map(c => c.name);
+
+/* ---------- fonts: 38 families, 19 curated pairings ---------- */
+const SANS = ['Geist','Inter','Instrument Sans','Manrope','Space Grotesk','Sora','Work Sans','DM Sans','Plus Jakarta Sans','Outfit','Figtree','Archivo','Public Sans','Epilogue','Hanken Grotesk','Chivo','Rubik','Karla','Nunito Sans','Red Hat Display','IBM Plex Sans'];
+const DISPLAY = ['Bricolage Grotesque','DM Serif Display','Fraunces'];
+const SERIF = ['Newsreader','Source Serif 4','IBM Plex Serif','Spectral','Lora','Literata','Crimson Pro','Alegreya','Zilla Slab'];
+const MONO = ['Geist Mono','JetBrains Mono','IBM Plex Mono','Fira Code','Space Mono'];
+const FONTS = [...DISPLAY, ...SANS, ...SERIF, ...MONO];   // 38 families
+const PAIRINGS = [
+  ['The house pair', 'Bricolage Grotesque', 'Geist', 'Geist Mono'],
+  ['Editorial warmth', 'Fraunces', 'Inter', 'JetBrains Mono'],
+  ['Magazine classic', 'DM Serif Display', 'DM Sans', 'Space Mono'],
+  ['Technical modern', 'Space Grotesk', 'Work Sans', 'Fira Code'],
+  ['Newsroom', 'Newsreader', 'Public Sans', 'IBM Plex Mono'],
+  ['Product launch', 'Sora', 'Figtree', 'Geist Mono'],
+  ['Plex suite', 'IBM Plex Serif', 'IBM Plex Sans', 'IBM Plex Mono'],
+  ['Grotesque + humanist', 'Archivo', 'Karla', 'Space Mono'],
+  ['Literary', 'Spectral', 'Nunito Sans', 'Fira Code'],
+  ['Geometric friendly', 'Outfit', 'Manrope', 'Geist Mono'],
+  ['Slab authority', 'Zilla Slab', 'Chivo', 'JetBrains Mono'],
+  ['Red Hat energy', 'Red Hat Display', 'Rubik', 'IBM Plex Mono'],
+  ['Calm longform', 'Lora', 'Hanken Grotesk', 'Geist Mono'],
+  ['Law and letterpress', 'Crimson Pro', 'Instrument Sans', 'Space Mono'],
+  ['Startup deck', 'Epilogue', 'Plus Jakarta Sans', 'Fira Code'],
+  ['Book-first', 'Literata', 'Inter', 'IBM Plex Mono'],
+  ['Scholarly', 'Alegreya', 'Work Sans', 'JetBrains Mono'],
+  ['Modern neutral', 'Manrope', 'Geist', 'Geist Mono'],
+  ['One family', 'Instrument Sans', 'Instrument Sans', 'Geist Mono'],
+];
+const famParam = f => f.trim().replace(/ /g, '+');
+const gfontsUrl = fonts => {
+  const fams = [...new Set([fonts.head, fonts.body, fonts.mono].filter(f => FONTS.includes(f)))];
+  return fams.length ? `https://fonts.googleapis.com/css2?${fams.map(f => 'family=' + famParam(f) + ':wght@400;500;600;700;800').join('&')}&display=swap` : '';
+};
+
+/* ---------- presets (12) ---------- */
+const P = (name, primary, ink, paper, dark, pair, radius, darkPal) =>
+  ({ name, light: { primary, ink, paper, dark }, pair, radius, dark: darkPal });
+const PRESETS = [
+  P('Zest', '#8a6500', '#1f1a07', '#faf7ec', '#1f1a07', 0, 10,
+    { primary: '#f2c233', ink: '#f2efe4', paper: '#14110a', dark: '#0d0b06' }),
+  P('Shepdesign', '#1f4ed8', '#1b2130', '#f2f3f5', '#1b2130', 0, 8,
+    { primary: '#8fb0ff', ink: '#e7e9ee', paper: '#111419', dark: '#0f1420' }),
+  P('Pantry', '#5f7a0d', '#14181f', '#f4f5f2', '#14181f', 3, 10, null),
+  P('Harbor', '#0f6b74', '#122a2e', '#f0f5f4', '#122a2e', 4, 8, null),
+  P('Ember', '#c2410c', '#2a1a12', '#faf4ef', '#2a1a12', 1, 8, null),
+  P('Plum', '#7c3aed', '#241a33', '#f6f4fa', '#241a33', 5, 12, null),
+  P('Forest', '#166534', '#15231a', '#f2f6f1', '#15231a', 12, 8, null),
+  P('Rose', '#be123c', '#2b1420', '#faf2f4', '#2b1420', 2, 10, null),
+  P('Slate', '#334155', '#1e2530', '#f1f3f6', '#1e2530', 17, 6, null),
+  P('Sand', '#8a5a24', '#28200f', '#f8f4ec', '#28200f', 13, 10, null),
+  P('Mint', '#0f766e', '#132724', '#eff6f4', '#132724', 9, 12, null),
+  P('Inkwell', '#111827', '#111827', '#f5f5f4', '#111827', 6, 4, null),
+];
+
+/* ---------- state ---------- */
+const store = { get(k, d) { try { const v = localStorage.getItem('zeststudio:' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+                set(k, v) { try { localStorage.setItem('zeststudio:' + k, JSON.stringify(v)); } catch {} } };
+const ROLES = ['primary', 'ink', 'paper', 'dark'];
+const DERIVED = ['muted', 'sheet', 'line'];
+const safeColor = (v, d) => HEXRE.test(String(v ?? '').trim()) ? String(v).trim().toLowerCase() : d;
+const safeLogo = v => typeof v === 'string' && v.length <= 1500000 && /^data:image\/(png|jpe?g|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(v) ? v : null;
+function freshBrand() {
+  const l = { primary: '#1f4ed8', ink: '#1b2130', paper: '#f2f3f5', dark: '#1b2130' };
+  return { name: 'New brand',
+    light: { ...l, ...derived(l) }, dark: deriveDark(l),
+    locks: {}, fonts: { head: 'Bricolage Grotesque', body: 'Geist', mono: 'Geist Mono' },
+    type: { base: 16, ratio: 1.25 }, spacing: { unit: 4, density: 'comfortable' },
+    radius: 8, buttons: { size: 'md', shape: 'rounded' }, logo: null };
+}
+function sanitizeBrand(b) {           // imports and localStorage survive tampering — force everything through this
+  b = b && typeof b === 'object' ? b : {};
+  const f = freshBrand();
+  const pal = (q, d) => { q = q && typeof q === 'object' ? q : {}; const out = {};
+    for (const k of [...ROLES, ...DERIVED]) out[k] = safeColor(q[k], d[k]); return out; };
+  const fonts = b.fonts && typeof b.fonts === 'object' ? b.fonts : {};
+  const pick = (v, list, d) => list.includes(v) ? v : d;
+  const light = pal(b.light, f.light), dark = pal(b.dark, f.dark);
+  // a file's derived values are explicit: pin any that differ from derivation, so a round-trip changes nothing
+  const locks = {};
+  for (const [m, p] of [['light', light], ['dark', dark]]) { const d = derived(p);
+    for (const k of DERIVED) if (p[k] !== d[k]) locks[m + ':' + k] = true; }
+  return { name: String(b.name || 'Untitled').slice(0, 48),
+    light, dark,
+    locks, fonts: { head: pick(fonts.head, [...FONTS, ...customNames()], f.fonts.head), body: pick(fonts.body, [...FONTS, ...customNames()], f.fonts.body), mono: pick(fonts.mono, [...FONTS, ...customNames()], f.fonts.mono) },
+    type: { base: Math.max(12, Math.min(24, +(b.type && b.type.base) || 16)), ratio: Math.max(1.1, Math.min(1.6, +(b.type && b.type.ratio) || 1.25)) },
+    spacing: { unit: [2, 4, 6, 8].includes(+(b.spacing && b.spacing.unit)) ? +b.spacing.unit : 4, density: ['compact', 'comfortable', 'spacious'].includes(b.spacing && b.spacing.density) ? b.spacing.density : 'comfortable' },
+    radius: Math.max(0, Math.min(24, +b.radius || 8)),
+    buttons: { size: ['sm', 'md', 'lg'].includes(b.buttons && b.buttons.size) ? b.buttons.size : 'md', shape: ['rounded', 'pill', 'square'].includes(b.buttons && b.buttons.shape) ? b.buttons.shape : 'rounded' },
+    logo: safeLogo(b.logo) };
+}
+let S = sanitizeBrand(store.get('current', freshBrand()));
+let mode = 'light';                   // which palette is being edited
+let pvMode = 'light';                 // which palette the preview shows
+let selRole = 'primary';
+let saved = (store.get('brands', []) || []).map(sanitizeBrand);
+const save = () => { store.set('current', S); store.set('brands', saved); };
+
+/* re-derive unlocked derived roles whenever their inputs move */
+function rederive(m) {
+  const p = S[m], d = derived(p);
+  for (const k of DERIVED) if (!S.locks[m + ':' + k]) p[k] = d[k];
+}
+
+/* ---------- custom fonts (FontFace + IndexedDB) ---------- */
+const idb = () => new Promise((res, rej) => { const q = indexedDB.open('zeststudio-fonts', 1);
+  q.onupgradeneeded = () => q.result.createObjectStore('fonts', { keyPath: 'name' });
+  q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+async function loadCustomFonts() {
+  try { const db = await idb(); const all = await new Promise((res, rej) => { const t = db.transaction('fonts').objectStore('fonts').getAll(); t.onsuccess = () => res(t.result); t.onerror = () => rej(t.error); });
+    for (const f of all) { try { const ff = new FontFace(f.name, f.data); await ff.load(); document.fonts.add(ff); customs.push({ name: f.name, format: f.format }); } catch {} }
+  } catch {}
+}
+async function addCustomFont(file) {
+  if (!file || !/\.(woff2?|ttf|otf)$/i.test(file.name)) { toast('Fonts arrive as .woff2, .woff, .ttf or .otf.'); return; }
+  if (file.size > 8_000_000) { toast('That font is over 8 MB — subset it first.'); return; }
+  const name = file.name.replace(/\.(woff2?|ttf|otf)$/i, '').replace(/[-_]/g, ' ').replace(/[^A-Za-z0-9 ]/g, '').trim().slice(0, 48) || 'Custom font';
+  const data = await file.arrayBuffer();
+  try { const ff = new FontFace(name, data.slice(0)); await ff.load(); document.fonts.add(ff); }
+  catch { toast('That file would not load as a font.'); return; }
+  try { const db = await idb(); await new Promise((res, rej) => { const t = db.transaction('fonts', 'readwrite').objectStore('fonts').put({ name, data, format: file.name.split('.').pop().toLowerCase() }); t.onsuccess = res; t.onerror = () => rej(t.error); }); } catch {}
+  if (!customs.some(c => c.name === name)) customs.push({ name, format: file.name.split('.').pop().toLowerCase() });
+  renderFonts(); toast(`${name} added — it is in the font menus now.`);
+}
+async function removeCustomFont(name) {
+  customs = customs.filter(c => c.name !== name);
+  for (const r of ['head', 'body', 'mono']) if (S.fonts[r] === name) S.fonts[r] = freshBrand().fonts[r];
+  try { const db = await idb(); db.transaction('fonts', 'readwrite').objectStore('fonts').delete(name); } catch {}
+  save(); renderFonts(); render();
+}
+
+/* Google fonts for the PREVIEW load inside the iframe via its own <link>; the app chrome never refetches */
+
+/* ---------- preview document ---------- */
+const scaleSteps = () => { const out = {}; const d = { compact: 0.75, comfortable: 1, spacious: 1.3 }[S.spacing.density];
+  [1, 2, 3, 4, 6, 8, 12].forEach((n, i) => out['s' + i] = Math.round(n * S.spacing.unit * d)); return out; };
+const typeSize = n => Math.round(S.type.base * S.type.ratio ** n * 10) / 10;
+const btnPad = () => ({ sm: '7px 14px', md: '10px 18px', lg: '13px 24px' })[S.buttons.size];
+const btnRad = r => S.buttons.shape === 'pill' ? '999px' : S.buttons.shape === 'square' ? '2px' : r + 'px';
+const famCss = f => customs.some(c => c.name === f) ? `'${f}', system-ui, sans-serif`
+  : SERIF.includes(f) || f === 'Fraunces' || f === 'DM Serif Display' ? `'${f}', Georgia, serif`
+  : MONO.includes(f) ? `'${f}', ui-monospace, Menlo, monospace` : `'${f}', system-ui, sans-serif`;
+function previewDoc() {
+  const t = S[pvMode], sp = scaleSteps(), gf = gfontsUrl(S.fonts);
+  const customFaces = customs.filter(c => [S.fonts.head, S.fonts.body, S.fonts.mono].includes(c.name));
+  return `<!doctype html><html><head><meta charset="utf-8">${gf ? `<link href="${esc(gf)}" rel="stylesheet">` : ''}
+<style>
+${customFaces.map(c => `/* ${esc(c.name)} is loaded by the host page via FontFace; the preview falls back if isolated */`).join('\n')}
+:root{--primary:${t.primary};--ink:${t.ink};--muted:${t.muted};--paper:${t.paper};--sheet:${t.sheet};--line:${t.line};--dark:${t.dark};--r:${S.radius}px}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:${S.type.base}px/1.6 ${famCss(S.fonts.body)}}
+.wrap{max-width:820px;margin:0 auto;padding:${sp.s4}px ${sp.s4}px ${sp.s6}px}
+nav{display:flex;align-items:center;gap:${sp.s3}px;padding:${sp.s2}px 0;border-bottom:1px solid var(--line);margin-bottom:${sp.s5}px}
+nav b{font-family:${famCss(S.fonts.head)};font-size:${typeSize(1)}px;letter-spacing:-.02em}
+nav a{color:var(--muted);text-decoration:none;font-size:${typeSize(-1)}px;margin-left:${sp.s3}px}
+nav a:first-of-type{margin-left:auto}
+.kick{font-family:${famCss(S.fonts.mono)};font-size:${Math.max(11, typeSize(-1))}px;letter-spacing:.08em;text-transform:uppercase;color:var(--primary);margin:0 0 ${sp.s2}px}
+h1{font-family:${famCss(S.fonts.head)};font-weight:800;font-size:${typeSize(4)}px;line-height:1.06;letter-spacing:-.025em;margin:0 0 ${sp.s3}px;max-width:16ch}
+.lede{color:var(--muted);font-size:${typeSize(1)}px;line-height:1.5;max-width:46ch;margin:0 0 ${sp.s4}px}
+.cta{display:flex;gap:${sp.s2}px;flex-wrap:wrap;margin-bottom:${sp.s6}px}
+.b1{background:var(--primary);color:${onColor(t.primary)};border:0;border-radius:${btnRad(S.radius)};padding:${btnPad()};font:600 ${typeSize(0)}px ${famCss(S.fonts.body)};cursor:pointer}
+.b2{background:var(--sheet);color:var(--ink);border:1px solid var(--line);border-radius:${btnRad(S.radius)};padding:${btnPad()};font:500 ${typeSize(0)}px ${famCss(S.fonts.body)};cursor:pointer}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:${sp.s3}px;margin-bottom:${sp.s5}px}
+.card{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r);padding:${sp.s4}px}
+.card h3{font-family:${famCss(S.fonts.head)};font-size:${typeSize(1)}px;margin:0 0 ${sp.s1}px;letter-spacing:-.01em}
+.card p{color:var(--muted);font-size:${typeSize(-1)}px;margin:0;line-height:1.55}
+.card .tag{display:inline-block;font-family:${famCss(S.fonts.mono)};font-size:11px;color:var(--primary);background:color-mix(in srgb, var(--primary) 12%, var(--sheet));border-radius:999px;padding:2px 9px;margin-bottom:${sp.s2}px}
+.panel{background:var(--dark);color:${onColor(t.dark)};border-radius:var(--r);padding:${sp.s4}px ${sp.s4}px;display:flex;gap:${sp.s3}px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:${sp.s5}px}
+.panel b{font-family:${famCss(S.fonts.head)};font-size:${typeSize(1)}px;letter-spacing:-.01em}
+.panel code{font-family:${famCss(S.fonts.mono)};font-size:${typeSize(-1)}px;opacity:.85}
+.spec{border-top:1px solid var(--line);padding-top:${sp.s4}px}
+.spec h4{font-family:${famCss(S.fonts.mono)};font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 ${sp.s3}px;font-weight:500}
+.spec .row{display:flex;align-items:baseline;gap:${sp.s3}px;border-bottom:1px dashed var(--line);padding:${sp.s1}px 0}
+.spec .row small{font-family:${famCss(S.fonts.mono)};font-size:11px;color:var(--muted);width:92px;flex:none}
+.sw{display:flex;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);margin-top:${sp.s4}px}
+.sw i{flex:1;height:40px}
+</style></head><body><div class="wrap">
+<nav><b>${esc(S.name)}</b><a href="#">Work</a><a href="#">About</a><a href="#">Contact</a></nav>
+<p class="kick">Brand preview</p>
+<h1>Every tool inherits this.</h1>
+<p class="lede">Colour, type, spacing and radius as live tokens — this page is drawn from them, and so is everything the Zest tools make.</p>
+<div class="cta"><button class="b1">Primary action</button><button class="b2">Secondary</button></div>
+<div class="cards">
+  <div class="card"><span class="tag">Token</span><h3>Composed, not generated</h3><p>Typography, colour and structure from your system — the same every time.</p></div>
+  <div class="card"><span class="tag">Local</span><h3>Runs in the browser</h3><p>The core is local. Nothing here leaves this machine.</p></div>
+  <div class="card"><span class="tag">Handoff</span><h3>One file, every tool</h3><p>zest-brand.json carries all of it into Mail, MD and Image.</p></div>
+</div>
+<div class="panel"><b>Panel surface</b><code>--dark on ${esc(pvMode)} · radius ${S.radius}px</code></div>
+<div class="spec"><h4>Type scale — ${esc(String(S.type.base))}px × ${esc(String(S.type.ratio))}</h4>
+${[4, 3, 2, 1, 0, -1].map(n => `<div class="row"><small>${typeSize(n)}px</small><span style="font-family:${n > 0 ? famCss(S.fonts.head) : famCss(S.fonts.body)};font-size:${typeSize(n)}px;font-weight:${n > 1 ? 700 : 400};letter-spacing:${n > 1 ? '-.02em' : '0'}">The quick brown fox jumps over the lazy dog</span></div>`).join('')}
+<div class="sw">${[...ROLES, ...DERIVED].map(k => `<i style="background:${t[k]}" title="${k}"></i>`).join('')}</div>
+</div>
+</div></body></html>`;
+}
+
+/* ---------- renders ---------- */
+const ROLE_DESC = { primary: 'accent · buttons · links', ink: 'text', paper: 'page surface', dark: 'panel · scrim', muted: 'secondary text', sheet: 'card surface', line: 'hairline' };
+function renderRoles() {
+  const p = S[mode];
+  $('#roles').innerHTML = [...ROLES, ...DERIVED].map(k => {
+    const lockKey = mode + ':' + k, isD = DERIVED.includes(k), locked = isD ? !S.locks[lockKey] : !!S.locks[lockKey];
+    return `<div class="role" data-role="${k}" data-derived="${isD && !S.locks[lockKey]}" aria-current="${k === selRole}">
+      <button class="lock" data-lock="${k}" aria-pressed="${locked}" title="${isD ? (locked ? 'Derived automatically — click to edit by hand' : 'Hand-edited — click to re-derive') : (locked ? 'Locked against shuffle' : 'Unlocked — shuffle may move it')}"><svg><use href="#i-${locked ? 'lock' : 'unlock'}"/></svg></button>
+      <input type="color" data-c="${k}" value="${p[k]}" aria-label="${k} colour">
+      <span><b>${k}</b><small>${ROLE_DESC[k]}</small></span>
+      <input class="hex" data-h="${k}" value="${p[k]}" aria-label="${k} hex" spellcheck="false">
+    </div>`;
+  }).join('');
+  const o = hex2oklch(S[mode][selRole]);
+  $('#sL').value = (o.L * 100).toFixed(1); $('#sC').value = o.C.toFixed(3); $('#sH').value = o.H.toFixed(0);
+  $('#oL').textContent = (o.L * 100).toFixed(1); $('#oC').textContent = o.C.toFixed(3); $('#oH').textContent = o.H.toFixed(0) + '°';
+  $('#slHint').textContent = `Editing ${selRole} (${mode}) in OKLCH — gamut-mapped to sRGB.`;
+  $('#mLight').setAttribute('aria-pressed', mode === 'light');
+  $('#mDark').setAttribute('aria-pressed', mode === 'dark');
+}
+function renderHarmony() {
+  const base = hex2oklch(S[mode].primary);
+  const sets = {
+    complementary: [180], analogous: [-30, 30], triadic: [120, 240], split: [150, 210], tetradic: [90, 180, 270],
+    mono: [], };
+  const kind = $('#harmony').value;
+  const chips = kind === 'mono'
+    ? [0.9, 0.72, 0.5, 0.32].map(L => ({ label: 'L ' + Math.round(L * 100), hex: oklch2hex({ ...base, L }) }))
+    : sets[kind].map(d => ({ label: (d > 0 ? '+' : '') + d + '°', hex: oklch2hex({ ...base, H: (base.H + d + 360) % 360 }) }));
+  $('#harmonyChips').innerHTML = chips.map(c => `<button class="chip" data-apply="${c.hex}"><i style="background:${c.hex}"></i>${c.hex}<small style="color:var(--ink-3)">${c.label}</small></button>`).join('');
+}
+function rampHexes() {
+  const base = hex2oklch(S.light.primary);
+  return Array.from({ length: 11 }, (_, i) => { const t = i / 10;
+    const L = 0.975 - t * 0.73, C = Math.min(base.C, 0.02 + Math.sin(Math.PI * t) * Math.max(base.C, 0.06) * 1.15);
+    return oklch2hex({ L, C, H: base.H }); });
+}
+function renderRamp() {
+  $('#ramp').innerHTML = rampHexes().map((h, i) => `<button style="background:${h}" data-hex="${h}" aria-label="Ramp step ${i + 1} ${h}"></button>`).join('');
+}
+function renderPresets() {
+  $('#presets').innerHTML = PRESETS.map((p, i) => `<button class="pcell" data-preset="${i}">
+    <span class="dots"><i style="background:${p.light.primary}"></i><i style="background:${p.light.ink}"></i><i style="background:${p.light.paper};outline:1px solid var(--line)"></i></span>
+    <b>${esc(p.name)}</b></button>`).join('');
+}
+function renderPairs() {
+  $('#pairs').innerHTML = PAIRINGS.map((p, i) => `<button class="pair" data-pair="${i}" aria-pressed="${S.fonts.head === p[1] && S.fonts.body === p[2] && S.fonts.mono === p[3]}">
+    <b>${esc(p[1])} + ${esc(p[2])}</b><small>${esc(p[0])} · ${esc(p[3])}</small></button>`).join('');
+}
+function renderFonts() {
+  const opts = (sel, list) => [`<optgroup label="Google Fonts">`, ...list.map(f => `<option ${f === sel ? 'selected' : ''}>${esc(f)}</option>`), `</optgroup>`,
+    ...(customs.length ? [`<optgroup label="Your fonts">`, ...customs.map(c => `<option ${c.name === sel ? 'selected' : ''}>${esc(c.name)}</option>`), `</optgroup>`] : [])].join('');
+  $('#fHead').innerHTML = opts(S.fonts.head, [...DISPLAY, ...SERIF, ...SANS]);
+  $('#fBody').innerHTML = opts(S.fonts.body, [...SANS, ...SERIF]);
+  $('#fMono').innerHTML = opts(S.fonts.mono, MONO);
+  $('#fontList').innerHTML = customs.map(c => `<div class="thumb"><span>${esc(c.name)} <small style="color:var(--ink-3);font-family:var(--mono)">.${esc(c.format)}</small></span><button data-rmfont="${esc(c.name)}" title="Remove ${esc(c.name)}" aria-label="Remove ${esc(c.name)}"><svg><use href="#i-x"/></svg></button></div>`).join('');
+}
+function renderAudit() {
+  const rows = [];
+  for (const m of ['light', 'dark']) {
+    const t = S[m];
+    const pairs = [
+      ['ink / paper', t.ink, t.paper, 4.5], ['ink / sheet', t.ink, t.sheet, 4.5],
+      ['muted / paper', t.muted, t.paper, 4.5], ['muted / sheet', t.muted, t.sheet, 4.5],
+      ['primary as text / paper', t.primary, t.paper, 4.5],
+      [`on-primary (${onColor(t.primary) === '#ffffff' ? 'white' : 'ink'}) / primary`, onColor(t.primary), t.primary, 4.5],
+      ['line / paper (non-text)', t.line, t.paper, 3],
+    ];
+    for (const [label, a, b, need] of pairs) { const r = ratio(a, b);
+      rows.push(`<div class="arow"><span class="pr"><i style="background:linear-gradient(135deg,${a} 50%,${b} 50%)"></i>${esc(m)} · ${esc(label)}</span><output>${r.toFixed(2)}:1</output><span class="badge ${r + 0.005 >= need ? 'ok' : 'bad'}">${r + 0.005 >= need ? 'PASS' : 'FAIL'}</span></div>`); }
+  }
+  $('#audit').innerHTML = rows.join('');
+}
+function renderSaved() {
+  $('#savedList').innerHTML = saved.map((b, i) => `<div class="savedrow">
+    <button class="bsel" data-load="${i}"><span class="dots"><i style="background:${b.light.primary}"></i><i style="background:${b.light.ink}"></i><i style="background:${b.light.paper};outline:1px solid var(--line)"></i></span><b>${esc(b.name)}</b></button>
+    <button class="bdel" data-del="${i}" aria-label="Remove ${esc(b.name)}" title="Remove ${esc(b.name)}">×</button></div>`).join('');
+}
+let pvT;
+function renderPreview() { clearTimeout(pvT); pvT = setTimeout(() => { $('#pv').srcdoc = previewDoc(); }, 60);
+  $('#fname').textContent = `${slug(S.name)}-zest-brand.json`;
+  $('#pvLight').setAttribute('aria-pressed', pvMode === 'light');
+  $('#pvDark').setAttribute('aria-pressed', pvMode === 'dark');
+  $('#radVal').textContent = S.radius + 'px';
+}
+function render() { rederive('light'); rederive('dark'); renderRoles(); renderHarmony(); renderRamp(); renderAudit(); renderPreview(); save(); }
+
+/* ---------- exports ---------- */
+function brandJSON() {
+  const out = { zest: 1, name: S.name,
+    fonts: { head: S.fonts.head, body: S.fonts.body, mono: S.fonts.mono, googleFontsUrl: gfontsUrl(S.fonts), custom: customNames().filter(n => [S.fonts.head, S.fonts.body, S.fonts.mono].includes(n)) },
+    light: { primary: S.light.primary, ink: S.light.ink, muted: S.light.muted, paper: S.light.paper, sheet: S.light.sheet, line: S.light.line, dark: S.light.dark },
+    dark: { primary: S.dark.primary, ink: S.dark.ink, muted: S.dark.muted, paper: S.dark.paper, sheet: S.dark.sheet, line: S.dark.line, dark: S.dark.dark },
+    ramp: rampHexes(), radius: S.radius, type: { base: S.type.base, ratio: S.type.ratio },
+    spacing: { unit: S.spacing.unit, density: S.spacing.density } };
+  if (S.logo) out.logo = S.logo;
+  return out;
+}
+const cssVars = () => {
+  const block = (t, sel) => `${sel}{\n${[...ROLES, ...DERIVED].map(k => `  --${k}: ${t[k]};`).join('\n')}\n  --radius: ${S.radius}px;\n  --font-head: ${famCss(S.fonts.head)};\n  --font-body: ${famCss(S.fonts.body)};\n  --font-mono: ${famCss(S.fonts.mono)};\n}`;
+  return `/* ${S.name} — generated by ${PRODUCT} */\n${block(S.light, ':root')}\n@media (prefers-color-scheme: dark) {\n${block(S.dark, ':root').split('\n').map(l => '  ' + l).join('\n')}\n}\n\n/* ramp */\n:root{\n${rampHexes().map((h, i) => `  --primary-${i === 0 ? 50 : i * 100}: ${h};`).join('\n')}\n}\n`;
+};
+const tailwindCfg = () => `// ${S.name} — generated by ${PRODUCT}\nmodule.exports = {\n  theme: {\n    extend: {\n      colors: {\n        primary: { DEFAULT: '${S.light.primary}', ${rampHexes().map((h, i) => `${i === 0 ? 50 : i * 100}: '${h}'`).join(', ')} },\n        ink: '${S.light.ink}', muted: '${S.light.muted}', paper: '${S.light.paper}', sheet: '${S.light.sheet}', line: '${S.light.line}', panel: '${S.light.dark}',\n      },\n      fontFamily: {\n        head: [${famCss(S.fonts.head).split(',').map(s => `'${s.trim().replace(/'/g, '')}'`).join(', ')}],\n        body: [${famCss(S.fonts.body).split(',').map(s => `'${s.trim().replace(/'/g, '')}'`).join(', ')}],\n        mono: [${famCss(S.fonts.mono).split(',').map(s => `'${s.trim().replace(/'/g, '')}'`).join(', ')}],\n      },\n      borderRadius: { brand: '${S.radius}px' },\n    },\n  },\n};\n`;
+const fontfaceCss = () => {
+  const g = gfontsUrl(S.fonts);
+  const cus = customs.filter(c => [S.fonts.head, S.fonts.body, S.fonts.mono].includes(c.name));
+  return `/* ${S.name} — fonts, generated by ${PRODUCT} */\n${g ? `@import url('${g}');\n` : ''}${cus.map(c => `/* ${c.name}: a local font from your library — serve ${slug(c.name)}.${c.format} next to this file */\n@font-face{font-family:'${c.name}';src:url('${slug(c.name)}.${c.format}')${c.format === 'woff2' ? " format('woff2')" : ''};font-display:swap}`).join('\n')}\n\n:root{ --font-head: ${famCss(S.fonts.head)}; --font-body: ${famCss(S.fonts.body)}; --font-mono: ${famCss(S.fonts.mono)}; }\n`;
+};
+
+/* Saving feature-detects the host (spec §6.3 — one file, every surface). */
+let hostSave = null;
+if (window.claude && window.claude.use) claude.use('downloads').then(d => { hostSave = d; }).catch(() => {});
+async function download(name, text, type) {        // resolves true only when the save was not cancelled
+  const blob = new Blob([text], { type: type || 'text/plain' });
+  if (window.netrelish && window.netrelish.files && window.netrelish.files.save) {
+    try { return !!await window.netrelish.files.save(name, text, type || 'text/plain'); } catch {}
+  }
+  if (hostSave) {
+    try { await hostSave.save({ filename: name, data: blob }); return true; }
+    catch (e) { if (e && e.code === 'declined') return false; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  return true;
+}
+
+/* ---------- events ---------- */
+$('#bName').addEventListener('input', e => { S.name = e.target.value.slice(0, 48) || 'Untitled'; renderPreview(); save(); });
+$('#mLight').addEventListener('click', () => { mode = 'light'; renderRoles(); renderHarmony(); });
+$('#mDark').addEventListener('click', () => { mode = 'dark'; renderRoles(); renderHarmony(); });
+$('#pvLight').addEventListener('click', () => { pvMode = 'light'; renderPreview(); });
+$('#pvDark').addEventListener('click', () => { pvMode = 'dark'; renderPreview(); });
+$('#bDerive').addEventListener('click', () => { S.dark = deriveDark(S.light); for (const k of [...ROLES, ...DERIVED]) delete S.locks['dark:' + k]; render(); toast('Dark palette derived from the light roles — ink and paper swap, the primary keeps its hue.'); });
+
+$('#roles').addEventListener('input', e => {
+  const k = e.target.dataset.c || e.target.dataset.h; if (!k) return;
+  let v = e.target.value.trim(); if (e.target.dataset.h && !HEXRE.test(v)) return;
+  S[mode][k] = v.toLowerCase();
+  if (DERIVED.includes(k)) S.locks[mode + ':' + k] = true;   // hand edit pins a derived role
+  selRole = k; render();
+});
+$('#roles').addEventListener('click', e => {
+  const lk = e.target.closest('[data-lock]');
+  if (lk) { const k = lk.dataset.lock, key = mode + ':' + k;
+    S.locks[key] = !S.locks[key]; render(); return; }
+  const row = e.target.closest('.role'); if (row) { selRole = row.dataset.role; renderRoles(); }
+});
+const slide = () => { const c = { L: +$('#sL').value / 100, C: +$('#sC').value, H: +$('#sH').value };
+  S[mode][selRole] = oklch2hex(c);
+  if (DERIVED.includes(selRole)) S.locks[mode + ':' + selRole] = true;
+  render(); };
+['sL', 'sC', 'sH'].forEach(id => $('#' + id).addEventListener('input', slide));
+$('#harmony').addEventListener('change', renderHarmony);
+$('#harmonyChips').addEventListener('click', e => { const b = e.target.closest('[data-apply]'); if (!b) return;
+  S[mode][selRole] = b.dataset.apply.toLowerCase();
+  if (DERIVED.includes(selRole)) S.locks[mode + ':' + selRole] = true;
+  render(); toast(`${selRole} set to ${b.dataset.apply}.`); });
+$('#bShuffle').addEventListener('click', () => {
+  const base = hex2oklch(S[mode].primary);
+  const jitter = (H, spread) => (H + (Math.random() * 2 - 1) * spread + 360) % 360;
+  if (!S.locks[mode + ':primary']) S[mode].primary = oklch2hex({ L: 0.45 + Math.random() * 0.25, C: 0.09 + Math.random() * 0.14, H: jitter(base.H, 40) });
+  const p = hex2oklch(S[mode].primary);
+  if (!S.locks[mode + ':ink']) S[mode].ink = oklch2hex({ L: mode === 'light' ? 0.22 + Math.random() * 0.08 : 0.92, C: 0.015 + Math.random() * 0.02, H: p.H });
+  if (!S.locks[mode + ':paper']) S[mode].paper = oklch2hex({ L: mode === 'light' ? 0.965 : 0.16 + Math.random() * 0.04, C: 0.004 + Math.random() * 0.008, H: p.H });
+  if (!S.locks[mode + ':dark']) S[mode].dark = mode === 'light' ? S[mode].ink : oklch2hex({ L: 0.13, C: 0.01, H: p.H });
+  render();
+});
+$('#ramp').addEventListener('click', async e => { const h = e.target.dataset.hex; if (!h) return;
+  try { await navigator.clipboard.writeText(h); toast(h + ' copied.'); } catch { toast(h); } });
+$('#presets').addEventListener('click', e => { const b = e.target.closest('[data-preset]'); if (!b) return;
+  const p = PRESETS[+b.dataset.preset];
+  S.light = { ...p.light, ...derived(p.light) };
+  S.dark = p.dark ? { ...p.dark, ...derived(p.dark) } : deriveDark(p.light);
+  const pair = PAIRINGS[p.pair]; S.fonts = { head: pair[1], body: pair[2], mono: pair[3] };
+  S.radius = p.radius; S.locks = {};
+  if (S.name === 'New brand' || PRESETS.some(x => x.name === S.name)) { S.name = p.name; $('#bName').value = p.name; }
+  $('#radius').value = p.radius; renderPairs(); renderFonts(); render(); toast(`${p.name} applied — make it yours.`);
+});
+$('#pairs').addEventListener('click', e => { const b = e.target.closest('[data-pair]'); if (!b) return;
+  const p = PAIRINGS[+b.dataset.pair]; S.fonts = { head: p[1], body: p[2], mono: p[3] };
+  renderPairs(); renderFonts(); renderPreview(); save(); });
+['fHead', 'fBody', 'fMono'].forEach(id => $('#' + id).addEventListener('change', e => {
+  S.fonts[{ fHead: 'head', fBody: 'body', fMono: 'mono' }[id]] = e.target.value; renderPairs(); renderPreview(); save(); }));
+$('#tBase').addEventListener('input', e => { S.type.base = Math.max(12, Math.min(24, +e.target.value || 16)); renderPreview(); save(); });
+$('#tRatio').addEventListener('change', e => { S.type.ratio = +e.target.value; renderPreview(); save(); });
+$('#radius').addEventListener('input', e => { S.radius = +e.target.value; renderPreview(); save(); });
+$('#spUnit').addEventListener('change', e => { S.spacing.unit = +e.target.value; renderPreview(); save(); });
+$('#spDensity').addEventListener('change', e => { S.spacing.density = e.target.value; renderPreview(); save(); });
+$('#btnSize').addEventListener('change', e => { S.buttons.size = e.target.value; renderPreview(); save(); });
+$('#btnShape').addEventListener('change', e => { S.buttons.shape = e.target.value; renderPreview(); save(); });
+
+/* saved brands */
+$('#bSave').addEventListener('click', () => {
+  const i = saved.findIndex(b => b.name.toLowerCase() === S.name.toLowerCase());
+  const copy = sanitizeBrand(JSON.parse(JSON.stringify({ ...S, logo: S.logo })));
+  if (i >= 0) { saved[i] = copy; toast(`${S.name} updated.`); } else { saved.unshift(copy); toast(`${S.name} saved to this browser.`); }
+  save(); renderSaved();
+});
+$('#savedList').addEventListener('click', e => {
+  const d = e.target.closest('[data-del]');
+  if (d) { const gone = saved.splice(+d.dataset.del, 1)[0]; save(); renderSaved(); toast(`${gone.name} removed.`); return; }
+  const b = e.target.closest('[data-load]'); if (!b) return;
+  S = sanitizeBrand(JSON.parse(JSON.stringify(saved[+b.dataset.load])));
+  $('#bName').value = S.name; $('#radius').value = S.radius; $('#tBase').value = S.type.base; $('#tRatio').value = String(S.type.ratio);
+  $('#spUnit').value = String(S.spacing.unit); $('#spDensity').value = S.spacing.density; $('#btnSize').value = S.buttons.size; $('#btnShape').value = S.buttons.shape;
+  syncLogo(); renderPairs(); renderFonts(); render(); toast(`${S.name} loaded.`);
+});
+
+/* custom fonts */
+$('#dFont').addEventListener('click', () => $('#fFont').click());
+$('#fFont').addEventListener('change', e => { addCustomFont(e.target.files[0]); e.target.value = ''; });
+$('#fontList').addEventListener('click', e => { const b = e.target.closest('[data-rmfont]'); if (b) removeCustomFont(b.dataset.rmfont); });
+
+/* logo */
+function syncLogo() { $('#tLogo').hidden = !S.logo;
+  if (S.logo) { $('#tLogo img').src = S.logo; $('#tLogo span').textContent = S.logoName || 'Brand logo'; } }
+async function setLogo(f) {
+  if (!f || !/^image\/(svg\+xml|png|jpeg)$/.test(f.type)) { toast('The logo arrives as SVG, PNG or JPEG.'); return; }
+  const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+  const clean = safeLogo(data);
+  if (!clean) { toast('That file is too large for the brand file — keep the logo under about 1 MB.'); return; }
+  S.logo = clean; S.logoName = f.name; syncLogo(); save(); toast('Logo attached — it rides inside zest-brand.json for ZestImage.');
+}
+$('#dLogo').addEventListener('click', () => $('#fLogo').click());
+$('#fLogo').addEventListener('change', e => { setLogo(e.target.files[0]); e.target.value = ''; });
+$('#tLogo button').addEventListener('click', () => { S.logo = null; S.logoName = ''; syncLogo(); save(); });
+
+/* drag & drop: fonts and logos anywhere, brand json re-import */
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', async e => {
+  e.preventDefault(); const f = e.dataTransfer.files[0]; if (!f) return;
+  if (/\.(woff2?|ttf|otf)$/i.test(f.name)) return addCustomFont(f);
+  if (/^image\//.test(f.type)) return setLogo(f);
+  if (/json$/i.test(f.name)) {
+    try { const b = JSON.parse(await f.text());
+      if (b.zest !== 1 || !b.light) throw new Error('Not a zest-brand.json.');
+      S = sanitizeBrand(b); if (safeLogo(b.logo)) { S.logo = safeLogo(b.logo); S.logoName = 'from ' + S.name; }
+      $('#bName').value = S.name; $('#radius').value = S.radius; syncLogo(); renderPairs(); renderFonts(); render(); toast(`${S.name} imported.`);
+    } catch (err) { toast(err.message); }
+  }
+});
+
+/* exports */
+$('#xBrand').addEventListener('click', async () => {
+  const name = `${slug(S.name)}-zest-brand.json`;
+  if (!await download(name, JSON.stringify(brandJSON(), null, 2), 'application/json')) { toast('Export cancelled — nothing saved.'); return; }
+  toast(`${name} — drop it on any Zest tool.`);
+});
+$('#xCss').addEventListener('click', async () => { if (await download(`${slug(S.name)}-tokens.css`, cssVars(), 'text/css')) toast('CSS variables saved — light, dark and the ramp.'); });
+$('#xTailwind').addEventListener('click', async () => { if (await download(`${slug(S.name)}-tailwind.config.js`, tailwindCfg(), 'text/javascript')) toast('Tailwind config saved.'); });
+$('#xFontface').addEventListener('click', async () => { if (await download(`${slug(S.name)}-fonts.css`, fontfaceCss(), 'text/css')) toast('Font CSS saved.'); });
+$('#xShare').addEventListener('click', async () => {
+  const b = brandJSON(); delete b.logo;              // share links carry tokens, never the logo bytes
+  const hash = '#b=' + btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(b)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const url = location.origin + location.pathname + hash;
+  try { await navigator.clipboard.writeText(url); toast('Share link copied — the whole brand travels in the URL.'); }
+  catch { if (await download(`${slug(S.name)}-share-link.txt`, url)) toast('Clipboard was blocked — the link saved as a file instead.'); }
+});
+
+/* send to tools */
+$$('[data-send]').forEach(b => b.addEventListener('click', async () => {
+  const tool = b.dataset.send, name = `${slug(S.name)}-zest-brand.json`;
+  const notes = {
+    image: 'drop it anywhere on ZestImage and every layout re-skins',
+    mail: 'ZestMail reads the light palette, body font and radius — its Brand import lands with Milestone 1',
+    md: 'Zest MD reads both palettes into a custom skin — its import lands with Milestone 1',
+  };
+  if (!await download(name, JSON.stringify(brandJSON(), null, 2), 'application/json')) { toast('Cancelled — nothing saved.'); return; }
+  toast(`${name} — ${notes[tool]}.`);
+}));
+
+$$('.pro').forEach(p => p.addEventListener('click', () =>
+  toast('Pro arrives with Zest accounts — everything local stays free. zest.netrelish.com has the plan.')));
+
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'e') { e.preventDefault(); $('#xBrand').click(); }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); $('#bSave').click(); }
+});
+
+/* ---------- share-link import + boot ---------- */
+function tryHash() {
+  const m = location.hash.match(/^#b=([A-Za-z0-9_-]+)/); if (!m) return;
+  try {
+    const bin = atob(m[1].replace(/-/g, '+').replace(/_/g, '/'));
+    const b = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0))));
+    if (b.zest !== 1) return;
+    S = sanitizeBrand(b); toast(`${S.name} opened from a share link.`);
+    history.replaceState(null, '', location.pathname);
+  } catch {}
+}
+tryHash();
+loadCustomFonts().then(() => { renderFonts(); renderPreview(); });
+$('#bName').value = S.name; $('#radius').value = S.radius; $('#tBase').value = S.type.base; $('#tRatio').value = String(S.type.ratio);
+$('#spUnit').value = String(S.spacing.unit); $('#spDensity').value = S.spacing.density; $('#btnSize').value = S.buttons.size; $('#btnShape').value = S.buttons.shape;
+syncLogo(); renderSaved(); renderPresets(); renderPairs(); renderFonts(); render();
+if ('serviceWorker' in navigator && window.isSecureContext) {   // localhost counts as secure — `npx serve .` gets the offline shell too
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+})();
+</script>
+</body>
+</html>

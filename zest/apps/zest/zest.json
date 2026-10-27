@@ -1,0 +1,12 @@
+{
+  "id": "zest",
+  "name": "Zest",
+  "version": "1.0.0",
+  "tagline": "Pick the colours and type once. Every tool inherits them.",
+  "entry": "https://zest.netrelish.com/index.html",
+  "icon": "https://zest.netrelish.com/icons/icon-512.png",
+  "fileTypes": [".json", ".woff2", ".woff", ".ttf", ".otf"],
+  "capabilities": ["open", "save", "clipboard", "license", "network"],
+  "minShell": "1.0.0",
+  "changelog": "https://zest.netrelish.com/changelog"
+}
