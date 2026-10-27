@@ -200,9 +200,9 @@ footer .sp{flex:1}
       <p class="lab">Roles<span class="sp"></span><button class="btn sm" id="bShuffle" title="Shuffle unlocked roles within the harmony"><svg><use href="#i-dice"/></svg>Shuffle</button></p>
       <div id="roles"></div>
       <div class="sliders" id="sliders">
-        <div class="sl"><b>L</b><input type="range" id="sL" min="0" max="100" step="0.5"><output id="oL"></output></div>
-        <div class="sl"><b>C</b><input type="range" id="sC" min="0" max="0.35" step="0.002"><output id="oC"></output></div>
-        <div class="sl"><b>H</b><input type="range" id="sH" min="0" max="360" step="1"><output id="oH"></output></div>
+        <div class="sl"><b>L</b><input type="range" id="sL" min="0" max="100" step="0.5" aria-label="Lightness"><output id="oL"></output></div>
+        <div class="sl"><b>C</b><input type="range" id="sC" min="0" max="0.35" step="0.002" aria-label="Chroma"><output id="oC"></output></div>
+        <div class="sl"><b>H</b><input type="range" id="sH" min="0" max="360" step="1" aria-label="Hue"><output id="oH"></output></div>
         <p class="hint" id="slHint">OKLCH, gamut-mapped to sRGB. Pick a role above to edit it here.</p>
       </div>
     </div>
@@ -437,9 +437,15 @@ const PAIRINGS = [
   ['One family', 'Instrument Sans', 'Instrument Sans', 'Geist Mono'],
 ];
 const famParam = f => f.trim().replace(/ /g, '+');
+// families that don't carry the default 400–800 range — one bad axis rejects Google's whole combined stylesheet
+const WGHTS = { 'DM Serif Display': '400', 'Space Mono': '400;700', 'Fira Code': '400;500;600;700',
+  'IBM Plex Mono': '400;500;600;700', 'IBM Plex Sans': '400;500;600;700', 'IBM Plex Serif': '400;500;600;700',
+  'Zilla Slab': '400;500;600;700', 'Space Grotesk': '400;500;600;700', 'Lora': '400;500;600;700',
+  'Instrument Sans': '400;500;600;700', 'Geist Mono': '400;500;600;700', 'Manrope': '400;500;600;700;800',
+  'Plus Jakarta Sans': '400;500;600;700;800', 'Sora': '400;500;600;700;800', 'Newsreader': '400;500;600;700;800' };
 const gfontsUrl = fonts => {
   const fams = [...new Set([fonts.head, fonts.body, fonts.mono].filter(f => FONTS.includes(f)))];
-  return fams.length ? `https://fonts.googleapis.com/css2?${fams.map(f => 'family=' + famParam(f) + ':wght@400;500;600;700;800').join('&')}&display=swap` : '';
+  return fams.length ? `https://fonts.googleapis.com/css2?${fams.map(f => 'family=' + famParam(f) + ':wght@' + (WGHTS[f] || '400;500;600;700;800')).join('&')}&display=swap` : '';
 };
 
 /* ---------- presets (12) ---------- */
@@ -464,9 +470,10 @@ const PRESETS = [
 
 /* ---------- state ---------- */
 const store = { get(k, d) { try { const v = localStorage.getItem('zeststudio:' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
-                set(k, v) { try { localStorage.setItem('zeststudio:' + k, JSON.stringify(v)); } catch {} } };
+                set(k, v) { try { localStorage.setItem('zeststudio:' + k, JSON.stringify(v)); return true; } catch { return false; } } };
 const ROLES = ['primary', 'ink', 'paper', 'dark'];
 const DERIVED = ['muted', 'sheet', 'line'];
+const CTRL_RE = new RegExp('[\\x00-\\x1f\\u2028\\u2029]', 'g');  // control chars + JS line separators — they escape comment context in exports
 const safeColor = (v, d) => HEXRE.test(String(v ?? '').trim()) ? String(v).trim().toLowerCase() : d;
 const safeLogo = v => typeof v === 'string' && v.length <= 1500000 && /^data:image\/(png|jpe?g|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(v) ? v : null;
 function freshBrand() {
@@ -492,21 +499,22 @@ function sanitizeBrand(b) {           // imports and localStorage survive tamper
   // role locks the user set survive reloads and brand save/load — only known keys, only literal true
   const inLocks = b.locks && typeof b.locks === 'object' ? b.locks : {};
   for (const m of ['light', 'dark']) for (const k of [...ROLES, ...DERIVED]) if (inLocks[m + ':' + k] === true) locks[m + ':' + k] = true;
-  return { name: String(b.name || 'Untitled').slice(0, 48),
+  // control chars and JS line terminators in a name would escape comment context in exports
+  return { name: String(b.name || 'Untitled').replace(CTRL_RE, ' ').slice(0, 48).trim() || 'Untitled',
     light, dark,
     locks, fonts: { head: pick(fonts.head, [...FONTS, ...customNames()], f.fonts.head), body: pick(fonts.body, [...FONTS, ...customNames()], f.fonts.body), mono: pick(fonts.mono, [...FONTS, ...customNames()], f.fonts.mono) },
     type: { base: Math.max(12, Math.min(24, +(b.type && b.type.base) || 16)), ratio: Math.max(1.1, Math.min(1.6, +(b.type && b.type.ratio) || 1.25)) },
     spacing: { unit: [2, 4, 6, 8].includes(+(b.spacing && b.spacing.unit)) ? +b.spacing.unit : 4, density: ['compact', 'comfortable', 'spacious'].includes(b.spacing && b.spacing.density) ? b.spacing.density : 'comfortable' },
-    radius: Math.max(0, Math.min(24, +b.radius || 8)),
+    radius: Math.max(0, Math.min(24, Number.isFinite(+b.radius) ? +b.radius : 8)),   // 0 is a real radius — only default what is missing
     buttons: { size: ['sm', 'md', 'lg'].includes(b.buttons && b.buttons.size) ? b.buttons.size : 'md', shape: ['rounded', 'pill', 'square'].includes(b.buttons && b.buttons.shape) ? b.buttons.shape : 'rounded' },
     logo: safeLogo(b.logo) };
 }
-let S = sanitizeBrand(store.get('current', freshBrand()));
+let S = freshBrand();                 // restored in boot(), after the custom-font registry loads
 let mode = 'light';                   // which palette is being edited
 let pvMode = 'light';                 // which palette the preview shows
 let selRole = 'primary';
-let saved = (store.get('brands', []) || []).map(sanitizeBrand);
-const save = () => { store.set('current', S); store.set('brands', saved); };
+let saved = [];
+const save = () => { const a = store.set('current', S); return store.set('brands', saved) && a; };
 
 /* re-derive unlocked derived roles whenever their inputs move */
 function rederive(m) {
@@ -555,7 +563,7 @@ const famCss = f => customs.some(c => c.name === f) ? `'${f}', system-ui, sans-s
 function previewDoc() {
   const t = S[pvMode], sp = scaleSteps(), gf = gfontsUrl(S.fonts);
   const customFaces = customs.filter(c => [S.fonts.head, S.fonts.body, S.fonts.mono].includes(c.name));
-  return `<!doctype html><html><head><meta charset="utf-8">${gf ? `<link href="${esc(gf)}" rel="stylesheet">` : ''}
+  return `<!doctype html><html><head><meta charset="utf-8">${gf ? `<link href="${esc(gf)}" rel="stylesheet" crossorigin="anonymous">` : ''}
 <style>
 ${customFaces.map(c => `@font-face{font-family:'${esc(c.name)}';src:url('${c.url}');font-display:swap}`).join('\n')}
 :root{--primary:${t.primary};--ink:${t.ink};--muted:${t.muted};--paper:${t.paper};--sheet:${t.sheet};--line:${t.line};--dark:${t.dark};--r:${S.radius}px}
@@ -606,19 +614,34 @@ ${[4, 3, 2, 1, 0, -1].map(n => `<div class="row"><small>${typeSize(n)}px</small>
 
 /* ---------- renders ---------- */
 const ROLE_DESC = { primary: 'accent · buttons · links', ink: 'text', paper: 'page surface', dark: 'panel · scrim', muted: 'secondary text', sheet: 'card surface', line: 'hairline' };
-function renderRoles() {
-  const p = S[mode];
-  $('#roles').innerHTML = [...ROLES, ...DERIVED].map(k => {
-    const lockKey = mode + ':' + k, isD = DERIVED.includes(k), locked = isD ? !S.locks[lockKey] : !!S.locks[lockKey];
-    return `<div class="role" data-role="${k}" data-derived="${isD && !S.locks[lockKey]}" aria-current="${k === selRole}">
-      <button class="lock" data-lock="${k}" aria-pressed="${locked}" title="${isD ? (locked ? 'Derived automatically — click to edit by hand' : 'Hand-edited — click to re-derive') : (locked ? 'Locked against shuffle' : 'Unlocked — shuffle may move it')}"><svg><use href="#i-${locked ? 'lock' : 'unlock'}"/></svg></button>
-      <input type="color" data-c="${k}" value="${p[k]}" aria-label="${k} colour">
+function renderRoles() {  // builds the seven rows once at boot; every later update flows through syncRoles
+  $('#roles').innerHTML = [...ROLES, ...DERIVED].map(k => `<div class="role" data-role="${k}">
+      <button class="lock" data-lock="${k}"><svg><use href="#i-lock"/></svg></button>
+      <input type="color" data-c="${k}" aria-label="${k} colour">
       <span><b>${k}</b><small>${ROLE_DESC[k]}</small></span>
-      <input class="hex" data-h="${k}" value="${p[k]}" aria-label="${k} hex" spellcheck="false">
-    </div>`;
-  }).join('');
-  const o = hex2oklch(S[mode][selRole]);
-  $('#sL').value = (o.L * 100).toFixed(1); $('#sC').value = o.C.toFixed(3); $('#sH').value = o.H.toFixed(0);
+      <input class="hex" data-h="${k}" aria-label="${k} hex" spellcheck="false">
+    </div>`).join('');
+  syncRoles();
+}
+function syncRoles() {    // in-place: values, locks, selection, sliders — never rebuilds an input, never steals focus
+  const p = S[mode];
+  for (const row of $$('#roles .role')) {
+    const k = row.dataset.role, lockKey = mode + ':' + k, isD = DERIVED.includes(k);
+    const locked = isD ? !S.locks[lockKey] : !!S.locks[lockKey];
+    row.dataset.derived = String(isD && !S.locks[lockKey]);
+    row.setAttribute('aria-current', String(k === selRole));
+    const lk = row.querySelector('.lock');
+    lk.setAttribute('aria-pressed', String(locked));
+    lk.querySelector('use').setAttribute('href', '#i-' + (locked ? 'lock' : 'unlock'));
+    lk.title = isD ? (locked ? 'Derived automatically — click to edit by hand' : 'Hand-edited — click to re-derive')
+                   : (locked ? 'Locked against shuffle' : 'Unlocked — shuffle may move it');
+    const c = row.querySelector('[data-c]'); if (document.activeElement !== c) c.value = p[k];
+    const hx = row.querySelector('.hex'); if (document.activeElement !== hx) hx.value = p[k];
+  }
+  const o = hex2oklch(p[selRole]);
+  if (!$('#sliders').contains(document.activeElement)) {
+    $('#sL').value = (o.L * 100).toFixed(1); $('#sC').value = o.C.toFixed(3); $('#sH').value = o.H.toFixed(0);
+  }
   $('#oL').textContent = (o.L * 100).toFixed(1); $('#oC').textContent = o.C.toFixed(3); $('#oH').textContent = o.H.toFixed(0) + '°';
   $('#slHint').textContent = `Editing ${selRole} (${mode}) in OKLCH — gamut-mapped to sRGB.`;
   $('#mLight').setAttribute('aria-pressed', mode === 'light');
@@ -689,7 +712,7 @@ function renderPreview() { clearTimeout(pvT); pvT = setTimeout(() => { $('#pv').
   $('#pvDark').setAttribute('aria-pressed', pvMode === 'dark');
   $('#radVal').textContent = S.radius + 'px';
 }
-function render() { rederive('light'); rederive('dark'); renderRoles(); renderHarmony(); renderRamp(); renderAudit(); renderPreview(); save(); }
+function render() { rederive('light'); rederive('dark'); syncRoles(); renderHarmony(); renderRamp(); renderAudit(); renderPreview(); save(); }
 
 /* ---------- exports ---------- */
 function brandJSON() {
@@ -702,15 +725,16 @@ function brandJSON() {
   if (S.logo) out.logo = S.logo;
   return out;
 }
+const commentName = () => S.name.replace(/\*\//g, '* /');   // a name can never close the comment it is quoted in
 const cssVars = () => {
   const block = (t, sel) => `${sel}{\n${[...ROLES, ...DERIVED].map(k => `  --${k}: ${t[k]};`).join('\n')}\n  --radius: ${S.radius}px;\n  --font-head: ${famCss(S.fonts.head)};\n  --font-body: ${famCss(S.fonts.body)};\n  --font-mono: ${famCss(S.fonts.mono)};\n}`;
-  return `/* ${S.name} — generated by ${PRODUCT} */\n${block(S.light, ':root')}\n@media (prefers-color-scheme: dark) {\n${block(S.dark, ':root').split('\n').map(l => '  ' + l).join('\n')}\n}\n\n/* ramp */\n:root{\n${rampHexes().map((h, i) => `  --primary-${i === 0 ? 50 : i * 100}: ${h};`).join('\n')}\n}\n`;
+  return `/* ${commentName()} — generated by ${PRODUCT} */\n${block(S.light, ':root')}\n@media (prefers-color-scheme: dark) {\n${block(S.dark, ':root').split('\n').map(l => '  ' + l).join('\n')}\n}\n\n/* ramp */\n:root{\n${rampHexes().map((h, i) => `  --primary-${i === 0 ? 50 : i * 100}: ${h};`).join('\n')}\n}\n`;
 };
-const tailwindCfg = () => `// ${S.name} — generated by ${PRODUCT}\nmodule.exports = {\n  theme: {\n    extend: {\n      colors: {\n        primary: { DEFAULT: '${S.light.primary}', ${rampHexes().map((h, i) => `${i === 0 ? 50 : i * 100}: '${h}'`).join(', ')} },\n        ink: '${S.light.ink}', muted: '${S.light.muted}', paper: '${S.light.paper}', sheet: '${S.light.sheet}', line: '${S.light.line}', panel: '${S.light.dark}',\n      },\n      fontFamily: {\n        head: [${famCss(S.fonts.head).split(',').map(s => `'${s.trim().replace(/'/g, '')}'`).join(', ')}],\n        body: [${famCss(S.fonts.body).split(',').map(s => `'${s.trim().replace(/'/g, '')}'`).join(', ')}],\n        mono: [${famCss(S.fonts.mono).split(',').map(s => `'${s.trim().replace(/'/g, '')}'`).join(', ')}],\n      },\n      borderRadius: { brand: '${S.radius}px' },\n    },\n  },\n};\n`;
+const tailwindCfg = () => `// ${commentName()} — generated by ${PRODUCT}\nmodule.exports = {\n  theme: {\n    extend: {\n      colors: {\n        primary: { DEFAULT: '${S.light.primary}', ${rampHexes().map((h, i) => `${i === 0 ? 50 : i * 100}: '${h}'`).join(', ')} },\n        ink: '${S.light.ink}', muted: '${S.light.muted}', paper: '${S.light.paper}', sheet: '${S.light.sheet}', line: '${S.light.line}', panel: '${S.light.dark}',\n      },\n      fontFamily: {\n        head: [${famCss(S.fonts.head).split(',').map(s => `'${s.trim().replace(/'/g, '')}'`).join(', ')}],\n        body: [${famCss(S.fonts.body).split(',').map(s => `'${s.trim().replace(/'/g, '')}'`).join(', ')}],\n        mono: [${famCss(S.fonts.mono).split(',').map(s => `'${s.trim().replace(/'/g, '')}'`).join(', ')}],\n      },\n      borderRadius: { brand: '${S.radius}px' },\n    },\n  },\n};\n`;
 const fontfaceCss = () => {
   const g = gfontsUrl(S.fonts);
   const cus = customs.filter(c => [S.fonts.head, S.fonts.body, S.fonts.mono].includes(c.name));
-  return `/* ${S.name} — fonts, generated by ${PRODUCT} */\n${g ? `@import url('${g}');\n` : ''}${cus.map(c => `/* ${c.name}: a local font from your library — serve ${slug(c.name)}.${c.format} next to this file */\n@font-face{font-family:'${c.name}';src:url('${slug(c.name)}.${c.format}')${c.format === 'woff2' ? " format('woff2')" : ''};font-display:swap}`).join('\n')}\n\n:root{ --font-head: ${famCss(S.fonts.head)}; --font-body: ${famCss(S.fonts.body)}; --font-mono: ${famCss(S.fonts.mono)}; }\n`;
+  return `/* ${commentName()} — fonts, generated by ${PRODUCT} */\n${g ? `@import url('${g}');\n` : ''}${cus.map(c => `/* ${c.name}: a local font from your library — serve ${slug(c.name)}.${c.format} next to this file */\n@font-face{font-family:'${c.name}';src:url('${slug(c.name)}.${c.format}')${c.format === 'woff2' ? " format('woff2')" : ''};font-display:swap}`).join('\n')}\n\n:root{ --font-head: ${famCss(S.fonts.head)}; --font-body: ${famCss(S.fonts.body)}; --font-mono: ${famCss(S.fonts.mono)}; }\n`;
 };
 
 /* Saving feature-detects the host (spec §6.3 — one file, every surface). */
@@ -735,9 +759,9 @@ async function download(name, text, type) {        // resolves true only when th
 }
 
 /* ---------- events ---------- */
-$('#bName').addEventListener('input', e => { S.name = e.target.value.slice(0, 48) || 'Untitled'; renderPreview(); save(); });
-$('#mLight').addEventListener('click', () => { mode = 'light'; renderRoles(); renderHarmony(); });
-$('#mDark').addEventListener('click', () => { mode = 'dark'; renderRoles(); renderHarmony(); });
+$('#bName').addEventListener('input', e => { S.name = e.target.value.replace(CTRL_RE, ' ').slice(0, 48) || 'Untitled'; renderPreview(); save(); });
+$('#mLight').addEventListener('click', () => { mode = 'light'; syncRoles(); renderHarmony(); });
+$('#mDark').addEventListener('click', () => { mode = 'dark'; syncRoles(); renderHarmony(); });
 $('#pvLight').addEventListener('click', () => { pvMode = 'light'; renderPreview(); });
 $('#pvDark').addEventListener('click', () => { pvMode = 'dark'; renderPreview(); });
 $('#bDerive').addEventListener('click', () => { S.dark = deriveDark(S.light); for (const k of [...ROLES, ...DERIVED]) delete S.locks['dark:' + k]; render(); toast('Dark palette derived from the light roles — ink and paper swap, the primary keeps its hue.'); });
@@ -753,7 +777,7 @@ $('#roles').addEventListener('click', e => {
   const lk = e.target.closest('[data-lock]');
   if (lk) { const k = lk.dataset.lock, key = mode + ':' + k;
     S.locks[key] = !S.locks[key]; render(); return; }
-  const row = e.target.closest('.role'); if (row) { selRole = row.dataset.role; renderRoles(); }
+  const row = e.target.closest('.role'); if (row) { selRole = row.dataset.role; syncRoles(); }
 });
 const slide = () => { const c = { L: +$('#sL').value / 100, C: +$('#sC').value, H: +$('#sH').value };
   S[mode][selRole] = oklch2hex(c);
@@ -803,18 +827,23 @@ $('#btnShape').addEventListener('change', e => { S.buttons.shape = e.target.valu
 $('#bSave').addEventListener('click', () => {
   const i = saved.findIndex(b => b.name.toLowerCase() === S.name.toLowerCase());
   const copy = sanitizeBrand(JSON.parse(JSON.stringify({ ...S, logo: S.logo })));
-  if (i >= 0) { saved[i] = copy; toast(`${S.name} updated.`); } else { saved.unshift(copy); toast(`${S.name} saved to this browser.`); }
-  save(); renderSaved();
+  const updated = i >= 0; if (updated) saved[i] = copy; else saved.unshift(copy);
+  renderSaved();
+  if (save()) toast(`${S.name} ${updated ? 'updated' : 'saved to this browser'}.`);
+  else toast('This browser’s storage is full — the brand stays in memory only. Export zest-brand.json to keep it safe.');
 });
 $('#savedList').addEventListener('click', e => {
   const d = e.target.closest('[data-del]');
   if (d) { const gone = saved.splice(+d.dataset.del, 1)[0]; save(); renderSaved(); toast(`${gone.name} removed.`); return; }
   const b = e.target.closest('[data-load]'); if (!b) return;
   S = sanitizeBrand(JSON.parse(JSON.stringify(saved[+b.dataset.load])));
+  syncControls(); renderPairs(); renderFonts(); render(); toast(`${S.name} loaded.`);
+});
+function syncControls() {  // every control that mirrors state — used by load, import and boot
   $('#bName').value = S.name; $('#radius').value = S.radius; $('#tBase').value = S.type.base; $('#tRatio').value = String(S.type.ratio);
   $('#spUnit').value = String(S.spacing.unit); $('#spDensity').value = S.spacing.density; $('#btnSize').value = S.buttons.size; $('#btnShape').value = S.buttons.shape;
-  syncLogo(); renderPairs(); renderFonts(); render(); toast(`${S.name} loaded.`);
-});
+  syncLogo();
+}
 
 /* custom fonts */
 $('#dFont').addEventListener('click', () => $('#fFont').click());
@@ -845,7 +874,7 @@ document.addEventListener('drop', async e => {
     try { const b = JSON.parse(await f.text());
       if (b.zest !== 1 || !b.light) throw new Error('Not a zest-brand.json.');
       S = sanitizeBrand(b); if (safeLogo(b.logo)) { S.logo = safeLogo(b.logo); S.logoName = 'from ' + S.name; }
-      $('#bName').value = S.name; $('#radius').value = S.radius; syncLogo(); renderPairs(); renderFonts(); render(); toast(`${S.name} imported.`);
+      syncControls(); renderPairs(); renderFonts(); render(); toast(`${S.name} imported.`);
     } catch (err) { toast(err.message); }
   }
 });
@@ -906,14 +935,17 @@ function tryHash() {
     history.replaceState(null, '', location.pathname);
   } catch {}
 }
-tryHash();
-loadCustomFonts().then(() => { renderFonts(); renderPreview(); });
-$('#bName').value = S.name; $('#radius').value = S.radius; $('#tBase').value = S.type.base; $('#tRatio').value = String(S.type.ratio);
-$('#spUnit').value = String(S.spacing.unit); $('#spDensity').value = S.spacing.density; $('#btnSize').value = S.buttons.size; $('#btnShape').value = S.buttons.shape;
-syncLogo(); renderSaved(); renderPresets(); renderPairs(); renderFonts(); render();
-if ('serviceWorker' in navigator && window.isSecureContext) {   // localhost counts as secure — `npx serve .` gets the offline shell too
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+async function boot() {
+  await loadCustomFonts();            // the registry must exist before sanitize validates font names, or custom picks reset
+  S = sanitizeBrand(store.get('current', freshBrand()));
+  saved = (store.get('brands', []) || []).map(sanitizeBrand);
+  tryHash();                          // a share link wins over the stored brand
+  renderRoles(); renderPresets(); renderPairs(); renderFonts(); renderSaved(); syncControls(); render();
+  if ('serviceWorker' in navigator && window.isSecureContext) {   // localhost counts as secure — `npx serve .` gets the offline shell too
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
 }
+boot();
 })();
 </script>
 </body>
