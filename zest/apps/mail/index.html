@@ -837,10 +837,11 @@ ${preheader}${content}
   const BRAND_ROLES = ['primary', 'ink', 'muted', 'paper', 'sheet', 'line', 'dark'];
   const CTRL_RE = new RegExp('[\\x00-\\x1f\\u2028\\u2029]', 'g');
   function emailStack(name) {          // email-safe: the brand family first, classic fallbacks behind it
-    const n = String(name || '').replace(CTRL_RE, ' ').replace(/['",;:(){}<>\\]/g, '').trim().slice(0, 48);
+    // whitelist, not blacklist: the value lands in raw style="" attributes, where &#NN; would decode into CSS delimiters
+    const n = String(name || '').replace(CTRL_RE, ' ').replace(/[^A-Za-z0-9 -]/g, '').replace(/\s+/g, ' ').trim().slice(0, 48);
     if (!n) return BRAND_DEFAULT().font;
     if (/mono|code/i.test(n)) return `'${n}', Menlo, Consolas, 'Courier New', monospace`;
-    if (/serif|fraunces|spectral|lora|literata|crimson|alegreya|zilla/i.test(n)) return `'${n}', Georgia, 'Times New Roman', serif`;
+    if (/serif|fraunces|spectral|lora|literata|crimson|alegreya|zilla|newsreader/i.test(n)) return `'${n}', Georgia, 'Times New Roman', serif`;
     return `'${n}', 'Helvetica Neue', Helvetica, Arial, sans-serif`;
   }
   function importZestBrand(z) {
@@ -858,6 +859,7 @@ ${preheader}${content}
     state.brandId = target.id;
     store.set('brands', brands);
     renderBrandPanel(); renderInspector(); renderCanvas(); run(); showTab('brand');
+    persist();                         // run() skips persist() on an empty canvas — the selection must survive a reload regardless
     toast(`${name} ${ex ? 'updated' : 'created'} from zest-brand.json — identity fields stay yours.`);
     return true;
   }
@@ -867,16 +869,28 @@ ${preheader}${content}
     try { importZestBrand(JSON.parse(await f.text())); } catch { toast('That file would not read as a zest-brand.json.'); }
   });
   /* zest-brand.json can be dropped anywhere — "one file, every tool" (§6.3); block drags carry no files and are untouched */
-  document.addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
-  document.addEventListener('drop', async e => {
-    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-    if (!f || !/json$/i.test(f.name)) return;
-    e.preventDefault();
+  async function routeDroppedJson(f) {
     try { const d = JSON.parse(await f.text());
       if (d && d.zest === 1) importZestBrand(d);
       else if (d && Array.isArray(d.blocks)) { loadDesign(d); toast(`Imported “${state.designName}”`); }
       else toast('Not a zest-brand.json.');
     } catch { toast('That file would not read as JSON.'); }
+  }
+  const wantsFile = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+  const dropJson = e => {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!f || !/json$/i.test(f.name)) return;
+    e.preventDefault(); routeDroppedJson(f);
+  };
+  document.addEventListener('dragover', e => { if (wantsFile(e)) e.preventDefault(); });
+  document.addEventListener('drop', dropJson);
+  // the Desktop/Mobile/Outlook previews are an iframe: drag events land in its srcdoc document, so hook each load (same-origin)
+  frame.addEventListener('load', () => {
+    try {
+      const fd = frame.contentDocument; if (!fd) return;
+      fd.addEventListener('dragover', e => { if (wantsFile(e)) e.preventDefault(); });
+      fd.addEventListener('drop', dropJson);
+    } catch {}
   });
 
   /* ---------- Claude (bring your own key) ---------- */

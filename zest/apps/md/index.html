@@ -777,7 +777,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     const f = b.fonts && typeof b.fonts === 'object' ? b.fonts : {};
     Object.assign(state.settings.custom, {
       paper: light[0], sheet: light[1], ink: light[2], accent: light[6],
-      doc: fontKey(f.head, 'doc'), ui: fontKey(f.body, 'ui'), mono: fontKey(f.mono, 'mono'),
+      doc: fontKey(f.body, 'doc'), ui: fontKey(f.body, 'ui'), mono: fontKey(f.mono, 'mono'),   // doc is the READING face → fonts.body (this app has no heading-only slot)
       radius: Math.max(0, Math.min(16, Number.isFinite(+b.radius) ? Math.round(+b.radius) : 8)),
       brand: { name, light, dark },
     });
