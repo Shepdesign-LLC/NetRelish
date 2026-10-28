@@ -346,7 +346,8 @@ Pricing-page one-liner: *Pick the colours and type once. Every tool inherits the
   "ramp": ["#eef2fd", "…", "#0a1f5c"],
   "radius": 8,
   "type": { "base": 16, "ratio": 1.25 },
-  "spacing": { "unit": 4, "density": "comfortable" }
+  "spacing": { "unit": 4, "density": "comfortable" },
+  "buttons": { "size": "md", "shape": "rounded" }
 }
 ```
 

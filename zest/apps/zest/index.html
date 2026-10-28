@@ -184,8 +184,9 @@ footer .sp{flex:1}
 <div class="app">
   <aside class="panel" id="left">
     <div class="sec">
-      <p class="lab">Brand<span class="sp"></span><button class="btn sm" id="bSave">Save</button></p>
+      <p class="lab">Brand<span class="sp"></span><button class="btn sm" id="bImport" title="Import a zest-brand.json">Import</button><button class="btn sm" id="bSave">Save</button></p>
       <div class="field"><input type="text" id="bName" value="New brand" aria-label="Brand name"></div>
+      <input type="file" id="fBrand" accept=".json,application/json" aria-label="Import a zest-brand.json" hidden>
       <div id="savedList"></div>
       <p class="hint">Saved brands live in this browser. Cloud, named and versioned, arrives with Pro.</p>
     </div>
@@ -536,11 +537,17 @@ async function addCustomFont(file) {
   if (file.size > 8_000_000) { toast('That font is over 8 MB — subset it first.'); return; }
   const name = file.name.replace(/\.(woff2?|ttf|otf)$/i, '').replace(/[-_]/g, ' ').replace(/[^A-Za-z0-9 ]/g, '').trim().slice(0, 48) || 'Custom font';
   const data = await file.arrayBuffer();
-  try { const ff = new FontFace(name, data.slice(0)); await ff.load(); document.fonts.add(ff); }
+  let ff; try { ff = new FontFace(name, data.slice(0)); await ff.load(); }
   catch { toast('That file would not load as a font.'); return; }
+  try { document.fonts.forEach(f => { if (String(f.family).replace(/^['"]|['"]$/g, '') === name) document.fonts.delete(f); }); } catch {}  // replace, never stack faces
+  document.fonts.add(ff);
   try { const db = await idb(); await new Promise((res, rej) => { const t = db.transaction('fonts', 'readwrite').objectStore('fonts').put({ name, data, format: file.name.split('.').pop().toLowerCase() }); t.onsuccess = res; t.onerror = () => rej(t.error); }); } catch {}
-  if (!customs.some(c => c.name === name)) customs.push({ name, format: file.name.split('.').pop().toLowerCase(), url: URL.createObjectURL(new Blob([data])) });
-  renderFonts(); toast(`${name} added — it is in the font menus now.`);
+  const entry = { name, format: file.name.split('.').pop().toLowerCase(), url: URL.createObjectURL(new Blob([data])) };
+  const at = customs.findIndex(c => c.name === name);
+  const replaced = at >= 0;
+  if (replaced) { try { URL.revokeObjectURL(customs[at].url); } catch {} customs[at] = entry; } else customs.push(entry);
+  renderFonts(); renderPreview();                 // a replaced font may be live in the preview — its @font-face must point at the new bytes
+  toast(replaced ? `${name} updated — previews now use the new file.` : `${name} added — it is in the font menus now.`);
 }
 async function removeCustomFont(name) {
   customs = customs.filter(c => c.name !== name);
@@ -647,15 +654,15 @@ function syncRoles() {    // in-place: values, locks, selection, sliders — nev
   $('#mLight').setAttribute('aria-pressed', mode === 'light');
   $('#mDark').setAttribute('aria-pressed', mode === 'dark');
 }
+const HARMONIES = {                   // hue offsets from the primary — renderHarmony's chips and shuffle share them
+  complementary: [180], analogous: [-30, 30], triadic: [120, 240], split: [150, 210], tetradic: [90, 180, 270],
+  mono: [] };
 function renderHarmony() {
   const base = hex2oklch(S[mode].primary);
-  const sets = {
-    complementary: [180], analogous: [-30, 30], triadic: [120, 240], split: [150, 210], tetradic: [90, 180, 270],
-    mono: [], };
   const kind = $('#harmony').value;
   const chips = kind === 'mono'
     ? [0.9, 0.72, 0.5, 0.32].map(L => ({ label: 'L ' + Math.round(L * 100), hex: oklch2hex({ ...base, L }) }))
-    : sets[kind].map(d => ({ label: (d > 0 ? '+' : '') + d + '°', hex: oklch2hex({ ...base, H: (base.H + d + 360) % 360 }) }));
+    : HARMONIES[kind].map(d => ({ label: (d > 0 ? '+' : '') + d + '°', hex: oklch2hex({ ...base, H: (base.H + d + 360) % 360 }) }));
   $('#harmonyChips').innerHTML = chips.map(c => `<button class="chip" data-apply="${c.hex}"><i style="background:${c.hex}"></i>${c.hex}<small style="color:var(--ink-3)">${c.label}</small></button>`).join('');
 }
 function rampHexes() {
@@ -696,7 +703,9 @@ function renderAudit() {
       ['line / paper (non-text)', t.line, t.paper, 3],
     ];
     for (const [label, a, b, need] of pairs) { const r = ratio(a, b);
-      rows.push(`<div class="arow"><span class="pr"><i style="background:linear-gradient(135deg,${a} 50%,${b} 50%)"></i>${esc(m)} · ${esc(label)}</span><output>${r.toFixed(2)}:1</output><span class="badge ${r + 0.005 >= need ? 'ok' : 'bad'}">${r + 0.005 >= need ? 'PASS' : 'FAIL'}</span></div>`); }
+      const pass = r >= need;                                   // WCAG compares the unrounded ratio — no tolerance
+      const show = (Math.floor(r * 100) / 100).toFixed(2);      // floor the display so a FAIL never reads like the threshold
+      rows.push(`<div class="arow"><span class="pr"><i style="background:linear-gradient(135deg,${a} 50%,${b} 50%)"></i>${esc(m)} · ${esc(label)}</span><output>${show}:1</output><span class="badge ${pass ? 'ok' : 'bad'}">${pass ? 'PASS' : 'FAIL'}</span></div>`); }
   }
   $('#audit').innerHTML = rows.join('');
 }
@@ -721,7 +730,8 @@ function brandJSON() {
     light: { primary: S.light.primary, ink: S.light.ink, muted: S.light.muted, paper: S.light.paper, sheet: S.light.sheet, line: S.light.line, dark: S.light.dark },
     dark: { primary: S.dark.primary, ink: S.dark.ink, muted: S.dark.muted, paper: S.dark.paper, sheet: S.dark.sheet, line: S.dark.line, dark: S.dark.dark },
     ramp: rampHexes(), radius: S.radius, type: { base: S.type.base, ratio: S.type.ratio },
-    spacing: { unit: S.spacing.unit, density: S.spacing.density } };
+    spacing: { unit: S.spacing.unit, density: S.spacing.density },
+    buttons: { size: S.buttons.size, shape: S.buttons.shape } };
   if (S.logo) out.logo = S.logo;
   return out;
 }
@@ -794,9 +804,12 @@ $('#bShuffle').addEventListener('click', () => {
   const jitter = (H, spread) => (H + (Math.random() * 2 - 1) * spread + 360) % 360;
   if (!S.locks[mode + ':primary']) S[mode].primary = oklch2hex({ L: 0.45 + Math.random() * 0.25, C: 0.09 + Math.random() * 0.14, H: jitter(base.H, 40) });
   const p = hex2oklch(S[mode].primary);
-  if (!S.locks[mode + ':ink']) S[mode].ink = oklch2hex({ L: mode === 'light' ? 0.22 + Math.random() * 0.08 : 0.92, C: 0.015 + Math.random() * 0.02, H: p.H });
-  if (!S.locks[mode + ':paper']) S[mode].paper = oklch2hex({ L: mode === 'light' ? 0.965 : 0.16 + Math.random() * 0.04, C: 0.004 + Math.random() * 0.008, H: p.H });
-  if (!S.locks[mode + ':dark']) S[mode].dark = mode === 'light' ? S[mode].ink : oklch2hex({ L: 0.13, C: 0.01, H: p.H });
+  // the button promises "within the harmony": companions sit on the selected harmony's hues (mono stays on the primary's)
+  const offs = HARMONIES[$('#harmony').value] || [];
+  const hue = i => offs.length ? jitter((p.H + offs[i % offs.length] + 360) % 360, 6) : p.H;
+  if (!S.locks[mode + ':ink']) S[mode].ink = oklch2hex({ L: mode === 'light' ? 0.22 + Math.random() * 0.08 : 0.92, C: 0.015 + Math.random() * 0.02, H: hue(0) });
+  if (!S.locks[mode + ':paper']) S[mode].paper = oklch2hex({ L: mode === 'light' ? 0.965 : 0.16 + Math.random() * 0.04, C: 0.004 + Math.random() * 0.008, H: hue(1) });
+  if (!S.locks[mode + ':dark']) S[mode].dark = mode === 'light' ? S[mode].ink : oklch2hex({ L: 0.13, C: 0.01, H: hue(2) });
   render();
 });
 $('#ramp').addEventListener('click', async e => { const h = e.target.dataset.hex; if (!h) return;
@@ -864,19 +877,25 @@ $('#dLogo').addEventListener('click', () => $('#fLogo').click());
 $('#fLogo').addEventListener('change', e => { setLogo(e.target.files[0]); e.target.value = ''; });
 $('#tLogo button').addEventListener('click', () => { S.logo = null; S.logoName = ''; syncLogo(); save(); });
 
+/* brand import — one path for the Import button and the drop target alike */
+const NOT_A_BRAND = 'Not a zest-brand.json.';
+async function importBrandFile(f) {
+  try { const b = JSON.parse(await f.text());
+    if (b.zest !== 1 || !b.light) throw new Error(NOT_A_BRAND);
+    S = sanitizeBrand(b); if (safeLogo(b.logo)) { S.logo = safeLogo(b.logo); S.logoName = 'from ' + S.name; }
+    syncControls(); renderPairs(); renderFonts(); render(); toast(`${S.name} imported.`);
+  } catch (err) { toast(err && err.message === NOT_A_BRAND ? NOT_A_BRAND : 'That file would not read as a zest-brand.json.'); }
+}
+$('#bImport').addEventListener('click', () => $('#fBrand').click());
+$('#fBrand').addEventListener('change', e => { if (e.target.files[0]) importBrandFile(e.target.files[0]); e.target.value = ''; });
+
 /* drag & drop: fonts and logos anywhere, brand json re-import */
 document.addEventListener('dragover', e => e.preventDefault());
-document.addEventListener('drop', async e => {
+document.addEventListener('drop', e => {
   e.preventDefault(); const f = e.dataTransfer.files[0]; if (!f) return;
   if (/\.(woff2?|ttf|otf)$/i.test(f.name)) return addCustomFont(f);
   if (/^image\//.test(f.type)) return setLogo(f);
-  if (/json$/i.test(f.name)) {
-    try { const b = JSON.parse(await f.text());
-      if (b.zest !== 1 || !b.light) throw new Error('Not a zest-brand.json.');
-      S = sanitizeBrand(b); if (safeLogo(b.logo)) { S.logo = safeLogo(b.logo); S.logoName = 'from ' + S.name; }
-      syncControls(); renderPairs(); renderFonts(); render(); toast(`${S.name} imported.`);
-    } catch (err) { toast(err.message); }
-  }
+  if (/json$/i.test(f.name)) importBrandFile(f);
 });
 
 /* exports */

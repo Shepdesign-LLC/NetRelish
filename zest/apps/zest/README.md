@@ -23,6 +23,8 @@ home page at `zest.netrelish.com`, with the store pages beside it.
 - **Exports** — `zest-brand.json` (the §7.3 interchange, byte-for-byte shape),
   CSS variables (light + dark + ramp), Tailwind config, `@font-face` CSS,
   and a URL-hash share link that carries the whole brand (minus logo bytes).
+- **Import** — the same `zest-brand.json` comes back in through the Import
+  button (keyboard-reachable) or by dropping the file anywhere on the page.
 - **Send to** — ZestImage (tokens + logo, importable today), ZestMail and
   Zest MD (the same file; their import buttons land with Milestone 1).
 - **Logo** — SVG/PNG/JPEG, validated and embedded base64 in the brand file
