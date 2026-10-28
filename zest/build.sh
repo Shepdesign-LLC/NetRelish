@@ -22,5 +22,6 @@ done
 # /pricing — the store page beside the studio (§8: pricing, account, changelog live here as they're built)
 mkdir -p dist/pricing
 cp apps/store/index.html dist/pricing/index.html
+cp -r apps/store/icons dist/pricing/icons
 
 echo "dist/ assembled: / (studio) · /mail · /md · /image · /pricing"

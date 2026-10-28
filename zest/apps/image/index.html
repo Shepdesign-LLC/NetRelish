@@ -6,7 +6,7 @@
 <title>ZestImage — featured images from your brand</title>
 <meta name="description" content="Branded featured images — blog heroes, OG cards, social tiles — composed from your brand tokens. No prompts, no stock. Runs in your browser; images never leave this machine.">
 <meta name="theme-color" content="#120607">
-<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-title" content="ZestImage">
@@ -34,7 +34,7 @@ input,select,textarea{font:inherit;color:var(--ink)}
 
 header{display:flex;align-items:center;gap:14px;padding:0 18px;height:56px;border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;gap:10px;font:600 17px var(--display);letter-spacing:-.02em}
-.mark{width:28px;height:28px;border-radius:9px;background:linear-gradient(180deg,#FF9A8A,#E8483B);color:#fff;display:grid;place-items:center;font:800 15px var(--display);box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+.mark{width:36px;height:36px;border-radius:10px;display:block;box-shadow:0 4px 12px -4px rgba(0,0,0,.5)}
 header .tag{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
 header .sp{flex:1}
 header a{color:var(--ink-2);text-decoration:none;font-size:13px}
@@ -145,7 +145,7 @@ footer .sp{flex:1}
 </defs></svg>
 
 <header>
-  <div class="brand"><span class="mark">Z</span>ZestImage</div>
+  <div class="brand"><img class="mark" src="icons/icon-192.png" alt="" aria-hidden="true">ZestImage</div>
   <span class="tag">Grapefruit · composed, not generated</span>
   <span class="sp"></span>
   <a href="https://zest.netrelish.com" rel="noopener">Zest</a>

@@ -21,7 +21,7 @@ The build brief below is distilled from `../../docs/ZEST-SPEC.md` §7.4;
 where they differ, the spec wins.
 
 Branded featured images — blog hero, OG card, social tile — composed from the
-brand system, not generated. The image is typography, colour, the logo, and
+brand system, not generated. The image is typography, color, the logo, and
 structure. No stock, no diffusion. Pricing-page one-liner: *Featured images
 that look like your brand, not like a prompt.*
 
