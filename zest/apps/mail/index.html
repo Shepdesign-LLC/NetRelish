@@ -868,7 +868,7 @@ ${preheader}${content}
     if (!f) return;
     try { importZestBrand(JSON.parse(await f.text())); } catch { toast('That file would not read as a zest-brand.json.'); }
   });
-  /* zest-brand.json can be dropped anywhere — "one file, every tool" (§6.3); block drags carry no files and are untouched */
+  /* zest-brand.json can be dropped anywhere — the §7.3 interchange; block drags carry no files and are untouched */
   async function routeDroppedJson(f) {
     try { const d = JSON.parse(await f.text());
       if (d && d.zest === 1) importZestBrand(d);
@@ -879,7 +879,7 @@ ${preheader}${content}
   const wantsFile = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
   const dropJson = e => {
     const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-    if (!f || !/json$/i.test(f.name)) return;
+    if (!f || !/\.json$/i.test(f.name)) return;   // the dot matters: "notes json" is somebody's text file
     e.preventDefault(); routeDroppedJson(f);
   };
   document.addEventListener('dragover', e => { if (wantsFile(e)) e.preventDefault(); });

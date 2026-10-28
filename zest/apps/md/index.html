@@ -586,8 +586,8 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   async function readFiles(list) {
     const okExt = /\.(md|markdown|mdx|txt)$/i;
     const all = [...list];
-    // a dropped zest-brand.json re-skins instead of opening as a document — "one file, every tool" (§6.3)
-    const jsonF = all.find(f => /json$/i.test(f.name));
+    // a dropped zest-brand.json re-skins instead of opening as a document — the §7.3 interchange
+    const jsonF = all.find(f => /\.json$/i.test(f.name));
     if (jsonF) {
       try { const b = JSON.parse(await jsonF.text()); if (b && b.zest === 1) importZestBrand(b); else toast('Not a zest-brand.json.'); }
       catch { toast('That file would not read as JSON.'); }
