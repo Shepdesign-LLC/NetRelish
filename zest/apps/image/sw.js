@@ -1,6 +1,6 @@
 /* ZestImage service worker — app shell offline, fonts cached on first use */
-const VERSION = 'zimage-v1';
-const APP_ROOT = new URL('./', self.location).pathname;
+const VERSION = 'zimage-v2';   // v2: scope-relative shell — the app serves at / standalone and at /image under the one-origin topology (§8)
+const APP_ROOT = new URL('./', self.location).pathname;   // '/' standalone, '/image/' mounted
 const APP_INDEX = `${APP_ROOT}index.html`;
 const SHELL = [APP_ROOT, APP_INDEX, `${APP_ROOT}manifest.webmanifest`, `${APP_ROOT}icons/icon-192.png`, `${APP_ROOT}icons/icon-512.png`, `${APP_ROOT}icons/favicon.svg`];
 const RUNTIME_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];

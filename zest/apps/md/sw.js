@@ -1,6 +1,6 @@
 /* MD Press service worker — app shell offline, CDN extras cached on first use */
-const VERSION = 'mdpress-v3';   // v3: only successful responses are cached (shell and CDN)
-const APP_ROOT = new URL('./', self.location).pathname;
+const VERSION = 'mdpress-v4';   // v4: scope-relative shell — the app serves at / standalone and at /md under the one-origin topology (§8)
+const APP_ROOT = new URL('./', self.location).pathname;   // '/' standalone, '/md/' mounted
 const APP_INDEX = `${APP_ROOT}index.html`;
 const SHELL = [APP_ROOT, APP_INDEX, `${APP_ROOT}manifest.webmanifest`, `${APP_ROOT}icons/icon-192.png`, `${APP_ROOT}icons/icon-512.png`, `${APP_ROOT}icons/favicon.svg`];
 const RUNTIME_HOSTS = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
