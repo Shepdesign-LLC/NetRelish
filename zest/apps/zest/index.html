@@ -541,13 +541,15 @@ async function addCustomFont(file) {
   catch { toast('That file would not load as a font.'); return; }
   try { document.fonts.forEach(f => { if (String(f.family).replace(/^['"]|['"]$/g, '') === name) document.fonts.delete(f); }); } catch {}  // replace, never stack faces
   document.fonts.add(ff);
-  try { const db = await idb(); await new Promise((res, rej) => { const t = db.transaction('fonts', 'readwrite').objectStore('fonts').put({ name, data, format: file.name.split('.').pop().toLowerCase() }); t.onsuccess = res; t.onerror = () => rej(t.error); }); } catch {}
+  let kept = true;                                 // honest copy: never promise durability IndexedDB refused
+  try { const db = await idb(); await new Promise((res, rej) => { const t = db.transaction('fonts', 'readwrite').objectStore('fonts').put({ name, data, format: file.name.split('.').pop().toLowerCase() }); t.onsuccess = res; t.onerror = () => rej(t.error); }); } catch { kept = false; }
   const entry = { name, format: file.name.split('.').pop().toLowerCase(), url: URL.createObjectURL(new Blob([data])) };
   const at = customs.findIndex(c => c.name === name);
   const replaced = at >= 0;
   if (replaced) { try { URL.revokeObjectURL(customs[at].url); } catch {} customs[at] = entry; } else customs.push(entry);
   renderFonts(); renderPreview();                 // a replaced font may be live in the preview — its @font-face must point at the new bytes
-  toast(replaced ? `${name} updated — previews now use the new file.` : `${name} added — it is in the font menus now.`);
+  toast((replaced ? `${name} updated — previews now use the new file.` : `${name} added — it is in the font menus now.`)
+    + (kept ? '' : ' This browser would not store it, so it lasts this session only.'));
 }
 async function removeCustomFont(name) {
   customs = customs.filter(c => c.name !== name);

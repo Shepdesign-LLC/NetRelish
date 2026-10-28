@@ -351,7 +351,7 @@ Pricing-page one-liner: *Pick the colours and type once. Every tool inherits the
 }
 ```
 
-ZestMail reads `light` (its brands are single-mode: email) plus `fonts.body`, `radius`, and the identity fields it already has. Zest MD reads `light` and `dark` into its custom skin plus `fonts` into its typeface picker. ZestImage reads everything plus `logo`. Zest writes it; the tools import it, and — with Pro — pick it up automatically from the cloud when the same account opens them. In NetRelish, "Send to ZestMail" is a bridge call; in the browser it's a download and an import button until cloud sync lands.
+ZestMail reads `light` (its brands are single-mode: email) plus `fonts.body`, `radius`, and the identity fields it already has. Zest MD reads `light` and `dark` into its custom skin plus `fonts` into its typeface picker. ZestImage reads the palettes, `fonts`, `radius` and `type`, plus `logo`. Zest writes it; the tools import it, and — with Pro — pick it up automatically from the cloud when the same account opens them. In NetRelish, "Send to ZestMail" is a bridge call; in the browser it's a download and an import button until cloud sync lands.
 
 Roles map one-to-one on purpose. Zest's four role swatches become `primary`, `ink`, `paper` (surface) and `dark` (panel); `muted`, `sheet` and `line` are derived the same way ZestMail's custom skin already derives them. No translation layer to maintain.
 
