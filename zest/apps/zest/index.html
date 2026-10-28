@@ -341,12 +341,11 @@ footer .sp{flex:1}
 </div>
 
 <section class="toolsrow" id="tools" aria-label="The Zest tools">
-  <p class="lab" style="margin:0 0 12px">Tools — each one imports the brand you build here</p>
+  <p class="lab" style="margin:0 0 12px">Tools — each one imports the brand you build here<span class="sp"></span><a href="pricing/" style="color:var(--ink-2);text-decoration:none;letter-spacing:0;text-transform:none;font:500 12px var(--body)">Pricing →</a></p>
   <div class="trow">
-    <a class="tool" href="mail/"><img src="mail/icons/favicon.svg" alt=""><span><b>ZestMail</b><small>HTML email built from your tokens</small></span></a>
-    <a class="tool" href="md/"><img src="md/icons/favicon.svg" alt=""><span><b>Zest MD</b><small>Markdown, read like it was typeset</small></span></a>
-    <a class="tool" href="image/"><img src="image/icons/favicon.svg" alt=""><span><b>ZestImage</b><small>Featured images composed from the brand</small></span></a>
-    <a class="tool" href="pricing/"><span><b>Pricing</b><small>The local core is free — Pro arrives with accounts</small></span></a>
+    <a class="tool" href="mail/"><img src="mail/icons/favicon.svg" alt="" onerror="this.remove()"><span><b>ZestMail</b><small>HTML email built from your tokens</small></span></a>
+    <a class="tool" href="md/"><img src="md/icons/favicon.svg" alt="" onerror="this.remove()"><span><b>Zest MD</b><small>Markdown, read like it was typeset</small></span></a>
+    <a class="tool" href="image/"><img src="image/icons/favicon.svg" alt="" onerror="this.remove()"><span><b>ZestImage</b><small>Featured images composed from the brand</small></span></a>
   </div>
 </section>
 <footer>
@@ -956,7 +955,7 @@ const PRO_WHY = {  // §4.3: a one-line reason per feature, not one toast for al
   pairings: 'Model-assisted pairings are metered — they arrive with Pro accounts.',
 };
 $$('.pro').forEach(p => p.addEventListener('click', () =>
-  toast((PRO_WHY[p.dataset.pro] || 'Pro arrives with Zest accounts.') + ' The local core stays free — zest.netrelish.com has the plan.')));
+  toast((PRO_WHY[p.dataset.pro] || 'Pro arrives with Zest accounts.') + ' The local core stays free — zest.netrelish.com/pricing has the plan.')));
 
 document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'e') { e.preventDefault(); $('#xBrand').click(); }

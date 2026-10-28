@@ -53,9 +53,10 @@ null origin, which breaks the service worker and any API call.
 - **Zest (studio)** — `cd apps/zest && npx serve .`. Static, no build step.
 - **The whole topology** (§8/§11.5: studio at `/`, tools at `/mail` `/md`
   `/image`, store at `/pricing`, API at `/api`) — `cd zest && bash build.sh
-  && npx serve dist`, or `npx vercel dev` from `zest/` to serve the API too.
-  The Vercel project points at `zest/`; `vercel.json` carries the build and
-  headers.
+  && npx serve dist`. For the API too, run `bash build.sh` first and then
+  `npx vercel dev` from `zest/` (`vercel dev` serves functions and the
+  built `dist/`, but does not run the build itself). The Vercel project
+  points at `zest/`; `vercel.json` carries the build and headers.
 
 ## Status against ZEST-SPEC §10, Milestone 1
 

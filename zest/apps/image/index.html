@@ -733,7 +733,7 @@ $('#bOg').addEventListener('click', async () => { const snip = ogSnippet();
   catch { const saved = await download(filename().replace(/\.(png|webp)$/, '') + '.og.txt', new Blob([snip], { type: 'text/plain' }));
     toast(saved ? 'Clipboard access was blocked — the snippet saved as a file instead.' : 'Cancelled — nothing saved.'); } });
 $$('.pro').forEach(p => p.addEventListener('click', () =>
-  toast('Pro arrives with Zest accounts — everything local stays free. zest.netrelish.com has the plan.')));
+  toast('Pro arrives with Zest accounts — everything local stays free. zest.netrelish.com/pricing has the plan.')));
 document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'e') { e.preventDefault(); exportImage(); }
 });
