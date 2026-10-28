@@ -315,7 +315,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
       <div class="row"><label>Width</label><input type="range" data-set="measure" min="50" max="110" step="2" value="70"></div>
       <hr>
       <div class="row"><label for="cleanLLM">Clean LLM paste</label><input type="checkbox" id="cleanLLM" checked></div>
-      <div class="row"><label for="rawHtml">Allow raw HTML</label><input type="checkbox" id="rawHtml" checked></div>
+      <div class="row"><label for="rawHtml" title="Safe raw HTML: scripts, event handlers and frames are always stripped">Allow raw HTML</label><input type="checkbox" id="rawHtml" checked></div>
       <hr>
       <div class="menu"><button id="btnReset">Reset reader settings</button></div>
     </div>
@@ -378,6 +378,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js" crossorigin="anonymous" onerror="__mdfail('math (KaTeX)')"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js" crossorigin="anonymous" onerror="__mdfail('math auto-render')"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js" crossorigin="anonymous" onerror="__mdfail('diagrams (Mermaid)')"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js" crossorigin="anonymous" onerror="__mdfail('the HTML sanitizer (DOMPurify)')"></script>
 
 <script>
 (() => {
@@ -385,7 +386,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   const PRODUCT = 'Zest MD';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-  const has = { md: !!window.markdownit, hl: !!window.hljs, katex: !!window.renderMathInElement, mermaid: !!window.mermaid };
+  const has = { md: !!window.markdownit, hl: !!window.hljs, katex: !!window.renderMathInElement, mermaid: !!window.mermaid, pure: !!window.DOMPurify };
 
   /* ---------- storage (safe everywhere) ---------- */
   const store = {
@@ -406,7 +407,9 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   function buildEngine() {
     if (!has.md) return;
     md = window.markdownit({
-      html: state.settings.rawHtml, linkify: true, typographer: true, breaks: false,
+      // raw HTML passes through ONLY when the sanitizer is here to strip scripts/handlers at the sink —
+      // the apps share one origin (§8), so an unsanitized document could read every tool's storage
+      html: state.settings.rawHtml && has.pure, linkify: true, typographer: true, breaks: false,
       highlight(str, lang) {
         if (lang === 'mermaid') return has.mermaid ? `<div class="diagram"><pre class="mermaid">${escapeHtml(str)}</pre></div>` : `<pre data-lang="mermaid (diagram library unavailable)"><code class="hljs">${escapeHtml(str)}</code></pre>`;
         if (has.hl && lang && hljs.getLanguage(lang)) {
@@ -466,7 +469,9 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
       html = (fm.title && !/^\s*<h1/.test(html) ? `<h1>${escapeHtml(fm.title)}</h1>` : '') +
         (shown.length ? `<div class="frontmatter">${shown.map(([k, v]) => `<span><b>${escapeHtml(k)}</b>${escapeHtml(v)}</span>`).join('')}</div>` : '') + html;
     }
-    doc.innerHTML = html;
+    // the one sink: raw-HTML-capable output is always sanitized (keeps safe markup, strips scripts,
+    // event handlers, frames and javascript: URLs); without DOMPurify the engine never emits raw HTML
+    doc.innerHTML = (state.settings.rawHtml && has.pure) ? DOMPurify.sanitize(html) : html;
     postProcess(doc);
     if (has.katex) { try { renderMathInElement(doc, { delimiters: [{ left: '$$', right: '$$', display: true }, { left: '\\[', right: '\\]', display: true }, { left: '$', right: '$', display: false }, { left: '\\(', right: '\\)', display: false }], throwOnError: false, ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'option'] }); } catch {} }
     if (has.mermaid) {
