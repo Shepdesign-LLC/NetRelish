@@ -1,6 +1,8 @@
 /* ZestImage service worker — app shell offline, fonts cached on first use */
 const VERSION = 'zimage-v1';
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/favicon.svg'];
+const APP_ROOT = new URL('./', self.location).pathname;
+const APP_INDEX = `${APP_ROOT}index.html`;
+const SHELL = [APP_ROOT, APP_INDEX, `${APP_ROOT}manifest.webmanifest`, `${APP_ROOT}icons/icon-192.png`, `${APP_ROOT}icons/icon-512.png`, `${APP_ROOT}icons/favicon.svg`];
 const RUNTIME_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', e => {
@@ -16,7 +18,7 @@ self.addEventListener('fetch', e => {
   // Lookups are scoped to THIS app's cache — a global caches.match() could serve another Zest app's shell on a shared origin.
   if (url.origin === location.origin) {
     e.respondWith(fetch(e.request).then(r => { if (r.ok) { const copy = r.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); } return r; })
-      .catch(() => caches.open(VERSION).then(c => c.match(e.request).then(r => r || c.match('/index.html')))));
+      .catch(() => caches.open(VERSION).then(c => c.match(e.request).then(r => r || c.match(APP_INDEX)))));
     return;
   }
   // Brand fonts: cache first, fill on first successful use

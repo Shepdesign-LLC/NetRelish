@@ -1,6 +1,8 @@
 /* MD Press service worker — app shell offline, CDN extras cached on first use */
 const VERSION = 'mdpress-v3';   // v3: only successful responses are cached (shell and CDN)
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/favicon.svg'];
+const APP_ROOT = new URL('./', self.location).pathname;
+const APP_INDEX = `${APP_ROOT}index.html`;
+const SHELL = [APP_ROOT, APP_INDEX, `${APP_ROOT}manifest.webmanifest`, `${APP_ROOT}icons/icon-192.png`, `${APP_ROOT}icons/icon-512.png`, `${APP_ROOT}icons/favicon.svg`];
 const RUNTIME_HOSTS = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', e => {
@@ -19,12 +21,12 @@ self.addEventListener('fetch', e => {
     // network — "Nothing is uploaded" — serve the cached shell and let the
     // page read its own location. Fail closed if the shell isn't cached.
     if (e.request.mode === 'navigate' && (url.searchParams.has('title') || url.searchParams.has('text'))) {
-      e.respondWith(caches.open(VERSION).then(c => c.match('/index.html')).then(r => r || Response.error()));
+      e.respondWith(caches.open(VERSION).then(c => c.match(APP_INDEX)).then(r => r || Response.error()));
       return;
     }
     // Lookups are scoped to THIS app's cache — a global caches.match() could serve another Zest app's shell on a shared origin.
     e.respondWith(fetch(e.request).then(r => { if (r.ok) { const copy = r.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); } return r; })
-      .catch(() => caches.open(VERSION).then(c => c.match(e.request).then(r => r || c.match('/index.html')))));
+      .catch(() => caches.open(VERSION).then(c => c.match(e.request).then(r => r || c.match(APP_INDEX)))));
     return;
   }
   // Fonts, KaTeX, Mermaid: cache first, fill on first use

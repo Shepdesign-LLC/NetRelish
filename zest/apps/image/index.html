@@ -742,7 +742,7 @@ document.addEventListener('keydown', e => {
 renderBrands(); renderChoosers(); syncBrandLogo(); render();
 loadBrandFonts(brand()).then(render);
 if ('serviceWorker' in navigator && window.isSecureContext) {   // localhost counts as secure, so the documented `npx serve .` flow gets the offline shell too
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 })();
 </script>
