@@ -153,6 +153,15 @@ input[type=range]{width:100%;accent-color:var(--acc)}
 .savedrow .dots{display:flex;gap:3px;flex:none}
 .savedrow .dots i{width:10px;height:10px;border-radius:4px;box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
 
+/* §11.5: the studio is the home page — the tools are a row underneath it */
+.toolsrow{padding:18px;border-top:1px solid var(--line)}
+.trow{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.tool{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--pane);padding:12px 14px;text-decoration:none;color:var(--ink);transition:all var(--t) var(--ease)}
+.tool:hover{border-color:var(--ink-3);transform:translateY(-1px)}
+.tool img{width:22px;height:22px;flex:none}
+.tool b{display:block;font-size:13px;font-weight:600}
+.tool small{font-size:11.5px;color:var(--ink-3)}
+
 footer{padding:14px 18px;border-top:1px solid var(--line);display:flex;gap:16px;align-items:center;font-size:12px;color:var(--ink-3);flex-wrap:wrap}
 footer .sp{flex:1}
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);z-index:50;background:var(--pane-2);
@@ -178,7 +187,7 @@ footer .sp{flex:1}
   <div class="brand"><span class="mark">Z</span>Zest</div>
   <span class="tag">Lemon · build the brand once</span>
   <span class="sp"></span>
-  <a href="https://zest.netrelish.com/#tools" rel="noopener">Tools</a>
+  <a href="#tools">Tools</a>
 </header>
 
 <div class="app">
@@ -331,6 +340,15 @@ footer .sp{flex:1}
   </aside>
 </div>
 
+<section class="toolsrow" id="tools" aria-label="The Zest tools">
+  <p class="lab" style="margin:0 0 12px">Tools — each one imports the brand you build here</p>
+  <div class="trow">
+    <a class="tool" href="mail/"><img src="mail/icons/favicon.svg" alt=""><span><b>ZestMail</b><small>HTML email built from your tokens</small></span></a>
+    <a class="tool" href="md/"><img src="md/icons/favicon.svg" alt=""><span><b>Zest MD</b><small>Markdown, read like it was typeset</small></span></a>
+    <a class="tool" href="image/"><img src="image/icons/favicon.svg" alt=""><span><b>ZestImage</b><small>Featured images composed from the brand</small></span></a>
+    <a class="tool" href="pricing/"><span><b>Pricing</b><small>The local core is free — Pro arrives with accounts</small></span></a>
+  </div>
+</section>
 <footer>
   <span>Runs in your browser. Nothing is uploaded — brands, fonts and your logo stay on this machine.</span>
   <span class="sp"></span>

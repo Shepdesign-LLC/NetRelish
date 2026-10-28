@@ -16,6 +16,9 @@ Export → Import design menu, or by dropping the file anywhere on the page.
 npx vercel dev        # serves index.html and /api/claude on http://localhost:3000
 ```
 
+or run the whole Zest topology from `zest/` (`npx vercel dev` there serves
+this app at `/mail` with the shared `/api/claude` — the production shape).
+
 or, without the proxy (use your key in the app's Direct route):
 
 ```bash

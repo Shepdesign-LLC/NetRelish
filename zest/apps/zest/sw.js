@@ -15,9 +15,10 @@ self.addEventListener('fetch', e => {
   // App shell: network first (so deploys land), cache fallback (so offline works); only successful responses are cached.
   // Lookups are scoped to THIS app's cache — a global caches.match() could serve another Zest app's shell on a shared origin.
   if (url.origin === location.origin) {
-    // The studio serves the origin root (§8); sibling tools own /mail, /md, /image —
+    // The studio serves the origin root (§8); siblings own /mail, /md, /image, /api and
+    // the store paths (/pricing now; /account and /changelog when they land) —
     // never answer their paths with the studio shell when they are offline and uncached.
-    const siblingPath = /^\/(mail|md|image|api)(\/|$)/.test(url.pathname);
+    const siblingPath = /^\/(mail|md|image|api|pricing|account|changelog)(\/|$)/.test(url.pathname);
     e.respondWith(fetch(e.request).then(r => { if (r.ok) { const copy = r.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); } return r; })
       .catch(() => caches.open(VERSION).then(c => c.match(e.request).then(r => r || (e.request.mode === 'navigate' && !siblingPath ? c.match('/index.html') : undefined)))));
     return;

@@ -51,6 +51,11 @@ null origin, which breaks the service worker and any API call.
 - **Zest MD** — `cd apps/md && npx serve .`. Static, no build step.
 - **ZestImage** — `cd apps/image && npx serve .`. Static, no build step.
 - **Zest (studio)** — `cd apps/zest && npx serve .`. Static, no build step.
+- **The whole topology** (§8/§11.5: studio at `/`, tools at `/mail` `/md`
+  `/image`, store at `/pricing`, API at `/api`) — `cd zest && bash build.sh
+  && npx serve dist`, or `npx vercel dev` from `zest/` to serve the API too.
+  The Vercel project points at `zest/`; `vercel.json` carries the build and
+  headers.
 
 ## Status against ZEST-SPEC §10, Milestone 1
 
@@ -65,10 +70,13 @@ In hand:
   custom fonts, exports, share links, WCAG audit
 - `zest-brand.json` schema (§7.3) and the full handoff: export from the
   studio; import in ZestImage, ZestMail (Brand tab) and Zest MD (custom skin)
+- The one-origin deploy topology in-repo (`build.sh` + `vercel.json` +
+  shared `api/`): studio at `/` with the §11.5 tools row, tools at their
+  paths, store at `/pricing`
 
 Not done:
 
-- Monorepo, Vercel project, subdomain CNAME
+- Vercel project + subdomain CNAME (console steps — the repo side is ready)
 - Supabase deploy
 - Stripe products, Checkout, webhook provisioning, portal
 - Magic-link auth via Resend
