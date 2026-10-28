@@ -14,7 +14,7 @@ Four app icons in the NetRelish material language: the squircle, steel hardware,
 - `layers/<icon>/` — one SVG per layer, for Apple Icon Composer (import each as a layer; give `fruit` the most lift and specular, `background` none)
 - `png/` — 1024 · 512 · 256 · 128 · 64 · 32
 - `mono/` — single-color glyphs (the flat Segment, rotated per tool) for tinted / monochrome icon modes and favicons
-- `fruits.json` — each fruit's peel, flesh, pith, juice, background, glow, and the UI accent pair (`accent`, `accentInk`) derived from it
+- `fruits.json` — each fruit's peel, flesh, pith, juice, background, glow, and the UI accent pair (`accent`, `accentInk`) derived from it. Where a tool draws indicators on light user content (ZestMail's canvas), `accentInd` is the darker accent that clears WCAG 3:1 there — pair it with a light halo on unknown surfaces.
 - `dock-light.png`, `dock-dark.png` — the family in a dock beside the NetRelish mark
 
 ## Rules

@@ -39,7 +39,8 @@
     ],
     "glow": "#FF8A1F",
     "accent": "#F5761A",
-    "accentInk": "#9A4600"
+    "accentInk": "#9A4600",
+    "accentInd": "#D55E00"
   },
   "Zest MD": {
     "fruit": "lime",
