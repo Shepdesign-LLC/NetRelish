@@ -70,6 +70,7 @@ const ORIGIN = 'http://localhost:8780';
   const live = await browser.newContext();                     // real service workers this time
   for (const [p, scopeEnd] of [['/', '/'], ['/md/', '/md/'], ['/image/', '/image/']]) {
     const pg = await live.newPage();
+    await pg.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort()); // live SWs, but still no live CDN
     await pg.goto(ORIGIN + p, { waitUntil: 'domcontentloaded' });
     const scope = await pg.evaluate(() => Promise.race([
       navigator.serviceWorker.ready.then(r => r.scope),

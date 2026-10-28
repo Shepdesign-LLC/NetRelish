@@ -32,13 +32,15 @@ const SERVERS = {
 function serve(port, dir) {
   const root = path.join(ZEST, dir);
   const srv = http.createServer((req, res) => {
-    let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-    if (p.endsWith('/')) p += 'index.html';
-    const file = path.join(root, p);
-    if (!file.startsWith(root) || !fs.existsSync(file)) { res.writeHead(404); return res.end('not found'); }
-    if (fs.statSync(file).isDirectory()) { res.writeHead(301, { location: p + '/' }); return res.end(); }
-    res.writeHead(200, { 'content-type': MIME[path.extname(file)] || 'application/octet-stream' });
-    fs.createReadStream(file).pipe(res);
+    try {
+      let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+      if (p.endsWith('/')) p += 'index.html';
+      const file = path.join(root, p);
+      if (!file.startsWith(root + path.sep) || !fs.existsSync(file)) { res.writeHead(404); return res.end('not found'); }
+      if (fs.statSync(file).isDirectory()) { res.writeHead(301, { location: p + '/' }); return res.end(); }
+      res.writeHead(200, { 'content-type': MIME[path.extname(file)] || 'application/octet-stream' });
+      fs.createReadStream(file).pipe(res);
+    } catch { res.writeHead(400); res.end('bad request'); }
   });
   return new Promise(ok => srv.listen(port, '127.0.0.1', () => ok(srv)));
 }
@@ -50,6 +52,7 @@ function runNode(args, capture) {
     const c = spawn(process.execPath, args, { stdio: capture ? ['ignore', 'pipe', 'pipe'] : 'inherit' });
     let out = '', err = '';
     if (capture) { c.stdout.on('data', d => out += d); c.stderr.on('data', d => err += d); }
+    c.on('error', e => res({ code: 1, out, err: err + e.message }));
     c.on('exit', code => res({ code, out, err }));
   });
 }
@@ -73,6 +76,7 @@ function runNode(args, capture) {
   const SWEEPS = [
     ['http://localhost:8773/', 'dark', 'mail'],
     ['http://localhost:8774/', 'dark', 'md'],
+    ['http://localhost:8774/', 'light', 'md-light'],
     ['http://localhost:8771/', 'dark', 'studio'],
   ];
   for (const args of SWEEPS) {

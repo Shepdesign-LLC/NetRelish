@@ -10,7 +10,7 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
 (async () => {
   const browser = await chromium.launch(LAUNCH);
   const ctx = await browser.newContext({ serviceWorkers: 'block' });
-  const block = p => p.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  const block = p => p.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort()); // no live CDN: every run sees the same page state, with or without egress
 
   console.log('== studio: export the Pantry brand ==');
   const st = await ctx.newPage(); await block(st);
@@ -90,7 +90,9 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
 
   console.log('== Zest MD: custom-skin import ==');
   const md = await ctx.newPage(); await block(md);
-  // the proxy blocks cdnjs here — serve the pinned DOMPurify locally so the sanitized-raw-HTML path is the one under test
+  // serve the pinned DOMPurify from node_modules (same 3.1.6 the app loads from cdnjs) so the
+  // sanitized-raw-HTML path is under test and the suite works offline; registered after block(),
+  // so this more specific route wins while the rest of cdnjs stays aborted
   const PURIFY = fs.readFileSync(require.resolve('dompurify/dist/purify.min.js'), 'utf8');
   await md.route(/cdnjs\.cloudflare\.com.*dompurify/i, r => r.fulfill({ contentType: 'text/javascript', body: PURIFY }));
   const mdErrs = []; md.on('pageerror', e => mdErrs.push(e.message));
@@ -141,7 +143,7 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
 
   console.log('== Zest MD without the sanitizer: raw HTML fails closed ==');
   const mdOff = await ctx.newPage();
-  await mdOff.route(/fonts\.(googleapis|gstatic)\.com|dompurify/, r => r.abort());
+  await mdOff.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort());
   await mdOff.goto('http://localhost:8774', { waitUntil: 'domcontentloaded' }); await mdOff.waitForTimeout(600);
   await mdOff.evaluate(t => { const dt = new DataTransfer(); dt.items.add(new File([t], 'evil.md', { type: 'text/markdown' })); document.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true })); }, PAYLOAD);
   await mdOff.waitForTimeout(600);

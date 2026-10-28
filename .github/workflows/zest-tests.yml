@@ -2,15 +2,20 @@ name: Zest tests
 
 on:
   pull_request:
-    paths: ['zest/**']
+    paths: ['zest/**', '.github/workflows/zest-tests.yml']
   push:
     branches: [main]
-    paths: ['zest/**']
+    paths: ['zest/**', '.github/workflows/zest-tests.yml']
+
+concurrency:
+  group: zest-tests-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     name: Suites + contrast
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: zest/tests

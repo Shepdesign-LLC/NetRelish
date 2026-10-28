@@ -223,9 +223,9 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   ok(dMono <= 30, `mono shuffle keeps ink on the primary's hue (Δ${dMono.toFixed(1)}°)`);
 
   console.log('== 17: round 2 — re-uploading a font refreshes the preview ==');
-  const fs2 = require('fs');
-  const fontA = fs2.readFileSync('/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf');
-  const fontB = fs2.readFileSync('/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf');
+  const fs2 = require('fs'), path2 = require('path');
+  const fontA = fs2.readFileSync(path2.join(__dirname, 'fixtures', 'Caladea-Regular.ttf'));
+  const fontB = fs2.readFileSync(path2.join(__dirname, 'fixtures', 'Caladea-Bold.ttf'));
   await page.setInputFiles('#fFont', { name: 'replace-test.ttf', mimeType: 'font/ttf', buffer: fontA });
   await page.waitForTimeout(500);
   await page.selectOption('#fHead', 'replace test');
