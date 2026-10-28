@@ -98,6 +98,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .cv-block[aria-selected="true"] .tools{display:flex}
 .cv-block .tools button{width:24px; height:24px; border-radius:4px; color:var(--sheet); display:grid; place-items:center}
 .cv-block .tools button:hover{background:rgba(255,255,255,.15)}
+.cv-block .tools button:focus-visible{outline-color:var(--accent-ind)} /* the tools bar is light (--ink) here, where --accent only reaches 2.41:1 */
 .cv-block .tools svg{width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
 .cv-block .tag{position:absolute; top:6px; left:6px; font:500 10px/1 var(--ui); background:var(--accent); color:var(--on-accent); padding:3px 6px; border-radius:4px; display:none; z-index:2}
 .cv-block[aria-selected="true"] .tag{display:block}
