@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Zest — build the brand once</title>
-<meta name="description" content="The brand studio. Pick the colours and type once — every Zest tool inherits them. OKLCH palettes, font pairings, type and spacing scales, WCAG audit, tokens out. Runs in your browser; nothing is uploaded.">
+<meta name="description" content="The brand studio. Pick the colors and type once — every Zest tool inherits them. OKLCH palettes, font pairings, type and spacing scales, WCAG audit, tokens out. Runs in your browser; nothing is uploaded.">
 <meta name="theme-color" content="#100E06">
 <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
@@ -34,7 +34,8 @@ input,select,textarea{font:inherit;color:var(--ink)}
 
 header{display:flex;align-items:center;gap:14px;padding:0 18px;height:56px;border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;gap:10px;font:600 17px var(--display);letter-spacing:-.02em}
-.mark{width:28px;height:28px;border-radius:9px;background:linear-gradient(180deg,#FFE45C,#F5B800);color:#100E06;display:grid;place-items:center;font:800 15px var(--display);box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+.mark{width:28px;height:28px;border-radius:9px;background:linear-gradient(180deg,#FFE45C,#F5B800);display:grid;place-items:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+.mark svg{width:16px;height:16px;display:block;fill:#100E06}
 header .tag{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
 header .sp{flex:1}
 header a{color:var(--ink-2);text-decoration:none;font-size:13px}
@@ -184,7 +185,7 @@ footer .sp{flex:1}
 </defs></svg>
 
 <header>
-  <div class="brand"><span class="mark">Z</span>Zest</div>
+  <div class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 100 100"><path d="M50 10 C52 10 54 11 55 13 L91 78 C93 82 91 87 86 88 C63 95 37 95 14 88 C9 87 7 82 9 78 L45 13 C46 11 48 10 50 10 Z"/></svg></span>Zest</div>
   <span class="tag">Lemon · build the brand once</span>
   <span class="sp"></span>
   <a href="#tools">Tools</a>
@@ -364,7 +365,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 const slug = s => String(s || '').toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'untitled';
 let tT; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tT); tT = setTimeout(() => t.classList.remove('show'), 3400); };
 
-/* ---------- colour: hex ⇄ sRGB ⇄ OKLCH, with gamut mapping ---------- */
+/* ---------- color: hex ⇄ sRGB ⇄ OKLCH, with gamut mapping ---------- */
 const hex2rgb = x => { x = String(x).replace('#', ''); if (x.length === 3) x = [...x].map(c => c + c).join(''); const n = parseInt(x.slice(0, 6), 16) || 0; return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
 const rgb2hex = ([r, g, b]) => '#' + [r, g, b].map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
 const HEXRE = /^#[0-9a-fA-F]{6}$/;
@@ -393,7 +394,7 @@ function oklch2rgbRaw({ L, C, H }) {
   ];
 }
 const inGamut = lin => lin.every(v => v >= -1e-4 && v <= 1 + 1e-4);
-function oklch2hex(c) {               // chroma-reduce until the colour fits sRGB
+function oklch2hex(c) {               // chroma-reduce until the color fits sRGB
   let lo = 0, hi = c.C, C = c.C;
   if (!inGamut(oklch2rgbRaw(c))) {
     for (let i = 0; i < 18; i++) { C = (lo + hi) / 2; if (inGamut(oklch2rgbRaw({ ...c, C }))) lo = C; else hi = C; }
@@ -623,10 +624,10 @@ h1{font-family:${famCss(S.fonts.head)};font-weight:800;font-size:${typeSize(4)}p
 <nav><b>${esc(S.name)}</b><a href="#">Work</a><a href="#">About</a><a href="#">Contact</a></nav>
 <p class="kick">Brand preview</p>
 <h1>Every tool inherits this.</h1>
-<p class="lede">Colour, type, spacing and radius as live tokens — this page is drawn from them, and so is everything the Zest tools make.</p>
+<p class="lede">Color, type, spacing and radius as live tokens — this page is drawn from them, and so is everything the Zest tools make.</p>
 <div class="cta"><button class="b1">Primary action</button><button class="b2">Secondary</button></div>
 <div class="cards">
-  <div class="card"><span class="tag">Token</span><h3>Composed, not generated</h3><p>Typography, colour and structure from your system — the same every time.</p></div>
+  <div class="card"><span class="tag">Token</span><h3>Composed, not generated</h3><p>Typography, color and structure from your system — the same every time.</p></div>
   <div class="card"><span class="tag">Local</span><h3>Runs in the browser</h3><p>The core is local. Nothing here leaves this machine.</p></div>
   <div class="card"><span class="tag">Handoff</span><h3>One file, every tool</h3><p>zest-brand.json carries all of it into Mail, MD and Image.</p></div>
 </div>
@@ -643,7 +644,7 @@ const ROLE_DESC = { primary: 'accent · buttons · links', ink: 'text', paper: '
 function renderRoles() {  // builds the seven rows once at boot; every later update flows through syncRoles
   $('#roles').innerHTML = [...ROLES, ...DERIVED].map(k => `<div class="role" data-role="${k}">
       <button class="lock" data-lock="${k}"><svg><use href="#i-lock"/></svg></button>
-      <input type="color" data-c="${k}" aria-label="${k} colour">
+      <input type="color" data-c="${k}" aria-label="${k} color">
       <span><b>${k}</b><small>${ROLE_DESC[k]}</small></span>
       <input class="hex" data-h="${k}" aria-label="${k} hex" spellcheck="false">
     </div>`).join('');

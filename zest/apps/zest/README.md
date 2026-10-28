@@ -6,7 +6,7 @@ home page at `zest.netrelish.com`, with the store pages beside it.
 
 ## What the free core does
 
-- **Colour** — OKLCH engine with sRGB gamut mapping; four role swatches
+- **Color** — OKLCH engine with sRGB gamut mapping; four role swatches
   (`primary · ink · paper · dark`) per palette with locks; `muted`, `sheet`
   and `line` derived with Zest MD's custom-skin formulas (hand-editable, and
   pinned when a brand file carries explicit values); six harmonies; an

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="auto">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,14 +10,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{
-  --paper:#f2f3f5; --sheet:#ffffff; --ink:#1b2130; --ink-2:#4b5363; --ink-3:#5f6879; --rule:#dde0e6; /* ink-3: 4.58:1 worst-case on the light surfaces — small helper text needs 4.5:1 */
-  --accent:#1f4ed8; --accent-soft:#e8eefc; --on-accent:#fff; --code-bg:#f5f6f9;
-  --ok:#0f766e; --warn:#b45309; --err:#be123c; --ok-soft:#e3f5f2; --warn-soft:#fdf0e1; --err-soft:#fde5ea;
+:root{ /* ZestMail wears orange (fruits.json): one fruit-dark chrome, like every Zest tool — the emails on the canvas stay whatever the brand says */
+  --paper:#160d05; --sheet:#211408; --ink:#f4ede1; --ink-2:#c3b7a4; --ink-3:#a2967f; --rule:#3c2a16; /* ink-3 ≥4.5:1 on paper and sheet — verified by the contrast harness */
+  --accent:#f5761a; --accent-soft:#3a2008; --on-accent:#120a04; --code-bg:#1a0f06;
+  --peel-a:#FFA63D; --peel-b:#F06A00; --night:#120a04;
+  --ok:#7fd6c6; --warn:#f2b56b; --err:#ff8fa8; --ok-soft:#12302c; --warn-soft:#332612; --err-soft:#3a1c25;
   --ui:'Geist',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 }
-@media (prefers-color-scheme:dark){ html[data-theme="auto"]{ --paper:#111419; --sheet:#181c22; --ink:#e7e9ee; --ink-2:#b4bac6; --ink-3:#7c8494; --rule:#2a3039; --accent:#8fb0ff; --accent-soft:#1d2740; --on-accent:#0f1420; --code-bg:#12151b; --ok:#7fd6c6; --warn:#f2b56b; --err:#ff8fa8; --ok-soft:#12302c; --warn-soft:#332612; --err-soft:#3a1c25 } }
-html[data-theme="dark"]{ --paper:#111419; --sheet:#181c22; --ink:#e7e9ee; --ink-2:#b4bac6; --ink-3:#7c8494; --rule:#2a3039; --accent:#8fb0ff; --accent-soft:#1d2740; --on-accent:#0f1420; --code-bg:#12151b; --ok:#7fd6c6; --warn:#f2b56b; --err:#ff8fa8; --ok-soft:#12302c; --warn-soft:#332612; --err-soft:#3a1c25 }
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0; background:var(--paper); color:var(--ink); font:14px/1.5 var(--ui); overflow:hidden}
@@ -29,15 +28,18 @@ button{cursor:pointer; background:none; border:0; padding:0}
 /* toolbar */
 .bar{display:flex; align-items:center; gap:6px; padding:0 14px; background:var(--sheet); border-bottom:1px solid var(--rule); position:relative; z-index:5}
 .brand{display:flex; align-items:center; gap:9px; margin-right:6px; font-weight:600; letter-spacing:-.01em; white-space:nowrap}
-.brand .mark{width:22px; height:22px; border-radius:5px; background:var(--ink); color:var(--sheet); display:grid; place-items:center; font:700 12px/1 var(--ui)}
+.brand .mark{width:22px; height:22px; border-radius:6px; background:linear-gradient(180deg,var(--peel-a),var(--peel-b)); display:grid; place-items:center; box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+.brand .mark svg{width:13px; height:13px; display:block; fill:var(--night)}
+.brand .tag{font:500 10.5px var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin-left:4px}
+@media(max-width:1180px){.brand .tag{display:none}}
 .spacer{flex:1}
 .group{display:flex; align-items:center; gap:2px; padding:0 6px; border-left:1px solid var(--rule)}
 .group:first-of-type{border-left:0}
 .btn{display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 10px; border-radius:6px; color:var(--ink-2); white-space:nowrap}
 .btn:hover{background:var(--paper); color:var(--ink)}
 .btn[aria-pressed="true"],.btn[aria-pressed="true"]:hover{background:var(--accent-soft); color:var(--accent)}
-.btn.primary{background:var(--ink); color:var(--sheet); font-weight:500}
-.btn.primary:hover{background:var(--accent); color:var(--on-accent)}
+.btn.primary{background:var(--accent); color:var(--on-accent); font-weight:600}
+.btn.primary:hover{filter:brightness(1.1)}
 .btn:disabled{opacity:.45; cursor:default}
 .btn svg{width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none}
 .btn.icon{width:32px; padding:0; justify-content:center}
@@ -157,7 +159,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 <body>
 <div class="app">
   <header class="bar">
-    <div class="brand"><span class="mark">Z</span>ZestMail</div>
+    <div class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 100 100"><path d="M50 10 C52 10 54 11 55 13 L91 78 C93 82 91 87 86 88 C63 95 37 95 14 88 C9 87 7 82 9 78 L45 13 C46 11 48 10 50 10 Z" transform="rotate(90 50 50)"/></svg></span>ZestMail<span class="tag">orange · email from your tokens</span></div>
     <div class="seg" id="modeSeg"><button data-m="build" aria-pressed="true">Build</button><button data-m="source">Source</button></div>
     <span class="pill" id="sizePill">0 KB</span>
     <span class="pill" id="lintPill">empty</span>
@@ -176,7 +178,6 @@ button{cursor:pointer; background:none; border:0; padding:0}
       </div>
     </div>
     <div class="group">
-      <button class="btn icon" id="btnTheme" title="Toggle light/dark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
     </div>
     <div class="group"><button class="btn primary" id="btnExport"><svg viewBox="0 0 24 24"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>Export</button></div>
     <div class="pop" id="popExport">
@@ -246,7 +247,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
         <div class="field"><label>Proxy token</label><input type="password" id="proxyToken" placeholder="optional" autocomplete="off"></div>
         <div class="field"><label>Model</label><select id="model"><option value="claude-sonnet-4-6" selected>claude-sonnet-4-6</option><option value="claude-opus-5">claude-opus-5</option><option value="claude-haiku-4-5-20251001">claude-haiku-4-5</option></select></div>
         <h4>Draft <span class="pill" id="claudePill">optional</span></h4>
-        <textarea id="brief" placeholder="Describe the email: audience, purpose, sections, tone, CTA. The current brand's colours and footer are sent along."></textarea>
+        <textarea id="brief" placeholder="Describe the email: audience, purpose, sections, tone, CTA. The current brand's colors and footer are sent along."></textarea>
         <div class="row-btns"><button class="btn primary" id="btnDraft">Draft from brief</button><button class="btn" id="btnFix">Fix flagged issues</button></div>
         <div class="note" id="routeNote"></div>
         <div class="note">Output lands in Source and goes through the same compile and lint as anything you paste. You review it, you own it.</div>
@@ -463,7 +464,7 @@ ${preheader}${content}
   const BRAND_DEFAULT = () => ({ id: uid(), name: 'New brand', esp: 'bento', bentoSite: '', tagFirst: '', tagUnsub: '', tagBrowser: '', logo: '', logoWidth: 140, primary: '#1f4ed8', ink: '#1b2130', muted: '#6b7280', paper: '#f2f3f5', sheet: '#ffffff', line: '#e5e7eb', dark: '#1b2130', font: 'Helvetica Neue, Helvetica, Arial, sans-serif', radius: 8, company: 'Your Company', address: 'City, State', website: 'https://example.com', unsubscribe: 'https://example.com/unsubscribe', preferences: 'https://example.com/preferences', instagram: '', linkedin: '', x: '', facebook: '', youtube: '' });
   const BRAND_FIELDS = [
     ['Identity'], ['name', 'Name', 'text'], ['esp', 'Platform', 'select', ['bento', 'generic', 'custom']], ['bentoSite', 'Bento site', 'text'], ['logo', 'Logo URL', 'url'], ['logoWidth', 'Logo width', 'number'], ['company', 'Company', 'text'], ['address', 'Address', 'text'], ['website', 'Website', 'url'],
-    ['Colours'], ['primary', 'Primary', 'color'], ['ink', 'Text', 'color'], ['muted', 'Muted text', 'color'], ['dark', 'Dark panel', 'color'], ['sheet', 'Sheet', 'color'], ['paper', 'Page', 'color'], ['line', 'Lines', 'color'],
+    ['Colors'], ['primary', 'Primary', 'color'], ['ink', 'Text', 'color'], ['muted', 'Muted text', 'color'], ['dark', 'Dark panel', 'color'], ['sheet', 'Sheet', 'color'], ['paper', 'Page', 'color'], ['line', 'Lines', 'color'],
     ['Type'], ['font', 'Font stack', 'text'], ['radius', 'Corner radius', 'number'],
     ['Links'], ['unsubscribe', 'Unsubscribe URL', 'url'], ['preferences', 'Preferences URL', 'url'],
     ['Custom platform tags (only when Platform is custom)'], ['tagFirst', 'First name tag', 'text'], ['tagUnsub', 'Unsubscribe tag', 'text'], ['tagBrowser', 'View-in-browser tag', 'text'], ['instagram', 'Instagram', 'url'], ['linkedin', 'LinkedIn', 'url'], ['x', 'X', 'url'], ['facebook', 'Facebook', 'url'], ['youtube', 'YouTube', 'url']
@@ -507,31 +508,31 @@ ${preheader}${content}
     header: { name: 'Logo header', desc: 'Brand logo, view-in-browser line', fields: [F('align', 'Align', 'select', ['left', 'center']), F('tagline', 'Tagline', 'text'), F('browser', 'View in browser link', 'toggle'), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [8, 60])],
       defaults: { align: 'left', tagline: '', browser: true, bg: 'brand.sheet', pad: 24 },
       render(p, b) { const logo = b.logo ? `<a href="${esc(b.website)}"><img src="${esc(b.logo)}" alt="${esc(b.company)}" width="${b.logoWidth}" style="display:${p.align === 'center' ? 'inline-block' : 'block'};width:${b.logoWidth}px;height:auto;border:0"></a>` : `<a href="${esc(b.website)}" style="font-size:20px;font-weight:700;color:${b.ink};text-decoration:none;letter-spacing:-.01em">${esc(b.company)}</a>`; const vb = tag('browser'); const line = p.browser && vb ? `<div style="font-size:11px;color:${b.muted};margin:0 0 14px"><a href="${vb}" style="color:${b.muted};text-decoration:underline">View in browser</a></div>` : ''; return cell(p, b, line + logo + (p.tagline ? `<div style="font-size:12px;color:${b.muted};margin-top:6px">${ed('tagline', esc(p.tagline))}</div>` : '')); } },
-    hero: { name: 'Hero', desc: 'Eyebrow, headline, lede, CTA', fields: [F('eyebrow', 'Eyebrow', 'text'), F('headline', 'Headline', 'textarea'), F('lede', 'Lede', 'textarea'), F('image', 'Image URL', 'url'), F('imageAlt', 'Image alt', 'text'), F('cta', 'Button text', 'text'), F('url', 'Button URL', 'url'), F('bg', 'Background', 'color'), F('color', 'Text colour', 'color'), F('align', 'Align', 'select', ['left', 'center']), F('pad', 'Padding', 'range', [16, 80])],
+    hero: { name: 'Hero', desc: 'Eyebrow, headline, lede, CTA', fields: [F('eyebrow', 'Eyebrow', 'text'), F('headline', 'Headline', 'textarea'), F('lede', 'Lede', 'textarea'), F('image', 'Image URL', 'url'), F('imageAlt', 'Image alt', 'text'), F('cta', 'Button text', 'text'), F('url', 'Button URL', 'url'), F('bg', 'Background', 'color'), F('color', 'Text color', 'color'), F('align', 'Align', 'select', ['left', 'center']), F('pad', 'Padding', 'range', [16, 80])],
       defaults: { eyebrow: 'Announcement', headline: 'A headline that earns the open', lede: 'One or two sentences that say why this matters to the reader, not to you.', image: '', imageAlt: '', cta: 'Read more', url: 'https://example.com', bg: 'brand.dark', color: '#ffffff', align: 'left', pad: 44 },
       render(p, b) { const c = col(p.color); return cell(p, b, `${p.image ? `<div style="margin:0 0 24px">${img(p.image, p.imageAlt, 528)}</div>` : ''}${p.eyebrow ? `<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:${b.primary === col(p.bg) ? c : b.primary};margin:0 0 12px;opacity:.95">${ed('eyebrow', esc(p.eyebrow))}</div>` : ''}<h1 style="margin:0 0 12px;font-size:30px;line-height:1.15;letter-spacing:-.02em;color:${c};font-weight:700">${ed('headline', esc(p.headline))}</h1>${p.lede ? `<p style="margin:0 0 ${p.cta ? 26 : 0}px;font-size:17px;line-height:1.5;color:${c};opacity:.85">${ed('lede', esc(p.lede))}</p>` : ''}${p.cta ? btn(p.cta, p.url, col(p.bg) === b.primary ? '#ffffff' : b.primary, col(p.bg) === b.primary ? b.primary : '#ffffff', b.radius, false, b.font) : ''}`); } },
-    text: { name: 'Text', desc: 'Paragraphs with bold, italic, links', fields: [F('heading', 'Heading', 'text'), F('body', 'Body', 'textarea'), F('size', 'Size', 'select', ['14', '16', '18']), F('color', 'Text colour', 'color'), F('bg', 'Background', 'color'), F('align', 'Align', 'select', ['left', 'center']), F('pad', 'Padding', 'range', [0, 60])],
+    text: { name: 'Text', desc: 'Paragraphs with bold, italic, links', fields: [F('heading', 'Heading', 'text'), F('body', 'Body', 'textarea'), F('size', 'Size', 'select', ['14', '16', '18']), F('color', 'Text color', 'color'), F('bg', 'Background', 'color'), F('align', 'Align', 'select', ['left', 'center']), F('pad', 'Padding', 'range', [0, 60])],
       defaults: { heading: '', body: 'Write in **bold**, *italic*, and [link text](https://example.com). Blank line for a new paragraph.', size: '16', color: 'brand.ink', bg: 'brand.sheet', align: 'left', pad: 24 },
       render(p, b) { return cell(p, b, `${p.heading ? `<h2 style="margin:0 0 10px;font-size:22px;line-height:1.25;letter-spacing:-.01em;color:${col(p.color)}">${ed('heading', esc(p.heading))}</h2>` : ''}<div style="font-size:${p.size}px;line-height:1.55;color:${col(p.color)}">${edb('body', md(p.body, b.primary))}</div>`); } },
     image: { name: 'Image', desc: 'Full width or fixed, optional link', fields: [F('src', 'Image URL', 'url'), F('alt', 'Alt text', 'text'), F('link', 'Link URL', 'url'), F('width', 'Width', 'select', ['full', '400', '300', '200']), F('align', 'Align', 'select', ['center', 'left']), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 60])],
       defaults: { src: '', alt: '', link: '', width: 'full', align: 'center', bg: 'brand.sheet', pad: 0 },
       render(p, b) { const w = p.width === 'full' ? 600 : +p.width; const i = img(p.src, p.alt, w); return cell(Object.assign({}, p, { padX: p.width === 'full' ? 0 : 36 }), b, p.link ? `<a href="${esc(p.link)}">${i}</a>` : i); } },
-    button: { name: 'Button', desc: 'Bulletproof CTA', fields: [F('text', 'Text', 'text'), F('url', 'URL', 'url'), F('bg', 'Button colour', 'color'), F('color', 'Label colour', 'color'), F('align', 'Align', 'select', ['left', 'center']), F('full', 'Full width', 'toggle'), F('bgc', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 60])],
+    button: { name: 'Button', desc: 'Bulletproof CTA', fields: [F('text', 'Text', 'text'), F('url', 'URL', 'url'), F('bg', 'Button color', 'color'), F('color', 'Label color', 'color'), F('align', 'Align', 'select', ['left', 'center']), F('full', 'Full width', 'toggle'), F('bgc', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 60])],
       defaults: { text: 'Get started', url: 'https://example.com', bg: 'brand.primary', color: '#ffffff', align: 'left', full: false, bgc: 'brand.sheet', pad: 8 },
       render(p, b) { return cell(Object.assign({}, p, { bg: p.bgc }), b, btn(p.text, p.url, col(p.bg), col(p.color), b.radius, p.full, b.font, 'text')); } },
     columns: { name: 'Two columns', desc: 'Stacks on mobile', fields: [F('ratio', 'Ratio', 'select', ['50/50', '40/60', '60/40']), F('leftImage', 'Left image URL', 'url'), F('left', 'Left text', 'textarea'), F('rightImage', 'Right image URL', 'url'), F('right', 'Right text', 'textarea'), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 60])],
       defaults: { ratio: '50/50', leftImage: '', left: '**Left column**\nShort supporting copy.', rightImage: '', right: '**Right column**\nShort supporting copy.', bg: 'brand.sheet', pad: 24 },
       render(p, b) { const [l, r] = p.ratio.split('/').map(Number), W = 528, lw = Math.round(W * l / 100) - 10, rw = Math.round(W * r / 100) - 10; const side = (im, tx, w, k) => `<td class="stack" width="${w}" valign="top" style="width:${w}px;padding:0 0 12px">${im ? `<div style="margin:0 0 12px">${img(im, '', w)}</div>` : ''}<div style="font-size:15px;line-height:1.5;color:${b.ink}">${edb(k, md(tx, b.primary))}</div></td>`; return cell(p, b, `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>${side(p.leftImage, p.left, lw, 'left')}<td class="stack" width="20" style="width:20px;font-size:0;line-height:0">&nbsp;</td>${side(p.rightImage, p.right, rw, 'right')}</tr></table>`); } },
-    features: { name: 'Feature grid', desc: 'Three cards, stack on mobile', fields: [F('t1', 'Title 1', 'text'), F('d1', 'Text 1', 'textarea'), F('t2', 'Title 2', 'text'), F('d2', 'Text 2', 'textarea'), F('t3', 'Title 3', 'text'), F('d3', 'Text 3', 'textarea'), F('cardBg', 'Card colour', 'color'), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 60])],
+    features: { name: 'Feature grid', desc: 'Three cards, stack on mobile', fields: [F('t1', 'Title 1', 'text'), F('d1', 'Text 1', 'textarea'), F('t2', 'Title 2', 'text'), F('d2', 'Text 2', 'textarea'), F('t3', 'Title 3', 'text'), F('d3', 'Text 3', 'textarea'), F('cardBg', 'Card color', 'color'), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 60])],
       defaults: { t1: 'Fast', d1: 'One line on the benefit.', t2: 'Local', d2: 'One line on the benefit.', t3: 'Yours', d3: 'One line on the benefit.', cardBg: 'brand.paper', bg: 'brand.sheet', pad: 24 },
       render(p, b) { const card = (t, d, n) => `<td class="stack" width="169" valign="top" style="width:169px;padding:0 0 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="${col(p.cardBg)}" style="background-color:${col(p.cardBg)};border-radius:${b.radius}px;padding:18px"><div style="font-size:15px;font-weight:600;color:${b.ink};margin:0 0 6px">${ed('t' + n, esc(t))}</div><div style="font-size:13.5px;line-height:1.5;color:${b.muted}">${edb('d' + n, md(d, b.primary))}</div></td></tr></table></td>`; const gap = `<td class="stack" width="10" style="width:10px;font-size:0;line-height:0">&nbsp;</td>`; return cell(p, b, `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>${card(p.t1, p.d1, 1)}${gap}${card(p.t2, p.d2, 2)}${gap}${card(p.t3, p.d3, 3)}</tr></table>`); } },
-    card: { name: 'Product card', desc: 'Image, title, price, button', fields: [F('image', 'Image URL', 'url'), F('title', 'Title', 'text'), F('text', 'Text', 'textarea'), F('price', 'Price / meta', 'text'), F('cta', 'Button text', 'text'), F('url', 'URL', 'url'), F('cardBg', 'Card colour', 'color'), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 60])],
+    card: { name: 'Product card', desc: 'Image, title, price, button', fields: [F('image', 'Image URL', 'url'), F('title', 'Title', 'text'), F('text', 'Text', 'textarea'), F('price', 'Price / meta', 'text'), F('cta', 'Button text', 'text'), F('url', 'URL', 'url'), F('cardBg', 'Card color', 'color'), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 60])],
       defaults: { image: '', title: 'Product name', text: 'One sentence that sells it.', price: '$49', cta: 'Buy now', url: 'https://example.com', cardBg: 'brand.paper', bg: 'brand.sheet', pad: 24 },
       render(p, b) { return cell(p, b, `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="${col(p.cardBg)}" style="background-color:${col(p.cardBg)};border-radius:${b.radius}px;padding:20px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="stack" width="200" valign="top" style="width:200px;padding:0 20px 12px 0">${img(p.image, p.title, 200)}</td><td class="stack" valign="top" style="padding:0 0 12px"><div style="font-size:18px;font-weight:600;color:${b.ink};margin:0 0 6px">${ed('title', esc(p.title))}</div><div style="font-size:14px;line-height:1.5;color:${b.muted};margin:0 0 10px">${edb('text', md(p.text, b.primary))}</div><div style="font-size:16px;font-weight:600;color:${b.ink};margin:0 0 14px">${ed('price', esc(p.price))}</div>${btn(p.cta, p.url, b.primary, '#ffffff', b.radius, false, b.font)}</td></tr></table></td></tr></table>`); } },
     quote: { name: 'Quote', desc: 'Pull quote with attribution', fields: [F('text', 'Quote', 'textarea'), F('cite', 'Attribution', 'text'), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 60])],
       defaults: { text: 'A line worth pulling out of the body, said by someone the reader trusts.', cite: 'Name, role', bg: 'brand.sheet', pad: 24 },
       render(p, b) { return cell(p, b, `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-left:3px solid ${b.primary};padding:4px 0 4px 18px"><div style="font-size:19px;line-height:1.4;color:${b.ink};font-style:italic">“${ed('text', esc(p.text))}”</div>${p.cite ? `<div style="font-size:13px;color:${b.muted};margin-top:10px">— ${ed('cite', esc(p.cite))}</div>` : ''}</td></tr></table>`); } },
-    divider: { name: 'Divider', desc: 'Thin rule', fields: [F('color', 'Line colour', 'color'), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 40])],
+    divider: { name: 'Divider', desc: 'Thin rule', fields: [F('color', 'Line color', 'color'), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 40])],
       defaults: { color: 'brand.line', bg: 'brand.sheet', pad: 8 },
       render(p, b) { return cell(p, b, `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="height:1px;line-height:1px;font-size:1px;background-color:${col(p.color)}" bgcolor="${col(p.color)}">&nbsp;</td></tr></table>`); } },
     spacer: { name: 'Spacer', desc: 'Vertical room', fields: [F('height', 'Height', 'range', [8, 80]), F('bg', 'Background', 'color')],
@@ -682,10 +683,10 @@ ${preheader}${content}
   }
   function renderInspector() {
     const bl = state.blocks.find(x => x.id === state.selected), p = $('#panelBlock');
-    if (!bl) { p.innerHTML = `<div class="hint">Select a block on the canvas, or drag one in from the left.</div>${state.blocks.length ? '' : '<div class="hint">Colours default to <b>brand tokens</b>, so switching brand on the Brand tab re-skins the whole email.</div>'}`; return; }
+    if (!bl) { p.innerHTML = `<div class="hint">Select a block on the canvas, or drag one in from the left.</div>${state.blocks.length ? '' : '<div class="hint">Colors default to <b>brand tokens</b>, so switching brand on the Brand tab re-skins the whole email.</div>'}`; return; }
     const def = BLOCKS[bl.type];
     const tags = TAG_MENU.filter(([k]) => tag(k)).map(([k, l]) => `<option value="${esc(tag(k))}">${l}</option>`).join('');
-    p.innerHTML = `<h4>${def.name}</h4><div class="tagbar"><select id="tagPick"><option value="">Insert ${ESP[brand().esp || 'bento'].name.split(' ')[0]} tag…</option>${tags}</select><button class="btn" id="btnModule" title="Save this block with its content as a reusable module">Save as module</button></div>${def.fields.map(f => field(f, bl.props[f.k], 'b')).join('')}<div class="hint">Click any text on the canvas to edit it in place — ⌘B, ⌘I, ⌘K for a link. Text fields take **bold**, *italic* and [links](https://…). Colours that say “Brand” follow the Brand tab.</div>`;
+    p.innerHTML = `<h4>${def.name}</h4><div class="tagbar"><select id="tagPick"><option value="">Insert ${ESP[brand().esp || 'bento'].name.split(' ')[0]} tag…</option>${tags}</select><button class="btn" id="btnModule" title="Save this block with its content as a reusable module">Save as module</button></div>${def.fields.map(f => field(f, bl.props[f.k], 'b')).join('')}<div class="hint">Click any text on the canvas to edit it in place — ⌘B, ⌘I, ⌘K for a link. Text fields take **bold**, *italic* and [links](https://…). Colors that say “Brand” follow the Brand tab.</div>`;
     renderBrandPanel();
   }
   let lastField = null;
@@ -711,7 +712,7 @@ ${preheader}${content}
     const b = brand(), p = $('#panelBrand');
     p.innerHTML = `<div class="field"><label>Brand</label><select id="brandSel">${brands.map(x => `<option value="${x.id}" ${x.id === b.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
       <div class="row-btns"><button class="btn" id="brandNew">New brand</button><button class="btn" id="brandDup">Duplicate</button><button class="btn" id="brandDel" ${brands.length < 2 ? 'disabled' : ''}>Delete</button></div>
-      <div class="row-btns"><button class="btn" id="brandImport" title="Colours, body font and radius from the Zest studio">Import zest-brand.json</button></div>
+      <div class="row-btns"><button class="btn" id="brandImport" title="Colors, body font and radius from the Zest studio">Import zest-brand.json</button></div>
       ${BRAND_FIELDS.map(f => f.length === 1 ? `<h4>${f[0]}</h4>` : f[2] === 'select' ? `<div class="field"><label>${f[1]}</label><select data-bk="${f[0]}">${f[3].map(o => `<option value="${o}" ${b[f[0]] === o ? 'selected' : ''}>${o === 'bento' ? 'Bento (Liquid)' : o === 'generic' ? 'None — plain URLs' : 'Custom tags'}</option>`).join('')}</select></div>` : f[2] === 'color' ? `<div class="field"><label>${f[1]}</label><input type="color" data-bk="${f[0]}" value="${b[f[0]]}"><span class="val" style="width:auto">${b[f[0]]}</span></div>` : `<div class="field"><label>${f[1]}</label><input type="${f[2]}" data-bk="${f[0]}" value="${esc(b[f[0]])}"></div>`).join('')}
       <div class="hint">One brand per Bento site. Platform decides which merge tags the footer, header and “Insert tag” menu use; the canvas shows the raw tags and the Desktop/Mobile previews show sample values. Brands are saved in this browser and travel inside exported .json designs. Import zest-brand.json (or drop one anywhere) to pull the Zest studio’s light palette, body font and corner radius into a brand here — identity fields stay yours.</div>`;
   }
@@ -784,8 +785,7 @@ ${preheader}${content}
   function setView(v) { state.view = v; $$('#viewSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.w === v)); run(); }
   $('#modeSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.m); });
   $('#viewSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setView(b.dataset.w); });
-  $('#btnTheme').addEventListener('click', () => { const r = document.documentElement, dark = r.dataset.theme === 'dark' || (r.dataset.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches); r.dataset.theme = dark ? 'light' : 'dark'; store.set('theme', r.dataset.theme); });
-  document.documentElement.dataset.theme = store.get('theme', 'auto');
+  // The chrome wears orange, always (fruits.json) — the one theme every Zest tool shares; emails keep their own brand colors.
   $('#btnUndo').addEventListener('click', undo);
   document.addEventListener('keydown', e => {
     const mod = e.metaKey || e.ctrlKey, inField = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || document.activeElement.isContentEditable;

@@ -74,9 +74,9 @@ developer: {
 }
 ```
 
-The sixteen tokens, in order: `paper, sheet, ink, ink-2, ink-3, rule, accent, accent-soft, code-bg, on-accent`, then six syntax colours `comment, keyword, string, number, function, variable`.
+The sixteen tokens, in order: `paper, sheet, ink, ink-2, ink-3, rule, accent, accent-soft, code-bg, on-accent`, then six syntax colors `comment, keyword, string, number, function, variable`.
 
-The **Custom** skin takes four colours (page, sheet, ink, accent) and derives the other twelve, plus a full opposite-mode palette, so a user can never build an unreadable skin. See `derive()` and `customSkin()`.
+The **Custom** skin takes four colors (page, sheet, ink, accent) and derives the other twelve, plus a full opposite-mode palette, so a user can never build an unreadable skin. See `derive()` and `customSkin()`.
 
 To add a font: add it to the Google Fonts `<link>` (both places — head and export), add an entry to `F`, add the key to `FONT_CHOICES` and `FONT_NAMES`.
 

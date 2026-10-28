@@ -9,7 +9,7 @@ A `zest-brand.json` exported from the Zest studio becomes the custom skin
 map to the nearest families in the typeface picker, and the radius carries
 over. Import it from Settings → Custom skin → "Import zest-brand.json", or
 drop the file anywhere on the page. Hand-editing one of the four custom
-colours releases the explicit palettes back to derivation.
+colors releases the explicit palettes back to derivation.
 
 ## Deploy
 

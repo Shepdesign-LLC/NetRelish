@@ -135,9 +135,16 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .app{display:grid; grid-template-rows:52px 1fr; height:100%}
 
 /* toolbar */
-.bar{display:flex; align-items:center; gap:6px; padding:0 14px; background:var(--sheet); border-bottom:1px solid var(--rule); position:relative; z-index:5}
+/* The chrome wears lime (fruits.json) — tokens scoped to the bar, so the document below keeps its skins */
+.bar{--paper:#0c1708; --sheet:#15230f; --ink:#eef4e6; --ink-2:#b8c6ab; --ink-3:#93a487; --rule:#2b3b22; --accent:#4fbf3a; --accent-soft:#1a3012; --on-accent:#070f06; --code-bg:#0e1b0a;
+  display:flex; align-items:center; gap:6px; padding:0 14px; color:var(--ink); background:var(--sheet); border-bottom:1px solid var(--rule); position:relative; z-index:5} /* color re-anchored: inherited color resolves above the scope */
+.bar .btn.primary{background:var(--accent); color:var(--on-accent); font-weight:600}
+.bar .btn.primary:hover{background:var(--accent); color:var(--on-accent); filter:brightness(1.1)}
 .brand{display:flex; align-items:center; gap:9px; margin-right:10px; font-weight:600; letter-spacing:-.01em; white-space:nowrap}
-.brand .mark{width:22px; height:22px; border-radius:5px; background:var(--ink); color:var(--sheet); display:grid; place-items:center; font:700 12px/1 var(--doc-font)}
+.brand .mark{width:22px; height:22px; border-radius:6px; background:linear-gradient(180deg,#8FE04A,#3FAA2A); display:grid; place-items:center; box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+.brand .mark svg{width:13px; height:13px; display:block; fill:#070F06}
+.brand .tag{font:500 10.5px var(--mono,ui-monospace,monospace); letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin-left:4px}
+@media(max-width:1180px){.brand .tag{display:none}}
 .tabs{display:flex; gap:2px; overflow-x:auto; flex:1; min-width:0; scrollbar-width:none; align-self:stretch; align-items:end}
 .tabs::-webkit-scrollbar{display:none}
 .tab{display:flex; align-items:center; gap:6px; padding:8px 8px 8px 12px; margin-bottom:-1px; border-radius:8px 8px 0 0; color:var(--ink-2); white-space:nowrap; max-width:240px; border:1px solid var(--rule); border-bottom:0; cursor:default; background:color-mix(in srgb,var(--paper) 45%,var(--sheet))}
@@ -244,7 +251,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 <body>
 <div class="app">
   <header class="bar">
-    <div class="brand"><span class="mark">Z</span>Zest MD</div>
+    <div class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 100 100"><path d="M50 10 C52 10 54 11 55 13 L91 78 C93 82 91 87 86 88 C63 95 37 95 14 88 C9 87 7 82 9 78 L45 13 C46 11 48 10 50 10 Z" transform="rotate(180 50 50)"/></svg></span>Zest MD<span class="tag">lime · read like it was typeset</span></div>
     <div class="tabs" id="tabs" role="tablist"></div>
 
     <div class="group">
@@ -690,7 +697,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   };
   const TOKENS = ['paper','sheet','ink','ink-2','ink-3','rule','accent','accent-soft','code-bg','on-accent','c-comment','c-kw','c-str','c-num','c-fn','c-var'];
 
-  /* ---------- colour helpers for the custom skin ---------- */
+  /* ---------- color helpers for the custom skin ---------- */
   const hex2rgb = x => { const n = parseInt(x.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
   const rgb2hex = ([r, g, b]) => '#' + [r, g, b].map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
   const mix = (a, b, t) => rgb2hex(hex2rgb(a).map((v, i) => v + (hex2rgb(b)[i] - v) * t));
@@ -705,18 +712,18 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   function customSkin() {
     const c = state.settings.custom, isDark = lum(c.paper) < .35;
     const fonts = [F[c.doc] || F.geist, F[c.ui] || F.geist, F[c.mono] || F.geistMono];
-    // an imported zest-brand.json carries BOTH palettes explicitly (§7.3); hand-editing a colour releases them
+    // an imported zest-brand.json carries BOTH palettes explicitly (§7.3); hand-editing a color releases them
     if (c.brand) {
       if (tokensOk(c.brand.light) && tokensOk(c.brand.dark))
         return { name: String(c.brand.name || 'Custom').slice(0, 48), desc: 'Imported from Zest — both palettes explicit', fonts, radius: c.radius + 'px', light: c.brand.light, dark: c.brand.dark };
-      delete c.brand;                  // tampered or truncated storage: fall back to the four-colour derivation
+      delete c.brand;                  // tampered or truncated storage: fall back to the four-color derivation
     }
     const base = derive(c.paper, c.sheet, c.ink, c.accent);
-    // the other mode is derived from the same four colours: ink and paper swap roles, the accent keeps its hue
+    // the other mode is derived from the same four colors: ink and paper swap roles, the accent keeps its hue
     const other = isDark
       ? derive(mix(c.ink, '#ffffff', .82), mix(c.ink, '#ffffff', .94), mix(c.paper, '#000000', .35), mix(c.accent, '#000000', .3))
       : derive(mix(c.ink, '#000000', .55), mix(c.ink, '#000000', .42), mix(c.paper, '#ffffff', .45), mix(c.accent, '#ffffff', .3));
-    return { name: 'Custom', desc: 'Your colours and type', fonts, radius: c.radius + 'px', light: isDark ? other : base, dark: isDark ? base : other };
+    return { name: 'Custom', desc: 'Your colors and type', fonts, radius: c.radius + 'px', light: isDark ? other : base, dark: isDark ? base : other };
   }
   function resolveSkin(key) { return key === 'custom' ? customSkin() : (SKINS[key] || SKINS.press); }
   let lastPreset = 'press';
@@ -742,7 +749,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   $('#custom').addEventListener('input', e => {
     const k = e.target.dataset.c; if (!k) return;
     const c = state.settings.custom;
-    if (c.brand && ['paper', 'sheet', 'ink', 'accent'].includes(k)) { delete c.brand; toast('Hand edit — both palettes now derive from these four colours.'); }
+    if (c.brand && ['paper', 'sheet', 'ink', 'accent'].includes(k)) { delete c.brand; toast('Hand edit — both palettes now derive from these four colors.'); }
     c[k] = k === 'radius' ? +e.target.value : e.target.value;
     applySettings(); renderSkins();
   });

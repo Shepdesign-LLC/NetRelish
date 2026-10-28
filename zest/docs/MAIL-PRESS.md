@@ -47,7 +47,7 @@ The centre pane is the email at your chosen width (Message tab → Width). Each 
 
 ### 2.2 Blocks
 
-Thirteen. All table-based, all stack on mobile, all take their colours from the brand unless you override them.
+Thirteen. All table-based, all stack on mobile, all take their colors from the brand unless you override them.
 
 | Block | What it's for |
 |---|---|
@@ -65,7 +65,7 @@ Thirteen. All table-based, all stack on mobile, all take their colours from the 
 | **Social links** | Text links from the brand's social URLs (no icons: icons need hosted images) |
 | **Footer** | Company, address, note, and the platform's unsubscribe link — see §4 |
 
-Every block has a **Padding** slider and a **Background** colour; most have **Align**.
+Every block has a **Padding** slider and a **Background** color; most have **Align**.
 
 ### 2.3 Editing text on the canvas
 
@@ -86,7 +86,7 @@ Click any headline, paragraph, button label, card or footer note and type.
 | **Lint** | Compatibility flags with explanations, plus stats |
 | **Claude** | Optional model assistance (§7) |
 
-**Colour fields** are a dropdown of brand tokens (Brand primary, Brand text, Brand dark, …) plus **Custom…**, which enables the colour picker beside it. Leave colours on brand tokens if you want the design to re-skin when you switch brand.
+**Color fields** are a dropdown of brand tokens (Brand primary, Brand text, Brand dark, …) plus **Custom…**, which enables the color picker beside it. Leave colors on brand tokens if you want the design to re-skin when you switch brand.
 
 ### 2.5 Templates
 
@@ -94,7 +94,7 @@ Seven starting points: Newsletter, Product launch, Announcement, Welcome, Event 
 
 ### 2.6 Modules
 
-Select a block, click **Save as module**, name it. It appears under **My modules** on the left with its content and colours, ready to drag into any design. Use it for a house footer, a branded hero, a legal block. Remove with the "remove" link on the card.
+Select a block, click **Save as module**, name it. It appears under **My modules** on the left with its content and colors, ready to drag into any design. Use it for a house footer, a branded hero, a legal block. Remove with the "remove" link on the card.
 
 ### 2.7 Saving
 
@@ -111,14 +111,14 @@ One brand per site. In Bento terms, one brand per Bento site.
 | Section | Fields |
 |---|---|
 | Identity | Name, **Platform** (Bento / plain URLs / custom), **Bento site**, logo URL, logo width, company, address, website |
-| Colours | Primary, text, muted text, dark panel, sheet, page, lines |
+| Colors | Primary, text, muted text, dark panel, sheet, page, lines |
 | Type | Font stack, corner radius |
 | Links | Unsubscribe URL, preferences URL, Instagram, LinkedIn, X, Facebook, YouTube |
 | Custom platform tags | Only used when Platform is "custom" |
 
 **New brand** starts from defaults. **Duplicate** copies the current one — the fast way to spin up a sister brand. Brands persist in the browser and ride inside exported `.json` designs.
 
-Switching brand in the dropdown re-renders the canvas immediately. If a block's colour is set to a brand token it follows; if you set a custom hex it stays put. That's the rule for everything: tokens follow the brand, literals don't.
+Switching brand in the dropdown re-renders the canvas immediately. If a block's color is set to a brand token it follows; if you set a custom hex it stays put. That's the rule for everything: tokens follow the brand, literals don't.
 
 ---
 
@@ -211,7 +211,7 @@ The pill in the top bar is the summary: clean, *n* to review, or *n* blocking.
 
 Bring your own key, or route through the server proxy in the hosted version. The model never bypasses the pipeline: output lands in Source and gets compiled and linted like anything you paste.
 
-- **Draft from brief** — sends your brief plus the current brand (colours, fonts, footer, platform tags) and a system prompt that already knows the email rules.
+- **Draft from brief** — sends your brief plus the current brand (colors, fonts, footer, platform tags) and a system prompt that already knows the email rules.
 - **Fix flagged issues** — sends the current HTML and the lint flags, asks for a rewrite that resolves them while keeping the design.
 
 **Routes**
