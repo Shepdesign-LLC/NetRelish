@@ -29,8 +29,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 /* toolbar */
 .bar{display:flex; align-items:center; gap:6px; padding:0 14px; background:var(--sheet); border-bottom:1px solid var(--rule); position:relative; z-index:5}
 .brand{display:flex; align-items:center; gap:9px; margin-right:6px; font-weight:600; letter-spacing:-.01em; white-space:nowrap}
-.brand .mark{width:22px; height:22px; border-radius:6px; background:linear-gradient(180deg,var(--peel-a),var(--peel-b)); display:grid; place-items:center; box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
-.brand .mark svg{width:13px; height:13px; display:block; fill:var(--night)}
+.brand .mark{width:34px; height:34px; border-radius:9px; display:block; box-shadow:0 4px 12px -4px rgba(0,0,0,.5)}
 .brand .tag{font:500 10.5px var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin-left:4px}
 @media(max-width:1180px){.brand .tag{display:none}}
 .spacer{flex:1}
@@ -161,7 +160,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 <body>
 <div class="app">
   <header class="bar">
-    <div class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 100 100"><path d="M50 10 C52 10 54 11 55 13 L91 78 C93 82 91 87 86 88 C63 95 37 95 14 88 C9 87 7 82 9 78 L45 13 C46 11 48 10 50 10 Z" transform="rotate(90 50 50)"/></svg></span>ZestMail<span class="tag">orange · email from your tokens</span></div>
+    <div class="brand"><img class="mark" src="icons/icon-192.png" alt="" aria-hidden="true">ZestMail<span class="tag">orange · email from your tokens</span></div>
     <div class="seg" id="modeSeg"><button data-m="build" aria-pressed="true">Build</button><button data-m="source">Source</button></div>
     <span class="pill" id="sizePill">0 KB</span>
     <span class="pill" id="lintPill">empty</span>

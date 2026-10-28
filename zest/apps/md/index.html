@@ -141,8 +141,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .bar .btn.primary{background:var(--accent); color:var(--on-accent); font-weight:600}
 .bar .btn.primary:hover{background:var(--accent); color:var(--on-accent); filter:brightness(1.1)}
 .brand{display:flex; align-items:center; gap:9px; margin-right:10px; font-weight:600; letter-spacing:-.01em; white-space:nowrap}
-.brand .mark{width:22px; height:22px; border-radius:6px; background:linear-gradient(180deg,#8FE04A,#3FAA2A); display:grid; place-items:center; box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
-.brand .mark svg{width:13px; height:13px; display:block; fill:#070F06}
+.brand .mark{width:34px; height:34px; border-radius:9px; display:block; box-shadow:0 4px 12px -4px rgba(0,0,0,.5)}
 .brand .tag{font:500 10.5px var(--mono,ui-monospace,monospace); letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin-left:4px}
 @media(max-width:1180px){.brand .tag{display:none}}
 .tabs{display:flex; gap:2px; overflow-x:auto; flex:1; min-width:0; scrollbar-width:none; align-self:stretch; align-items:end}
@@ -252,7 +251,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 <body>
 <div class="app">
   <header class="bar">
-    <div class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 100 100"><path d="M50 10 C52 10 54 11 55 13 L91 78 C93 82 91 87 86 88 C63 95 37 95 14 88 C9 87 7 82 9 78 L45 13 C46 11 48 10 50 10 Z" transform="rotate(180 50 50)"/></svg></span>Zest MD<span class="tag">lime · read like it was typeset</span></div>
+    <div class="brand"><img class="mark" src="icons/icon-192.png" alt="" aria-hidden="true">Zest MD<span class="tag">lime · read like it was typeset</span></div>
     <div class="tabs" id="tabs" role="tablist"></div>
 
     <div class="group">
