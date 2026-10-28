@@ -218,7 +218,8 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .stage.drag{outline:3px dashed var(--accent); outline-offset:-12px; background:var(--accent-soft)}
 
 /* empty state */
-.empty-state{max-width:640px; margin:0 auto; padding:14vh 32px 80px; font-family:var(--doc-font)}
+.empty-state{max-width:640px; margin:0 auto; padding:12vh 32px 80px; font-family:var(--doc-font)}
+.empty-state .appmark{width:56px; height:56px; border-radius:14px; display:block; margin:0 0 22px; box-shadow:0 12px 32px -12px rgba(7,15,6,.5)}
 .empty-state h1{font-size:44px; line-height:1.05; font-weight:700; letter-spacing:-.025em; margin:0 0 20px}
 .empty-state p{font-size:19px; line-height:1.55; color:var(--ink-2); margin:0 0 28px}
 .empty-state .actions{display:flex; gap:10px; flex-wrap:wrap; font-family:var(--ui-font)}
@@ -537,6 +538,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   function renderEmpty() {
     doc.innerHTML = `
       <div class="empty-state">
+        <img class="appmark" src="icons/icon-192.png" alt="">
         <h1>Drop a Markdown file. Read it like it was typeset.</h1>
         <p>Everything renders in this tab. Nothing is uploaded. Code, math, diagrams, tables and task lists all work, and the result exports as a single HTML file or a PDF.</p>
         <div class="actions">
