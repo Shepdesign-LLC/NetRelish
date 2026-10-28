@@ -922,8 +922,8 @@ $$('[data-send]').forEach(b => b.addEventListener('click', async () => {
   const tool = b.dataset.send, name = `${slug(S.name)}-zest-brand.json`;
   const notes = {
     image: 'drop it anywhere on ZestImage and every layout re-skins',
-    mail: 'ZestMail reads the light palette, body font and radius — its Brand import lands with Milestone 1',
-    md: 'Zest MD reads both palettes into a custom skin — its import lands with Milestone 1',
+    mail: 'ZestMail reads the light palette, body font and radius — import it from the Brand tab, or drop it on the page',
+    md: 'Zest MD reads both palettes into its custom skin — import it from Settings, or drop it on the page',
   };
   if (!await download(name, JSON.stringify(brandJSON(), null, 2), 'application/json')) { toast('Cancelled — nothing saved.'); return; }
   toast(`${name} — ${notes[tool]}.`);

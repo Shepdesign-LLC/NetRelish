@@ -255,6 +255,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
   </div>
 </div>
 <input type="file" id="jsonFile" class="sr" accept=".json,application/json">
+<input type="file" id="brandFile" class="sr" accept=".json,application/json" aria-label="Import a zest-brand.json">
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -710,8 +711,9 @@ ${preheader}${content}
     const b = brand(), p = $('#panelBrand');
     p.innerHTML = `<div class="field"><label>Brand</label><select id="brandSel">${brands.map(x => `<option value="${x.id}" ${x.id === b.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
       <div class="row-btns"><button class="btn" id="brandNew">New brand</button><button class="btn" id="brandDup">Duplicate</button><button class="btn" id="brandDel" ${brands.length < 2 ? 'disabled' : ''}>Delete</button></div>
+      <div class="row-btns"><button class="btn" id="brandImport" title="Colours, body font and radius from the Zest studio">Import zest-brand.json</button></div>
       ${BRAND_FIELDS.map(f => f.length === 1 ? `<h4>${f[0]}</h4>` : f[2] === 'select' ? `<div class="field"><label>${f[1]}</label><select data-bk="${f[0]}">${f[3].map(o => `<option value="${o}" ${b[f[0]] === o ? 'selected' : ''}>${o === 'bento' ? 'Bento (Liquid)' : o === 'generic' ? 'None — plain URLs' : 'Custom tags'}</option>`).join('')}</select></div>` : f[2] === 'color' ? `<div class="field"><label>${f[1]}</label><input type="color" data-bk="${f[0]}" value="${b[f[0]]}"><span class="val" style="width:auto">${b[f[0]]}</span></div>` : `<div class="field"><label>${f[1]}</label><input type="${f[2]}" data-bk="${f[0]}" value="${esc(b[f[0]])}"></div>`).join('')}
-      <div class="hint">One brand per Bento site. Platform decides which merge tags the footer, header and “Insert tag” menu use; the canvas shows the raw tags and the Desktop/Mobile previews show sample values. Brands are saved in this browser and travel inside exported .json designs.</div>`;
+      <div class="hint">One brand per Bento site. Platform decides which merge tags the footer, header and “Insert tag” menu use; the canvas shows the raw tags and the Desktop/Mobile previews show sample values. Brands are saved in this browser and travel inside exported .json designs. Import zest-brand.json (or drop one anywhere) to pull the Zest studio’s light palette, body font and corner radius into a brand here — identity fields stay yours.</div>`;
   }
   $('#panelBlock').addEventListener('input', e => {
     const bl = state.blocks.find(x => x.id === state.selected), k = e.target.dataset.k; if (!bl || !k) return;
@@ -732,6 +734,7 @@ ${preheader}${content}
     store.set('brands', brands); renderCanvas(); schedule();
   });
   $('#panelBrand').addEventListener('click', e => {
+    if (e.target.id === 'brandImport') { $('#brandFile').click(); return; }
     if (e.target.id === 'brandNew') { const nb = BRAND_DEFAULT(); brands.push(nb); state.brandId = nb.id; }
     else if (e.target.id === 'brandDup') { const nb = Object.assign({}, brand(), { id: uid(), name: brand().name + ' copy' }); brands.push(nb); state.brandId = nb.id; }
     else if (e.target.id === 'brandDel') { if (!confirm(`Delete brand “${brand().name}”?`)) return; brands = brands.filter(x => x.id !== state.brandId); state.brandId = brands[0].id; }
@@ -823,7 +826,58 @@ ${preheader}${content}
     if (!last) return toast('Nothing compiled yet');
     ({ copy: () => copy(last.html, 'Email HTML copied'), download: () => download(slug() + '.html', last.html, 'text/html'), text: () => copy(toText(last.html), 'Plain-text version copied'), tosource: () => { src.value = last.html; setMode('source'); toast('Compiled HTML is now in Source — the builder still has your blocks'); } })[act]();
   });
-  $('#jsonFile').addEventListener('change', async () => { const f = $('#jsonFile').files[0]; if (!f) return; try { loadDesign(JSON.parse(await f.text())); toast(`Imported “${state.designName}”`); } catch { toast(`That file isn’t a ${PRODUCT} design`); } $('#jsonFile').value = ''; });
+  $('#jsonFile').addEventListener('change', async () => { const f = $('#jsonFile').files[0]; if (!f) return; try { const d = JSON.parse(await f.text());
+    if (d && d.zest === 1) importZestBrand(d);                       // a zest-brand.json is a brand, never an empty design
+    else if (d && Array.isArray(d.blocks)) { loadDesign(d); toast(`Imported “${state.designName}”`); }
+    else toast(`That file isn’t a ${PRODUCT} design`);
+  } catch { toast(`That file isn’t a ${PRODUCT} design`); } $('#jsonFile').value = ''; });
+
+  /* ---------- zest-brand.json import (ZEST-SPEC §7.3): light palette, body font, radius into a brand ---------- */
+  const BRAND_HEX = /^#[0-9a-fA-F]{6}$/;
+  const BRAND_ROLES = ['primary', 'ink', 'muted', 'paper', 'sheet', 'line', 'dark'];
+  const CTRL_RE = new RegExp('[\\x00-\\x1f\\u2028\\u2029]', 'g');
+  function emailStack(name) {          // email-safe: the brand family first, classic fallbacks behind it
+    const n = String(name || '').replace(CTRL_RE, ' ').replace(/['",;:(){}<>\\]/g, '').trim().slice(0, 48);
+    if (!n) return BRAND_DEFAULT().font;
+    if (/mono|code/i.test(n)) return `'${n}', Menlo, Consolas, 'Courier New', monospace`;
+    if (/serif|fraunces|spectral|lora|literata|crimson|alegreya|zilla/i.test(n)) return `'${n}', Georgia, 'Times New Roman', serif`;
+    return `'${n}', 'Helvetica Neue', Helvetica, Arial, sans-serif`;
+  }
+  function importZestBrand(z) {
+    const pal = z && z.light && typeof z.light === 'object' ? z.light : null;
+    if (!z || z.zest !== 1 || !pal || !BRAND_ROLES.every(k => BRAND_HEX.test(String(pal[k] || '')))) { toast('Not a zest-brand.json.'); return false; }
+    const name = String(z.name || 'Zest brand').replace(CTRL_RE, ' ').slice(0, 48).trim() || 'Zest brand';
+    const tokens = {};
+    for (const k of BRAND_ROLES) tokens[k] = String(pal[k]).toLowerCase();
+    tokens.font = emailStack(z.fonts && z.fonts.body);
+    tokens.radius = Math.max(0, Math.min(24, Number.isFinite(+z.radius) ? Math.round(+z.radius) : 8));
+    const ex = brands.find(b => String(b.name).toLowerCase() === name.toLowerCase());
+    const target = ex || Object.assign(BRAND_DEFAULT(), { name });
+    Object.assign(target, tokens, { name });                         // §7.3: identity fields stay the user's own
+    if (!ex) brands.push(target);
+    state.brandId = target.id;
+    store.set('brands', brands);
+    renderBrandPanel(); renderInspector(); renderCanvas(); run(); showTab('brand');
+    toast(`${name} ${ex ? 'updated' : 'created'} from zest-brand.json — identity fields stay yours.`);
+    return true;
+  }
+  $('#brandFile').addEventListener('change', async () => {
+    const f = $('#brandFile').files[0]; $('#brandFile').value = '';
+    if (!f) return;
+    try { importZestBrand(JSON.parse(await f.text())); } catch { toast('That file would not read as a zest-brand.json.'); }
+  });
+  /* zest-brand.json can be dropped anywhere — "one file, every tool" (§6.3); block drags carry no files and are untouched */
+  document.addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+  document.addEventListener('drop', async e => {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!f || !/json$/i.test(f.name)) return;
+    e.preventDefault();
+    try { const d = JSON.parse(await f.text());
+      if (d && d.zest === 1) importZestBrand(d);
+      else if (d && Array.isArray(d.blocks)) { loadDesign(d); toast(`Imported “${state.designName}”`); }
+      else toast('Not a zest-brand.json.');
+    } catch { toast('That file would not read as JSON.'); }
+  });
 
   /* ---------- Claude (bring your own key) ---------- */
   $('#apiKey').value = store.get('apiKey', ''); $('#apiKey').addEventListener('change', () => store.set('apiKey', $('#apiKey').value.trim()));

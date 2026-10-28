@@ -456,7 +456,7 @@ The public half of `LICENSE_PRIVATE_KEY` is a constant in `zest-core/license.js`
 
 **Milestone 1 — Store live, licenses real (2 weeks)**
 - [ ] Rename UI strings in all apps (Brandforge → Zest); new marks; `zest.json` for each
-- [ ] `zest-brand.json` schema; export from Zest; import in ZestMail (Brand tab) and Zest MD (custom skin)
+- [x] `zest-brand.json` schema; export from Zest; import in ZestMail (Brand tab) and Zest MD (custom skin)
 - [ ] Monorepo, Vercel project, subdomain CNAME
 - [ ] Supabase schema from §5.1; Ed25519 keypair; `/api/license/token`
 - [ ] Stripe products and prices; Checkout; webhook provisioning; portal

@@ -291,7 +291,8 @@ button{cursor:pointer; background:none; border:0; padding:0}
         <div class="row"><label>Interface type</label><select data-c="ui"></select></div>
         <div class="row"><label>Code type</label><select data-c="mono"></select></div>
         <div class="row"><label>Corners</label><input type="range" data-c="radius" min="0" max="16" step="1"></div>
-        <div class="menu"><button id="btnFromSkin">Start from the last preset</button></div>
+        <div class="menu"><button id="btnFromSkin">Start from the last preset</button><button id="btnImportBrand">Import zest-brand.json</button></div>
+        <input type="file" id="brandFile" accept=".json,application/json" hidden>
       </div>
       <div class="head">Reading</div>
       <div class="row"><label>Mode</label>
@@ -584,8 +585,16 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
 
   async function readFiles(list) {
     const okExt = /\.(md|markdown|mdx|txt)$/i;
-    const files = [...list].filter(f => okExt.test(f.name) || /text\/(markdown|plain)/.test(f.type));
-    if (!files.length) { toast('Drop .md, .markdown or .txt files'); return; }
+    const all = [...list];
+    // a dropped zest-brand.json re-skins instead of opening as a document — "one file, every tool" (§6.3)
+    const jsonF = all.find(f => /json$/i.test(f.name));
+    if (jsonF) {
+      try { const b = JSON.parse(await jsonF.text()); if (b && b.zest === 1) importZestBrand(b); else toast('Not a zest-brand.json.'); }
+      catch { toast('That file would not read as JSON.'); }
+      if (all.length === 1) return;
+    }
+    const files = all.filter(f => okExt.test(f.name) || /text\/(markdown|plain)/.test(f.type));
+    if (!files.length) { if (!jsonF) toast('Drop .md, .markdown or .txt files'); return; }
     for (const f of files) addFile(f.name, await f.text(), true);
     toast(files.length === 1 ? `Opened ${files[0].name}` : `Opened ${files.length} files`);
   }
@@ -687,14 +696,22 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
       accent, mix(sheet, accent, .14), sheet.toLowerCase() === paper.toLowerCase() ? mix(sheet, ink, .05) : mix(sheet, paper, .6),
       lum(accent) > .4 ? '#0f1420' : '#ffffff', ...(dark ? SYN.dark : SYN.light)];
   }
+  const tokensOk = a => Array.isArray(a) && a.length === TOKENS.length && a.every(x => /^#[0-9a-f]{6}$/.test(String(x)));
   function customSkin() {
     const c = state.settings.custom, isDark = lum(c.paper) < .35;
+    const fonts = [F[c.doc] || F.geist, F[c.ui] || F.geist, F[c.mono] || F.geistMono];
+    // an imported zest-brand.json carries BOTH palettes explicitly (§7.3); hand-editing a colour releases them
+    if (c.brand) {
+      if (tokensOk(c.brand.light) && tokensOk(c.brand.dark))
+        return { name: String(c.brand.name || 'Custom').slice(0, 48), desc: 'Imported from Zest — both palettes explicit', fonts, radius: c.radius + 'px', light: c.brand.light, dark: c.brand.dark };
+      delete c.brand;                  // tampered or truncated storage: fall back to the four-colour derivation
+    }
     const base = derive(c.paper, c.sheet, c.ink, c.accent);
     // the other mode is derived from the same four colours: ink and paper swap roles, the accent keeps its hue
     const other = isDark
       ? derive(mix(c.ink, '#ffffff', .82), mix(c.ink, '#ffffff', .94), mix(c.paper, '#000000', .35), mix(c.accent, '#000000', .3))
       : derive(mix(c.ink, '#000000', .55), mix(c.ink, '#000000', .42), mix(c.paper, '#ffffff', .45), mix(c.accent, '#ffffff', .3));
-    return { name: 'Custom', desc: 'Your colours and type', fonts: [F[c.doc] || F.geist, F[c.ui] || F.geist, F[c.mono] || F.geistMono], radius: c.radius + 'px', light: isDark ? other : base, dark: isDark ? base : other };
+    return { name: 'Custom', desc: 'Your colours and type', fonts, radius: c.radius + 'px', light: isDark ? other : base, dark: isDark ? base : other };
   }
   function resolveSkin(key) { return key === 'custom' ? customSkin() : (SKINS[key] || SKINS.press); }
   let lastPreset = 'press';
@@ -719,19 +736,66 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   }
   $('#custom').addEventListener('input', e => {
     const k = e.target.dataset.c; if (!k) return;
-    state.settings.custom[k] = k === 'radius' ? +e.target.value : e.target.value;
+    const c = state.settings.custom;
+    if (c.brand && ['paper', 'sheet', 'ink', 'accent'].includes(k)) { delete c.brand; toast('Hand edit — both palettes now derive from these four colours.'); }
+    c[k] = k === 'radius' ? +e.target.value : e.target.value;
     applySettings(); renderSkins();
   });
   $('#btnFromSkin').addEventListener('click', () => {
     const sk = SKINS[lastPreset], v = sk[currentTheme()];
     const key = f => Object.keys(F).find(k => F[k] === f) || 'geist';
+    delete state.settings.custom.brand;
     Object.assign(state.settings.custom, { paper: v[0], sheet: v[1], ink: v[2], accent: v[6], doc: key(sk.fonts[0]), ui: key(sk.fonts[1]), mono: key(sk.fonts[2]), radius: parseInt(sk.radius) });
     syncCustomPanel(); applySettings(); renderSkins(); render();
+  });
+
+  /* ---------- zest-brand.json import (ZEST-SPEC §7.3): both palettes land as an explicit custom skin ---------- */
+  const BRAND_HEX = /^#[0-9a-fA-F]{6}$/;
+  const BRAND_ROLES = ['primary', 'ink', 'muted', 'paper', 'sheet', 'line', 'dark'];
+  const CTRL_RE = new RegExp('[\\x00-\\x1f\\u2028\\u2029]', 'g');
+  const palOk = p => p && typeof p === 'object' && BRAND_ROLES.every(k => BRAND_HEX.test(String(p[k] || '')));
+  function brandTokens(p) {            // §7.3 roles → this app's skin tokens; the rest use derive()'s own formulas
+    const r = {}; for (const k of BRAND_ROLES) r[k] = String(p[k]).toLowerCase();
+    return [r.paper, r.sheet, r.ink, r.muted, mix(r.ink, r.paper, .55), r.line,
+      r.primary, mix(r.sheet, r.primary, .14),
+      r.sheet === r.paper ? mix(r.sheet, r.ink, .05) : mix(r.sheet, r.paper, .6),
+      lum(r.primary) > .4 ? '#0f1420' : '#ffffff', ...(lum(r.paper) < .35 ? SYN.dark : SYN.light)];
+  }
+  const FKEY = { 'Geist': 'geist', 'Geist Mono': 'geistMono', 'JetBrains Mono': 'jet', 'Instrument Sans': 'instrument', 'Manrope': 'manrope', 'Bricolage Grotesque': 'bricolage', 'Newsreader': 'newsreader' };
+  function fontKey(name, slot) {       // nearest family in this app's registry, constrained to the slot's choices
+    const n = String(name || '');
+    const k = FKEY[n] || (/mono|code/i.test(n) ? 'geistMono' : /serif|fraunces|spectral|lora|literata|crimson|alegreya|zilla/i.test(n) ? 'newsreader' : 'geist');
+    return FONT_CHOICES[slot].includes(k) ? k : { doc: 'geist', ui: 'geist', mono: 'geistMono' }[slot];
+  }
+  function importZestBrand(b) {
+    if (!b || b.zest !== 1 || !palOk(b.light)) { toast('Not a zest-brand.json.'); return false; }
+    const name = String(b.name || 'Zest brand').replace(CTRL_RE, ' ').slice(0, 48).trim() || 'Zest brand';
+    const light = brandTokens(b.light);
+    // a missing or invalid dark palette falls back to this app's own other-mode derivation from the light roles
+    const dark = palOk(b.dark) ? brandTokens(b.dark)
+      : derive(mix(light[2], '#000000', .55), mix(light[2], '#000000', .42), mix(light[0], '#ffffff', .45), mix(light[6], '#ffffff', .3));
+    const f = b.fonts && typeof b.fonts === 'object' ? b.fonts : {};
+    Object.assign(state.settings.custom, {
+      paper: light[0], sheet: light[1], ink: light[2], accent: light[6],
+      doc: fontKey(f.head, 'doc'), ui: fontKey(f.body, 'ui'), mono: fontKey(f.mono, 'mono'),
+      radius: Math.max(0, Math.min(16, Number.isFinite(+b.radius) ? Math.round(+b.radius) : 8)),
+      brand: { name, light, dark },
+    });
+    state.settings.skin = 'custom';
+    syncCustomPanel(); applySettings(); renderSkins(); render();
+    toast(`${name} imported — the custom skin carries both palettes.`);
+    return true;
+  }
+  $('#btnImportBrand').addEventListener('click', () => $('#brandFile').click());
+  $('#brandFile').addEventListener('change', async e => {
+    const file = e.target.files[0]; e.target.value = '';
+    if (!file) return;
+    try { importZestBrand(JSON.parse(await file.text())); } catch { toast('That file would not read as a zest-brand.json.'); }
   });
   function renderSkins() {
     $('#skins').innerHTML = [...Object.entries(SKINS), ['custom', customSkin()]].map(([k, sk]) => {
       const v = sk[currentTheme()];
-      return `<button class="skin" data-skin="${k}" aria-pressed="${k === state.settings.skin}"><b style="font-family:${sk.fonts[0]}">${sk.name}</b><span class="chips"><i style="background:${v[0]}"></i><i style="background:${v[2]}"></i><i style="background:${v[6]}"></i><i style="background:${v[8]}"></i></span><small>${sk.desc}</small></button>`;
+      return `<button class="skin" data-skin="${k}" aria-pressed="${k === state.settings.skin}"><b style="font-family:${sk.fonts[0]}">${escapeHtml(sk.name)}</b><span class="chips"><i style="background:${v[0]}"></i><i style="background:${v[2]}"></i><i style="background:${v[6]}"></i><i style="background:${v[8]}"></i></span><small>${sk.desc}</small></button>`;
     }).join('');
   }
   $('#skins').addEventListener('click', e => { const b = e.target.closest('.skin'); if (!b) return; state.settings.skin = b.dataset.skin; if (b.dataset.skin === 'custom') syncCustomPanel(); applySettings(); render(); });
