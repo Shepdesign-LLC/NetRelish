@@ -13,7 +13,7 @@ follows are `docs/PRESS-TOOLS.md` §1.
 
 | Tool | Fruit / hardware | Where |
 |---|---|---|
-| **Zest** (studio) | Lemon / dial | Not yet in this repo. Lives at zest.netrelish.com when built — the studio is the home page (spec §8 and §11, decision 5) |
+| **Zest** (studio) | Lemon / dial | `apps/zest` — free core built; the home page at zest.netrelish.com when deployed (spec §8 and §11, decision 5) |
 | **ZestMail** | Orange / envelope | `apps/mail` |
 | **Zest MD** | Lime / page | `apps/md` |
 | **ZestImage** | Grapefruit / frame | `apps/image` — free local core built; Pro greyed until accounts |
@@ -27,6 +27,7 @@ zest/
     PRESS-TOOLS.md    tenets and the tool reference (MD Press / Mail Press era)
     MAIL-PRESS.md     ZestMail's full reference
   apps/
+    zest/             Zest, the studio: index.html, sw.js, manifest.webmanifest, zest.json, icons
     mail/             ZestMail: index.html, /api/claude proxy, zest.json, icons
     md/               Zest MD: index.html, sw.js, manifest.webmanifest, zest.json, icons
     image/            ZestImage: index.html, zest.json, icons — free core built
@@ -49,7 +50,7 @@ null origin, which breaks the service worker and any API call.
   `npx serve .` and use your own key via the app's Direct route.
 - **Zest MD** — `cd apps/md && npx serve .`. Static, no build step.
 - **ZestImage** — `cd apps/image && npx serve .`. Static, no build step.
-- **Zest (studio)** — nothing to run yet.
+- **Zest (studio)** — `cd apps/zest && npx serve .`. Static, no build step.
 
 ## Status against ZEST-SPEC §10, Milestone 1
 
@@ -60,6 +61,10 @@ In hand:
 - `zest.json` manifests done for mail and md
 - New marks done for md and mail (all four icons exist under `icons/`)
 - Supabase schema written (`infra/supabase/0001_init.sql`) — written is not deployed
+- The studio's free core (`apps/zest`): OKLCH palettes with locks, pairings,
+  custom fonts, exports, share links, WCAG audit
+- `zest-brand.json` schema (§7.3) and the full handoff: export from the
+  studio; import in ZestImage, ZestMail (Brand tab) and Zest MD (custom skin)
 
 Not done:
 
@@ -67,12 +72,10 @@ Not done:
 - Supabase deploy
 - Stripe products, Checkout, webhook provisioning, portal
 - Magic-link auth via Resend
-- `zest-brand.json` schema and the Zest → tool handoff (blocked on the studio)
 - `can()` gating with upgrade prompts
 - Pricing page, terms, privacy, refund policy, changelog
 - Account page with Export everything
-- The studio app does not exist yet (ZestImage's free core now does — Pro
-  features wait on accounts)
+- Pro features across all four tools wait on accounts
 
 ## Not the browser
 

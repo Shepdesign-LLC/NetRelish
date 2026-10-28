@@ -2,6 +2,14 @@
 
 ZestMail (formerly Mail Press) is an HTML email generator. Static page + one serverless function that proxies Claude so the API key stays on the server.
 
+## Brand import
+
+A `zest-brand.json` exported from the Zest studio creates or updates a brand
+here (ZEST-SPEC §7.3): its light palette, body font (as an email-safe stack)
+and corner radius land in the brand's token fields; identity fields (company,
+links, ESP tags) stay yours. Import it from the Brand tab's button, the
+Export → Import design menu, or by dropping the file anywhere on the page.
+
 ## Run locally
 
 ```bash

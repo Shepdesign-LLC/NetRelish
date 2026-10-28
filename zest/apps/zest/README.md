@@ -25,8 +25,9 @@ home page at `zest.netrelish.com`, with the store pages beside it.
   and a URL-hash share link that carries the whole brand (minus logo bytes).
 - **Import** — the same `zest-brand.json` comes back in through the Import
   button (keyboard-reachable) or by dropping the file anywhere on the page.
-- **Send to** — ZestImage (tokens + logo, importable today), ZestMail and
-  Zest MD (the same file; their import buttons land with Milestone 1).
+- **Send to** — ZestImage (tokens + logo), ZestMail (light palette, body
+  font, radius) and Zest MD (both palettes as a custom skin): all three
+  import the same file today, by button or by dropping it on the page.
 - **Logo** — SVG/PNG/JPEG, validated and embedded base64 in the brand file
   so ZestImage can compose with it. Never uploaded anywhere.
 
