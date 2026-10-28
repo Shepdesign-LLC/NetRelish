@@ -33,3 +33,6 @@ AuthKey_*.p8
 # Python bytecode from scripts/ and its tests
 __pycache__/
 *.pyc
+
+# Zest one-origin deploy output (zest/build.sh)
+zest/dist/
