@@ -13,6 +13,7 @@
 :root{ /* ZestMail wears orange (fruits.json): one fruit-dark chrome, like every Zest tool — the emails on the canvas stay whatever the brand says */
   --paper:#160d05; --sheet:#211408; --ink:#f4ede1; --ink-2:#c3b7a4; --ink-3:#a2967f; --rule:#3c2a16; /* ink-3 ≥4.5:1 on paper and sheet — verified by the contrast harness */
   --accent:#f5761a; --accent-soft:#3a2008; --on-accent:#120a04; --code-bg:#1a0f06;
+  --accent-ind:#D55E00; --ind-halo:rgba(255,255,255,.8); /* canvas indicators: ≥3:1 on white, the default mat, and the dark chrome; the halo carries contrast on dark user sheets */
   --peel-a:#FFA63D; --peel-b:#F06A00; --night:#120a04;
   --ok:#7fd6c6; --warn:#f2b56b; --err:#ff8fa8; --ok-soft:#12302c; --warn-soft:#332612; --err-soft:#3a1c25;
   --ui:'Geist',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -88,11 +89,11 @@ button{cursor:pointer; background:none; border:0; padding:0}
 /* canvas / preview */
 .center{background:var(--paper); align-items:center}
 .stage{flex:1; width:100%; overflow:auto; padding:28px 20px}
-.canvas-wrap{margin:0 auto; transition:width .18s}
+.canvas-wrap{margin:0 auto; transition:width .18s; padding:26px; box-sizing:content-box; border-radius:10px} /* the mat: previews the email's outer background; the stage behind it stays chrome */
 .canvas{background:#fff; box-shadow:0 20px 50px -20px rgba(10,14,24,.35); border-radius:6px; overflow:hidden; min-height:200px}
 .cv-block{position:relative; outline:1px solid transparent; outline-offset:-1px; transition:outline-color .12s}
 .cv-block:hover{outline-color:var(--ink-3)}
-.cv-block[aria-selected="true"]{outline:2px solid var(--accent); outline-offset:-2px; z-index:1}
+.cv-block[aria-selected="true"]{outline:2px solid var(--accent-ind); outline-offset:-2px; z-index:1; box-shadow:0 0 0 2px var(--ind-halo)}
 .cv-block .tools{position:absolute; top:6px; right:6px; display:none; gap:2px; background:var(--ink); border-radius:6px; padding:2px; z-index:2}
 .cv-block[aria-selected="true"] .tools{display:flex}
 .cv-block .tools button{width:24px; height:24px; border-radius:4px; color:var(--sheet); display:grid; place-items:center}
@@ -100,11 +101,11 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .cv-block .tools svg{width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
 .cv-block .tag{position:absolute; top:6px; left:6px; font:500 10px/1 var(--ui); background:var(--accent); color:var(--on-accent); padding:3px 6px; border-radius:4px; display:none; z-index:2}
 .cv-block[aria-selected="true"] .tag{display:block}
-.cv-block.drop-before{box-shadow:inset 0 3px 0 var(--accent)} .cv-block.drop-after{box-shadow:inset 0 -3px 0 var(--accent)}
-.canvas.drag-over{outline:2px dashed var(--accent); outline-offset:-2px}
+.cv-block.drop-before{box-shadow:inset 0 3px 0 var(--accent-ind), inset 0 4px 0 var(--ind-halo)} .cv-block.drop-after{box-shadow:inset 0 -3px 0 var(--accent-ind), inset 0 -4px 0 var(--ind-halo)}
+.canvas.drag-over{outline:2px dashed var(--accent-ind); outline-offset:-2px; box-shadow:0 0 0 2px var(--ind-halo), 0 20px 50px -20px rgba(10,14,24,.35)}
 .canvas [data-edit]{outline:0; cursor:text; border-radius:2px; transition:box-shadow .12s}
-.canvas [data-edit]:hover{box-shadow:0 0 0 1px rgba(31,78,216,.35)}
-.canvas [data-edit]:focus{box-shadow:0 0 0 2px var(--accent); background:rgba(31,78,216,.04)}
+.canvas [data-edit]:hover{box-shadow:0 0 0 1px rgba(213,94,0,.5)}
+.canvas [data-edit]:focus{box-shadow:0 0 0 2px var(--accent-ind), 0 0 0 4px var(--ind-halo); background:rgba(213,94,0,.05)}
 .canvas [data-edit] a{pointer-events:none}
 .tagbar{display:flex; gap:6px; align-items:center; margin:0 0 8px}
 .tagbar select{flex:1; background:var(--paper); border:1px solid var(--rule); border-radius:6px; padding:5px 8px; font-size:12.5px; color:var(--ink)}
@@ -598,11 +599,11 @@ ${preheader}${content}
     const b = brand();
     $('#brandPill').textContent = b.name;
     $('#canvasWrap').style.width = $('#width').value + 'px';
+    $('#canvasWrap').style.background = $('#bg').value;
     if (!state.blocks.length) { canvas.innerHTML = `<div class="empty"><img src="icons/icon-192.png" alt=""><b>Empty canvas</b>Drag a block from the left, or pick a template.</div>`; return; }
     const rows = buildHTML(true);
     canvas.innerHTML = state.blocks.map((bl, i) => `<div class="cv-block" data-id="${bl.id}" draggable="true" aria-selected="${bl.id === state.selected}"><span class="tag">${BLOCKS[bl.type].name}</span><div class="tools"><button data-act="up" title="Move up">${ICON.up}</button><button data-act="down" title="Move down">${ICON.down}</button><button data-act="dup" title="Duplicate">${ICON.dup}</button><button data-act="del" title="Delete">${ICON.del}</button></div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:${b.font}"><tbody>${rows[i]}</tbody></table></div>`).join('');
     canvas.style.background = b.sheet; canvas.style.borderRadius = b.radius + 'px';
-    $('#stage').style.background = $('#bg').value;
   }
   canvas.addEventListener('click', e => {
     const act = e.target.closest('[data-act]'), blk = e.target.closest('.cv-block');
