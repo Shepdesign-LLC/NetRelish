@@ -92,7 +92,8 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .canvas{background:#fff; box-shadow:0 20px 50px -20px rgba(10,14,24,.35); border-radius:6px; overflow:hidden; min-height:200px}
 .cv-block{position:relative; outline:1px solid transparent; outline-offset:-1px; transition:outline-color .12s}
 .cv-block:hover{outline-color:var(--ink-3)}
-.cv-block[aria-selected="true"]{outline:2px solid var(--accent-ind); outline-offset:-2px; z-index:1; box-shadow:0 0 0 2px var(--ind-halo)}
+.cv-block[aria-selected="true"]{z-index:1}
+.cv-block[aria-selected="true"]::after{content:""; position:absolute; inset:0; z-index:1; pointer-events:none; outline:2px solid var(--accent-ind); outline-offset:-2px; box-shadow:inset 0 0 0 4px var(--ind-halo)} /* both rings live inside the block: .canvas{overflow:hidden} clips anything outside */
 .cv-block .tools{position:absolute; top:6px; right:6px; display:none; gap:2px; background:var(--ink); border-radius:6px; padding:2px; z-index:2}
 .cv-block[aria-selected="true"] .tools{display:flex}
 .cv-block .tools button{width:24px; height:24px; border-radius:4px; color:var(--sheet); display:grid; place-items:center}
