@@ -40,8 +40,8 @@ header .sp{flex:1}
 header a{color:var(--ink-2);text-decoration:none;font-size:13px}
 header a:hover{color:var(--ink)}
 
-.app{display:grid;grid-template-columns:318px 1fr 336px;min-height:calc(100dvh - 57px)}
-@media(max-width:1180px){.app{grid-template-columns:1fr;min-height:0}.stagewrap{order:-1;min-height:48vh}}
+.app{display:grid;grid-template-columns:318px 1fr 336px;height:calc(100dvh - 57px);min-height:520px} /* FIXED height: each panel scrolls itself — min-height would balloon the grid to the tallest column and strand the page in dead space */
+@media(max-width:1180px){.app{grid-template-columns:1fr;height:auto;min-height:0}.stagewrap{order:-1;min-height:48vh}}
 .panel{padding:16px;border-right:1px solid var(--line);overflow-y:auto}
 .panel.right{border-right:0;border-left:1px solid var(--line)}
 @media(max-width:1180px){.panel,.panel.right{border:0;border-top:1px solid var(--line)}}
@@ -107,11 +107,11 @@ input[type=range]{width:100%;accent-color:var(--acc)}
 .pcell b{display:block;font-size:12px;font-weight:600}
 
 /* stage */
-.stagewrap{display:flex;flex-direction:column;min-width:0;background:radial-gradient(900px 480px at 50% -10%,rgba(255,207,46,.07),transparent 60%)}
+.stagewrap{display:flex;flex-direction:column;min-width:0;min-height:0;background:radial-gradient(900px 480px at 50% -10%,rgba(255,207,46,.07),transparent 60%)}
 .stagebar{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:12px;color:var(--ink-3)}
 .stagebar .fn{font-family:var(--mono);color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .stagebar .sp{flex:1}
-.stage{flex:1;padding:10px 26px 26px;min-height:0;display:grid;place-items:start center}
+.stage{flex:1;padding:10px 26px 26px;min-height:0;display:grid;place-items:start center;overflow:auto} /* short windows scroll the preview instead of clipping it */
 .frame{width:min(100%,880px);border-radius:14px;overflow:hidden;box-shadow:0 30px 80px -24px rgba(0,0,0,.7),0 0 0 1px var(--line)}
 
 /* type + pairing lists */
