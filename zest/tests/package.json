@@ -1,0 +1,12 @@
+{
+  "name": "zest-tests",
+  "private": true,
+  "description": "Playwright suites and WCAG contrast sweeps for the Zest web tools",
+  "scripts": {
+    "test": "node run.js"
+  },
+  "devDependencies": {
+    "dompurify": "3.1.6",
+    "playwright": "^1.48.0"
+  }
+}
