@@ -20,13 +20,16 @@ Two more files arrived with the Zest bundle (2026-10) and live here:
 - `netrelish-workstation.html` — standalone interactive HTML prototype of the
   workstation: right-click context menus and drag-and-drop of tabs, jars and
   brine rows. It needs no runtime; open it in a browser. Same caveat as the
-  `.dc.html` mocks: a destination, not a sprint.
+  `.dc.html` mocks: a destination, not a sprint. **Superseded by
+  `workstation-v5/` (below)**, but kept: it is the only prototype that
+  implements the jar-fill drip and Markdown notes, and the manifest's v1.2
+  changelog cites it.
 - `netrelish-design-kit.html` — Design Kit v1.1, a single page built on the
   Brand Lock v1.1 tokens (dated 2026-09-15).
 
 Privacy copy check (per the banned lines below): both files were grepped for
 "end-to-end encrypted", "we can't read", and "E2E". Neither carries any of the
-banned copy — the only string match is the hex colour `#E2ECC2` in the design
+banned copy — the only string match is the hex color `#E2ECC2` in the design
 kit, which is not copy.
 
 **Decision taken from this pass (2026-10-21, Ryan):** adding to a jar plays
@@ -43,6 +46,21 @@ not rich text — the ZestMail text-block grammar exactly (`**bold**`,
 serves the whole line. The workstation prototype implements it: note pages
 render the Markdown and switch to the raw source on click; links are
 http(s)-only and open in a new tab.
+
+## Workstation v5 handoff (2026-10-31)
+
+`workstation-v5/` is the full build handoff for the workstation shell: the v5
+prototype, the master spec (`docs/01-SPEC.md`), a six-phase build order, the
+voice guide, reference tokens, the mark variant, and the beta/marketing page.
+It is the **target** for layout, interaction, and copy. Its conflicts with
+`CLAUDE.md` and the manifest are listed in
+[`../adr/0010-workstation-v5-handoff.md`](../adr/0010-workstation-v5-handoff.md),
+each with a proposed default for Ryan to confirm. Start with
+`workstation-v5/README.md`.
+
+Client data was scrubbed on landing, here and in the older prototype above:
+real client names, domains, a contact, billing details and a login are now
+made-up ones. Earlier commits still hold the originals in git history.
 
 ## What these mocks are
 
@@ -82,7 +100,7 @@ One line in the mocks already gets it right and should be kept verbatim:
 
 And one detail the mocks got right independently: publishing a Relish shows
 notes struck through and marked "NOTE · STAYS PRIVATE". That is exactly the
-behaviour §4a now requires.
+behavior §4a now requires.
 
 ## Useful details already encoded
 

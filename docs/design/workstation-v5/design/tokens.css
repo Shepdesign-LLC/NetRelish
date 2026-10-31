@@ -1,0 +1,160 @@
+/* NetRelish Workstation — design tokens
+   Single source of truth. Everything else derives from these.
+   --jc is set at runtime to the active jar's face color.
+
+   Extracted verbatim from prototype/netrelish-workstation.html (v5).
+   If a value here and a value in the prototype disagree, this file wins —
+   change it here first, then propagate.
+*/
+
+:root{
+  color-scheme:light dark;
+
+  /* ── brand ramp ─────────────────────────────────────────────── */
+  --relish-100:#EFFCCB;
+  --relish-300:#C4F26B;
+  --relish-400:#A9F12E;
+  --relish-500:#93E413;   /* brand */
+  --relish-600:#5CB80F;
+  --relish-800:#3E6413;
+  --relish-900:#1D3506;
+
+  /* ── surfaces ───────────────────────────────────────────────── */
+  --bg:#fff;                      /* bench */
+  --win:#fff;                     /* window body, selected tab */
+  --pane:oklch(.982 .002 90);     /* shelf, right panel, cards */
+  --pane-2:oklch(.962 .003 90);   /* inputs, inactive tabs */
+  --pane-3:oklch(.945 .004 90);   /* favicon chips, raised button base */
+  --desk:oklch(.93 .005 90);      /* behind the window */
+
+  /* ── ink ────────────────────────────────────────────────────── */
+  --ink:#111;
+  --ink-2:#6b6b6b;
+  --ink-3:#a3a3a3;
+
+  /* ── lines ──────────────────────────────────────────────────── */
+  --line:oklch(0 0 0/.11);
+  --line-2:oklch(0 0 0/.055);
+
+  /* ── materials ──────────────────────────────────────────────── */
+  --glass:oklch(1 0 0/.70);       /* titlebar, context menus, popovers */
+  --frost:oklch(1 0 0/.55);       /* bottom bar only */
+  --spec:oklch(1 0 0/.95);        /* 1px specular top edge */
+  --gloss:oklch(1 0 0/.8);        /* inset 0 1px 0 highlight on raised things */
+
+  /* ── elevation ──────────────────────────────────────────────── */
+  --shadow:0 34px 90px -26px oklch(0 0 0/.34),0 0 0 .5px oklch(0 0 0/.12);
+  --tab-sh:0 1px 2px oklch(0 0 0/.07),0 2px 6px -2px oklch(0 0 0/.08);
+
+  /* ── status accents (not jar colors) ────────────────────────── */
+  --amber:#E0A020;   /* local copies, vault lock, brine expiry warning */
+  --rose:#E8483B;    /* destructive, "isn't" cards */
+  --sky:#3B82F6;     /* host/account tabs */
+
+  /* ── type ───────────────────────────────────────────────────── */
+  --display:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif;
+  --body:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,system-ui,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+
+  /* ── metrics ────────────────────────────────────────────────── */
+  --r:12px;
+  --r-sm:9px;
+  --r-lg:18px;
+  --r-xl:24px;
+  --ease:cubic-bezier(.32,.72,0,1);   /* the only curve in the app */
+  --t:220ms;                           /* the default duration */
+}
+
+[data-theme="dark"]{
+  --bg:#0c0c0c;
+  --win:#181818;
+  --pane:#131313;
+  --pane-2:#1e1e1e;
+  --pane-3:#262626;
+  --desk:#070707;
+
+  --ink:#f4f4f4;
+  --ink-2:#9a9a9a;
+  --ink-3:#606060;
+
+  --line:oklch(1 0 0/.14);
+  --line-2:oklch(1 0 0/.07);
+
+  --glass:oklch(.19 0 0/.7);
+  --frost:oklch(.15 0 0/.6);
+  --spec:oklch(1 0 0/.17);
+  --gloss:oklch(1 0 0/.1);
+
+  --tab-sh:0 1px 2px oklch(0 0 0/.4),0 3px 10px -3px oklch(0 0 0/.5);
+
+  /* the two ramp stops that must swap so relish-tinted chips stay legible */
+  --relish-100:#20330A;
+  --relish-800:#C4F26B;
+
+  --shadow:0 44px 100px -22px oklch(0 0 0/.72),0 0 0 .5px oklch(1 0 0/.11);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   JAR COLORS
+   Six pairs. `face` is the light surface of the relish, `base` the
+   shadow side. The SVG fill gradient runs face → base; the glass,
+   the outline and the lid all take `base` through currentColor.
+
+   On every jar change, set --jc on :root to the active jar's FACE:
+       document.documentElement.style.setProperty('--jc', JARCOLOR[key].face)
+
+   Then every accent in the window is derived, never hard-coded:
+       background: color-mix(in oklch, var(--jc) 15%, transparent)
+   One variable re-skins the app.
+   ───────────────────────────────────────────────────────────────── */
+
+/*
+  key      face       base
+  relish   #93E413    #5CB80F
+  amber    #E0A020    #B87A0C
+  sky      #3B82F6    #2563EB
+  rose     #F0525E    #D6273A
+  violet   #A78BFA    #7C5CF0
+  teal     #2DD4BF    #0D9488
+*/
+
+:root{
+  --jar-relish-face:#93E413; --jar-relish-base:#5CB80F;
+  --jar-amber-face:#E0A020;  --jar-amber-base:#B87A0C;
+  --jar-sky-face:#3B82F6;    --jar-sky-base:#2563EB;
+  --jar-rose-face:#F0525E;   --jar-rose-base:#D6273A;
+  --jar-violet-face:#A78BFA; --jar-violet-base:#7C5CF0;
+  --jar-teal-face:#2DD4BF;   --jar-teal-base:#0D9488;
+
+  --jc:var(--jar-relish-face);   /* runtime override */
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   DURATIONS — one curve (--ease), four speeds. Do not add a fifth.
+     140ms  state change (hover, press, toggle)
+     220ms  layout (--t: panel widths, tab sizing, list reflow)
+     300ms  panel open/close
+     900ms  the Seal, and only the Seal
+   Under prefers-reduced-motion: transitions → 120ms, animations → 1ms.
+   ───────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    transition-duration:120ms !important;
+    animation-duration:1ms !important;
+    animation-iteration-count:1 !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   FOCUS — 2.5px relish at 2px offset. Never removed, never restyled
+   per-component. This is the only focus treatment in the app.
+   ───────────────────────────────────────────────────────────────── */
+
+:focus-visible{
+  outline:2.5px solid var(--relish-500);
+  outline-offset:2px;
+  border-radius:8px;
+}
+
+::selection{background:var(--relish-300);color:var(--relish-900)}

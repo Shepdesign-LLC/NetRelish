@@ -42,6 +42,9 @@ Native macOS browser with a pantry. Swift. Mac App Store. This file is the contr
 ## Vocabulary (use these words in code, UI, and commits)
 Pantry · Jar (project, has a shelf life; also a profile) · Brine (where idle tabs sink; pinned never sink) · Sunk · Seal · Recipe (recorded, replayed with ⌘R; each is an App Intent) · Shelf (the jar rail) · Bench (the web panes) · Inspector · Ask the Pantry · Pickle (a jar with a local dev environment; direct build only).
 
+## Voice
+Every user-facing string follows `docs/voice/SHEPDESIGN-VOICE.md` (the house voice, shared with every Shepdesign product; this repo holds the canonical copy) and `docs/voice/NETRELISH.md` (this product's reader, banned words, fixed lines). US English only.
+
 ## Schema → Swift mapping (when regenerating from MSON)
 | MSON | Swift |
 |---|---|
