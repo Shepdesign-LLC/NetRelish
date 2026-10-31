@@ -161,6 +161,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .tabs .sheet-x svg{width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round}
 /* ≤1100px: the inspector becomes a bottom sheet instead of disappearing — editing stays possible on every screen */
 @media (max-width:1100px){
+  .bar{z-index:35} /* the export popover lives in the bar's stacking context and must paint above the sheet (z 30) */
   .work,.work[data-mode="source"]{grid-template-columns:260px 1fr}
   .inspector{display:flex; position:fixed; left:0; right:0; bottom:0; height:62dvh; z-index:30; border-left:0; border-top:1px solid var(--rule); border-radius:12px 12px 0 0; box-shadow:0 -18px 48px -18px rgba(0,0,0,.55); transform:translateY(103%); transition:transform .2s ease}
   .inspector[data-open="true"]{transform:none}
@@ -184,11 +185,14 @@ button{cursor:pointer; background:none; border:0; padding:0}
   .work,.work[data-mode="source"]{grid-template-columns:1fr}
   .pane.left{position:fixed; top:0; bottom:0; left:0; width:min(320px,86vw); z-index:25; border-right:1px solid var(--rule); box-shadow:18px 0 48px -18px rgba(0,0,0,.55); transform:translateX(-103%); transition:transform .2s ease}
   .pane.left[data-open="true"]{transform:none}
+  .scrim{display:none; position:fixed; inset:0; z-index:24; background:rgba(0,0,0,.45); border:0; padding:0}
+  .pane.left[data-open="true"] ~ .scrim{display:block}
 }
 @media (pointer:coarse){
   .btn{height:42px} .btn.icon{width:42px}
   .seg button{padding:10px 12px}
   .cv-block .tools button{width:38px; height:38px}
+  .cv-block .tools{zoom:calc(1 / var(--fit, 1))} /* the canvas zoom would otherwise shrink the tools below tappable size */
   .saved div button{width:32px; height:32px}
   .tabs button{padding:14px 6px}
   .lib-item span,.tpl button span,.pill{font-size:12px}
@@ -201,7 +205,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 <div class="app">
   <header class="bar">
     <button class="btn icon mobile-only" id="btnLib" aria-label="Blocks and templates"><svg viewBox="0 0 24 24"><path d="M4 5h7v7H4zM13 5h7v7h-7zM4 14h7v6H4zM13 14h7v6h-7z"/></svg></button>
-    <div class="brand"><img class="mark" src="icons/icon-64.png" alt="" aria-hidden="true">ZestMail<span class="tag">orange · email from your tokens</span></div>
+    <div class="brand"><img class="mark" src="icons/icon-112.png" alt="" aria-hidden="true">ZestMail<span class="tag">orange · email from your tokens</span></div>
     <div class="seg" id="modeSeg"><button data-m="build" aria-pressed="true">Build</button><button data-m="source">Source</button></div>
     <span class="pill" id="sizePill">0 KB</span>
     <span class="pill" id="lintPill">empty</span>
@@ -251,6 +255,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
       </div>
       <textarea id="src" spellcheck="false" placeholder="<!-- paste your email HTML here -->" style="display:none"></textarea>
     </section>
+    <button class="scrim" id="scrim" aria-label="Close the library" tabindex="-1"></button>
 
     <section class="pane center">
       <div class="pane-head"><b id="centerTitle">Canvas</b><span id="centerNote">click a block to edit it</span><div class="right"><span class="pill" id="brandPill"></span></div></div>
@@ -644,6 +649,7 @@ ${preheader}${content}
     // scale the email preview to fit narrow stages, pixel-true (zoom scales layout too, so no overflow)
     const fit = Math.min(1, ($('#stage').clientWidth - 32) / (+$('#width').value + 52));
     $('#canvasWrap').style.zoom = fit < 1 ? fit : '';
+    $('#canvasWrap').style.setProperty('--fit', fit < 1 ? fit : 1); // block tools counter-zoom reads this
     if (!state.blocks.length) { canvas.innerHTML = `<div class="empty"><img src="icons/icon-112.png" alt=""><b>Empty canvas</b>Drag a block from the left, or pick a template.</div>`; return; }
     const rows = buildHTML(true);
     canvas.innerHTML = state.blocks.map((bl, i) => `<div class="cv-block" data-id="${bl.id}" draggable="true" aria-selected="${bl.id === state.selected}"><span class="tag">${BLOCKS[bl.type].name}</span><div class="tools"><button data-act="up" title="Move up">${ICON.up}</button><button data-act="down" title="Move down">${ICON.down}</button><button data-act="dup" title="Duplicate">${ICON.dup}</button><button data-act="del" title="Delete">${ICON.del}</button></div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:${b.font}"><tbody>${rows[i]}</tbody></table></div>`).join('');
@@ -797,8 +803,14 @@ ${preheader}${content}
   const libPane = $('.pane.left');
   $('#btnLib').addEventListener('click', () => { libPane.dataset.open = libPane.dataset.open === 'true' ? 'false' : 'true'; });
   $('#leftHead').addEventListener('click', e => { if (e.target.closest('#libClose')) libPane.dataset.open = 'false'; }); // delegated: setMode rebuilds the head
+  $('#scrim').addEventListener('click', () => { libPane.dataset.open = 'false'; });
   const closeLibOnAdd = () => { if (phone()) libPane.dataset.open = 'false'; };
-  let rsT; addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(() => { renderCanvas(); run(); }, 160); });
+  // desktop previews stay 1:1 (the stage scrolls); only narrow layouts scale to fit
+  const fitFrame = w => matchMedia('(max-width:1000px)').matches ? (Math.min(1, ($('#stage').clientWidth - 32) / w) || '') : '';
+  let rsT; addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(() => {
+    renderCanvas(); // re-fits the canvas zoom; preview iframes only get their zoom updated — no srcdoc reload, no lost scroll
+    if (frame.style.display !== 'none' && state.view !== 'canvas') frame.style.zoom = fitFrame(state.view === 'outlook' ? 600 : +state.view);
+  }, 160); });
 
   /* =========================================================
      Compile + preview (shared by both modes)
@@ -814,7 +826,7 @@ ${preheader}${content}
     $('#centerTitle').textContent = isCanvas ? 'Canvas' : 'Preview';
     if (!input) { last = null; $('#lintPill').textContent = 'empty'; $('#lintPill').className = 'pill'; $('#sizePill').textContent = '0 KB'; $('#issues').innerHTML = '<div class="issue"><span>Nothing to lint yet.</span></div>'; $('#lintCount').textContent = '0'; $('#centerNote').textContent = isCanvas ? (touchUI ? 'tap a block in the library, or pick a template' : 'drag a block in, or pick a template') : 'nothing to preview'; if (!isCanvas) frame.srcdoc = '<p style="font-family:sans-serif;color:#999;padding:40px;text-align:center">Nothing to preview</p>'; return; }
     last = compile(input, o());
-    if (!isCanvas) { const w = state.view === 'outlook' ? 600 : +state.view; frame.style.width = w + 'px'; frame.style.zoom = Math.min(1, ($('#stage').clientWidth - 32) / w) || ''; frame.srcdoc = previewTags(state.view === 'outlook' ? outlookSim(last.html) : last.html); $('#centerNote').textContent = state.view === 'outlook' ? '600px · Outlook simulation (Word engine approximation)' : `${w}px · compiled output`; }
+    if (!isCanvas) { const w = state.view === 'outlook' ? 600 : +state.view; frame.style.width = w + 'px'; frame.style.zoom = fitFrame(w); frame.srcdoc = previewTags(state.view === 'outlook' ? outlookSim(last.html) : last.html); $('#centerNote').textContent = state.view === 'outlook' ? '600px · Outlook simulation (Word engine approximation)' : `${w}px · compiled output`; }
     else $('#centerNote').textContent = touchUI ? 'tap a block to edit it' : 'click a block to edit it · drag to reorder';
     $('#sizePill').textContent = (last.bytes / 1024).toFixed(1) + ' KB';
     const errs = last.issues.filter(i => i[0] === 'err').length, warns = last.issues.filter(i => i[0] === 'warn').length;
@@ -833,6 +845,8 @@ ${preheader}${content}
   function setMode(m) {
     state.mode = m; $('#work').dataset.mode = m; $$('#modeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === m));
     $('#leftBuild').style.display = m === 'build' ? '' : 'none'; src.style.display = m === 'build' ? 'none' : '';
+    $('#btnLib').setAttribute('aria-label', m === 'source' ? 'Source HTML' : 'Blocks and templates');
+    if (phone() && m === 'source') libPane.dataset.open = 'true'; // the textarea lives in the drawer — Source mode must open it
     $('#leftHead').innerHTML = (m === 'build' ? `<b>Blocks</b><span>${touchUI ? 'tap to add to the canvas' : 'drag onto the canvas'}</span>` : '<b>Source HTML</b><span>paste anything — yours, or what a model produced</span>') + '<div class="right"><button class="btn icon mobile-only" id="libClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>';
     $$('#viewSeg button')[0].style.display = m === 'build' ? '' : 'none';
     if (m === 'source' && state.view === 'canvas') setView('600'); else run();
@@ -868,7 +882,7 @@ ${preheader}${content}
   $('#savedList').addEventListener('click', e => { const l = e.target.closest('[data-load]'), r = e.target.closest('[data-rm]'); if (l) { const d = designs().find(x => x.id === l.dataset.load); if (d) loadDesign(d); } if (r) { if (!confirm('Delete this saved design?')) return; store.set('designs', designs().filter(x => x.id !== r.dataset.rm)); renderSaved(); } });
 
   /* ---------- export ---------- */
-  $('#btnExport').addEventListener('click', e => { e.stopPropagation(); const p = $('#popExport'); p.dataset.open = p.dataset.open !== 'true'; });
+  $('#btnExport').addEventListener('click', e => { e.stopPropagation(); const p = $('#popExport'); p.dataset.open = p.dataset.open !== 'true'; if (p.dataset.open === 'true' && narrow()) $('#inspector').dataset.open = 'false'; });
   document.addEventListener('click', e => { if (!e.target.closest('.pop')) $('#popExport').dataset.open = 'false'; });
   const download = (name, content, type) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
   const copy = async (t, msg) => { try { await navigator.clipboard.writeText(t); toast(msg); } catch { toast('Copy blocked by the browser'); } };

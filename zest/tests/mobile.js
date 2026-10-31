@@ -24,7 +24,8 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   ok(await st.evaluate(() => document.querySelector('#pv').getBoundingClientRect().height <= innerHeight * 0.52 + 2), 'studio: preview capped, no first-screen takeover');
   ok(await st.evaluate(() => { const d = document.querySelector('#pv').contentDocument; return d && d.documentElement.scrollWidth <= document.querySelector('#pv').clientWidth + 1; }), 'studio: generated preview doc fits its frame');
   await st.tap('.jump a[href="#exportsec"]'); await st.waitForTimeout(400);
-  ok(await st.evaluate(() => { const s = document.querySelector('#exportsec').getBoundingClientRect(); return s.top > -60 && s.top < innerHeight; }), 'studio: jump nav reaches Export');
+  ok(await st.evaluate(() => { const s = document.querySelector('#exportsec').getBoundingClientRect(); const j = document.querySelector('.jump').getBoundingClientRect(); return s.top >= j.bottom - 2 && s.top < innerHeight; }), 'studio: jump targets land below the sticky bar, not under it');
+  ok(await st.evaluate(() => getComputedStyle(document.querySelector('#pv')).pointerEvents === 'none'), 'studio: the preview no longer swallows touch pans');
   await st.close();
 
   console.log('== mail at 390 ==');
@@ -42,8 +43,18 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   ok(await ml.evaluate(() => document.querySelector('#inspector').dataset.open === 'true'), 'mail: tapping a block opens the inspector sheet');
   await ml.tap('#tabs button[data-t="message"]'); await ml.fill('#subject', 'mobile');
   ok((await ml.inputValue('#subject')) === 'mobile', 'mail: subject is typeable in the sheet');
+  ok(await ml.evaluate(() => { const b = document.querySelector('.cv-block[aria-selected="true"] .tools button').getBoundingClientRect(); return b.width >= 30 && b.height >= 30; }), 'mail: block tools stay tappable under the canvas zoom');
   await ml.tap('#sheetClose'); await ml.waitForTimeout(250);
   ok(await ml.evaluate(() => document.querySelector('#inspector').dataset.open === 'false'), 'mail: the sheet closes');
+  // with the sheet open, Export must close it and every menu item must be hit-testable
+  await ml.tap('.cv-block'); await ml.waitForTimeout(300);
+  await ml.tap('#btnExport'); await ml.waitForTimeout(250);
+  ok(await ml.evaluate(() => document.querySelector('#inspector').dataset.open === 'false'), 'mail: opening Export dismisses the sheet');
+  ok(await ml.evaluate(() => [...document.querySelectorAll('#popExport [data-do]')].every(b => { const r = b.getBoundingClientRect(); const at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return at && (at === b || b.contains(at)); })), 'mail: every export action is hit-testable');
+  await ml.tap('#centerTitle').catch(() => {}); await ml.waitForTimeout(200);
+  // Source mode opens the drawer that holds the textarea
+  await ml.tap('#modeSeg button[data-m="source"]'); await ml.waitForTimeout(350);
+  ok(await ml.evaluate(() => { const s = document.querySelector('#src').getBoundingClientRect(); return s.left >= 0 && s.width > 100 && document.querySelector('.pane.left').dataset.open === 'true'; }), 'mail: Source mode brings the textarea on screen');
   await ml.close();
 
   console.log('== md at 390 ==');
@@ -58,6 +69,12 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   ok(await md.evaluate(() => document.querySelector('#work').dataset.toc === 'false'), 'md: the drawer closes on selection');
   await md.tap('#btnExport'); await md.waitForTimeout(250);
   ok(await md.evaluate(() => { const p = document.querySelector('#popExport').getBoundingClientRect(); return p.left >= 0 && p.right <= window.innerWidth && p.width > 200; }), 'md: export menu fits the viewport');
+  ok(await md.evaluate(() => { const p = document.querySelector('#popExport').getBoundingClientRect(); const b = document.querySelector('.bar').getBoundingClientRect(); return p.top >= b.bottom; }), 'md: the menu anchors below the grown bar (bar-h stays live)');
+  await md.tap('body', { position: { x: 10, y: 700 } }).catch(() => {});
+  // Contents + Edit together must not blow the layout viewport (the combined-state grid override)
+  await md.tap('#btnEdit'); await md.waitForTimeout(300);
+  await md.tap('#btnToc'); await md.waitForTimeout(300);
+  ok(await fits(md), 'md: Edit + Contents together still fit (combined grid override)');
   await md.close();
 
   console.log('== image at 390 ==');
@@ -78,7 +95,23 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   ok(await sr.evaluate(() => document.querySelector('.vs .vs-a').getBoundingClientRect().width > 250), 'store: comparison cells span the card (were 68px slivers)');
   ok(await sr.evaluate(() => { const s = getComputedStyle(document.querySelector('.vs .vs-b'), '::before').content; return s.includes('Zest'); }), 'store: stacked comparison cells are re-labeled');
   ok(await sr.evaluate(() => [...document.querySelectorAll('footer a')].some(a => a.getAttribute('href') === '/')), 'store: footer carries the Studio link');
+  await sr.evaluate(() => { document.querySelector('.menu').open = true; });
+  await sr.tap('.mnav a[href="#pricing"]'); await sr.waitForTimeout(350);
+  ok(await sr.evaluate(() => document.querySelector('.menu').open === false), 'store: the menu closes once a destination is picked');
   await sr.close();
+
+  console.log('== image at 844x390 (landscape phone) ==');
+  const land = await browser.newContext({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3, serviceWorkers: 'block' });
+  const lp = await land.newPage();
+  await lp.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort());
+  await lp.goto('http://localhost:8772/', { waitUntil: 'domcontentloaded' }); await lp.waitForTimeout(600);
+  await lp.evaluate(() => document.querySelector('.sec.exportsec').scrollIntoView({ block: 'center' })); await lp.waitForTimeout(300);
+  ok(await lp.evaluate(() => {
+    const sw = document.querySelector('.stagewrap').getBoundingClientRect();
+    const ex = document.querySelector('.sec.exportsec').getBoundingClientRect();
+    return !(sw.bottom > ex.top && ex.bottom > sw.top); // the two never overlap: no sticky sandwich hiding controls
+  }), 'image: landscape phones get no sticky sandwich');
+  await land.close();
 
   await browser.close();
   console.log(`\nTALLY: ${pass} passed, ${fail} failed`);

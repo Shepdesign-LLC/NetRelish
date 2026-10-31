@@ -247,6 +247,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
   .brand{margin-right:4px}
   .work[data-toc="true"]{grid-template-columns:0 0 1fr}
   .work[data-edit="true"]{grid-template-columns:0 1fr 0}
+  .work[data-toc="true"][data-edit="true"]{grid-template-columns:0 1fr 0} /* matches the desktop rule's (0,3,0) specificity — the drawer is fixed, its track stays 0 */
   /* Contents becomes a slide-in drawer over the page (the grid track stays 0). The fixed toc
      leaves the grid flow, so the editor and stage pin to their own columns explicitly. */
   .toc{position:fixed; z-index:30; top:var(--bar-h,52px); left:0; bottom:0; width:min(80vw,300px); box-shadow:12px 0 32px -12px rgba(10,14,24,.45); transform:translateX(-105%); transition:transform .18s ease}
@@ -275,7 +276,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 <body>
 <div class="app">
   <header class="bar">
-    <div class="brand"><img class="mark" src="icons/icon-64.png" alt="" aria-hidden="true">Zest MD<span class="tag">lime · read like it was typeset</span></div>
+    <div class="brand"><img class="mark" src="icons/icon-112.png" alt="" aria-hidden="true">Zest MD<span class="tag">lime · read like it was typeset</span></div>
     <div class="tabs" id="tabs" role="tablist"></div>
 
     <div class="group">
@@ -514,7 +515,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     const { fm, body } = splitFrontMatter(text);
     const seq = ++renderSeq;
     if (!has.mermaid && !vendorLoading.mermaid && /^\s*(```|~~~)\s*mermaid\b/m.test(body)) loadVendor('mermaid').then(ok => { if (ok) render(); });
-    if (!has.katex && !vendorLoading.katex && /\$\$|\\\[|\\\(|(^|[^\\$])\$[^\s$]/.test(body)) loadVendor('katex').then(ok => { if (ok) render(); });
+    if (!has.katex && !vendorLoading.katex && /\$\$|\\\[|\\\(|(^|[^\\$])\$[^\s$][^$\n]*\$/.test(body)) loadVendor('katex').then(ok => { if (ok) render(); }); // inline $ needs a closing $ on the line, so prices alone don't fetch KaTeX
 
     let html = has.md ? md.render(body) : `<pre>${escapeHtml(body)}</pre>`;
     if (fm) {
@@ -611,9 +612,10 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     e.preventDefault(); const t = doc.querySelector(a.getAttribute('href')); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
     if (matchMedia('(max-width:760px)').matches) { state.settings.toc = false; applySettings(); } // the drawer closes on selection
   });
-  // the drawer and popovers anchor below the (possibly wrapped) bar
+  // the drawer and popovers anchor below the (possibly wrapped) bar; the bar grows when
+  // the tab row appears, so observe its box rather than the window
   const syncBarH = () => document.documentElement.style.setProperty('--bar-h', $('.bar').offsetHeight + 'px');
-  addEventListener('resize', syncBarH); syncBarH();
+  new ResizeObserver(syncBarH).observe($('.bar')); syncBarH();
 
   /* ---------- files & tabs ---------- */
   const tabs = $('#tabs');

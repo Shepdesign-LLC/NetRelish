@@ -130,7 +130,7 @@ footer a{padding:12px 6px;margin:-12px -6px} /* ~46px tap targets without changi
   .vs .vs-q,.vs .vs-a,.vs .vs-b{width:auto}
   /* thead is gone when stacked — the cells re-label themselves */
   .vs .vs-a::before{content:'Generative tools';display:block;font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted-dark);margin-bottom:4px}
-  .vs .vs-b::before{content:'Zest';display:block;font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--zest-700);margin-bottom:4px}
+  .vs .vs-b::before{content:'Zest';display:block;font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:#59720c;margin-bottom:4px} /* zest-700 reads 4.27:1 over the tinted cell; this hits 4.76:1 */
   .status,.icon-row small,.plan .tag{font-size:12px}
 }
 
@@ -176,7 +176,7 @@ footer a{text-decoration:none} footer a:hover{color:var(--ink)}
 <body>
 
 <header><div class="wrap">
-  <a class="brand" href="#top"><img src="icons/icon-64.png" alt="" aria-hidden="true">Zest</a>
+  <a class="brand" href="#top"><img src="icons/icon-112.png" alt="" aria-hidden="true">Zest</a>
   <nav>
     <a href="/">Studio</a><a href="#tools">Tools</a><a href="#why">Why</a><a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="#roadmap">Roadmap</a>
   </nav>
@@ -794,6 +794,10 @@ footer a{text-decoration:none} footer a:hover{color:var(--ink)}
 </div></footer>
 
 <script>
+// The phone menu closes once a destination is picked, instead of riding the sticky header over it.
+const menu = document.querySelector('.menu');
+menu.addEventListener('click', e => { if (e.target.closest('a')) menu.open = false; });
+
 // Waitlist. Point data-endpoint at a Vercel function that forwards to Bento
 // (POST https://app.bentonow.com/api/v1/fetch/subscribers) or Resend Audiences.
 // Until that function exists the form fails honestly rather than faking success.

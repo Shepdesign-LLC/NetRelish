@@ -181,6 +181,10 @@ footer .sp{flex:1}
   .frame iframe{height:min(52vh,480px)}
   .stage{padding:10px 14px 18px}
   .jump{display:flex}
+  #left,#typesec,#exportsec,#tools{scroll-margin-top:62px} /* jump targets land below the sticky bar, not under it */
+}
+@media(pointer:coarse){
+  .frame iframe{pointer-events:none} /* a look-at preview: without this it swallows every pan that starts on it */
 }
 @media(max-width:640px){header .tag{display:none}}
 @media(pointer:coarse){
@@ -209,7 +213,7 @@ footer .sp{flex:1}
 </defs></svg>
 
 <header>
-  <div class="brand"><img class="mark" src="icons/icon-64.png" alt="" aria-hidden="true">Zest</div>
+  <div class="brand"><img class="mark" src="icons/icon-112.png" alt="" aria-hidden="true">Zest</div>
   <span class="tag">Lemon · build the brand once</span>
   <span class="sp"></span>
   <a href="#tools">Tools</a>
@@ -372,9 +376,9 @@ footer .sp{flex:1}
 <section class="toolsrow" id="tools" aria-label="The Zest tools">
   <p class="lab" style="margin:0 0 12px">Tools — each one imports the brand you build here<span class="sp"></span><a href="pricing/" style="color:var(--ink-2);text-decoration:none;letter-spacing:0;text-transform:none;font:500 12px var(--body)">Pricing →</a></p>
   <div class="trow">
-    <a class="tool" href="mail/"><img src="mail/icons/icon-64.png" alt="" onerror="this.remove()"><span><b>ZestMail</b><small>HTML email built from your tokens</small></span></a>
-    <a class="tool" href="md/"><img src="md/icons/icon-64.png" alt="" onerror="this.remove()"><span><b>Zest MD</b><small>Markdown, read like it was typeset</small></span></a>
-    <a class="tool" href="image/"><img src="image/icons/icon-64.png" alt="" onerror="this.remove()"><span><b>ZestImage</b><small>Featured images composed from the brand</small></span></a>
+    <a class="tool" href="mail/"><img src="mail/icons/icon-112.png" alt="" onerror="this.remove()"><span><b>ZestMail</b><small>HTML email built from your tokens</small></span></a>
+    <a class="tool" href="md/"><img src="md/icons/icon-112.png" alt="" onerror="this.remove()"><span><b>Zest MD</b><small>Markdown, read like it was typeset</small></span></a>
+    <a class="tool" href="image/"><img src="image/icons/icon-112.png" alt="" onerror="this.remove()"><span><b>ZestImage</b><small>Featured images composed from the brand</small></span></a>
   </div>
 </section>
 <footer>
