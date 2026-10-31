@@ -89,6 +89,32 @@ jobs:
           name: design-kit-snapshots
           path: design-kit-snapshots/*.png
 
+  pantrykit:
+    name: PantryKit package (macOS test + iOS compile)
+    # The Duo companion (1.1) will consume the Pantry core as the PantryKit SwiftPM
+    # package (ADR 0009) — same files as the Pantry framework target, second build
+    # system. This proves the package resolves, builds and passes its tests on macOS,
+    # and that every file in Sources/Pantry compiles for iOS. xcode-27 for the same
+    # SDK reason as `build`, and because the package's macOS floor matches the app's.
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+      - name: Build and test (macOS)
+        run: |
+          swift build
+          swift test
+      - name: Compile for iOS (device SDK, no simulator or signing needed)
+        # Compile-only proof against the iphoneos SDK at the package's iOS floor.
+        # swift build skips test targets, so XCTest/Testing availability on the
+        # device SDK is not in play here.
+        run: |
+          IOS_SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          swift build \
+            -Xswiftc -sdk -Xswiftc "$IOS_SDK" \
+            -Xswiftc -target -Xswiftc arm64-apple-ios17.0 \
+            -Xcc -isysroot -Xcc "$IOS_SDK" \
+            --scratch-path .build/ios
+
   gate-tests:
     name: CodeQL gate self-test
     # Ubuntu, and not xcode-27, on purpose. This tests scripts/codeql_gate.py,

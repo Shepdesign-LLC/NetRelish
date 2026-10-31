@@ -1,6 +1,9 @@
 # Swift package / Xcode build output
 .build/
 .swiftpm/
+# Root lockfile from PantryKit (Package.swift) resolution — the workspace Package.resolved
+# inside NetRelish.xcodeproj stays committed; two lockfiles would drift (ADR 0009).
+/Package.resolved
 DerivedData/
 *.xcuserstate
 xcuserdata/
