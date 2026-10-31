@@ -1,6 +1,6 @@
 # Shepdesign voice
 
-**v1.0 · 2026-10-31.** How every string in a Shepdesign-built product is written:
+**v1.1 · 2026-10-31.** How every string in a Shepdesign-built product is written:
 UI, email, reports, errors, guides, and marketing.
 
 > **Canonical copy:** `Shepdesign-LLC/NetRelish` → `docs/voice/SHEPDESIGN-VOICE.md`.
@@ -109,15 +109,18 @@ Run a check before every ship. It has slipped before.
 
 ## Punctuation
 
-Set per product. Each product layer states its rule for **em-dashes** and
-**hyphenated compounds**, because they differ today. True Vet Value bans both
-in customer copy; NetRelish uses em-dashes. If one rule should hold
-house-wide, it moves here with a version bump.
+**Set per product, by decision** (Ryan, 2026-10-31). Each product layer states
+its rule for **em-dashes** and **hyphenated compounds**. True Vet Value bans
+both in customer copy; NetRelish uses em-dashes. Don't propose a house-wide
+punctuation rule without new cause.
 
 ---
 
 ## Changelog
 
+- **v1.1 (2026-10-31).** Ryan decided punctuation stays per product. Em-dash
+  and hyphen rules live in each product layer for good, not pending a
+  house-wide rule.
 - **v1.0 (2026-10-31).** Lifted out of the NetRelish Workstation v5 handoff
   (`03-VOICE.md`, retitled "Shepdesign code voice" by Ryan), merged with True
   Vet Value's voice (`MISSION.md` principle 5, `tvv-dashboard/CLAUDE.md` copy

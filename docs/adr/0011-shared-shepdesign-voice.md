@@ -16,6 +16,5 @@ this ADR is superseded.
 
 The jargon ban became reader-relative ("use a technical word only when the
 reader uses it in their own work"), because True Vet Value's customers do use
-"webhook" and "endpoint". Em-dash and hyphen rules differ between the two
-products today, so they stay in the product layers until Ryan picks one
-house-wide rule.
+"webhook" and "endpoint". Em-dash and hyphen rules stay per product, by Ryan's
+decision on 2026-10-31 (house voice v1.1).
