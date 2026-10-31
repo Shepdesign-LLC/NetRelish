@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ZestMail — email builder and generator</title>
-<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="icon" href="icons/icon-64.png" type="image/png">
 <meta name="color-scheme" content="light dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -156,13 +156,52 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .toast.show{opacity:1; transform:translateX(-50%); pointer-events:auto}
 .toast button{color:var(--accent); font-weight:600}
 .sr{position:absolute; left:-9999px}
-@media (max-width:1100px){.work,.work[data-mode="source"]{grid-template-columns:260px 1fr 0} .inspector{display:none}}
+.btn.mobile-only{display:none}
+.tabs .sheet-x{display:none; flex:0 0 auto; padding:10px 12px; color:var(--ink-3)}
+.tabs .sheet-x svg{width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round}
+/* ≤1100px: the inspector becomes a bottom sheet instead of disappearing — editing stays possible on every screen */
+@media (max-width:1100px){
+  .work,.work[data-mode="source"]{grid-template-columns:260px 1fr}
+  .inspector{display:flex; position:fixed; left:0; right:0; bottom:0; height:62dvh; z-index:30; border-left:0; border-top:1px solid var(--rule); border-radius:12px 12px 0 0; box-shadow:0 -18px 48px -18px rgba(0,0,0,.55); transform:translateY(103%); transition:transform .2s ease}
+  .inspector[data-open="true"]{transform:none}
+  .tabs .sheet-x{display:flex}
+  .btn.mobile-only{display:inline-flex}
+}
+/* ≤1000px: the toolbar wraps to two rows instead of forcing a 983px layout viewport */
+@media (max-width:1000px){
+  .app{grid-template-rows:auto 1fr}
+  .bar{flex-wrap:wrap; padding:6px 10px; row-gap:4px}
+  .spacer{flex:0 0 100%; order:1; height:0}
+  .bar .group,.bar #viewSeg{order:2}
+  .pop{left:8px; right:8px; top:calc(100% + 4px); min-width:0}
+}
+/* ≤700px: single column; the library becomes a left drawer; the canvas scales to fit (see renderCanvas) */
+@media (max-width:700px){
+  .bar .btn{height:38px; padding:0 8px}
+  .bar .btn.icon{width:38px}
+  .bar .seg button{padding:8px 10px; font-size:12.5px} /* .bar scoping outranks the pointer:coarse bump below */
+  .group{padding:0 3px}
+  .work,.work[data-mode="source"]{grid-template-columns:1fr}
+  .pane.left{position:fixed; top:0; bottom:0; left:0; width:min(320px,86vw); z-index:25; border-right:1px solid var(--rule); box-shadow:18px 0 48px -18px rgba(0,0,0,.55); transform:translateX(-103%); transition:transform .2s ease}
+  .pane.left[data-open="true"]{transform:none}
+}
+@media (pointer:coarse){
+  .btn{height:42px} .btn.icon{width:42px}
+  .seg button{padding:10px 12px}
+  .cv-block .tools button{width:38px; height:38px}
+  .saved div button{width:32px; height:32px}
+  .tabs button{padding:14px 6px}
+  .lib-item span,.tpl button span,.pill{font-size:12px}
+  .left h5,.panel h4{font-size:12px}
+  .hint{font-size:12.5px}
+}
 </style>
 </head>
 <body>
 <div class="app">
   <header class="bar">
-    <div class="brand"><img class="mark" src="icons/icon-192.png" alt="" aria-hidden="true">ZestMail<span class="tag">orange · email from your tokens</span></div>
+    <button class="btn icon mobile-only" id="btnLib" aria-label="Blocks and templates"><svg viewBox="0 0 24 24"><path d="M4 5h7v7H4zM13 5h7v7h-7zM4 14h7v6H4zM13 14h7v6h-7z"/></svg></button>
+    <div class="brand"><img class="mark" src="icons/icon-64.png" alt="" aria-hidden="true">ZestMail<span class="tag">orange · email from your tokens</span></div>
     <div class="seg" id="modeSeg"><button data-m="build" aria-pressed="true">Build</button><button data-m="source">Source</button></div>
     <span class="pill" id="sizePill">0 KB</span>
     <span class="pill" id="lintPill">empty</span>
@@ -182,7 +221,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
     </div>
     <div class="group">
     </div>
-    <div class="group"><button class="btn primary" id="btnExport"><svg viewBox="0 0 24 24"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>Export</button></div>
+    <div class="group"><button class="btn icon mobile-only" id="btnPanel" aria-label="Message, brand and lint panel"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button><button class="btn primary" id="btnExport"><svg viewBox="0 0 24 24"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>Export</button></div>
     <div class="pop" id="popExport">
       <div class="menu">
         <button data-do="copy">Copy email HTML <small>⌘S</small></button>
@@ -199,7 +238,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 
   <div class="work" id="work" data-mode="build">
     <section class="pane left">
-      <div class="pane-head" id="leftHead"><b>Blocks</b><span>drag onto the canvas</span></div>
+      <div class="pane-head" id="leftHead"><b>Blocks</b><span>drag onto the canvas</span><div class="right"><button class="btn icon mobile-only" id="libClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div></div>
       <div class="scroll" id="leftBuild">
         <h5>Blocks</h5>
         <div class="lib" id="lib"></div>
@@ -228,6 +267,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
         <button data-t="message">Message</button>
         <button data-t="lint">Lint<span class="pill" id="lintCount">0</span></button>
         <button data-t="claude">Claude</button>
+        <button class="sheet-x" id="sheetClose" aria-label="Close panel"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
       </div>
       <div class="panel" data-active="true" id="panelBlock"><div class="hint">Select a block on the canvas, or drag one in from the left.</div></div>
       <div class="panel" id="panelBrand"></div>
@@ -601,7 +641,10 @@ ${preheader}${content}
     $('#brandPill').textContent = b.name;
     $('#canvasWrap').style.width = $('#width').value + 'px';
     $('#canvasWrap').style.background = $('#bg').value;
-    if (!state.blocks.length) { canvas.innerHTML = `<div class="empty"><img src="icons/icon-192.png" alt=""><b>Empty canvas</b>Drag a block from the left, or pick a template.</div>`; return; }
+    // scale the email preview to fit narrow stages, pixel-true (zoom scales layout too, so no overflow)
+    const fit = Math.min(1, ($('#stage').clientWidth - 32) / (+$('#width').value + 52));
+    $('#canvasWrap').style.zoom = fit < 1 ? fit : '';
+    if (!state.blocks.length) { canvas.innerHTML = `<div class="empty"><img src="icons/icon-112.png" alt=""><b>Empty canvas</b>Drag a block from the left, or pick a template.</div>`; return; }
     const rows = buildHTML(true);
     canvas.innerHTML = state.blocks.map((bl, i) => `<div class="cv-block" data-id="${bl.id}" draggable="true" aria-selected="${bl.id === state.selected}"><span class="tag">${BLOCKS[bl.type].name}</span><div class="tools"><button data-act="up" title="Move up">${ICON.up}</button><button data-act="down" title="Move down">${ICON.down}</button><button data-act="dup" title="Duplicate">${ICON.dup}</button><button data-act="del" title="Delete">${ICON.del}</button></div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:${b.font}"><tbody>${rows[i]}</tbody></table></div>`).join('');
     canvas.style.background = b.sheet; canvas.style.borderRadius = b.radius + 'px';
@@ -649,7 +692,7 @@ ${preheader}${content}
   $('#lib').addEventListener('dragstart', e => { const it = e.target.closest('.lib-item'); if (!it) return; dragType = 'lib:' + it.dataset.type; e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', dragType); });
   $('#mods').addEventListener('dragstart', e => { const it = e.target.closest('[data-mod]'); if (!it) return; dragType = 'mod:' + it.dataset.mod; e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', dragType); });
   const fromModule = id => { const m = store.get('modules', []).find(x => x.id === id); return m && BLOCKS[m.type] ? { id: uid(), type: m.type, props: Object.assign({}, BLOCKS[m.type].defaults, m.props) } : null; };
-  $('#mods').addEventListener('click', e => { const rm = e.target.closest('[data-rmmod]'); if (rm) { e.preventDefault(); store.set('modules', store.get('modules', []).filter(x => x.id !== rm.dataset.rmmod)); renderModules(); return; } const it = e.target.closest('[data-mod]'); if (!it) return; const nb = fromModule(it.dataset.mod); if (!nb) return; snapshot(); state.blocks.push(nb); state.selected = nb.id; renderCanvas(); renderInspector(); run(); showTab('block'); });
+  $('#mods').addEventListener('click', e => { const rm = e.target.closest('[data-rmmod]'); if (rm) { e.preventDefault(); store.set('modules', store.get('modules', []).filter(x => x.id !== rm.dataset.rmmod)); renderModules(); return; } const it = e.target.closest('[data-mod]'); if (!it) return; const nb = fromModule(it.dataset.mod); if (!nb) return; snapshot(); state.blocks.push(nb); state.selected = nb.id; renderCanvas(); renderInspector(); run(); showTab('block'); closeLibOnAdd(); });
   canvas.addEventListener('dragstart', e => { const blk = e.target.closest('.cv-block'); if (!blk) return; dragType = 'block:' + blk.dataset.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dragType); });
   const clearDrop = () => { $$('.cv-block', canvas).forEach(x => x.classList.remove('drop-before', 'drop-after')); canvas.classList.remove('drag-over'); };
   canvas.addEventListener('dragover', e => { if (!dragType) return; e.preventDefault(); clearDrop(); const blk = e.target.closest('.cv-block'); if (blk) { const r = blk.getBoundingClientRect(); blk.classList.add(e.clientY < r.top + r.height / 2 ? 'drop-before' : 'drop-after'); } else canvas.classList.add('drag-over'); });
@@ -666,10 +709,10 @@ ${preheader}${content}
   });
   document.addEventListener('dragend', () => { dragType = null; clearDrop(); });
   // library click = append
-  $('#lib').addEventListener('click', e => { const it = e.target.closest('.lib-item'); if (!it) return; snapshot(); const nb = newBlock(it.dataset.type); state.blocks.push(nb); state.selected = nb.id; renderCanvas(); renderInspector(); run(); showTab('block'); $('#stage').scrollTop = 1e6; });
+  $('#lib').addEventListener('click', e => { const it = e.target.closest('.lib-item'); if (!it) return; snapshot(); const nb = newBlock(it.dataset.type); state.blocks.push(nb); state.selected = nb.id; renderCanvas(); renderInspector(); run(); showTab('block'); closeLibOnAdd(); $('#stage').scrollTop = 1e6; });
   $('#lib').innerHTML = Object.entries(BLOCKS).map(([k, b]) => `<div class="lib-item" draggable="true" data-type="${k}"><b>${b.name}</b><span>${b.desc}</span></div>`).join('');
   $('#tpl').innerHTML = Object.entries(TEMPLATES).map(([k, t]) => `<button data-tpl="${k}"><b>${t.name}</b><span>${t.desc}</span></button>`).join('');
-  $('#tpl').addEventListener('click', e => { const b = e.target.closest('[data-tpl]'); if (!b) return; if (state.blocks.length && !confirm('Replace the current canvas with this template?')) return; snapshot(); state.blocks = TEMPLATES[b.dataset.tpl].blocks(); state.selected = null; state.designName = TEMPLATES[b.dataset.tpl].name; if (!$('#subject').value) $('#subject').value = TEMPLATES[b.dataset.tpl].name; renderCanvas(); renderInspector(); run(); });
+  $('#tpl').addEventListener('click', e => { const b = e.target.closest('[data-tpl]'); if (!b) return; if (state.blocks.length && !confirm('Replace the current canvas with this template?')) return; snapshot(); state.blocks = TEMPLATES[b.dataset.tpl].blocks(); state.selected = null; state.designName = TEMPLATES[b.dataset.tpl].name; if (!$('#subject').value) $('#subject').value = TEMPLATES[b.dataset.tpl].name; renderCanvas(); renderInspector(); run(); closeLibOnAdd(); });
 
   /* =========================================================
      Inspector
@@ -745,8 +788,17 @@ ${preheader}${content}
     else return;
     store.set('brands', brands); renderBrandPanel(); renderCanvas(); run();
   });
-  function showTab(t) { $$('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.t === t)); $$('.panel').forEach(p => p.dataset.active = p.id === 'panel' + t[0].toUpperCase() + t.slice(1)); }
-  $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) showTab(b.dataset.t); });
+  const touchUI = matchMedia('(pointer:coarse)').matches;
+  const narrow = () => matchMedia('(max-width:1100px)').matches, phone = () => matchMedia('(max-width:700px)').matches;
+  let booted = false; // the sheet only auto-opens for user actions, never on load
+  function showTab(t) { $$('#tabs button[data-t]').forEach(b => b.setAttribute('aria-selected', b.dataset.t === t)); $$('.panel').forEach(p => p.dataset.active = p.id === 'panel' + t[0].toUpperCase() + t.slice(1)); if (booted && narrow()) $('#inspector').dataset.open = 'true'; }
+  $('#tabs').addEventListener('click', e => { if (e.target.closest('#sheetClose')) { $('#inspector').dataset.open = 'false'; return; } const b = e.target.closest('button[data-t]'); if (b) showTab(b.dataset.t); });
+  $('#btnPanel').addEventListener('click', () => { const cur = $('#tabs button[aria-selected="true"]'); showTab(cur && cur.dataset.t !== 'block' ? cur.dataset.t : 'message'); $('#inspector').dataset.open = 'true'; });
+  const libPane = $('.pane.left');
+  $('#btnLib').addEventListener('click', () => { libPane.dataset.open = libPane.dataset.open === 'true' ? 'false' : 'true'; });
+  $('#leftHead').addEventListener('click', e => { if (e.target.closest('#libClose')) libPane.dataset.open = 'false'; }); // delegated: setMode rebuilds the head
+  const closeLibOnAdd = () => { if (phone()) libPane.dataset.open = 'false'; };
+  let rsT; addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(() => { renderCanvas(); run(); }, 160); });
 
   /* =========================================================
      Compile + preview (shared by both modes)
@@ -760,10 +812,10 @@ ${preheader}${content}
     const isCanvas = state.mode === 'build' && state.view === 'canvas';
     $('#canvasWrap').style.display = isCanvas ? '' : 'none'; frame.style.display = isCanvas ? 'none' : '';
     $('#centerTitle').textContent = isCanvas ? 'Canvas' : 'Preview';
-    if (!input) { last = null; $('#lintPill').textContent = 'empty'; $('#lintPill').className = 'pill'; $('#sizePill').textContent = '0 KB'; $('#issues').innerHTML = '<div class="issue"><span>Nothing to lint yet.</span></div>'; $('#lintCount').textContent = '0'; $('#centerNote').textContent = isCanvas ? 'drag a block in, or pick a template' : 'nothing to preview'; if (!isCanvas) frame.srcdoc = '<p style="font-family:sans-serif;color:#999;padding:40px;text-align:center">Nothing to preview</p>'; return; }
+    if (!input) { last = null; $('#lintPill').textContent = 'empty'; $('#lintPill').className = 'pill'; $('#sizePill').textContent = '0 KB'; $('#issues').innerHTML = '<div class="issue"><span>Nothing to lint yet.</span></div>'; $('#lintCount').textContent = '0'; $('#centerNote').textContent = isCanvas ? (touchUI ? 'tap a block in the library, or pick a template' : 'drag a block in, or pick a template') : 'nothing to preview'; if (!isCanvas) frame.srcdoc = '<p style="font-family:sans-serif;color:#999;padding:40px;text-align:center">Nothing to preview</p>'; return; }
     last = compile(input, o());
-    if (!isCanvas) { const w = state.view === 'outlook' ? 600 : +state.view; frame.style.width = w + 'px'; frame.srcdoc = previewTags(state.view === 'outlook' ? outlookSim(last.html) : last.html); $('#centerNote').textContent = state.view === 'outlook' ? '600px · Outlook simulation (Word engine approximation)' : `${w}px · compiled output`; }
-    else $('#centerNote').textContent = 'click a block to edit it · drag to reorder';
+    if (!isCanvas) { const w = state.view === 'outlook' ? 600 : +state.view; frame.style.width = w + 'px'; frame.style.zoom = Math.min(1, ($('#stage').clientWidth - 32) / w) || ''; frame.srcdoc = previewTags(state.view === 'outlook' ? outlookSim(last.html) : last.html); $('#centerNote').textContent = state.view === 'outlook' ? '600px · Outlook simulation (Word engine approximation)' : `${w}px · compiled output`; }
+    else $('#centerNote').textContent = touchUI ? 'tap a block to edit it' : 'click a block to edit it · drag to reorder';
     $('#sizePill').textContent = (last.bytes / 1024).toFixed(1) + ' KB';
     const errs = last.issues.filter(i => i[0] === 'err').length, warns = last.issues.filter(i => i[0] === 'warn').length;
     const lp = $('#lintPill'); lp.textContent = errs ? `${errs} blocking` : warns ? `${warns} to review` : 'clean'; lp.className = 'pill ' + (errs ? 'err' : warns ? 'warn' : 'ok');
@@ -781,7 +833,7 @@ ${preheader}${content}
   function setMode(m) {
     state.mode = m; $('#work').dataset.mode = m; $$('#modeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === m));
     $('#leftBuild').style.display = m === 'build' ? '' : 'none'; src.style.display = m === 'build' ? 'none' : '';
-    $('#leftHead').innerHTML = m === 'build' ? '<b>Blocks</b><span>drag onto the canvas</span>' : '<b>Source HTML</b><span>paste anything — yours, or what a model produced</span>';
+    $('#leftHead').innerHTML = (m === 'build' ? `<b>Blocks</b><span>${touchUI ? 'tap to add to the canvas' : 'drag onto the canvas'}</span>` : '<b>Source HTML</b><span>paste anything — yours, or what a model produced</span>') + '<div class="right"><button class="btn icon mobile-only" id="libClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>';
     $$('#viewSeg button')[0].style.display = m === 'build' ? '' : 'none';
     if (m === 'source' && state.view === 'canvas') setView('600'); else run();
   }
@@ -970,6 +1022,7 @@ Rules: table-based layout for anything side-by-side (role="presentation", cellpa
   const draft = store.get('draft', null);
   if (draft) { state.blocks = draft.blocks || []; if (brands.find(b => b.id === draft.brandId)) state.brandId = draft.brandId; $('#subject').value = draft.subject || ''; $('#preheader').value = draft.preheader || ''; if (draft.width) $('#width').value = draft.width; if (draft.bg) $('#bg').value = draft.bg; src.value = draft.src || ''; state.designId = draft.designId || null; state.designName = draft.designName || 'Untitled'; }
   renderSaved(); renderModules(); renderInspector(); renderBrandPanel(); renderCanvas(); setMode('build');
+  booted = true; // from here on, showTab may open the bottom sheet on narrow screens
 })();
 </script>
 </body>
