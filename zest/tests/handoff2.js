@@ -90,7 +90,7 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
 
   console.log('== Zest MD: custom-skin import ==');
   const md = await ctx.newPage(); await block(md);
-  // serve the pinned DOMPurify from node_modules (same 3.1.6 the app loads from cdnjs) so the
+  // serve the pinned DOMPurify from node_modules (package.json pins the same version the app's cdnjs tag loads) so the
   // sanitized-raw-HTML path is under test and the suite works offline; registered after block(),
   // so this more specific route wins while the rest of cdnjs stays aborted
   const PURIFY = fs.readFileSync(require.resolve('dompurify/dist/purify.min.js'), 'utf8');
