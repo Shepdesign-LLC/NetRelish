@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Zest — a brand system your tools actually use</title>
-<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="icon" href="icons/icon-64.png" type="image/png">
 <meta name="description" content="Zest composes, it doesn't generate. Build your brand once as real tokens, then make email, documents and featured images that look like you — not like a prompt. A NetRelish product line.">
 <meta name="theme-color" content="#0f1214">
 <meta property="og:title" content="Zest — a brand system your tools actually use">
@@ -50,7 +50,14 @@ header .wrap{display:flex;align-items:center;gap:26px;height:64px}
 nav{display:flex;gap:22px;margin-left:auto}
 nav a{color:var(--muted);text-decoration:none;font-size:15px;transition:color .12s var(--ease)}
 nav a:hover{color:var(--ink)}
-@media(max-width:860px){nav{display:none}}
+@media(max-width:640px){header nav:not(.mnav){display:none}}
+.menu{display:none;position:relative;order:10;margin-left:4px} /* sits after the CTA at the far right */
+.menu summary{list-style:none;cursor:pointer;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:18px;line-height:1}
+.menu summary::-webkit-details-marker{display:none}
+.menu .mnav{position:absolute;top:calc(100% + 8px);right:0;min-width:200px;background:var(--night);border:1px solid var(--line);border-radius:10px;display:grid;gap:2px;padding:10px 16px;box-shadow:0 18px 44px -16px rgba(0,0,0,.6);z-index:20}
+.menu .mnav a{padding:12px 4px;text-decoration:none}
+@media(max-width:640px){.menu{display:block}}
+footer a{padding:12px 6px;margin:-12px -6px} /* ~46px tap targets without changing the visual */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;border-radius:var(--r);font:600 15px var(--body);text-decoration:none;border:1px solid transparent;cursor:pointer;transition:all .14s var(--ease);white-space:nowrap}
 .btn.zest{background:var(--zest-500);color:var(--pith)}
 .btn.zest:hover{background:var(--zest-400);transform:translateY(-1px)}
@@ -58,6 +65,9 @@ nav a:hover{color:var(--ink)}
 .btn.ghost:hover{border-color:var(--muted)}
 .light .btn.ghost{border-color:var(--line-light);color:var(--ink-dark)}
 .btn.sm{padding:9px 15px;font-size:14px}
+@media(pointer:coarse){.btn.sm{padding:11px 16px}}
+@media(max-width:560px){#wl .btn{width:100%}}
+@media(max-width:480px){.icon-row{display:grid;grid-template-columns:repeat(2,max-content);justify-content:center;gap:20px 28px}}
 
 /* hero */
 .hero{padding-top:clamp(56px,7vw,96px);padding-bottom:0;overflow:hidden}
@@ -113,7 +123,16 @@ nav a:hover{color:var(--ink)}
 .vs .vs-a{color:var(--muted-dark);width:40%}
 .vs .vs-b{background:rgba(166,204,28,.09);width:40%}
 .vs tr td:last-child{border-radius:0}
-@media(max-width:760px){.vs,.vs tbody,.vs tr,.vs td,.vs th{display:block} .vs thead{display:none} .vs td{width:auto;padding:8px 14px} .vs .vs-q{padding-top:18px} .vs .vs-b{border-radius:8px;margin-bottom:10px}}
+@media(max-width:760px){
+  .vs,.vs tbody,.vs tr,.vs td,.vs th{display:block} .vs thead{display:none}
+  .vs td{padding:8px 14px} .vs .vs-q{padding-top:18px} .vs .vs-b{border-radius:8px;margin-bottom:10px}
+  /* the desktop width rules carry (0,2,0) specificity, so the stacked override must match it */
+  .vs .vs-q,.vs .vs-a,.vs .vs-b{width:auto}
+  /* thead is gone when stacked — the cells re-label themselves */
+  .vs .vs-a::before{content:'Generative tools';display:block;font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted-dark);margin-bottom:4px}
+  .vs .vs-b::before{content:'Zest';display:block;font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:#59720c;margin-bottom:4px} /* zest-700 reads 4.27:1 over the tinted cell; this hits 4.76:1 */
+  .status,.icon-row small,.plan .tag{font-size:12px}
+}
 
 /* roadmap */
 .road{list-style:none;padding:0;margin:44px 0 0;display:grid;gap:0}
@@ -157,10 +176,13 @@ footer a{text-decoration:none} footer a:hover{color:var(--ink)}
 <body>
 
 <header><div class="wrap">
-  <a class="brand" href="#top"><img src="icons/icon-192.png" alt="" aria-hidden="true">Zest</a>
+  <a class="brand" href="#top"><img src="icons/icon-112.png" alt="" aria-hidden="true">Zest</a>
   <nav>
     <a href="/">Studio</a><a href="#tools">Tools</a><a href="#why">Why</a><a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="#roadmap">Roadmap</a>
   </nav>
+  <details class="menu"><summary aria-label="Menu">&#9776;</summary>
+    <nav class="mnav"><a href="/">Studio</a><a href="#tools">Tools</a><a href="#why">Why</a><a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="#roadmap">Roadmap</a></nav>
+  </details>
   <a class="btn zest sm" href="#waitlist" style="margin-left:auto">Get early access</a>
 </div></header>
 
@@ -762,16 +784,20 @@ footer a{text-decoration:none} footer a:hover{color:var(--ink)}
 
 <footer><div class="wrap">
   <div style="display:flex;align-items:center;gap:10px">
-    <img src="icons/icon-192.png" alt="" width="22" height="22" style="border-radius:6px;display:block">
+    <img src="icons/icon-64.png" alt="" width="22" height="22" style="border-radius:6px;display:block">
     <span>Zest · zest.netrelish.com</span>
   </div>
   <div style="display:flex;gap:22px;flex-wrap:wrap">
-    <a href="#tools">Tools</a><a href="#pricing">Pricing</a><a href="#roadmap">Roadmap</a><a href="https://netrelish.com">NetRelish</a>
+    <a href="/">Studio</a><a href="#tools">Tools</a><a href="#why">Why</a><a href="#pricing">Pricing</a><a href="#roadmap">Roadmap</a><a href="https://netrelish.com">NetRelish</a>
   </div>
   <span class="endorse">A NETRELISH PRODUCT LINE</span>
 </div></footer>
 
 <script>
+// The phone menu closes once a destination is picked, instead of riding the sticky header over it.
+const menu = document.querySelector('.menu');
+menu.addEventListener('click', e => { if (e.target.closest('a')) menu.open = false; });
+
 // Waitlist. Point data-endpoint at a Vercel function that forwards to Bento
 // (POST https://app.bentonow.com/api/v1/fetch/subscribers) or Resend Audiences.
 // Until that function exists the form fails honestly rather than faking success.

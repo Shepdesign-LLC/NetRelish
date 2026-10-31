@@ -64,7 +64,7 @@ function runNode(args, capture) {
   const servers = await Promise.all(Object.entries(SERVERS).map(([p, d]) => serve(+p, d)));
   let failed = 0;
 
-  for (const suite of ['test.js', 'handoff2.js', 'topology.js']) {
+  for (const suite of ['test.js', 'handoff2.js', 'topology.js', 'mobile.js']) {
     console.log(`\n=== ${suite} ===`);
     const r = await runNode([path.join(__dirname, suite)]);
     if (r.code !== 0) failed++;

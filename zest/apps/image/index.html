@@ -6,7 +6,7 @@
 <title>ZestImage — featured images from your brand</title>
 <meta name="description" content="Branded featured images — blog heroes, OG cards, social tiles — composed from your brand tokens. No prompts, no stock. Runs in your browser; images never leave this machine.">
 <meta name="theme-color" content="#120607">
-<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="icon" href="icons/icon-64.png" type="image/png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-title" content="ZestImage">
@@ -41,7 +41,7 @@ header a{color:var(--ink-2);text-decoration:none;font-size:13px}
 header a:hover{color:var(--ink)}
 
 .app{display:grid;grid-template-columns:300px 1fr 324px;min-height:calc(100dvh - 57px)}
-@media(max-width:1100px){.app{grid-template-columns:1fr;min-height:0}.stagewrap{order:-1;min-height:46vh}}
+@media(max-width:1100px){.app{display:flex;flex-direction:column;min-height:0}.stagewrap{order:-1;position:sticky;top:0;z-index:5}}
 .panel{padding:16px;border-right:1px solid var(--line);overflow-y:auto}
 .panel.right{border-right:0;border-left:1px solid var(--line)}
 @media(max-width:1100px){.panel,.panel.right{border:0;border-top:1px solid var(--line)}}
@@ -130,6 +130,30 @@ footer .sp{flex:1}
   transition:all 240ms var(--ease);box-shadow:0 18px 44px -16px rgba(0,0,0,.6);max-width:min(92vw,520px)}
 .toast.show{opacity:1;transform:translateX(-50%)}
 @media(prefers-reduced-motion:reduce){*{transition-duration:1ms!important;animation:none!important}}
+
+/* ---- mobile (kept last so these win the cascade over the base component rules above) ---- */
+@media(max-width:1100px){
+  html,body{height:auto;min-height:100%}
+  .stage{padding:8px 16px 12px}
+  .stagebar{flex-wrap:nowrap} .stagebar label,#dims{white-space:nowrap}
+  .sec.exportsec{position:sticky;bottom:0;z-index:4;background:var(--night,#120607);border-top:1px solid var(--line);margin-top:10px;padding-top:10px;padding-bottom:10px}
+  .field input[type=text],.field input[type=number],.field select,.field textarea,#cAlt{font-size:16px} /* under 16px, iOS Safari focus-zooms the page */
+  .lab{font-size:12.5px} .hint{font-size:12px} .tchip small{font-size:11px} .lcell small{font-size:11.5px} .req{font-size:11px}
+}
+@media(max-width:640px){header .tag{display:none}}
+@media(max-width:1100px) and (max-height:500px){
+  /* landscape phones: two stickies would sandwich the controls into a negative band — unstick both */
+  .stagewrap{position:static}
+  .sec.exportsec{position:static}
+}
+@media(pointer:coarse){
+  .btn{height:44px} .btn.sm{height:38px}
+  .tchip{padding:10px 14px}
+  .stagebar label{padding:10px 0}
+  .stagebar input[type=checkbox]{width:20px;height:20px}
+  .brandrow .bdel{padding:0 16px}
+  header a{padding:12px 6px}
+}
 </style>
 </head>
 <body>
@@ -145,7 +169,7 @@ footer .sp{flex:1}
 </defs></svg>
 
 <header>
-  <div class="brand"><img class="mark" src="icons/icon-192.png" alt="" aria-hidden="true">ZestImage</div>
+  <div class="brand"><img class="mark" src="icons/icon-112.png" alt="" aria-hidden="true">ZestImage</div>
   <span class="tag">Grapefruit · composed, not generated</span>
   <span class="sp"></span>
   <a href="https://zest.netrelish.com" rel="noopener">Zest</a>
@@ -224,13 +248,13 @@ footer .sp{flex:1}
       <div class="field"><textarea id="cAlt" placeholder="What the image shows, for screen readers."></textarea></div>
       <p class="hint">Required before export — screen readers read this. Pre-filled from the title and kicker; say what matters.</p>
     </div>
-    <div class="sec">
+    <div class="sec exportsec">
       <p class="lab">Export</p>
       <div class="row2" style="margin-bottom:8px">
         <div class="field"><label for="eFmt">Format</label><select id="eFmt"><option value="png">PNG</option><option value="webp">WebP</option></select></div>
         <div class="field"><label for="eScale">Scale</label><select id="eScale"><option value="1">1×</option><option value="2" selected>2×</option></select></div>
       </div>
-      <button class="btn acc wide" id="bExport"><svg><use href="#i-down"/></svg>Export image</button>
+      <button class="btn acc wide" id="bExport"><svg><use href="#i-down"/></svg>Export image</button><!-- its .sec is the sticky exportsec on mobile -->
       <div class="row2" style="margin-top:8px">
         <button class="btn sm" id="bAlt"><svg><use href="#i-doc"/></svg>alt.txt</button>
         <button class="btn sm" id="bManifest"><svg><use href="#i-save"/></svg>Manifest</button>
@@ -355,15 +379,19 @@ async function fetchFaces(entry, family, axes) {
   const url = `https://fonts.googleapis.com/css2?family=${famParam(family)}${axes}&display=swap`;
   const css = await (await fetch(url, { mode: 'cors' })).text();
   const faces = css.match(/(?:\/\*\s*[a-z0-9-]+\s*\*\/\s*)?@font-face\s*{[^}]+}/g) || [];
+  const uriByUrl = {}; // css2 points every weight of a variable font at one woff2 — fetch and encode it once
   for (const face of faces) {
     // keep latin subsets only — by Google's subset comment, or the latin unicode-range when comments are absent
     if (faces.length > 4 && !/\/\*\s*latin\s*\*\//.test(face) && !face.includes('U+0000-00FF')) continue;
     const src = face.match(/url\((https:[^)]+\.woff2)\)/);
     if (!src) continue;
-    const buf = await (await fetch(src[1], { mode: 'cors' })).arrayBuffer();
-    let bin = ''; const bytes = new Uint8Array(buf);
-    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-    const dataUri = 'data:font/woff2;base64,' + btoa(bin);
+    let dataUri = uriByUrl[src[1]];
+    if (!dataUri) {
+      const buf = await (await fetch(src[1], { mode: 'cors' })).arrayBuffer();
+      let bin = ''; const bytes = new Uint8Array(buf);
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      dataUri = uriByUrl[src[1]] = 'data:font/woff2;base64,' + btoa(bin);
+    }
     entry.css += face.replace(src[1], dataUri) + '\n';
     const w = (face.match(/font-weight:\s*([\d ]+)/) || [])[1] || '400';
     const ff = new FontFace(family, `url(${dataUri})`, { weight: w.trim().split(' ')[0] });
@@ -569,8 +597,14 @@ function render() {
   const svg = compose(w, h);
   const host = $('#stageSvg'); host.innerHTML = svg;
   const f = $('#frame'); f.style.aspectRatio = `${w} / ${h}`;
-  f.style.width = h > w ? 'auto' : 'min(100%, 880px)';
-  f.style.height = h > w ? 'min(62vh, 640px)' : 'auto';
+  if (matchMedia('(max-width:1100px)').matches) {
+    // compact docked preview: the sticky stage stays visible while editing. Height-first, but
+    // never wider than the stage — the auto grid track grows to content, so max-width can't bind.
+    const avail = Math.max(120, f.parentElement.clientWidth - 32);
+    f.style.width = 'auto';
+    f.style.height = Math.round(Math.min(innerHeight * 0.26, 280, avail * h / w)) + 'px';
+  }
+  else { f.style.width = h > w ? 'auto' : 'min(100%, 880px)'; f.style.height = h > w ? 'min(62vh, 640px)' : 'auto'; }
   $('#dims').textContent = `${w} × ${h}${scale() === 2 ? ' → ' + w * 2 + ' × ' + h * 2 : ''}`;
   $('#fname').textContent = filename();
   $('#safe').classList.toggle('on', !!target().safe && $('#safeTgl').checked);
@@ -722,6 +756,7 @@ $('#safeTgl').addEventListener('change', render);
 $('#eFmt').addEventListener('change', render);
 $('#eScale').addEventListener('change', render);
 $('#bExport').addEventListener('click', exportImage);
+let rzT; addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(render, 160); }); // the docked-preview cap follows rotation
 $('#bAlt').addEventListener('click', () => { const alt = $('#cAlt').value.trim() || altDefault();
   download(filename().replace(/\.(png|webp)$/, '') + '.alt.txt', new Blob([alt], { type: 'text/plain' })); });
 $('#bManifest').addEventListener('click', async () => {

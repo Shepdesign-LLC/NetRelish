@@ -21,6 +21,7 @@ CI runs the same thing on every PR that touches `zest/**`
 | `test.js` (66) | Studio: roles, OKLCH harmony, locks, shuffle, type palettes, font upload/replacement, brand export/import round-trips, logo handling, share links, ZestImage brand import, no uncaught exceptions |
 | `handoff2.js` (41) | Brand handoff studio → Mail and MD: token import, font mapping, serif stacks, name whitelisting, JSON routing, persistence, the DOMPurify XSS fix in MD (sanitized path *and* fail-closed path with the CDN blocked) |
 | `topology.js` (38) | The assembled `dist/`: studio at `/`, tools at `/mail` `/md` `/image`, store at `/pricing`, scope-relative service workers and manifests, tools-row links, cross-app brand download |
+| `mobile.js` (38) | Every surface at 390×844 with touch (plus a landscape-phone case): no layout-viewport blowout, panels reachable, and each core flow works by tap — Mail's drawer/bottom-sheet/scaled canvas, MD's wrapped bar + Contents drawer + clamped popovers, the studio's capped preview + jump nav, Image's docked preview, the store's menu and stacked comparison table |
 | `contrast-audit.js` | Full-page WCAG text-contrast sweep (alpha compositing, gradient detection) on Mail, MD (dark **and** light scheme — its reader skins react to `prefers-color-scheme`), and the studio — any failure fails the run. Mail and the studio ship one fixed dark chrome, so a single sweep covers them |
 
 ## Notes
@@ -32,9 +33,11 @@ CI runs the same thing on every PR that touches `zest/**`
 - **No live CDN in any suite.** Every page context aborts `cdnjs` and Google
   Fonts, so a run sees the same page state with or without egress and never
   flakes on CDN weather. The one exception is deliberate: `handoff2.js`
-  serves `dompurify` **3.1.6** from `node_modules` — the exact version
-  Zest MD loads from cdnjs — so the XSS tests exercise the sanitizer the
-  app ships (and the fail-closed path is tested with it absent).
+  serves `dompurify` from `node_modules` — pinned in `package.json` to the
+  exact version Zest MD's cdnjs `<script>` tag loads — so the XSS tests
+  exercise the sanitizer the app ships (and the fail-closed path is tested
+  with it absent). **When one moves, move the other**: a Dependabot bump
+  here must be mirrored in `apps/md/index.html`, and vice versa.
 - `fixtures/` holds two Caladea TTFs (SIL OFL 1.1, license included) for the
   studio's font-upload round-trip — no system font paths, so the suite runs
   on any OS.

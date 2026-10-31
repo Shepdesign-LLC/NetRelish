@@ -6,7 +6,7 @@
 <title>Zest — build the brand once</title>
 <meta name="description" content="The brand studio. Pick the colors and type once — every Zest tool inherits them. OKLCH palettes, font pairings, type and spacing scales, WCAG audit, tokens out. Runs in your browser; nothing is uploaded.">
 <meta name="theme-color" content="#100E06">
-<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="icon" href="icons/icon-64.png" type="image/png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-title" content="Zest">
@@ -41,7 +41,7 @@ header a{color:var(--ink-2);text-decoration:none;font-size:13px}
 header a:hover{color:var(--ink)}
 
 .app{display:grid;grid-template-columns:318px 1fr 336px;height:calc(100dvh - 57px);min-height:520px} /* FIXED height: each panel scrolls itself — min-height would balloon the grid to the tallest column and strand the page in dead space */
-@media(max-width:1180px){.app{grid-template-columns:1fr;height:auto;min-height:0}.stagewrap{order:-1;min-height:48vh}}
+@media(max-width:1180px){.app{grid-template-columns:1fr;height:auto;min-height:0}.stagewrap{order:-1;min-height:0}}
 .panel{padding:16px;border-right:1px solid var(--line);overflow-y:auto}
 .panel.right{border-right:0;border-left:1px solid var(--line)}
 @media(max-width:1180px){.panel,.panel.right{border:0;border-top:1px solid var(--line)}}
@@ -113,6 +113,7 @@ input[type=range]{width:100%;accent-color:var(--acc)}
 .stagebar .sp{flex:1}
 .stage{flex:1;padding:10px 26px 26px;min-height:0;display:grid;place-items:start center;overflow:auto} /* short windows scroll the preview instead of clipping it */
 .frame{width:min(100%,880px);border-radius:14px;overflow:hidden;box-shadow:0 30px 80px -24px rgba(0,0,0,.7),0 0 0 1px var(--line)}
+.frame iframe{display:block;width:100%;height:640px;border:0;background:#fff}
 
 /* type + pairing lists */
 .pairs{display:grid;gap:6px;max-height:260px;overflow:auto;padding-right:2px}
@@ -169,6 +170,34 @@ footer .sp{flex:1}
   transition:all 240ms var(--ease);box-shadow:0 18px 44px -16px rgba(0,0,0,.6);max-width:min(92vw,560px)}
 .toast.show{opacity:1;transform:translateX(-50%)}
 @media(prefers-reduced-motion:reduce){*{transition-duration:1ms!important;animation:none!important}}
+
+/* ---- mobile (kept last so these win the cascade over the base component rules above) ---- */
+.jump{display:none;position:sticky;top:0;z-index:10;gap:6px;padding:8px 14px;background:var(--bgtop,#2A2610);border-bottom:1px solid var(--line);overflow-x:auto}
+.jump a{color:var(--ink-2);text-decoration:none;font:500 12.5px var(--ui);padding:7px 11px;border:1px solid var(--line);border-radius:999px;white-space:nowrap}
+.jump a:active{color:var(--ink)}
+@media(max-width:1180px){
+  html,body{height:auto;min-height:100%} /* body must grow with the page or the sticky .jump's containing block ends one viewport down */
+  /* the preview no longer owns the whole first screen, and stops trapping page swipes */
+  .frame iframe{height:min(52vh,480px)}
+  .stage{padding:10px 14px 18px}
+  .jump{display:flex}
+  #left,#typesec,#exportsec,#tools{scroll-margin-top:62px} /* jump targets land below the sticky bar, not under it */
+}
+@media(pointer:coarse){
+  .frame iframe{pointer-events:none} /* a look-at preview: without this it swallows every pan that starts on it */
+}
+@media(max-width:640px){header .tag{display:none}}
+@media(pointer:coarse){
+  .btn.sm{height:36px;padding:0 12px}
+  .role{grid-template-columns:34px 38px 1fr 92px}
+  .role .lock{width:34px;height:34px}
+  .role input[type=color]{width:38px;height:38px}
+  input[type=range]{height:32px}
+  .ramp{height:44px}
+  header a{padding:10px 6px}
+  .sliders output,.arow output{font-size:12px}
+  .role small{font-size:11.5px}
+}
 </style>
 </head>
 <body>
@@ -184,11 +213,15 @@ footer .sp{flex:1}
 </defs></svg>
 
 <header>
-  <div class="brand"><img class="mark" src="icons/icon-192.png" alt="" aria-hidden="true">Zest</div>
+  <div class="brand"><img class="mark" src="icons/icon-112.png" alt="" aria-hidden="true">Zest</div>
   <span class="tag">Lemon · build the brand once</span>
   <span class="sp"></span>
   <a href="#tools">Tools</a>
 </header>
+
+<nav class="jump" aria-label="Sections">
+  <a href="#left">Color</a><a href="#typesec">Type</a><a href="#exportsec">Export</a><a href="#tools">Tools</a>
+</nav>
 
 <div class="app">
   <aside class="panel" id="left">
@@ -250,11 +283,11 @@ footer .sp{flex:1}
         <button class="btn sm" id="pvDark" aria-pressed="false">Dark</button>
       </div>
     </div>
-    <div class="stage"><div class="frame"><iframe id="pv" title="Live brand preview" style="display:block;width:100%;height:640px;border:0;background:#fff"></iframe></div></div>
+    <div class="stage"><div class="frame"><iframe id="pv" title="Live brand preview"></iframe></div></div>
   </main>
 
   <aside class="panel right">
-    <div class="sec">
+    <div class="sec" id="typesec">
       <p class="lab">Type</p>
       <div class="pairs" id="pairs"></div>
       <div class="row2" style="margin-top:9px">
@@ -307,7 +340,7 @@ footer .sp{flex:1}
       <div class="audit" id="audit"></div>
       <p class="hint">WCAG 2.1 — 4.5:1 for text, 3:1 for the hairline. Both palettes, recomputed as you edit.</p>
     </div>
-    <div class="sec">
+    <div class="sec" id="exportsec">
       <p class="lab">Export</p>
       <button class="btn acc wide" id="xBrand"><svg><use href="#i-down"/></svg>zest-brand.json</button>
       <div class="row2" style="margin-top:8px">
@@ -343,9 +376,9 @@ footer .sp{flex:1}
 <section class="toolsrow" id="tools" aria-label="The Zest tools">
   <p class="lab" style="margin:0 0 12px">Tools — each one imports the brand you build here<span class="sp"></span><a href="pricing/" style="color:var(--ink-2);text-decoration:none;letter-spacing:0;text-transform:none;font:500 12px var(--body)">Pricing →</a></p>
   <div class="trow">
-    <a class="tool" href="mail/"><img src="mail/icons/icon-192.png" alt="" onerror="this.remove()"><span><b>ZestMail</b><small>HTML email built from your tokens</small></span></a>
-    <a class="tool" href="md/"><img src="md/icons/icon-192.png" alt="" onerror="this.remove()"><span><b>Zest MD</b><small>Markdown, read like it was typeset</small></span></a>
-    <a class="tool" href="image/"><img src="image/icons/icon-192.png" alt="" onerror="this.remove()"><span><b>ZestImage</b><small>Featured images composed from the brand</small></span></a>
+    <a class="tool" href="mail/"><img src="mail/icons/icon-112.png" alt="" onerror="this.remove()"><span><b>ZestMail</b><small>HTML email built from your tokens</small></span></a>
+    <a class="tool" href="md/"><img src="md/icons/icon-112.png" alt="" onerror="this.remove()"><span><b>Zest MD</b><small>Markdown, read like it was typeset</small></span></a>
+    <a class="tool" href="image/"><img src="image/icons/icon-112.png" alt="" onerror="this.remove()"><span><b>ZestImage</b><small>Featured images composed from the brand</small></span></a>
   </div>
 </section>
 <footer>
@@ -606,6 +639,7 @@ h1{font-family:${famCss(S.fonts.head)};font-weight:800;font-size:${typeSize(4)}p
 .b1{background:var(--primary);color:${onColor(t.primary)};border:0;border-radius:${btnRad(S.radius)};padding:${btnPad()};font:600 ${typeSize(0)}px ${famCss(S.fonts.body)};cursor:pointer}
 .b2{background:var(--sheet);color:var(--ink);border:1px solid var(--line);border-radius:${btnRad(S.radius)};padding:${btnPad()};font:500 ${typeSize(0)}px ${famCss(S.fonts.body)};cursor:pointer}
 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:${sp.s3}px;margin-bottom:${sp.s5}px}
+@media(max-width:560px){.cards{grid-template-columns:1fr}nav{flex-wrap:wrap;gap:${sp.s2}px}nav a:first-of-type{margin-left:0}}
 .card{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r);padding:${sp.s4}px}
 .card h3{font-family:${famCss(S.fonts.head)};font-size:${typeSize(1)}px;margin:0 0 ${sp.s1}px;letter-spacing:-.01em}
 .card p{color:var(--muted);font-size:${typeSize(-1)}px;margin:0;line-height:1.55}
