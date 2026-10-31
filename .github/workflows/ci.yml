@@ -104,15 +104,17 @@ jobs:
           swift build
           swift test
       - name: Compile for iOS (device SDK, no simulator or signing needed)
-        # Compile-only proof against the iphoneos SDK at the package's iOS floor.
-        # swift build skips test targets, so XCTest/Testing availability on the
+        # Compile-only proof against the iphoneos SDK; the deployment floor comes
+        # from Package.swift (.iOS("17.0")). --triple/--sdk set SwiftPM's build
+        # destination itself — injected -Xswiftc -sdk/-target flags do NOT work on
+        # Xcode 27's SwiftPM, whose swift-build backend appends its own macOS
+        # -sdk/-target after them and the mixed SDKs break the Foundation module
+        # scan. swift build skips test targets, so Testing availability on the
         # device SDK is not in play here.
         run: |
-          IOS_SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
           swift build \
-            -Xswiftc -sdk -Xswiftc "$IOS_SDK" \
-            -Xswiftc -target -Xswiftc arm64-apple-ios17.0 \
-            -Xcc -isysroot -Xcc "$IOS_SDK" \
+            --triple arm64-apple-ios \
+            --sdk "$(xcrun --sdk iphoneos --show-sdk-path)" \
             --scratch-path .build/ios
 
   gate-tests:
