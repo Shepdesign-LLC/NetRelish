@@ -3,7 +3,8 @@
 **Date:** 2026-10-31 · companion to ADR 0009. What ships now: a root `Package.swift`
 building `Sources/Pantry` as the `PantryKit` library (macOS 27 + iOS 17), a package test
 target mirroring the store round-trip tests, and a CI job that builds, tests, and
-cross-compiles the module for iOS on every push. No source file changed; the Mac app and
+cross-compiles the module for iOS on every PR and push to main (proven live on the first
+unlocked run: three tests green on macOS, iOS compile clean). No source file changed; the Mac app and
 its generated xcodeproj are untouched. This document is the audit that justified that
 shape, and the map for the Duo PR that follows.
 
@@ -42,6 +43,9 @@ adversarial second pass:
   Designer, never in the Swift.
 - `.webarchive` snapshots (`SnapshotStore`) are loadable by `WKWebView` on iOS — the
   format carries over.
+- `Tests/PantryKitTests` mirrors three tests from `Tests/PantryTests` by hand — no CI
+  diff enforces the lockstep (deliberately: three tests don't earn extraction tooling).
+  When those tests change in `PantryTests`, change the copies too.
 
 ## Known work left for the Duo PR (deliberately not groundwork)
 
@@ -85,9 +89,12 @@ the single app target, so those folders cross-reference freely without imports.
 - Names `Pantry`, `PantryTests`, `NetRelishTests`, `GeneratorTests` are taken by native
   targets; the package therefore uses `PantryKit` / `PantryKitTests`
   (`Tests/PantryKitTests`, a separate directory from `Tests/PantryTests`).
-- Every CI xcodebuild names `-project` and `-scheme` explicitly, and no job runs bare
-  `swift build`, so the root manifest changes nothing for existing jobs. The new
-  `pantrykit` job runs on the `xcode-27` image for the same SDK reason as `build`.
+- Every CI xcodebuild names `-project` and `-scheme` explicitly, and none of the other
+  jobs runs bare `swift build`, so the root manifest changes nothing for them. The
+  `pantrykit` job is the one that does, on the `xcode-27` image for the same SDK reason
+  as `build`. Its iOS cross-compile sets the destination with `--triple`/`--sdk` —
+  injected `-Xswiftc -sdk/-target` flags do not work on Xcode 27's SwiftPM, whose
+  swift-build backend appends its own macOS SDK/target after them.
 - GRDB is declared `from: "7.0.0"` in both build systems. The workspace pins 7.11.1 in
   `NetRelish.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`; the
   package resolves fresh in CI (a root `Package.resolved` is gitignored to avoid two
