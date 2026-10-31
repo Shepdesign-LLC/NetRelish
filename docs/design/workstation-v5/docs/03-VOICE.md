@@ -1,5 +1,10 @@
 # Shepdesign code voice. How every string is written
 
+> **Superseded (2026-10-31).** This guide now lives in two files:
+> `docs/voice/SHEPDESIGN-VOICE.md` (house rules, shared across Shepdesign
+> products) and `docs/voice/NETRELISH.md` (NetRelish vocabulary, banned words,
+> examples). Edit those, not this.
+
 The interface talks. This is how.
 
 The user builds WordPress sites for clients. They are smart and they are not a sysadmin. Write for someone who will happily learn a new idea — *jar*, *brine*, *seal* — and who will close the app the moment it shows them a stack trace.

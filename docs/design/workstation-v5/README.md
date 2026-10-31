@@ -20,6 +20,9 @@
 > - **v5 dropped two decisions from 2026-10-21:** the jar-fill drip (Brand
 >   Lock v1.2) and Markdown notes. Both still stand. The previous prototype,
 >   `../netrelish-workstation.html`, is kept because it implements both.
+> - **`docs/03-VOICE.md` is superseded** by `docs/voice/SHEPDESIGN-VOICE.md`
+>   (house) and `docs/voice/NETRELISH.md` (product). It is kept here as
+>   delivered.
 > - **Scrubbed on landing:** real client names, domains, a contact's name,
 >   billing details and a login were replaced with made-up ones (Juniper Bakery,
 >   Harbor Signs, Bright Trails; `*.example` / `*.local`). Guide copy that broke
