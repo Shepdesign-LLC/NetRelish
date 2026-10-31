@@ -606,19 +606,19 @@ const S = {
   jars: [
     { id: 'clients', name: 'Clients', color: 'relish', cap: 14,
       notes: [
-        { id: 'n1', title: 'Edith Head', body: 'Renewal is **Nov 3** — SiteGround, card on file is the Amex. She wants the events page split in two before then.\n\nLogin lives in 1Password, not here.', at: now - 26 * HR },
-        { id: 'n2', title: 'Miller Outdoor', body: 'NDA still unsigned. The map plugin is done but do not ship until Allan sends it back.\n\nHe prefers a phone call to email.', at: now - 3 * DAY },
-        { id: 'n3', title: 'GDP — seasonal kits', body: 'Winter set due mid-November. Reuse the autumn train, change the palette only.', at: now - 6 * DAY }],
+        { id: 'n1', title: 'Juniper Bakery', body: 'Hosting renews **Nov 3** — update the card on file first. She wants the events page split in two before then.\n\nLogin lives in 1Password, not here.', at: now - 26 * HR },
+        { id: 'n2', title: 'Harbor Signs', body: 'NDA still unsigned. The map plugin is done but do not ship until Dana sends it back.\n\nDana prefers a phone call to email.', at: now - 3 * DAY },
+        { id: 'n3', title: 'Bright Trails — seasonal kits', body: 'Winter set due mid-November. Reuse the autumn train, change the palette only.', at: now - 6 * DAY }],
       tabs: [
-        { id: 't1', group: 'Edith Head', title: 'edithhead.biz', host: 'edithhead.biz', fav: 'E', icon: 'globe', kind: 'live', pinned: true },
-        { id: 't2', group: 'Edith Head', title: 'SiteGround — Site Tools', host: 'siteground.com', fav: 'S', kind: 'host', locked: true },
-        { id: 't3', group: 'Edith Head', title: 'Local copy', host: 'edithhead.local', fav: 'E', icon: 'wp', kind: 'local', site: 'edithhead' },
-        { id: 't4', group: 'Miller Outdoor', title: 'milleroutdooradvertising.com', host: 'milleroutdooradvertising.com', fav: 'M', kind: 'live' },
-        { id: 't5', group: 'Miller Outdoor', title: 'Local copy', host: 'miller.local', fav: 'M', icon: 'wp', kind: 'local', site: 'miller' },
-        { id: 't6', group: 'GDP', title: 'Great Destinations', host: 'gdpkids.com', fav: 'G', kind: 'live' },
-        { id: 't7', group: 'GDP', title: 'Cloudways', host: 'cloudways.com', fav: 'C', kind: 'host', locked: true }] },
+        { id: 't1', group: 'Juniper Bakery', title: 'juniperbakery.example', host: 'juniperbakery.example', fav: 'J', icon: 'globe', kind: 'live', pinned: true },
+        { id: 't2', group: 'Juniper Bakery', title: 'SiteGround — Site Tools', host: 'siteground.com', fav: 'S', kind: 'host', locked: true },
+        { id: 't3', group: 'Juniper Bakery', title: 'Local copy', host: 'juniperbakery.local', fav: 'J', icon: 'wp', kind: 'local', site: 'juniperbakery' },
+        { id: 't4', group: 'Harbor Signs', title: 'harborsigns.example', host: 'harborsigns.example', fav: 'H', kind: 'live' },
+        { id: 't5', group: 'Harbor Signs', title: 'Local copy', host: 'harborsigns.local', fav: 'H', icon: 'wp', kind: 'local', site: 'harborsigns' },
+        { id: 't6', group: 'Bright Trails', title: 'Bright Trails', host: 'brighttrails.example', fav: 'B', kind: 'live' },
+        { id: 't7', group: 'Bright Trails', title: 'Cloudways', host: 'cloudways.com', fav: 'C', kind: 'host', locked: true }] },
     { id: 'shepdesign', name: 'Shepdesign', color: 'sky', cap: 12,
-      notes: [{ id: 'n4', title: 'Invoices out', body: 'Edith Head paid. Miller is 14 days late — send the second reminder Friday.', at: now - 2 * DAY }],
+      notes: [{ id: 'n4', title: 'Invoices out', body: 'Juniper Bakery paid. Harbor Signs is 14 days late — send the second reminder Friday.', at: now - 2 * DAY }],
       tabs: [{ id: 't8', title: 'shepdesign.com', host: 'shepdesign.com', fav: 'S', kind: 'live', pinned: true },
              { id: 't9', title: 'Zoho Mail', host: 'mail.zoho.com', fav: 'Z', icon: 'mail', kind: 'host' },
              { id: 't10', title: 'Stripe', host: 'dashboard.stripe.com', fav: 'S', kind: 'host', locked: true }] },
@@ -632,18 +632,18 @@ const S = {
              { id: 't15', title: 'Query loops in Bricks', host: 'academy.bricksbuilder.io', fav: 'B', kind: 'live' }] },
   ],
   sites: [
-    { id: 'edithhead', jar: 'clients', name: 'edithhead.biz', domain: 'edithhead.local', run: true, php: '8.4', wp: '7.1', ssl: true, host: 'SiteGround', live: 'edithhead.biz' },
-    { id: 'miller', jar: 'clients', name: 'Miller Outdoor', domain: 'miller.local', run: false, php: '8.4', wp: '7.0', ssl: true, host: 'Cloudways', live: 'milleroutdooradvertising.com' },
+    { id: 'juniperbakery', jar: 'clients', name: 'juniperbakery.example', domain: 'juniperbakery.local', run: true, php: '8.4', wp: '7.1', ssl: true, host: 'SiteGround', live: 'juniperbakery.example' },
+    { id: 'harborsigns', jar: 'clients', name: 'Harbor Signs', domain: 'harborsigns.local', run: false, php: '8.4', wp: '7.0', ssl: true, host: 'Cloudways', live: 'harborsigns.example' },
     { id: 'zestsite', jar: 'zestbuild', name: 'Zest marketing', domain: 'zest.local', run: false, php: '8.4', wp: '7.1', ssl: false, host: 'Vercel', live: 'zest.netrelish.com' }],
   plugins: [
     { n: 'DropKit', v: '2.4.1', s: 'Bricks section generator' },
     { n: 'DropKit Bridge', v: '1.1.0', s: 'Token extraction, ACF data layer' },
     { n: 'WS Form Pro', v: '1.9.2', s: 'Forms, with the Bento hookup' }],
   vault: [
-    { k: 'WP admin', v: 'edith / ••••••••••••', m: true },
-    { k: 'SiteGround', v: 'ryan@shepdesign.com / ••••••••', m: true },
+    { k: 'WP admin', v: 'juniper / ••••••••••••', m: true },
+    { k: 'SiteGround', v: 'you@studio.example / ••••••••', m: true },
     { k: 'License key', v: 'DK-••••-••••-8827', m: true },
-    { k: 'SFTP host', v: 'sftp.siteground.eu:18765', m: false }],
+    { k: 'SFTP host', v: 'sftp.host.example:18765', m: false }],
   brine: [
     { id: 'b1', t: 'Swift Package Index — GRDB', h: 'swiftpackageindex.com', f: 'S', hot: false },
     { id: 'b2', t: 'ACF field groups as code', h: 'advancedcustomfields.com', f: 'A', hot: true },
@@ -786,7 +786,7 @@ const GUIDES = {
       <h2>The workflow</h2>
       <div class="steps">
         <div class="step"><span class="n">1</span><div><b>Make a jar for the thing you're doing</b>
-          <p>Not for a category. "Edith Head redesign" beats "Web work." Give it a color you'll recognise in the sidebar.</p></div></div>
+          <p>Not for a category. "Juniper Bakery redesign" beats "Web work." Give it a color you'll recognize on the shelf.</p></div></div>
         <div class="step"><span class="n">2</span><div><b>Keep the tabs that belong to it</b>
           <p>The live site, the hosting login, the staging copy, the docs page you keep going back to. Press <kbd>⌘D</kbd> or hit the bookmark in the search bar.</p></div></div>
         <div class="step"><span class="n">3</span><div><b>Write the notes in the same place</b>
@@ -799,13 +799,13 @@ const GUIDES = {
       <h2>Why the limit</h2>
       <p>A jar that holds everything is a folder, and folders are where work goes to be forgotten. The limit is a nudge: when a jar fills, either the project is done or it's actually two projects. Both are useful to notice. You can change the number any time — right-click the jar, or use the panel.</p>
       <h2>Moving things</h2>
-      <p>Drag a note onto another note to reorder. Drag a tab onto a jar in the sidebar to move it there. Drag jars to reorder the sidebar. Right-click anything — jar, tab or note — for rename, recolor, duplicate, move and archive. <strong>Archive never deletes</strong>, and every archive gives you an undo.</p>
+      <p>Drag a note onto another note to reorder. Drag a tab onto a jar on the shelf to move it there. Drag jars to reorder the shelf. Right-click anything — jar, tab or note — for rename, recolor, duplicate, move and archive. <strong>Archive never deletes</strong>, and every archive gives you an undo.</p>
       <h2>The brine</h2>
       <p>Tabs you stop using drift out of the strip and into the <strong>brine</strong> at the bottom of the window rather than disappearing. When the brine spots one that looks worth keeping, the button glows green. Open it, drag what you want into a jar, and leave the rest to expire.</p>`,
   },
   zest: {
     sw: 'linear-gradient(180deg,#5CB80F,#3E6413)', icon: 'swatch', title: 'Zest',
-    sub: 'Four small tools that share one brand. They live in the sidebar, not in another app.',
+    sub: 'Four small tools that share one brand. They live on the shelf, not in another app.',
     html: `
       <p><strong>Zest is a brand system you build once.</strong> Colors, type, spacing, logo. Every tool below reads from it, so what you make looks like the client rather than like a template — and when the brand changes, everything made from it can be regenerated.</p>
       <h2>The line-up</h2>
@@ -820,11 +820,11 @@ const GUIDES = {
           <p>Header images, share cards and social tiles composed from your tokens — type, color, logo, structure. No prompts, no stock. One title renders every size, with the alt text and metadata written in.</p></div></div>
       </div>
       <h2>How it connects to your jars</h2>
-      <p>Whatever jar you're in, Zest is one click away in the sidebar — and it knows where it is. Notes from the open jar become a ZestMail draft or a Zest MD document without copying and pasting. Right-click any note and choose <strong>Send to Zest MD</strong>.</p>
+      <p>Whatever jar you're in, Zest is one click away on the shelf — and it knows where it is. Notes from the open jar become a ZestMail draft or a Zest MD document without copying and pasting. Right-click any note and choose <strong>Send to Zest MD</strong>.</p>
       <h2>The rule behind all of it</h2>
       <p><strong>Zest composes; it doesn't generate.</strong> There's no model inventing pictures or copy behind your back. Where AI is offered it's optional, it says which model it used, and its output goes through the same checks as anything you paste. You review it. You own it.</p>
       <h2>One brand, many clients</h2>
-      <p>Each client gets their own brand in Zest. Switch brands and every tool follows — the same email, the same document, the same header image, re-skinned in seconds. That's the whole reason the tools share a sidebar instead of being four separate apps.</p>`,
+      <p>Each client gets their own brand in Zest. Switch brands and every tool follows — the same email, the same document, the same header image, re-skinned in seconds. That's the whole reason the tools share a shelf instead of being four separate apps.</p>`,
   },
 };
 function guideView(id) {
