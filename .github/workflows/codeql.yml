@@ -214,8 +214,28 @@ jobs:
   # job never runs init: the CLI already on the image traces the real build from
   # a clean native step, then analyzes and runs the gate. Removed or promoted
   # into `analyze` before this PR leaves draft.
+  # TEMPORARY (PR #56): which Xcodes does the image carry, and is any of them
+  # still universal? CodeQL's tracer forces x86_64 (run 41312920534), so only a
+  # toolchain with an x86_64 slice can build under it.
+  xcode-inventory:
+    name: Xcode inventory (temporary)
+    runs-on: xcode-27
+    permissions:
+      contents: read
+    steps:
+      - run: |
+          xcode-select -p
+          for x in /Applications/Xcode*.app; do
+            d="$x/Contents/Developer"
+            echo "== $x ($(defaults read "$x/Contents/Info" CFBundleShortVersionString 2>/dev/null))"
+            echo "   swift-plugin-server: $(lipo -archs "$d/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server" 2>&1)"
+            echo "   swift-frontend:      $(lipo -archs "$d/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend" 2>&1)"
+            echo "   macOS SDKs:          $(ls "$d/Platforms/MacOSX.platform/Developer/SDKs" 2>&1 | tr '\n' ' ')"
+          done
+
   cli-traced:
     name: CLI-traced build (experiment)
+    if: false  # parked: answered in run 41312920534 (tracer forces x86_64 either way)
     runs-on: xcode-27
     permissions:
       contents: read
