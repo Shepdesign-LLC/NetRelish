@@ -56,7 +56,8 @@ import WebKit
     func closesItsTab() throws {
         let (bench, webViews, opener) = try setUp()
         _ = try #require(webViews.openNewWindow(from: opener, configuration: WKWebViewConfiguration()))
-        let child = try #require(webViews.existing(for: try #require(bench.activeTab).id))
+        let popupTab = try #require(bench.activeTab)
+        let child = try #require(webViews.existing(for: popupTab.id))
 
         child.webViewDidClose(child.webView)
         #expect(bench.tabs.count == 1)
