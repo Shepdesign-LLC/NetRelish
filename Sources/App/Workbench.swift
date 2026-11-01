@@ -136,10 +136,36 @@ final class Workbench {
         }
     }
 
-    init(store: PantryStore = .shared, vault: VaultStore = .live) {
+    /// Where the Share extension leaves pages. The app passes the App Group's; tests pass
+    /// their own or none, so they never take what you shared.
+    let inbox: ShareInbox?
+
+    init(store: PantryStore = .shared, vault: VaultStore = .live, inbox: ShareInbox? = nil) {
         self.store = store
         self.vault = vault
+        self.inbox = inbox
         load()
+    }
+
+    // MARK: The Share extension
+
+    /// Takes in whatever was shared from another app's Share menu since the last look, into
+    /// Brine. Runs at launch, when the app comes forward, and with every sweep, so a page
+    /// shared from Safari is in Brine within seconds even while NetRelish is behind it.
+    func receiveShared() {
+        guard let inbox else { return }
+        do {
+            var received: [Item] = []
+            try inbox.take { pages in
+                received = try store.write { db in try store.receive(db, pages) }
+            }
+            guard !received.isEmpty else { return }
+            refreshSmartJars()
+            report(received.count == 1 ? "Shared into Brine" : "\(received.count) pages shared into Brine")
+        } catch {
+            log.error("share: \(String(describing: error), privacy: .public)")
+            report("Couldn’t take in a shared page. It will be tried again.")
+        }
     }
 
     // MARK: Fill from Me
@@ -235,14 +261,19 @@ final class Workbench {
         }
     }
 
-    /// The sweep: every few seconds, sink what is past its shelf life; every second, tick the clock.
+    /// The sweep: every few seconds, sink what is past its shelf life and take in shared pages;
+    /// every second, tick the clock.
     func runSweep() async {
+        receiveShared()
         var ticks = 0
         while !Task.isCancelled {
             try? await Task.sleep(for: .seconds(1))
             now = Date()
             ticks += 1
-            if ticks % 5 == 0 { sweep() }
+            if ticks % 5 == 0 {
+                sweep()
+                receiveShared()
+            }
         }
     }
 

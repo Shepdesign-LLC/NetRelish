@@ -1,0 +1,5 @@
+# ADR 0017 — How the Share extension hands pages to the app
+
+**Status:** proposed · **Date:** 2026-11-01 · **PR:** feat(share): capture from Safari or any app's Share menu
+
+The Share extension never opens the Pantry. It writes each shared page as one key in an App Group's preferences (`D9QDJ44773.com.shepdesign.netrelish`, the team-prefixed form macOS accepts without a provisioning profile), and the app takes them into Brine when it launches, when it comes forward, and on every sweep (about every 5 seconds). One key per page means the two processes never overwrite each other; the app removes only the keys it read, and only after the write succeeds. Taken-in items are page items with source "The Share menu"; a page already waiting in Brine is not added twice, and only `http`/`https` links come in. Nothing leaves the Mac (non-negotiable 5). The extension compiles `ShareInbox.swift` alone and doesn't link the Pantry, so it never loads GRDB or touches the database while the app has it open.

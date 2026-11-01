@@ -125,6 +125,39 @@ public final class PantryStore: Sendable {
         try item.setLabels(try item.labels(db).map(\.id).filter { $0 != label.id }, db)
     }
 
+    // MARK: The Share extension
+
+    /// Pages shared from another app's Share menu, into Brine: page Items with "The Share menu"
+    /// as their source, each announced like a ⌘D capture. Only web pages come in. A page
+    /// already waiting in Brine isn't added a second time, so sharing twice is harmless.
+    @discardableResult
+    public func receive(_ db: Database, _ pages: [SharedPage], now: Date = Date()) throws -> [Item] {
+        var received: [Item] = []
+        for page in pages {
+            guard let url = URL(string: page.url), let scheme = url.scheme?.lowercased(),
+                  scheme == "http" || scheme == "https" else { continue }
+            let inBrine = try Item.filter(Item.Columns.url == page.url && Item.Columns.jarId == nil
+                                          && Item.Columns.state == ItemState.brined).fetchCount(db) > 0
+            if inBrine { continue }
+            let title = page.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let at = min(page.sharedAt, now)   // never in the future, whatever the other clock said
+            var item = Item(
+                createdAt: at,
+                domain: url.host,
+                kind: .page,
+                source: .shareExtension,
+                state: .brined,
+                title: title.isEmpty ? page.url : title,
+                updatedAt: at,
+                url: page.url
+            )
+            try item.insert(db)
+            NetRelish.onCapture.emit(item)
+            received.append(item)
+        }
+        return received
+    }
+
     // MARK: Smart jars — queries, never places (non-negotiable 2). Nothing moves into one.
 
     /// Today: everything that came into the Pantry since midnight, in any jar, newest first.
