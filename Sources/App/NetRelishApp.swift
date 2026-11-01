@@ -30,7 +30,7 @@ struct NetRelishApp: App {
                 Divider()
                 ForEach(SmartJar.allCases) { smart in
                     Button(smart.name) { workbench.activate(smart) }
-                        .keyboardShortcut(KeyEquivalent(Character(String(smart.number))), modifiers: [.command, .shift])
+                        .keyboardShortcut(KeyEquivalent(Character(String(smart.number))), modifiers: SmartJar.shortcutModifiers)
                 }
                 Divider()
                 Button("Edit Jar…") { workbench.requestEditActiveJar() }.keyboardShortcut("e", modifiers: [.command, .shift])
@@ -95,4 +95,12 @@ struct ContentView: View {
             MeOnboardingSheet(vault: workbench.vault) { workbench.fillFromMe() }
         }
     }
+}
+
+extension SmartJar {
+    /// The one place the smart jars' modifier keys live: the Jars menu, the Shelf's tooltips
+    /// and ⌘K all read these, so they can't disagree.
+    static let shortcutModifiers: EventModifiers = [.command, .shift]
+    static let shortcutSymbols = "⌘⇧"
+    var shortcutLabel: String { "\(Self.shortcutSymbols)\(number)" }
 }

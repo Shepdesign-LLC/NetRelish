@@ -79,7 +79,7 @@ enum PaletteSource {
         }
         for smart in SmartJar.allCases {
             rows.append(PaletteRow(id: "jar.\(smart.rawValue)", kind: .jar, title: smart.name, subtitle: smart.paletteSubtitle,
-                                   shortcut: "⌘⇧\(smart.number)") { workbench.activate(smart) })
+                                   shortcut: smart.shortcutLabel) { workbench.activate(smart) })
         }
         return rows
     }

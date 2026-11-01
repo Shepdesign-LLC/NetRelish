@@ -50,7 +50,7 @@ enum SmartJar: String, CaseIterable, Identifiable {
         switch self {
         case .brine: "Tabs sink here when their jar's shelf life runs out. Nothing is lost."
         case .today: "Everything that came into your Pantry since midnight, from every jar."
-        case .sealed: "Every page you've sealed, newest first. Each one opens as it was."
+        case .sealed: "Every page you've sealed, newest first."
         case .sinking: "Open tabs near the end of their jar's shelf life. Open one and it starts fresh."
         }
     }
@@ -513,14 +513,17 @@ final class Workbench {
             savedCopy = item
             return
         }
-        if let existing = tabs.first(where: { $0.url == item.url }) {
-            activateTab(existing)
+        // Already open in some jar: go to that tab rather than open a second one.
+        if let url = item.url, let existing = allTabs.first(where: { $0.url == url }),
+           let jarId = existing.jarId, jars.contains(where: { $0.id == jarId }) {
+            activate(jarId: jarId)
+            if let tab = tabs.first(where: { $0.id == existing.id }) { activateTab(tab) }
             return
         }
-        // An item with no jar (or a jar that's gone) opens where ⌘T would: the jar you're in,
-        // or the Shelf's first jar when a smart jar is showing. newTab does the switching.
-        newTab(url: item.url, interactionState: item.sunkInteractionState,
-               in: item.jarId.flatMap { id in jars.first { $0.id == id }?.id })
+        // Its own jar, or the jar it sank from (the jar on its chip, with that jar's sign-ins,
+        // as Restore does). An item with neither opens where ⌘T would.
+        let home = (item.jarId ?? item.sunkOriginJarId).flatMap { id in jars.first { $0.id == id }?.id }
+        newTab(url: item.url, interactionState: item.sunkInteractionState, in: home)
     }
 
     /// The live page behind a saved copy, in a new tab in the item's jar, or in the jar

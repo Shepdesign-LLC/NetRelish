@@ -116,7 +116,7 @@ struct SmartJarRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help("\(smart.name) — ⌘⇧\(smart.number)")
+        .help("\(smart.name) — \(smart.shortcutLabel)")
         .accessibilityLabel(showsCount ? "\(smart.name), \(count)" : smart.name)
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }

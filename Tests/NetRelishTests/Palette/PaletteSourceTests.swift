@@ -144,7 +144,7 @@ import Testing
         let rows = PaletteSource.jars(bench)
         for smart in SmartJar.allCases {
             let row = try #require(rows.first { $0.title == smart.name })
-            #expect(row.shortcut == "⌘⇧\(smart.number)")
+            #expect(row.shortcut == smart.shortcutLabel)
         }
     }
 
@@ -183,5 +183,33 @@ import Testing
         }
         bench.sweep()
         #expect(gone.contains(a.id))
+    }
+
+    @Test("Open on a sunk item in Today goes back to the jar it sank from, like Restore")
+    func openSunkInItsJar() throws {
+        let bench = try bench()
+        let meridian = try #require(bench.activeJar)
+        let tab = try #require(bench.newTab(url: "https://example.com/client"))
+        let sunk = try bench.store.write { db -> Item in
+            var row = try #require(try Tab.fetchOne(db, key: tab.id))
+            return try row.sink(db)
+        }
+        bench.activate(.today)
+        bench.open(sunk)
+        #expect(bench.activeJar?.id == meridian.id)       // its own cookies, not the first jar's
+        #expect(bench.activeTab?.url == "https://example.com/client")
+    }
+
+    @Test("Open on an item whose page is already open goes to that tab instead of opening another")
+    func openFindsTheOpenTab() throws {
+        let bench = try bench()
+        let meridian = try #require(bench.activeJar)
+        let tab = try #require(bench.newTab(url: "https://example.com/terms"))
+        let captured = try bench.store.write { db in try bench.store.root(db).capture(db, url: "https://example.com/terms") }
+        bench.activate(.today)
+        bench.open(captured)
+        #expect(bench.activeJar?.id == meridian.id)
+        #expect(bench.activeTabId == tab.id)
+        #expect(bench.tabs.count == 1)
     }
 }
