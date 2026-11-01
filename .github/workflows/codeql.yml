@@ -222,7 +222,7 @@ jobs:
             'int main(void){' '#if defined(__arm64__)' 'puts("arm64");' '#else' 'puts("x86_64");' '#endif' 'return 0;}' > arch.c
           clang -arch arm64 -arch x86_64 -o arch-fat arch.c
           clang -arch arm64 -o arch-arm64 arch.c
-          lipo -archs arch-fat arch-arm64
+          for f in arch-fat arch-arm64; do echo "$f: $(lipo -archs "$f")"; done
           cat > probe.sh <<'EOF'
           #!/bin/bash
           d="$(dirname "$0")"
@@ -243,7 +243,7 @@ jobs:
 
       - name: Probe — runner shell, traced (as the build runs today)
         run: |
-          lipo -archs "$CODEQL_RUNNER" "$SEMMLE_PRELOAD_libtrace" || true
+          for f in "$CODEQL_RUNNER" "$SEMMLE_PRELOAD_libtrace"; do echo "$(basename "$f"): $(lipo -archs "$f" 2>&1)"; done
           "$RUNNER_TEMP/probe/probe.sh" "runner /bin/bash, action tracer"
 
       - name: Probe — Homebrew arm64 bash, traced
