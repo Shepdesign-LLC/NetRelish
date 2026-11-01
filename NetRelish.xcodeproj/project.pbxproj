@@ -14,6 +14,7 @@
 		0AD4F161E0451C3360A98861 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = C61649A4E36CCBE8276372C9 /* AppIcon.icns */; };
 		0B901D7B2E11F34BFA9A3C67 /* PantryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925A75FA2063A43C84060387 /* PantryTests.swift */; };
 		0D3D276ECCC65CD9DB85C29F /* PantryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3088C168536BDBDBD5110E0 /* PantryStore.swift */; };
+		108C759123D279973DE41590 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA87391BDD78F0632B08A29 /* ShareViewController.swift */; };
 		114158F3743BA3992CCE19BB /* Pantry.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3D40C86B7681871F9D11011A /* Pantry.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1AA0272D59E073AAB9154DF5 /* VaultStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18574D3272AE9DCF11A5F999 /* VaultStore.swift */; };
 		1CF9373273D94B6D52B49ACE /* JarIsolationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80AA83881FEF26447C9DDD1E /* JarIsolationTests.swift */; };
@@ -23,6 +24,7 @@
 		25876C40D8B8A69067C6E12E /* FormFill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43E13803770E245554A7C7A2 /* FormFill.swift */; };
 		2A048A04EBC2F87C7E0A38EB /* TokenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C5376395DE69F85C624CDC9 /* TokenTests.swift */; };
 		2A2DE6B7BCD41683B2C96321 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = A71E55B24F31AB432801A1C5 /* KeyboardShortcuts */; };
+		2F038A14DE14347D6726F9AA /* ShareInboxTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83AC47E2C1EB9AD46ED486B0 /* ShareInboxTests.swift */; };
 		2F0962B6C3B05D3F219EF56B /* SealPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41206D34D0C5D9D693B0EC0 /* SealPerformanceTests.swift */; };
 		3082C4319551742BC2271B52 /* MeOnboardingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98A9AC161F49C3D3FBDEC67 /* MeOnboardingSheet.swift */; };
 		3156A4FAB02F777C58A85495 /* SealIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7996267AB0A6C7FE076D3195 /* SealIntent.swift */; };
@@ -53,6 +55,7 @@
 		7131964397BDD2A3E1BF68F6 /* IdentityFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = 141FB6A827355E5480CE90CE /* IdentityFields.swift */; };
 		7286B110EE05E86E28BE14CE /* defuddle.js in Resources */ = {isa = PBXBuildFile; fileRef = 931BEC49FE1F306E1011076C /* defuddle.js */; };
 		74492C9667F54D60BB05534B /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AA2B804BABD2B9C3897FC5F /* Environment.swift */; };
+		765643BE637A54F040FDAAA5 /* ShareTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14523A88FA996CC27AD1768F /* ShareTests.swift */; };
 		7BCA33A8EBCA0BACCC74876E /* Extraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9CB30D4EF34D5393FEE6798 /* Extraction.swift */; };
 		7D762510642CB6FB703C9705 /* Pantry.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D40C86B7681871F9D11011A /* Pantry.framework */; };
 		7E5E44B7C50F88A69AA2B191 /* WebViewTitleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 953B97315E6F69B886F253AD /* WebViewTitleTests.swift */; };
@@ -63,6 +66,7 @@
 		8730BC1A6DD9E9E688F86FA3 /* SealDrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01EAEAFFCC711D2B3090AFD1 /* SealDrip.swift */; };
 		87AC09A29F8D1AC2BD396ABC /* ShelfLife.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66C4E250F528E14925ED1080 /* ShelfLife.swift */; };
 		8A18D629407EB1E42E2BFFE6 /* NetRelish+Behavior.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0463DF5285B0BBF00DBF245A /* NetRelish+Behavior.swift */; };
+		987F49456C74178131DFF01E /* NetRelishShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B95A9EF84A52A5D6ED036A5A /* NetRelishShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		9C9666B8D0D43BECB130C95A /* Identity.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEF61F8EFF0301292F4271D2 /* Identity.swift */; };
 		A0550C98BFEF10D0BF6261AB /* ShelfView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D46826672F74157C7DA0109F /* ShelfView.swift */; };
 		A1022716C1E913FFADAAE23E /* CaptureIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519B39C9B1F8B4F5028C925E /* CaptureIntent.swift */; };
@@ -81,6 +85,7 @@
 		C125F033D5888A5FF838D821 /* SealTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 984980283B9ECA8368B80E51 /* SealTests.swift */; };
 		C5AA6F4B3034E848272B1087 /* ContactsImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAB6D003EE9A56DA7A350E31 /* ContactsImport.swift */; };
 		C80B7DD1C500A7282051CEA4 /* FormFillTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C8701B85E904123842490DA /* FormFillTests.swift */; };
+		C995251DFE082D9FDDC43ED9 /* ShareInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D2B029B0B3F6D38E4A33B8 /* ShareInbox.swift */; };
 		CD72776B669DF8E7757DA298 /* MeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9E93C49D40CA6F315D82D1 /* MeSettingsView.swift */; };
 		D1D77CDC285C08CD6FC1CDC6 /* VaultStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA78418D6AA0380B5C0C6CA0 /* VaultStoreTests.swift */; };
 		D414D4C7DAC49650ABFFAE74 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 993CF81100D71BB382CD6AF1 /* Item.swift */; };
@@ -89,6 +94,7 @@
 		DF5AE705B24A50299541ABC3 /* BrineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E5F151CB304C2E1710BDAFF /* BrineView.swift */; };
 		DF6ADC4BFB101F5FC27CF09C /* TokenSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98236E4D7EDD3E89F974042 /* TokenSections.swift */; };
 		E2D8EB8EC7DF4883742D8B87 /* Tokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DBE6B2CBBFF6DDC55781E3E /* Tokens.swift */; };
+		E4045038A465512F8B76257A /* ShareInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D2B029B0B3F6D38E4A33B8 /* ShareInbox.swift */; };
 		ED3051F456336DD6334DC4D0 /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F2DAFF1FF6B0C95FFF24C27 /* Palette.swift */; };
 		EE398B6FA8AA4A3011A5396A /* BenchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD5099EA2A36C261D6DFAF15 /* BenchView.swift */; };
 		EFF35C4B557CAB56C70B2CC8 /* Symbols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40130C352534C0973D9E549D /* Symbols.swift */; };
@@ -120,6 +126,13 @@
 			remoteGlobalIDString = 38331042C87A79590E52C943;
 			remoteInfo = Pantry;
 		};
+		BE3DAC3960AE00019AA56FA0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7F4E677465564BB5E2032D42 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AEF29263C4B60B83F4065C43;
+			remoteInfo = NetRelishShare;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -132,6 +145,17 @@
 				A2F447CE15F775DC1CA148C6 /* Pantry.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		77D4682CEDD25AAB53A046B2 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				987F49456C74178131DFF01E /* NetRelishShare.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A5F275A4F3573D24A9BEE738 /* Embed Frameworks */ = {
@@ -152,9 +176,11 @@
 		0463DF5285B0BBF00DBF245A /* NetRelish+Behavior.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NetRelish+Behavior.swift"; sourceTree = "<group>"; };
 		07FF70502E5A8CE3DFA58804 /* NetRelish.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetRelish.swift; sourceTree = "<group>"; };
 		09FC5F2BD5E382917A40D33D /* Label.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Label.swift; sourceTree = "<group>"; };
+		0BC546FDE3391574CD6970C8 /* NetRelishShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NetRelishShare.entitlements; sourceTree = "<group>"; };
 		0E7C64098202D9F54E20DBDD /* NetRelish.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NetRelish.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1348DA8E44DDB79358705C26 /* SealDemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SealDemo.swift; sourceTree = "<group>"; };
 		141FB6A827355E5480CE90CE /* IdentityFields.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityFields.swift; sourceTree = "<group>"; };
+		14523A88FA996CC27AD1768F /* ShareTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareTests.swift; sourceTree = "<group>"; };
 		172166523A7298160D10E066 /* Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Support.swift; sourceTree = "<group>"; };
 		18574D3272AE9DCF11A5F999 /* VaultStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultStore.swift; sourceTree = "<group>"; };
 		1945281CFAD12D88F79278C7 /* Workbench.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workbench.swift; sourceTree = "<group>"; };
@@ -163,6 +189,7 @@
 		1FFDF4D28CFACA14CA04CA4F /* PantryEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PantryEvent.swift; sourceTree = "<group>"; };
 		218FB43BD5082731DA57EAA4 /* ComponentGallery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentGallery.swift; sourceTree = "<group>"; };
 		24EC69005E95FF330AF6DAB1 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
+		27D2B029B0B3F6D38E4A33B8 /* ShareInbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareInbox.swift; sourceTree = "<group>"; };
 		2AA2B804BABD2B9C3897FC5F /* Environment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Environment.swift; sourceTree = "<group>"; };
 		2BA7D24B05548BBBB627F9B9 /* Batch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Batch.swift; sourceTree = "<group>"; };
 		2EE69EDDA6A69B3194F8CE3E /* ExtractionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtractionTests.swift; sourceTree = "<group>"; };
@@ -170,6 +197,7 @@
 		345135B0CD56380A3A41FCF4 /* SnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotStore.swift; sourceTree = "<group>"; };
 		34870FC9D22FF5C528700017 /* SymbolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolTests.swift; sourceTree = "<group>"; };
 		365E60F8F85F45C02557A94C /* NetRelishTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NetRelishTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		37C14B090CC6B17FCA7A6923 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3CAED094D268288F3732DE63 /* NetRelishApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetRelishApp.swift; sourceTree = "<group>"; };
 		3D40C86B7681871F9D11011A /* Pantry.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pantry.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		3DBE6B2CBBFF6DDC55781E3E /* Tokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tokens.swift; sourceTree = "<group>"; };
@@ -194,6 +222,7 @@
 		80AA83881FEF26447C9DDD1E /* JarIsolationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JarIsolationTests.swift; sourceTree = "<group>"; };
 		835DCC7CB567037E4025CF3A /* IdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityTests.swift; sourceTree = "<group>"; };
 		83A0FA70EC9D9597C5C56145 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		83AC47E2C1EB9AD46ED486B0 /* ShareInboxTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareInboxTests.swift; sourceTree = "<group>"; };
 		847FE03DCF1AAF9768A5CEFC /* Direct.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Direct.xcconfig; sourceTree = "<group>"; };
 		88A8EC903EBD79104D542C82 /* ShelfLifeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelfLifeTests.swift; sourceTree = "<group>"; };
 		8C8701B85E904123842490DA /* FormFillTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormFillTests.swift; sourceTree = "<group>"; };
@@ -215,6 +244,7 @@
 		AA7871C27DFFF42E18361E61 /* JarProfileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JarProfileTests.swift; sourceTree = "<group>"; };
 		AF138E55CED036400B9C85EC /* Step.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Step.swift; sourceTree = "<group>"; };
 		B2D3D717A18B6BB2CB9E5F4C /* PaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaletteView.swift; sourceTree = "<group>"; };
+		B95A9EF84A52A5D6ED036A5A /* NetRelishShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NetRelishShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B9CB30D4EF34D5393FEE6798 /* Extraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extraction.swift; sourceTree = "<group>"; };
 		BA9E93C49D40CA6F315D82D1 /* MeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeSettingsView.swift; sourceTree = "<group>"; };
 		BB595026D868AB174EF028DD /* Seed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Seed.swift; sourceTree = "<group>"; };
@@ -234,6 +264,7 @@
 		E98A9AC161F49C3D3FBDEC67 /* MeOnboardingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeOnboardingSheet.swift; sourceTree = "<group>"; };
 		EA78418D6AA0380B5C0C6CA0 /* VaultStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultStoreTests.swift; sourceTree = "<group>"; };
 		EF0B24A1EE81659EB7BBA716 /* ShapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeTests.swift; sourceTree = "<group>"; };
+		EFA87391BDD78F0632B08A29 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		F2EEE66990AF838FD9B4386E /* V1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V1.swift; sourceTree = "<group>"; };
 		F5D49A2BFCFE81078325CCF0 /* PaletteMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaletteMatcher.swift; sourceTree = "<group>"; };
 		F90136E09BA2F6D18415C368 /* OKLCHTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OKLCHTests.swift; sourceTree = "<group>"; };
@@ -295,6 +326,7 @@
 			children = (
 				A413B3253D326063F6138B5D /* GeneratorTests.xctest */,
 				0E7C64098202D9F54E20DBDD /* NetRelish.app */,
+				B95A9EF84A52A5D6ED036A5A /* NetRelishShare.appex */,
 				365E60F8F85F45C02557A94C /* NetRelishTests.xctest */,
 				3D40C86B7681871F9D11011A /* Pantry.framework */,
 				C3DF4031B6CBC0E8FE3962FD /* PantryTests.xctest */,
@@ -346,6 +378,7 @@
 				80AA83881FEF26447C9DDD1E /* JarIsolationTests.swift */,
 				F90136E09BA2F6D18415C368 /* OKLCHTests.swift */,
 				EF0B24A1EE81659EB7BBA716 /* ShapeTests.swift */,
+				14523A88FA996CC27AD1768F /* ShareTests.swift */,
 				172166523A7298160D10E066 /* Support.swift */,
 				34870FC9D22FF5C528700017 /* SymbolTests.swift */,
 				6C5376395DE69F85C624CDC9 /* TokenTests.swift */,
@@ -420,6 +453,7 @@
 				71F2DBDA46CC41E896451980 /* JarProfile.swift */,
 				1FFDF4D28CFACA14CA04CA4F /* PantryEvent.swift */,
 				E3088C168536BDBDBD5110E0 /* PantryStore.swift */,
+				27D2B029B0B3F6D38E4A33B8 /* ShareInbox.swift */,
 				66C4E250F528E14925ED1080 /* ShelfLife.swift */,
 				345135B0CD56380A3A41FCF4 /* SnapshotStore.swift */,
 			);
@@ -441,6 +475,7 @@
 				B46443A4D81C208E7E10A0FE /* App */,
 				9F5013CC322DDE65D61240E5 /* Bench */,
 				AB8A0C95C34CB4DC7B3F6AB8 /* Pantry */,
+				A0D6E7ED3F035B4F2A640D9B /* ShareExtension */,
 				27A1D2D795588F25BAC99162 /* Shelf */,
 				30F8F8026066413CCE91F78A /* UI */,
 				41BFD33DCEB98DB130019492 /* Vault */,
@@ -457,6 +492,16 @@
 				24EC69005E95FF330AF6DAB1 /* WebView.swift */,
 			);
 			path = Bench;
+			sourceTree = "<group>";
+		};
+		A0D6E7ED3F035B4F2A640D9B /* ShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				37C14B090CC6B17FCA7A6923 /* Info.plist */,
+				0BC546FDE3391574CD6970C8 /* NetRelishShare.entitlements */,
+				EFA87391BDD78F0632B08A29 /* ShareViewController.swift */,
+			);
+			path = ShareExtension;
 			sourceTree = "<group>";
 		};
 		A15A1E7B02FFEDD1480E8D4E /* DesignKit */ = {
@@ -497,6 +542,7 @@
 			children = (
 				AA7871C27DFFF42E18361E61 /* JarProfileTests.swift */,
 				925A75FA2063A43C84060387 /* PantryTests.swift */,
+				83AC47E2C1EB9AD46ED486B0 /* ShareInboxTests.swift */,
 				88A8EC903EBD79104D542C82 /* ShelfLifeTests.swift */,
 				A4E1C4BDC2A08BB4AC70837B /* SnapshotStoreTests.swift */,
 			);
@@ -640,12 +686,14 @@
 				31016A42A8C1CD4F628AAFCF /* Sources */,
 				11C52395FD43769E00F266A6 /* Resources */,
 				DEF51F43F3F82D18D1FD0DFC /* Frameworks */,
+				77D4682CEDD25AAB53A046B2 /* Embed Foundation Extensions */,
 				31D9C8EA74B0A1C50F91BAAA /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				E67246569ECB7D825B022425 /* PBXTargetDependency */,
+				DED121D43675F132FC21EAC6 /* PBXTargetDependency */,
 			);
 			name = NetRelish;
 			packageProductDependencies = (
@@ -674,6 +722,23 @@
 			productName = PantryTests;
 			productReference = C3DF4031B6CBC0E8FE3962FD /* PantryTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		AEF29263C4B60B83F4065C43 /* NetRelishShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D466C2A38C1245BCC1BC1755 /* Build configuration list for PBXNativeTarget "NetRelishShare" */;
+			buildPhases = (
+				EEAF17624F171A99E7148AB6 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NetRelishShare;
+			packageProductDependencies = (
+			);
+			productName = NetRelishShare;
+			productReference = B95A9EF84A52A5D6ED036A5A /* NetRelishShare.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -704,6 +769,10 @@
 						DevelopmentTeam = D9QDJ44773;
 						ProvisioningStyle = Automatic;
 					};
+					AEF29263C4B60B83F4065C43 = {
+						DevelopmentTeam = D9QDJ44773;
+						ProvisioningStyle = Automatic;
+					};
 				};
 			};
 			buildConfigurationList = 458170065DD0D4A287DE44A6 /* Build configuration list for PBXProject "NetRelish" */;
@@ -726,6 +795,7 @@
 			targets = (
 				38331042C87A79590E52C943 /* Pantry */,
 				64FFBFC34044BE0D54E62489 /* NetRelish */,
+				AEF29263C4B60B83F4065C43 /* NetRelishShare */,
 				1362E61B88B6B3CB901E020C /* NetRelishTests */,
 				6D95FA83314A531BA57C7085 /* PantryTests */,
 				21E506CA40E2B964782E743D /* GeneratorTests */,
@@ -761,6 +831,7 @@
 				2F0962B6C3B05D3F219EF56B /* SealPerformanceTests.swift in Sources */,
 				C125F033D5888A5FF838D821 /* SealTests.swift in Sources */,
 				491397EF23E823777A34F536 /* ShapeTests.swift in Sources */,
+				765643BE637A54F040FDAAA5 /* ShareTests.swift in Sources */,
 				42D6E667627B715D0DAF09A0 /* Support.swift in Sources */,
 				AB9FE10A2C7C77E5EEE4C434 /* SymbolTests.swift in Sources */,
 				2A048A04EBC2F87C7E0A38EB /* TokenTests.swift in Sources */,
@@ -829,6 +900,7 @@
 				A6A021284B09B926081A63B3 /* Schema.swift in Sources */,
 				3156A4FAB02F777C58A85495 /* SealIntent.swift in Sources */,
 				FC8116E739C0CFE3F0211BD7 /* Seed.swift in Sources */,
+				E4045038A465512F8B76257A /* ShareInbox.swift in Sources */,
 				87AC09A29F8D1AC2BD396ABC /* ShelfLife.swift in Sources */,
 				5617001A57AE49BFB4BD10E1 /* SnapshotStore.swift in Sources */,
 				518399168F3764EADA28D797 /* Step+Behavior.swift in Sources */,
@@ -856,8 +928,18 @@
 			files = (
 				572DA3163D3FA591B16E8695 /* JarProfileTests.swift in Sources */,
 				0B901D7B2E11F34BFA9A3C67 /* PantryTests.swift in Sources */,
+				2F038A14DE14347D6726F9AA /* ShareInboxTests.swift in Sources */,
 				BEF4D07A58EBC1F49CA72CF4 /* ShelfLifeTests.swift in Sources */,
 				23676EF8ED181EB10BB66D58 /* SnapshotStoreTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EEAF17624F171A99E7148AB6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C995251DFE082D9FDDC43ED9 /* ShareInbox.swift in Sources */,
+				108C759123D279973DE41590 /* ShareViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -868,6 +950,11 @@
 			isa = PBXTargetDependency;
 			target = 38331042C87A79590E52C943 /* Pantry */;
 			targetProxy = 2EFC2D0D44D86C6BA54722CA /* PBXContainerItemProxy */;
+		};
+		DED121D43675F132FC21EAC6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AEF29263C4B60B83F4065C43 /* NetRelishShare */;
+			targetProxy = BE3DAC3960AE00019AA56FA0 /* PBXContainerItemProxy */;
 		};
 		E164E5B51C22B69035E5EDE1 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -952,6 +1039,26 @@
 			};
 			name = "Debug-AppStore";
 		};
+		0D213DE107A339A8A59700E0 /* Release-AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Sources/ShareExtension/NetRelishShare.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Sources/ShareExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.shepdesign.netrelish.share;
+				PRODUCT_NAME = NetRelishShare;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = "Release-AppStore";
+		};
 		1076BE790E9C6E4981A643D4 /* Debug-AppStore */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1017,6 +1124,26 @@
 				SDKROOT = macosx;
 			};
 			name = "Release-AppStore";
+		};
+		2D4CCF2E98F41C65F2F0A068 /* Debug-AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Sources/ShareExtension/NetRelishShare.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Sources/ShareExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.shepdesign.netrelish.share;
+				PRODUCT_NAME = NetRelishShare;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = "Debug-AppStore";
 		};
 		3C85DA0085981C76C40610AB /* Release-Direct */ = {
 			isa = XCBuildConfiguration;
@@ -1201,6 +1328,26 @@
 				SDKROOT = macosx;
 			};
 			name = "Release-Direct";
+		};
+		75898564EE0C8F5494CAB27F /* Debug-Direct */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Sources/ShareExtension/NetRelishShare.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Sources/ShareExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.shepdesign.netrelish.share;
+				PRODUCT_NAME = NetRelishShare;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = "Debug-Direct";
 		};
 		820B882A2420481EA2159F46 /* Debug-Direct */ = {
 			isa = XCBuildConfiguration;
@@ -1398,6 +1545,26 @@
 			};
 			name = "Debug-Direct";
 		};
+		B7329CA54361D4CA77B36BC4 /* Release-Direct */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Sources/ShareExtension/NetRelishShare.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Sources/ShareExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.shepdesign.netrelish.share;
+				PRODUCT_NAME = NetRelishShare;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = "Release-Direct";
+		};
 		B88F70E6C53C1AB437ADC21B /* Debug-Direct */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1568,6 +1735,17 @@
 				611BFB7595B7B18348D56C49 /* Debug-Direct */,
 				CC0D87CD37A33B80C7B8B375 /* Release-AppStore */,
 				16E66BBC5EC83053EA04A965 /* Release-Direct */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = "Debug-AppStore";
+		};
+		D466C2A38C1245BCC1BC1755 /* Build configuration list for PBXNativeTarget "NetRelishShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2D4CCF2E98F41C65F2F0A068 /* Debug-AppStore */,
+				75898564EE0C8F5494CAB27F /* Debug-Direct */,
+				0D213DE107A339A8A59700E0 /* Release-AppStore */,
+				B7329CA54361D4CA77B36BC4 /* Release-Direct */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = "Debug-AppStore";
