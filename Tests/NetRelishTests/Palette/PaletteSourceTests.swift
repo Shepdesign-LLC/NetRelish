@@ -85,10 +85,9 @@ import Testing
         #expect(SmartJar.brineId == "smart:brine")   // the id Brine always had
     }
 
-    @Test("Showing a smart jar hides the jar's tabs from commands, and ⌘T still opens a tab in a real jar")
+    @Test("Showing a smart jar hides the jar's tabs from commands, and ⌘T opens a tab in the Shelf's first jar")
     func showingASmartJar() throws {
         let bench = try bench()
-        let jarId = try #require(bench.activeJar?.id)
         _ = try #require(bench.newTab(url: "https://example.com"))
         bench.activate(.sealed)
         #expect(bench.activeSmartJar == .sealed)
@@ -96,8 +95,10 @@ import Testing
         #expect(bench.benchTab == nil)
         #expect(bench.tabs.isEmpty)
 
+        // The same rule ⌘T always had from Brine. A fresh Pantry's first jar is the seeded Read Later.
         let tab = try #require(bench.newTab())
-        #expect(tab.jarId == jarId)
+        #expect(tab.jarId == bench.jars.first?.id)
+        #expect(bench.activeJar?.id == tab.jarId)
         #expect(bench.activeSmartJar == nil)
     }
 
