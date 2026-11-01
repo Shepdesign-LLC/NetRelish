@@ -155,6 +155,7 @@ final class Workbench {
     func activateBrine() { activate(jarId: SmartJar.brineId) }
 
     private func activate(jarId: String) {
+        sealedCopy = nil                  // picking a jar always leaves a saved copy
         guard jarId != activeJarId else { return }
         touchActiveTab()
         activeJarId = jarId
@@ -200,6 +201,7 @@ final class Workbench {
 
     @discardableResult
     func newTab(url: String? = nil, interactionState: Data? = nil, in jarId: String? = nil) -> Tab? {
+        sealedCopy = nil
         let target = jarId ?? (showingBrine ? jars.first?.id : activeJarId)
         guard let target, target != SmartJar.brineId else { return nil }
         if activeJarId != target { activate(jarId: target) }
@@ -217,6 +219,7 @@ final class Workbench {
     }
 
     func activateTab(_ tab: Tab) {
+        sealedCopy = nil
         guard tab.id != activeTabId else { return }
         touchActiveTab()
         activeTabId = tab.id
@@ -235,6 +238,12 @@ final class Workbench {
     }
 
     func closeActiveTab() { if let activeTab { closeTab(activeTab) } }
+
+    /// Closes a tab by id, in any jar. Used when a page closes its own window.
+    func closeTab(id: String) {
+        let tab = tabs.first { $0.id == id } ?? (try? store.read { db in try Tab.fetchOne(db, key: id) })
+        if let tab { closeTab(tab) }
+    }
 
     func togglePin(_ tab: Tab) {
         var tab = tab
@@ -373,14 +382,35 @@ final class Workbench {
         (try? store.read { db in try store.search(db, query) }) ?? []
     }
 
-    /// Opens a Pantry item: its tab if one is already open, else a new tab in its jar.
+    /// The sealed item whose saved copy is showing, or nil. The Bench presents it.
+    var sealedCopy: Item?
+
+    /// Opens a Pantry item. A sealed one opens its saved copy, the page as it was when sealed.
+    /// Anything else opens its tab if one is already open, else a new tab in its jar.
     func open(_ item: Item) {
+        if item.state == .sealed, item.snapshotPath != nil {
+            sealedCopy = item
+            return
+        }
         if let existing = tabs.first(where: { $0.url == item.url }) {
             activateTab(existing)
             return
         }
         if let jarId = item.jarId, jarId != activeJarId { activate(jarId: jarId) }
         newTab(url: item.url, interactionState: item.sunkInteractionState, in: item.jarId ?? activeJarId)
+    }
+
+    /// The live page behind a sealed copy, in a new tab in the item's jar.
+    func openLivePage(_ item: Item) {
+        sealedCopy = nil
+        guard let url = item.url else { return }
+        newTab(url: url, in: item.jarId ?? activeJarId)
+    }
+
+    /// The archive bytes for a sealed item, or nil if the file is gone.
+    func snapshotData(for item: Item) -> Data? {
+        guard let path = item.snapshotPath else { return nil }
+        return try? store.snapshots.read(path)
     }
 
     /// Reopens a Brine item as a tab, with its scroll and history, in the jar it sank from

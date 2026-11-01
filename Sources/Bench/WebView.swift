@@ -1,6 +1,7 @@
 // WebView.swift — a WKWebView bound to one jar's data store. WebKit fixes the
-// configuration at init, so there is one web view per jar (built lazily) and the Bench
-// shows the active jar's. Nothing here reads page content: capture and seal are P2.
+// configuration at init, so there is one web view per tab (built lazily) and the Bench
+// shows the active tab's. A page that opens a new window (target=_blank, window.open)
+// gets a new tab in the same jar, on the configuration WebKit hands over.
 
 import OSLog
 import Pantry
@@ -12,22 +13,34 @@ private let log = Logger(subsystem: "com.shepdesign.netrelish", category: "bench
 /// The live state of one jar's web view, observed by the address bar.
 @MainActor
 @Observable
-final class JarWebView: NSObject, WKNavigationDelegate {
+final class JarWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     let jarId: String
     let webView: WKWebView
+    /// True when a page opened this view as its new window, so the address bar doesn't grab focus.
+    let openedByPage: Bool
     private(set) var url: URL?
     private(set) var title: String = ""
     private(set) var isLoading = false
     private(set) var canGoBack = false
     private(set) var canGoForward = false
 
-    init(jarId: String) {
-        self.jarId = jarId
+    /// A tab's web view on its jar's data store.
+    convenience init(jarId: String) {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = JarProfile.dataStore(for: jarId)   // non-negotiable 6
-        webView = WKWebView(frame: .zero, configuration: config)
+        self.init(jarId: jarId, configuration: config, openedByPage: false)
+    }
+
+    /// A page's new window. WebKit requires the configuration it passed to
+    /// `createWebViewWith`, used as is; it already carries the opener's data store, so the
+    /// new tab stays in the opener's jar (non-negotiable 6).
+    init(jarId: String, configuration: WKWebViewConfiguration, openedByPage: Bool) {
+        self.jarId = jarId
+        self.openedByPage = openedByPage
+        webView = WKWebView(frame: .zero, configuration: configuration)
         super.init()
         webView.navigationDelegate = self
+        webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
         observe()
     }
@@ -73,6 +86,13 @@ final class JarWebView: NSObject, WKNavigationDelegate {
     /// Called after every navigation change, with the tab's URL and title.
     var onNavigation: ((URL?, String) -> Void)?
 
+    /// Set by the Bench: the page asked for a new window. Returns the new tab's web view,
+    /// built on `configuration`, or nil when no tab could be made.
+    var onNewWindow: ((WKWebViewConfiguration) -> WKWebView?)?
+
+    /// Set by the Bench: the page closed its own window (`window.close()`).
+    var onClose: (() -> Void)?
+
     func goBack() { webView.goBack() }
     func goForward() { webView.goForward() }
     func reload() { webView.reload() }
@@ -94,6 +114,20 @@ final class JarWebView: NSObject, WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { sync(); log.info("finish \(webView.url?.absoluteString ?? "-", privacy: .public) size=\(webView.bounds.width)x\(webView.bounds.height)") }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) { sync(); log.error("fail \(error.localizedDescription, privacy: .public)") }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: any Error) { sync(); log.error("provisional fail \(error.localizedDescription, privacy: .public)") }
+
+    // MARK: WKUIDelegate
+
+    /// target=_blank and window.open land here. Without this, WebKit drops them and the
+    /// link does nothing. If the Bench can't make a tab, the link opens in this one instead.
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                 for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        log.info("new window: \(navigationAction.request.url?.absoluteString ?? "-", privacy: .public) in jar \(self.jarId, privacy: .public)")
+        if let child = onNewWindow?(configuration) { return child }
+        webView.load(navigationAction.request)
+        return nil
+    }
+
+    func webViewDidClose(_ webView: WKWebView) { onClose?() }
 }
 
 extension WKWebView {

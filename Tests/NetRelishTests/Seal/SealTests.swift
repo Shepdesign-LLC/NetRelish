@@ -92,3 +92,58 @@ import Testing
         #expect(bench.fillStatus?.contains("Nothing") == true)
     }
 }
+
+/// Opening a sealed item from search shows its saved copy, not the live page.
+@Suite("Sealed copy") @MainActor struct SealedCopyTests {
+
+    private func sealedBench() async throws -> (Workbench, Item) {
+        let store = try PantryStore()
+        let bench = Workbench(store: store)
+        bench.newJar(name: "Meridian", tint: nil, shelfLifeDays: 3)
+        _ = bench.newTab(url: "https://example.com/invoice")
+        bench.tabDidNavigate(bench.activeTab!.id, url: URL(string: "https://example.com/invoice"), title: "Invoice terms")
+        bench.sealProvider = { _ in
+            (Data("WEBARCHIVE".utf8),
+             Extraction.Result(title: "Invoice terms", excerpt: "Net thirty.", body: "Net thirty with a pumpernickel clause."))
+        }
+        await bench.sealActiveTab()
+        let item = try #require(bench.searchPantry("pumpernickel").first)
+        return (bench, item)
+    }
+
+    @Test("Opening a sealed item shows its saved copy and opens no tab")
+    func opensTheCopy() async throws {
+        let (bench, item) = try await sealedBench()
+        bench.open(item)
+        #expect(bench.sealedCopy?.id == item.id)
+        #expect(bench.tabs.isEmpty)
+        #expect(bench.snapshotData(for: item) == Data("WEBARCHIVE".utf8))
+    }
+
+    @Test("Open Live Page leaves the copy and opens the page in the item's jar")
+    func opensTheLivePage() async throws {
+        let (bench, item) = try await sealedBench()
+        bench.open(item)
+        bench.openLivePage(item)
+        #expect(bench.sealedCopy == nil)
+        #expect(bench.activeTab?.url == item.url)
+        #expect(bench.activeTab?.jarId == item.jarId)
+    }
+
+    @Test("Picking a jar or a tab leaves the saved copy")
+    func leavesOnNavigation() async throws {
+        let (bench, item) = try await sealedBench()
+        bench.open(item)
+        bench.activate(index: 0)
+        #expect(bench.sealedCopy == nil)
+    }
+
+    @Test("An item captured but not sealed still opens as a live tab")
+    func unsealedOpensLive() async throws {
+        let (bench, _) = try await sealedBench()
+        let captured = try bench.store.write { db in try bench.store.root(db).capture(db, url: "https://example.com/other") }
+        bench.open(captured)
+        #expect(bench.sealedCopy == nil)
+        #expect(bench.activeTab?.url == "https://example.com/other")
+    }
+}
