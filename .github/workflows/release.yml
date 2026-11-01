@@ -150,6 +150,7 @@ jobs:
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" PROVISIONING_PROFILE_SPECIFIER= \
+            CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
             OTHER_CODE_SIGN_FLAGS="--timestamp --keychain $KEYCHAIN" \
             -quiet build
           APP="$DERIVED/Build/Products/$CONFIGURATION/NetRelish.app"
@@ -158,6 +159,15 @@ jobs:
           grep -q "Authority=Developer ID Application" "$RUNNER_TEMP/codesign.txt" || { echo "::error::not signed with Developer ID"; exit 1; }
           grep -q "flags=.*runtime" "$RUNNER_TEMP/codesign.txt" || { echo "::error::hardened runtime is off"; exit 1; }
           grep -q "Timestamp=" "$RUNNER_TEMP/codesign.txt" || { echo "::error::no secure timestamp"; exit 1; }
+          # A plain `xcodebuild build` injects the debugger entitlement, which notarization
+          # rejects (run 41336403742). The flag above stops that; this proves it, for the app
+          # and everything signed inside it, before spending a notary round.
+          for code in "$APP" "$APP"/Contents/Frameworks/* "$APP"/Contents/PlugIns/*; do
+            [ -e "$code" ] || continue
+            if codesign -d --entitlements - --xml "$code" 2>/dev/null | grep -q "get-task-allow"; then
+              echo "::error::$code carries com.apple.security.get-task-allow, which notarization rejects"; exit 1
+            fi
+          done
           echo "APP=$APP" >> "$GITHUB_ENV"
 
       - name: Notarize and staple the app
