@@ -38,6 +38,8 @@ struct NetRelishApp: App {
             }
             CommandMenu("Bench") {
                 Button("Command Palette…") { workbench.showPalette = true }.keyboardShortcut("k", modifiers: .command)
+                Button(workbench.showPanel ? "Hide Panel" : "Show Panel") { workbench.showPanel.toggle() }
+                    .keyboardShortcut("i", modifiers: [.command, .option])
                 Button("Capture This Page") { workbench.captureActivePage() }.keyboardShortcut("d", modifiers: .command)
                     .disabled(workbench.benchTab == nil)
                 Button("Seal") { Task { await workbench.sealActiveTab() } }.keyboardShortcut("s", modifiers: .command)
@@ -84,6 +86,7 @@ struct ContentView: View {
         HStack(spacing: 0) {
             ShelfView(workbench: workbench)
             BenchView(workbench: workbench)
+            if workbench.showPanel { PanelView(workbench: workbench) }
         }
         .frame(minWidth: 880, minHeight: 560)
         .background(NRColor.bg)

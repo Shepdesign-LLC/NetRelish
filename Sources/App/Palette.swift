@@ -71,6 +71,8 @@ enum PaletteSource {
             rows.append(PaletteRow(id: "cmd.closecopy", kind: .command, title: "Close Saved Copy",
                                    shortcut: "⌘W") { workbench.closeActiveTab() })
         }
+        rows.append(PaletteRow(id: "cmd.panel", kind: .command, title: workbench.showPanel ? "Hide Panel" : "Show Panel",
+                               shortcut: "⌘⌥I") { workbench.showPanel.toggle() })
         if workbench.activeJar != nil {
             rows.append(PaletteRow(id: "cmd.newtab", kind: .command, title: "New Tab", shortcut: "⌘T") { _ = workbench.newTab() })
             rows.append(PaletteRow(id: "cmd.editjar", kind: .command, title: "Edit Jar", shortcut: "⌘⇧E") { workbench.requestEditActiveJar() })

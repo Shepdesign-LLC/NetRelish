@@ -200,3 +200,51 @@ private func freshStore() throws -> PantryStore { try PantryStore(inMemory: ()) 
         #expect(sinking == [ids["late"]!, ids["fading"]!])
     }
 }
+
+/// What the Panel reads and writes: a page's item, and labels by name.
+@Suite("Panel queries") struct PanelQueryTests {
+
+    @Test("A label is one label whatever its case; removing it from one item keeps it for the rest")
+    func labelsByName() throws {
+        let store = try freshStore()
+        let before = try store.read { db in try Label.fetchCount(db) }
+        let (a, b) = try store.write { db -> (Item, Item) in
+            var a = Item(title: "Invoice terms")
+            var b = Item(title: "Kickoff notes")
+            try a.insert(db)
+            try b.insert(db)
+            return (a, b)
+        }
+        try store.write { db -> Void in
+            _ = try store.addLabel(db, named: "Client", to: a)
+            _ = try store.addLabel(db, named: "client", to: a)        // same label, not a second one
+            _ = try store.addLabel(db, named: "  CLIENT ", to: b)
+            #expect(try store.addLabel(db, named: "   ", to: b) == nil) // blank is nothing
+        }
+        let (onA, onB, total) = try store.read { db in (try a.labels(db), try b.labels(db), try Label.fetchCount(db)) }
+        #expect(onA.map(\.name) == ["Client"])
+        #expect(onB.map(\.id) == onA.map(\.id))
+        #expect(total == before + 1)
+
+        try store.write { db in try store.removeLabel(db, onA[0], from: a) }
+        let (afterA, afterB, stillThere) = try store.read { db in (try a.labels(db), try b.labels(db), try Label.fetchCount(db)) }
+        #expect(afterA.isEmpty)
+        #expect(afterB.count == 1)
+        #expect(stillThere == before + 1)
+    }
+
+    @Test("A page's item is its sealed copy when there is one, else its newest capture")
+    func itemForPage() throws {
+        let store = try freshStore()
+        let url = "https://example.com/terms"
+        let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+        try store.write { db -> Void in
+            var old = Item(createdAt: t0, title: "Old capture", url: url)
+            var sealed = Item(createdAt: t0.addingTimeInterval(60), sealedAt: t0.addingTimeInterval(60), state: .sealed, title: "Sealed", url: url)
+            var newest = Item(createdAt: t0.addingTimeInterval(120), title: "Newest capture", url: url)
+            try old.insert(db); try sealed.insert(db); try newest.insert(db)
+        }
+        #expect(try store.read { db in try store.item(db, url: url)?.title } == "Sealed")
+        #expect(try store.read { db in try store.item(db, url: "https://example.com/nowhere") } == nil)
+    }
+}
