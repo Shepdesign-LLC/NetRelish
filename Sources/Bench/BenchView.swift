@@ -64,14 +64,10 @@ struct BenchView: View {
     @Bindable var workbench: Workbench
     @State private var webViews = BenchWebViews()
 
-    /// One container, so the wiring and the clean-up run whatever the Bench is showing. A
-    /// tab closed or sunk while Brine or a saved copy is up still lets go of its web view.
+    /// One container, so the wiring runs whatever the Bench is showing first.
     var body: some View {
         ZStack { content }
             .onAppear { wire() }
-            .onChange(of: workbench.tabs.map(\.id)) { old, new in
-                for gone in Set(old).subtracting(new) { webViews.forget(gone) }
-            }
     }
 
     @ViewBuilder private var content: some View {
@@ -106,6 +102,9 @@ struct BenchView: View {
     private func wire() {
         webViews.makeTab = { [workbench] jarId, openerId in workbench.newTab(in: jarId, openedBy: openerId) }
         webViews.closeTab = { [workbench] tabId in workbench.closeTab(id: tabId) }
+        // Only tabs that are really gone let go of their web views. A jar you switch away
+        // from, or one hidden behind a smart jar or a saved copy, keeps its pages live.
+        workbench.onTabsGone = { [webViews] ids in ids.forEach(webViews.forget) }
         workbench.interactionStateProvider = { [webViews] tab in
             webViews.existing(for: tab.id)?.interactionState
         }

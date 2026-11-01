@@ -89,6 +89,10 @@ final class Workbench {
 
     /// Called before a tab sinks so the Bench can hand over the web view's interaction state.
     var interactionStateProvider: ((Tab) -> Data?)?
+    /// Called with the ids of tabs that no longer exist (closed, sealed or sunk), so the Bench
+    /// lets go of their web views. Switching jars or showing a smart jar never calls it: those
+    /// tabs are still open, and their pages stay live.
+    var onTabsGone: (([String]) -> Void)?
 
     // MARK: Vault (the Me card)
 
@@ -334,6 +338,7 @@ final class Workbench {
     func closeTab(_ tab: Tab) {
         do {
             try store.write { db in _ = try tab.delete(db) }
+            onTabsGone?([tab.id])
             let wasActive = tab.id == activeTabId
             let opener = openerOf.removeValue(forKey: tab.id)
             loadTabs()
@@ -390,16 +395,19 @@ final class Workbench {
     func sweep() {
         touchActiveTab()
         let now = Date()
+        var sunk: [String] = []
         do {
             let allTabs = try store.read { db in try Tab.fetchAll(db) }
             for var tab in allTabs where tab.id != activeTabId {
                 guard let jar = jars.first(where: { $0.id == tab.jarId }), ShelfLife.shouldSink(tab, in: jar, now: now) else { continue }
                 if let provider = interactionStateProvider { tab.interactionState = provider(tab) ?? tab.interactionState }
-                try store.write { db in try tab.sink(db) }
+                _ = try store.write { db in try tab.sink(db) }
+                sunk.append(tab.id)
             }
         } catch {
             assertionFailure("Workbench.sweep: \(error)")
         }
+        if !sunk.isEmpty { onTabsGone?(sunk) }
         loadTabs()
     }
 
@@ -509,8 +517,10 @@ final class Workbench {
             activateTab(existing)
             return
         }
-        if let jarId = item.jarId, jarId != activeJarId { activate(jarId: jarId) }
-        newTab(url: item.url, interactionState: item.sunkInteractionState, in: item.jarId ?? activeJarId)
+        // An item with no jar (or a jar that's gone) opens where ⌘T would: the jar you're in,
+        // or the Shelf's first jar when a smart jar is showing. newTab does the switching.
+        newTab(url: item.url, interactionState: item.sunkInteractionState,
+               in: item.jarId.flatMap { id in jars.first { $0.id == id }?.id })
     }
 
     /// The live page behind a saved copy, in a new tab in the item's jar, or in the jar

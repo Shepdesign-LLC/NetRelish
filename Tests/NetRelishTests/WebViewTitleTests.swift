@@ -131,5 +131,19 @@ import WebKit
         #expect(JarWebView.forAnotherApp(URL(string: "tel:+15551234567")) != nil)
         #expect(JarWebView.forAnotherApp(URL(string: "https://example.com")) == nil)
         #expect(JarWebView.forAnotherApp(URL(string: "about:blank")) == nil)
+        #expect(JarWebView.forAnotherApp(URL(string: "smb://example.com/share")) == nil)   // never straight to Finder
+    }
+
+    @Test("A click on mail or phone opens its app; every other app link asks first")
+    func handoffRules() {
+        let mail = URL(string: "mailto:ryan@example.com")!
+        let zoom = URL(string: "zoommtg://zoom.us/join?confno=1")!
+        let smb = URL(string: "smb://example.com/share")!
+        #expect(JarWebView.handoff(mail, clicked: true) == .open(mail))
+        #expect(JarWebView.handoff(mail, clicked: false) == .ask(mail))     // a script can't send mail on its own
+        #expect(JarWebView.handoff(zoom, clicked: true) == .ask(zoom))
+        #expect(JarWebView.handoff(smb, clicked: true) == .ask(smb))
+        #expect(JarWebView.handoff(URL(string: "https://example.com")!, clicked: true) == .stay)
+        #expect(JarWebView.handoff(URL(string: "javascript:void(0)")!, clicked: true) == .stay)
     }
 }

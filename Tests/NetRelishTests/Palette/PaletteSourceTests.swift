@@ -147,4 +147,41 @@ import Testing
             #expect(row.shortcut == "⌘⇧\(smart.number)")
         }
     }
+
+    @Test("Open on a captured item from Today opens it in a tab, even with a smart jar showing")
+    func openFromToday() throws {
+        let bench = try bench()
+        let captured = try bench.store.write { db in try bench.store.root(db).capture(db, url: "https://example.com/brief") }
+        bench.activate(.today)
+        bench.open(captured)
+        #expect(bench.activeSmartJar == nil)
+        #expect(bench.activeTab?.url == "https://example.com/brief")
+        #expect(bench.activeTab?.jarId == bench.jars.first?.id)
+    }
+
+    @Test("Showing a smart jar or switching jars keeps pages live; closing or sinking a tab lets go")
+    func webViewsOnlyGoWithTheirTab() throws {
+        let bench = try bench()
+        let meridian = try #require(bench.activeJar)
+        var gone: [String] = []
+        bench.onTabsGone = { gone += $0 }
+        let a = try #require(bench.newTab(url: "https://example.com/a"))
+        let b = try #require(bench.newTab(url: "https://example.com/b"))
+
+        bench.activate(.sealed)
+        bench.activate(meridian)
+        #expect(gone.isEmpty)
+
+        bench.closeTab(b)
+        #expect(gone == [b.id])
+
+        bench.activate(.brine)                  // so a isn't the active tab, which never sinks
+        try bench.store.write { db in           // after the switch, which touches the tab it leaves
+            var old = try #require(try Tab.fetchOne(db, key: a.id))
+            old.touchedAt = Date().addingTimeInterval(-86_400 * 30)
+            try old.update(db)
+        }
+        bench.sweep()
+        #expect(gone.contains(a.id))
+    }
 }
