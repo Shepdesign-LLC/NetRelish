@@ -7,7 +7,8 @@ name: Release
 #   git tag v0.4.0 && git push origin v0.4.0
 #
 # Or, without the right to push tags: Actions → Release → Run workflow, on main, with the
-# version. That tags main's current commit itself and runs the same steps.
+# version. That runs the same steps and tags main's commit itself, last, once the disk
+# image has passed Gatekeeper, so a run that fails leaves no tag behind.
 #
 # The notes come from docs/releases/<tag>.md, written by hand before tagging.
 # Nothing is published until the artifact itself has passed Gatekeeper's checks:
@@ -92,9 +93,11 @@ jobs:
             echo "dmg=NetRelish-$VERSION.dmg"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Tag main (when started by hand)
-        # A tag created with this workflow's token starts no second run (GitHub's loop guard).
-        # Re-running after a failure is fine: a tag already on this commit is kept as it is.
+      - name: Check the tag (when started by hand)
+        # Read-only, and early, so a run that can't be tagged fails before any signing. The tag
+        # itself is made last, after Gatekeeper accepts the disk image: a run that fails
+        # leaves nothing behind, and a later run from a fixed main tags the fixed commit.
+        id: tag
         if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -104,12 +107,16 @@ jobs:
           EXISTING=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha 2>/dev/null || true)
           echo "$EXISTING" | grep -Eq '^[0-9a-f]{40}$' || EXISTING=""   # a 404 body is not a commit
           if [ -z "$EXISTING" ]; then
-            gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA" >/dev/null
-            echo "Tagged $GITHUB_SHA as $TAG"
+            echo "action=create" >> "$GITHUB_OUTPUT"
           elif [ "$EXISTING" = "$GITHUB_SHA" ]; then
-            echo "$TAG is already on $GITHUB_SHA"
+            echo "action=keep" >> "$GITHUB_OUTPUT"
+          elif gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::$TAG is already released, on $EXISTING. Release a new version."; exit 1
           else
-            echo "::error::$TAG already names $EXISTING, not main's $GITHUB_SHA"; exit 1
+            # A tag with no release is an attempt that never shipped (an earlier version of
+            # this workflow tagged before building). It moves to main once this build passes.
+            echo "::warning::$TAG names $EXISTING but was never released; it will move to $GITHUB_SHA if this run passes"
+            echo "action=move" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Import the Developer ID certificate into a throwaway keychain
@@ -143,6 +150,7 @@ jobs:
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" PROVISIONING_PROFILE_SPECIFIER= \
+            CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
             OTHER_CODE_SIGN_FLAGS="--timestamp --keychain $KEYCHAIN" \
             -quiet build
           APP="$DERIVED/Build/Products/$CONFIGURATION/NetRelish.app"
@@ -151,6 +159,15 @@ jobs:
           grep -q "Authority=Developer ID Application" "$RUNNER_TEMP/codesign.txt" || { echo "::error::not signed with Developer ID"; exit 1; }
           grep -q "flags=.*runtime" "$RUNNER_TEMP/codesign.txt" || { echo "::error::hardened runtime is off"; exit 1; }
           grep -q "Timestamp=" "$RUNNER_TEMP/codesign.txt" || { echo "::error::no secure timestamp"; exit 1; }
+          # A plain `xcodebuild build` injects the debugger entitlement, which notarization
+          # rejects (run 41336403742). The flag above stops that; this proves it, for the app
+          # and everything signed inside it, before spending a notary round.
+          for code in "$APP" "$APP"/Contents/Frameworks/* "$APP"/Contents/PlugIns/*; do
+            [ -e "$code" ] || continue
+            if codesign -d --entitlements - --xml "$code" 2>/dev/null | grep -q "get-task-allow"; then
+              echo "::error::$code carries com.apple.security.get-task-allow, which notarization rejects"; exit 1
+            fi
+          done
           echo "APP=$APP" >> "$GITHUB_ENV"
 
       - name: Notarize and staple the app
@@ -208,6 +225,22 @@ jobs:
           spctl -a -vvv -t open --context context:primary-signature "$DMG" 2>&1 | tee "$RUNNER_TEMP/spctl-dmg.txt"
           grep -q "source=Notarized Developer ID" "$RUNNER_TEMP/spctl-dmg.txt" || { echo "::error::Gatekeeper does not accept the disk image as notarized"; exit 1; }
           shasum -a 256 "$DMG" | tee "$DMG.sha256"
+
+      - name: Tag main (when started by hand)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          ACTION: ${{ steps.tag.outputs.action }}
+        run: |
+          # The token's own ref writes start no second run (GitHub's loop guard).
+          case "$ACTION" in
+            create) gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA" >/dev/null ;;
+            move)   gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" -f sha="$GITHUB_SHA" -F force=true >/dev/null ;;
+            keep)   ;;
+            *)      echo "::error::no tag decision ('$ACTION')"; exit 1 ;;
+          esac
+          echo "$TAG is $GITHUB_SHA"
 
       - name: Publish the pre-release
         env:
