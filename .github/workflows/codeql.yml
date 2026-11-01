@@ -2,6 +2,39 @@ name: CodeQL
 
 # ⚠️ THIS JOB IS CURRENTLY EXPECTED TO FAIL. Do not re-diagnose it from scratch.
 #
+# ROOT CAUSE, measured 2026-11-01 (PRs #51 and #56). Upstream, not ours.
+#
+#   CodeQL's macOS tracer runs every universal binary it launches as x86_64.
+#   Xcode 27's swift-frontend and swift-plugin-server are arm64-only, so under
+#   the tracer the macro plugin cannot load ("Bad CPU type in executable"),
+#   @State and #Preview do not expand, and the build exits 65. Untraced, the
+#   same build is green, which is why ci.yml passes.
+#
+#   Measured, xcode-27-arm64 image 20261026.0314.1, CodeQL 2.27.0 and 2.27.3:
+#
+#     before codeql-action/init  uname -m arm64   universal child arm64
+#     after init, any shell      uname -m x86_64  universal child x86_64
+#     CLI `database create`,     uname -m x86_64  universal child x86_64
+#       no init, launched from a native arm64 step (run 41312920534)
+#
+#   - The runner itself is NATIVE arm64. The "runner is x86_64 under Rosetta"
+#     reading below (run 36094598763) was taken after init, so it described
+#     the tracer, not the runner.
+#   - init traces Runner.Worker itself, so every later step is traced, and the
+#     traced parent re-injects the preload on each exec: unsetting
+#     DYLD_INSERT_LIBRARIES in a step does not stick.
+#   - Ruled out, with runs: an arm64-only shell (Homebrew bash, #51), a
+#     stripped tracer env, CLI-driven tracing with no init (#56), and an older
+#     Xcode. Every Xcode on the image (27.0 to 27.2 RC, nine installs) ships an
+#     arm64-only toolchain.
+#
+#   Fix: upstream, in CodeQL's tracer (an issue is drafted in PR #56). Until
+#   then this job cannot build, and non-negotiable 5 has no automated gate.
+#   Re-test when the action's CodeQL version or the xcode-27 image moves.
+#
+# What follows is the earlier investigation, kept because it records what was
+# tried. Where it disagrees with the block above, the block above wins.
+#
 # ONE failure with a knock-on, though it read as two for a while. Read out of
 # the job logs of runs 36092189970 (932b589), 36092546432 (6682385) and
 # 36093785096 (8ad8ad4).
@@ -128,7 +161,7 @@ name: CodeQL
 #
 # MEASURED, run 36094598763. It is not arm64e, and it is not a missing slice:
 #
-#   runner (uname -m):    x86_64      ← the job's shell is translated
+#   runner (uname -m):    x86_64      ← WRONG: read after init (see ROOT CAUSE)
 #   swift-plugin-server:  arm64       ← arm64 ONLY
 #   swift-frontend:       arm64       ← arm64 ONLY
 #   libtrace.dylib:       x86_64 arm64
@@ -261,23 +294,6 @@ jobs:
       - name: Disable SwiftPM's manifest sandbox (see comment — trade-off)
         run: defaults write com.apple.dt.Xcode IDEPackageSupportDisableManifestSandbox -bool YES
 
-      # A native arm64 shell for the traced build, set up BEFORE tracing starts.
-      #
-      # The runner agent is x86_64 under Rosetta (measured: uname -m = x86_64),
-      # so every step's /bin/bash, and everything it spawns, runs translated,
-      # while Xcode 27's swift-frontend and swift-plugin-server are arm64-only.
-      # `arch -arm64` reached native arm64 but stripped DYLD_INSERT_LIBRARIES
-      # (run 36095774560: build green, database empty). Homebrew's bash is
-      # arm64-only and not SIP-restricted, so the runner launches it natively
-      # AND the tracer's preload survives into it. The build step below uses it
-      # as its `shell:` and refuses to build unless both hold.
-      - name: Native arm64 shell for the traced build
-        run: |
-          test -x /opt/homebrew/bin/bash || brew install bash
-          file /opt/homebrew/bin/bash
-          lipo -archs /opt/homebrew/bin/bash | grep -qx arm64 \
-            || { echo "::error::/opt/homebrew/bin/bash is not arm64-only; the runner would launch it translated"; exit 1; }
-
       - uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         id: init
         with:
@@ -317,15 +333,7 @@ jobs:
       # commands collect into the same database, so this is two invocations, not
       # two jobs.
       - name: Build both flavours (unsigned — CI has no certificate)
-        # Native arm64 + traced, or nothing. See "Native arm64 shell" above.
-        shell: /opt/homebrew/bin/bash --noprofile --norc -eo pipefail {0}
         run: |
-          echo "uname -m: $(uname -m)"
-          echo "DYLD_INSERT_LIBRARIES: ${DYLD_INSERT_LIBRARIES:-<unset>}"
-          [ "$(uname -m)" = arm64 ] \
-            || { echo "::error::traced build is not native arm64"; exit 1; }
-          [ -n "${DYLD_INSERT_LIBRARIES:-}" ] \
-            || { echo "::error::tracer preload is missing; this build would be untraced and the database empty"; exit 1; }
           xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
             -configuration Release-AppStore -derivedDataPath .build/DerivedData \
             -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
