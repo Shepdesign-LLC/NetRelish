@@ -1,6 +1,7 @@
 // Workbench.swift — the app's live state: the jars on the Shelf, the active jar, its tabs,
 // the active tab, Brine, and the sweep that sinks idle tabs. Observed by everything.
 
+import AppKit
 import Foundation
 import GRDB
 import Observation
@@ -136,10 +137,53 @@ final class Workbench {
         }
     }
 
-    init(store: PantryStore = .shared, vault: VaultStore = .live) {
+    /// Where the Share extension leaves pages. The app passes the App Group's; tests pass
+    /// their own or none, so they never take what you shared.
+    let inbox: ShareInbox?
+
+    init(store: PantryStore = .shared, vault: VaultStore = .live, inbox: ShareInbox? = nil) {
         self.store = store
         self.vault = vault
+        self.inbox = inbox
         load()
+        if inbox != nil { watchInbox() }
+    }
+
+    // MARK: The Share extension
+
+    /// Watches the inbox for as long as the app runs, whether or not a window is open: at
+    /// launch, every 5 seconds, and whenever the app comes forward. A page shared from Safari
+    /// is in Brine within seconds, and at once when you switch to NetRelish.
+    private func watchInbox() {
+        _ = NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification,
+                                                   object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.receiveShared() }
+        }
+        Task { [weak self] in
+            while !Task.isCancelled {
+                self?.receiveShared()
+                try? await Task.sleep(for: .seconds(5))
+                if self == nil { return }
+            }
+        }
+    }
+
+    /// Takes in whatever was shared from another app's Share menu since the last look, into
+    /// Brine.
+    func receiveShared() {
+        guard let inbox else { return }
+        do {
+            var received: [Item] = []
+            try inbox.take { pages in
+                received = try store.write { db in try store.receive(db, pages) }
+            }
+            guard !received.isEmpty else { return }
+            refreshSmartJars()
+            report(received.count == 1 ? "Shared into Brine" : "\(received.count) pages shared into Brine")
+        } catch {
+            log.error("share: \(String(describing: error), privacy: .public)")
+            report("Couldn’t take in a shared page. It will be tried again.")
+        }
     }
 
     // MARK: Fill from Me

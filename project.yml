@@ -34,7 +34,7 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
     DEVELOPMENT_TEAM: D9QDJ44773
     CODE_SIGN_STYLE: Automatic
-    MARKETING_VERSION: "0.1.0"
+    MARKETING_VERSION: "0.4.1"   # releases override this from their tag
     CURRENT_PROJECT_VERSION: "1"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
   configs:
@@ -86,6 +86,7 @@ targets:
     dependencies:
       - target: Pantry
       - package: KeyboardShortcuts
+      - target: NetRelishShare      # embedded in Contents/PlugIns
     entitlements:
       path: NetRelish.entitlements
       properties:
@@ -94,12 +95,19 @@ targets:
         com.apple.security.files.user-selected.read-write: true
         # "Import from my card" reads the Contacts Me card once (ADR 0006).
         com.apple.security.personal-information.addressbook: true
+        # The Share extension leaves pages here; the app takes them into Brine (ShareInbox).
+        com.apple.security.application-groups:
+          - D9QDJ44773.com.shepdesign.netrelish
     info:
       path: Sources/App/Info.plist
       properties:
         CFBundleName: NetRelish
         CFBundleDisplayName: NetRelish
         CFBundleIconFile: AppIcon
+        # The version comes from the build settings, so a release's MARKETING_VERSION (from
+        # its tag) is what About shows. A literal here shipped v0.4.0 calling itself 1.0.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSMinimumSystemVersion: "27.0"
         LSApplicationCategoryType: public.app-category.productivity
         NSHumanReadableCopyright: "© 2026 Shepdesign LLC. Code MIT; the mark and the name are all rights reserved."
@@ -114,6 +122,43 @@ targets:
         ENABLE_APP_SANDBOX: YES
         COMBINE_HIDPI_IMAGES: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: ""
+
+  # NetRelish in the Share menu of Safari and every other app (ADR 0012). It writes to the
+  # App Group only; the app does the Pantry work. It compiles ShareInbox.swift on its own
+  # rather than linking Pantry, so it never loads GRDB or opens the database.
+  NetRelishShare:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Sources/ShareExtension
+      - path: Sources/Pantry/Store/ShareInbox.swift
+    entitlements:
+      path: Sources/ShareExtension/NetRelishShare.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.application-groups:
+          - D9QDJ44773.com.shepdesign.netrelish
+    info:
+      path: Sources/ShareExtension/Info.plist
+      properties:
+        CFBundleDisplayName: NetRelish
+        CFBundleShortVersionString: $(MARKETING_VERSION)   # must match the app's
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: "27.0"
+        NSHumanReadableCopyright: "© 2026 Shepdesign LLC. Code MIT; the mark and the name are all rights reserved."
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shepdesign.netrelish.share
+        PRODUCT_NAME: NetRelishShare
+        ENABLE_HARDENED_RUNTIME: YES
+        ENABLE_APP_SANDBOX: YES
+        SKIP_INSTALL: YES
 
   # Hosted by the app: tokens, symbols, shapes — everything that needs the module.
   NetRelishTests:

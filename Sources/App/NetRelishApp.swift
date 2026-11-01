@@ -7,7 +7,13 @@ import SwiftUI
 
 @main
 struct NetRelishApp: App {
-    @State private var workbench = Workbench()
+    @State private var workbench = Workbench(inbox: NetRelishApp.shareInbox)
+
+    /// The Share extension's inbox, except when this app is hosting the tests: they must never
+    /// take what you've shared into the Pantry.
+    private static var shareInbox: ShareInbox? {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil ? ShareInbox() : nil
+    }
 
     init() {
         #if DEBUG
