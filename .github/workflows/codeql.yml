@@ -261,6 +261,23 @@ jobs:
       - name: Disable SwiftPM's manifest sandbox (see comment — trade-off)
         run: defaults write com.apple.dt.Xcode IDEPackageSupportDisableManifestSandbox -bool YES
 
+      # A native arm64 shell for the traced build, set up BEFORE tracing starts.
+      #
+      # The runner agent is x86_64 under Rosetta (measured: uname -m = x86_64),
+      # so every step's /bin/bash, and everything it spawns, runs translated,
+      # while Xcode 27's swift-frontend and swift-plugin-server are arm64-only.
+      # `arch -arm64` reached native arm64 but stripped DYLD_INSERT_LIBRARIES
+      # (run 36095774560: build green, database empty). Homebrew's bash is
+      # arm64-only and not SIP-restricted, so the runner launches it natively
+      # AND the tracer's preload survives into it. The build step below uses it
+      # as its `shell:` and refuses to build unless both hold.
+      - name: Native arm64 shell for the traced build
+        run: |
+          test -x /opt/homebrew/bin/bash || brew install bash
+          file /opt/homebrew/bin/bash
+          lipo -archs /opt/homebrew/bin/bash | grep -qx arm64 \
+            || { echo "::error::/opt/homebrew/bin/bash is not arm64-only; the runner would launch it translated"; exit 1; }
+
       - uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         id: init
         with:
@@ -300,7 +317,15 @@ jobs:
       # commands collect into the same database, so this is two invocations, not
       # two jobs.
       - name: Build both flavours (unsigned — CI has no certificate)
+        # Native arm64 + traced, or nothing. See "Native arm64 shell" above.
+        shell: /opt/homebrew/bin/bash --noprofile --norc -eo pipefail {0}
         run: |
+          echo "uname -m: $(uname -m)"
+          echo "DYLD_INSERT_LIBRARIES: ${DYLD_INSERT_LIBRARIES:-<unset>}"
+          [ "$(uname -m)" = arm64 ] \
+            || { echo "::error::traced build is not native arm64"; exit 1; }
+          [ -n "${DYLD_INSERT_LIBRARIES:-}" ] \
+            || { echo "::error::tracer preload is missing; this build would be untraced and the database empty"; exit 1; }
           xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
             -configuration Release-AppStore -derivedDataPath .build/DerivedData \
             -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
