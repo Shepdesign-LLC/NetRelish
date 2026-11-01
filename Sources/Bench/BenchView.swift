@@ -119,6 +119,9 @@ struct BenchView: View {
             let archive = try await web.dataForWebArchive()
             return (archive, extracted)
         }
+        workbench.readerProvider = { [webViews] tab in
+            try await Extraction.article(in: webViews.view(for: tab).webView)
+        }
     }
 }
 
@@ -134,7 +137,19 @@ struct TabPane: View {
         VStack(spacing: 0) {
             addressBar
             Rectangle().fill(NRColor.hairline).frame(height: NRSpace.hairline)
-            WebViewHost(jarWebView: web)
+            if let reader = workbench.reader, reader.tabId == tab.id {
+                // The live page stays loaded behind the reader, so ⌘S still seals it.
+                ReaderHost(article: reader.article,
+                           baseURL: reader.url.flatMap(URL.init(string:)) ?? URL(string: "about:blank")!,
+                           follow: { [workbench, web] url in
+                               workbench.closeReader()
+                               web.load(url.absoluteString)
+                           })
+                    .id(reader.url)
+                    .onExitCommand { workbench.closeReader() }
+            } else {
+                WebViewHost(jarWebView: web)
+            }
         }
         .onAppear {
             address = web.url?.absoluteString ?? tab.url ?? ""
@@ -143,6 +158,8 @@ struct TabPane: View {
         }
         .onChange(of: web.url) { _, new in if !addressFocused { address = new?.absoluteString ?? "" } }
     }
+
+    private var reading: Bool { workbench.reader?.tabId == tab.id }
 
     private var addressBar: some View {
         HStack(spacing: NRSpace.sp2) {
@@ -162,6 +179,10 @@ struct TabPane: View {
                 Text(status).font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2).lineLimit(1)
                     .transition(.opacity).accessibilityIdentifier("fill-status")
             }
+            Button { Task { await workbench.toggleReader() } } label: { Image(systemName: "doc.plaintext") }
+                .foregroundStyle(reading ? NRColor.fg : NRColor.fg2)
+                .help(reading ? "Back to the Page (⌘⇧R)" : "Reader View (⌘⇧R)")
+                .accessibilityLabel(reading ? "Back to the page" : "Reader view")
             Button { web.isLoading ? web.webView.stopLoading() : web.reload() } label: {
                 Image(systemName: web.isLoading ? "xmark" : "arrow.clockwise")
             }.help(web.isLoading ? "Stop" : "Reload")
@@ -330,6 +351,98 @@ struct SavedCopyView: View {
     private var subtitle: String {
         let sealed = item.sealedAt.map { "Saved copy, sealed \($0.formatted(date: .abbreviated, time: .shortened))" } ?? "Saved copy"
         return [sealed, item.domain].compactMap { $0 }.joined(separator: " · ")
+    }
+}
+
+/// Reader view: the article alone, in system type on the Bench's colors. JavaScript is off,
+/// a content policy lets nothing but images and media load (live page loads, which
+/// non-negotiable 5 allows), and the store keeps nothing. Links follow the saved copy's rules,
+/// except that a clicked page opens in the same tab: Reader view is a way of reading the
+/// tab, not a place.
+struct ReaderHost: NSViewRepresentable {
+    let article: Extraction.Article
+    let baseURL: URL
+    let follow: (URL) -> Void
+
+    func makeCoordinator() -> SavedCopyNavigator { SavedCopyNavigator(openLink: follow) }
+
+    func makeNSView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = .nonPersistent()
+        config.defaultWebpagePreferences.allowsContentJavaScript = false
+        config.preferences.javaScriptCanOpenWindowsAutomatically = false
+        let web = WKWebView(frame: .zero, configuration: config)
+        web.navigationDelegate = context.coordinator
+        web.uiDelegate = context.coordinator
+        web.loadHTMLString(ReaderPage.html(for: article), baseURL: baseURL)
+        return web
+    }
+
+    func updateNSView(_ nsView: WKWebView, context: Context) { context.coordinator.openLink = follow }
+}
+
+/// The reader's one page. Colors, sizes, line heights and weights are the Bench's tokens
+/// (tokens.css, manifest §5), light and dark; tests hold the page to them.
+enum ReaderPage {
+    /// token → (light, dark), copied from design/tokens.css; a test holds them to it.
+    static let palette: [(token: String, light: String, dark: String)] = [
+        ("--nr-bg", "#FCFCFB", "#171716"),
+        ("--nr-fg", "#1D1D1B", "#F0F0EE"),
+        ("--nr-fg-2", "#66665F", "#A8A8A2"),
+        ("--nr-hairline", "#E3E3E0", "#3B3B38"),
+    ]
+
+    /// Our policy, ahead of anything in the article: no scripts, no frames, no fetches but
+    /// images and media, no forms, no base URL games.
+    static let contentSecurityPolicy =
+        "default-src 'none'; img-src * data:; media-src *; style-src 'unsafe-inline'; font-src data:; form-action 'none'; base-uri 'none'; frame-src 'none'"
+
+    static func html(for article: Extraction.Article) -> String {
+        let light = palette.map { "\($0.token): \($0.light);" }.joined(separator: " ")
+        let dark = palette.map { "\($0.token): \($0.dark);" }.joined(separator: " ")
+        let meta = [article.site, article.byline].filter { !$0.isEmpty }.map(escape).joined(separator: " · ")
+        let metaLine = meta.isEmpty ? "" : "<p class=\"meta\">" + meta + "</p>"
+        return """
+        <!doctype html>
+        <html><head>
+        <meta charset="utf-8">
+        <meta http-equiv="Content-Security-Policy" content="\(contentSecurityPolicy)">
+        <meta name="viewport" content="width=device-width">
+        <title>\(escape(article.title))</title>
+        <style>
+        :root { color-scheme: light dark; \(light) }
+        @media (prefers-color-scheme: dark) { :root { \(dark) } }
+        html { background: var(--nr-bg); }
+        body { margin: 0; padding: 48px 24px 96px; color: var(--nr-fg);
+               font: 20px/1.5 -apple-system, "SF Pro Text", system-ui, sans-serif; }
+        article { max-width: 680px; margin: 0 auto; }
+        h1.title { font-size: 28px; line-height: 1.15; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 8px; }
+        p.meta { color: var(--nr-fg-2); font-size: 13px; margin: 0 0 32px; padding-bottom: 16px;
+                 border-bottom: 1px solid var(--nr-hairline); }
+        a { color: var(--nr-fg); text-decoration: underline; text-underline-offset: 2px; }
+        img, video, svg, figure { max-width: 100%; height: auto; }
+        figcaption { color: var(--nr-fg-2); font-size: 13px; }
+        pre, code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 15px; }
+        pre { overflow-x: auto; padding: 12px 16px; border: 1px solid var(--nr-hairline); border-radius: 6px; }
+        blockquote { margin: 1.5em 0; padding-left: 1em; border-left: 2px solid var(--nr-hairline); color: var(--nr-fg-2); }
+        table { border-collapse: collapse; } th, td { border: 1px solid var(--nr-hairline); padding: 4px 8px; }
+        hr { border: 0; border-top: 1px solid var(--nr-hairline); }
+        </style>
+        </head><body><article>
+        <h1 class="title">\(escape(article.title))</h1>
+        \(metaLine)
+        \(article.html)
+        </article></body></html>
+        """
+    }
+
+    /// For text we put into the page ourselves. The article's markup was cleaned in the page.
+    static func escape(_ text: String) -> String {
+        text.replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&#39;")
     }
 }
 
