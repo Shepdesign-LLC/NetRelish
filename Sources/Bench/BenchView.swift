@@ -3,6 +3,8 @@
 // data store. When the Shelf's Brine jar is active, the Bench shows Brine instead; when a
 // sealed item is opened, it shows that item's saved copy.
 
+import AppKit
+import Network
 import Pantry
 import SwiftUI
 import WebKit
@@ -12,8 +14,9 @@ import WebKit
 final class BenchWebViews {
     private var byTab: [String: JarWebView] = [:]
 
-    /// Set by the Bench: makes a new, active tab in a jar for a page's new window.
-    @ObservationIgnored var makeTab: ((String) -> Tab?)?
+    /// Set by the Bench: makes a new, active tab for a page's new window, given the jar and
+    /// the opener's tab id.
+    @ObservationIgnored var makeTab: ((_ jarId: String, _ openerTabId: String) -> Tab?)?
     /// Set by the Bench: closes a tab by id, for a page that closed its own window.
     @ObservationIgnored var closeTab: ((String) -> Void)?
 
@@ -30,9 +33,13 @@ final class BenchWebViews {
     }
 
     /// A page in `parent` asked for a new window: make a tab in the same jar and give WebKit
-    /// a web view for it, built on the configuration WebKit passed. Nil if no tab was made.
+    /// a web view for it, built on the configuration WebKit passed. Nil if no tab was made,
+    /// and nil if that configuration isn't on the opener's jar's store: a new tab there would
+    /// keep its cookies in the wrong jar (non-negotiable 6).
     func openNewWindow(from parent: JarWebView, configuration: WKWebViewConfiguration) -> WKWebView? {
-        guard let tab = makeTab?(parent.jarId) else { return nil }
+        guard configuration.websiteDataStore.identifier == JarProfile.storeIdentifier(for: parent.jarId),
+              let openerId = byTab.first(where: { $0.value === parent })?.key,
+              let tab = makeTab?(parent.jarId, openerId) else { return nil }
         let child = JarWebView(jarId: parent.jarId, configuration: configuration, openedByPage: true)
         adopt(child, as: tab.id)
         return child.webView
@@ -44,7 +51,8 @@ final class BenchWebViews {
             guard let self, let v else { return nil }
             return self.openNewWindow(from: v, configuration: configuration)
         }
-        v.onClose = { [weak self] in self?.closeTab?(tabId) }
+        // Only a window a page opened is the page's to close.
+        if v.openedByPage { v.onClose = { [weak self] in self?.closeTab?(tabId) } }
         byTab[tabId] = v
     }
 
@@ -56,9 +64,19 @@ struct BenchView: View {
     @Bindable var workbench: Workbench
     @State private var webViews = BenchWebViews()
 
+    /// One container, so the wiring and the clean-up run whatever the Bench is showing. A
+    /// tab closed or sunk while Brine or a saved copy is up still lets go of its web view.
     var body: some View {
-        if let item = workbench.sealedCopy {
-            SealedCopyView(item: item, workbench: workbench)
+        ZStack { content }
+            .onAppear { wire() }
+            .onChange(of: workbench.tabs.map(\.id)) { old, new in
+                for gone in Set(old).subtracting(new) { webViews.forget(gone) }
+            }
+    }
+
+    @ViewBuilder private var content: some View {
+        if let item = workbench.savedCopy {
+            SavedCopyView(item: item, workbench: workbench)
                 .id(item.id)
         } else if workbench.showingBrine {
             BrineView(workbench: workbench)
@@ -79,10 +97,6 @@ struct BenchView: View {
                 }
             }
             .background(NRColor.surface)
-            .onAppear { wire() }
-            .onChange(of: workbench.tabs.map(\.id)) { old, new in
-                for gone in Set(old).subtracting(new) { webViews.forget(gone) }
-            }
         } else {
             EmptyBench(message: "No jar yet. Make one on the Shelf.")
         }
@@ -90,7 +104,7 @@ struct BenchView: View {
 
     /// The sweep asks the Bench for a tab's live interaction state before sinking it.
     private func wire() {
-        webViews.makeTab = { [workbench] jarId in workbench.newTab(in: jarId) }
+        webViews.makeTab = { [workbench] jarId, openerId in workbench.newTab(in: jarId, openedBy: openerId) }
         webViews.closeTab = { [workbench] tabId in workbench.closeTab(id: tabId) }
         workbench.interactionStateProvider = { [webViews] tab in
             webViews.existing(for: tab.id)?.interactionState
@@ -242,78 +256,181 @@ struct TabChip: View {
 
 struct EmptyBench: View {
     let message: String
+    /// An optional way out, shown as the view's one primary button.
+    var actionTitle: String? = nil
+    var action: (() -> Void)? = nil
+
     var body: some View {
         VStack(spacing: NRSpace.sp4) {
-            NRLogo.cog.image.resizable().frame(width: 48, height: 48)
+            NRLogo.cog.image.resizable().frame(width: NRSpace.sp12, height: NRSpace.sp12)
             Text(message).font(NRType.font(NRType.fsMd)).foregroundStyle(NRColor.fg2)
+            if let actionTitle, let action {
+                Button(actionTitle, action: action).buttonStyle(.nrPrimary)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(NRColor.bg)
     }
 }
 
-/// A sealed item's saved copy: the page as it was when sealed, read only. JavaScript is off
-/// and the data store is throwaway, so nothing on the page runs, nothing is signed in, and
-/// the snapshot on disk is never written to (non-negotiable 3).
-struct SealedCopyView: View {
+/// A sealed item's saved copy: the page as it was when sealed, read only (non-negotiable 3).
+/// JavaScript is off, the data store is throwaway, and that store's only proxy goes nowhere,
+/// so nothing on the page runs, nothing is signed in, and whatever the archive doesn't hold
+/// fails to load instead of coming from the live site. The file on disk is only ever read.
+/// A clicked link opens the live page in a new tab in the copy's jar.
+struct SavedCopyView: View {
     let item: Item
     @Bindable var workbench: Workbench
-    @State private var webView = SealedCopyView.makeWebView()
+    @State private var archive: Data?
     @State private var missing = false
-
-    static func makeWebView() -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.websiteDataStore = .nonPersistent()
-        config.defaultWebpagePreferences.allowsContentJavaScript = false
-        return WKWebView(frame: .zero, configuration: config)
-    }
 
     var body: some View {
         VStack(spacing: 0) {
             header
             Rectangle().fill(NRColor.hairline).frame(height: NRSpace.hairline)
             if missing {
-                EmptyBench(message: "The saved copy of this page is missing.")
+                EmptyBench(message: "We can’t find the saved copy of this page on this Mac.",
+                           actionTitle: item.url == nil ? nil : "Open Live Page",
+                           action: { workbench.openLivePage(item) })
+            } else if let archive {
+                SavedCopyHost(archive: archive,
+                              baseURL: item.url.flatMap(URL.init(string:)) ?? URL(string: "about:blank")!,
+                              openLink: { [workbench, item] url in workbench.openLink(url, from: item) })
             } else {
-                PlainWebViewHost(webView: webView)
+                NRColor.bg
             }
         }
         .background(NRColor.surface)
-        .onExitCommand { workbench.sealedCopy = nil }
+        .onExitCommand { workbench.savedCopy = nil }
         .task {
-            guard let data = workbench.snapshotData(for: item) else { missing = true; return }
-            webView.load(data, mimeType: "application/x-webarchive", characterEncodingName: "utf-8",
-                         baseURL: item.url.flatMap(URL.init(string:)) ?? URL(string: "about:blank")!)
+            if let data = workbench.snapshotData(for: item) { archive = data } else { missing = true }
         }
     }
 
     private var header: some View {
         HStack(spacing: NRSpace.sp3) {
-            NRSymbol.seal.image.resizable().frame(width: 16, height: 16).foregroundStyle(NRColor.fg2)
+            NRSymbol.seal.image.resizable().frame(width: NRSpace.sp4, height: NRSpace.sp4)
+                .foregroundStyle(NRColor.relish500)   // manifest §4, placement 4
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.title).font(NRType.font(NRType.fsMd, weight: .medium)).foregroundStyle(NRColor.fg).lineLimit(1)
                 Text(subtitle).font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2).lineLimit(1)
             }
             Spacer()
-            if item.url != nil {
+            if item.url != nil, !missing {
                 Button("Open Live Page") { workbench.openLivePage(item) }.buttonStyle(.nrSecondary)
             }
-            Button("Done") { workbench.sealedCopy = nil }.buttonStyle(.nrSecondary)
+            Button("Done") { workbench.savedCopy = nil }
+                .buttonStyle(.nrSecondary)
+                .keyboardShortcut(.cancelAction)
         }
         .padding(.horizontal, NRSpace.sp4)
-        .frame(height: 52)
+        .frame(height: NRSpace.sp12)
         .background(NRColor.surface)
     }
 
     private var subtitle: String {
-        let sealed = item.sealedAt.map { "Sealed \($0.formatted(date: .abbreviated, time: .shortened))" } ?? "Sealed"
-        return [sealed, item.domain, "saved copy"].compactMap { $0 }.joined(separator: " · ")
+        let sealed = item.sealedAt.map { "Saved copy, sealed \($0.formatted(date: .abbreviated, time: .shortened))" } ?? "Saved copy"
+        return [sealed, item.domain].compactMap { $0 }.joined(separator: " · ")
     }
 }
 
-/// Hosts a bare WKWebView in SwiftUI.
-struct PlainWebViewHost: NSViewRepresentable {
-    let webView: WKWebView
-    func makeNSView(context: Context) -> WKWebView { webView }
-    func updateNSView(_ nsView: WKWebView, context: Context) {}
+/// The saved copy's web view, built here and nowhere else, so SwiftUI owns exactly one per
+/// copy and its delegate lives as long as it does.
+struct SavedCopyHost: NSViewRepresentable {
+    let archive: Data
+    let baseURL: URL
+    let openLink: (URL) -> Void
+
+    func makeCoordinator() -> SavedCopyNavigator { SavedCopyNavigator(openLink: openLink) }
+
+    func makeNSView(context: Context) -> WKWebView {
+        let web = WKWebView(frame: .zero, configuration: SavedCopyNavigator.configuration())
+        web.navigationDelegate = context.coordinator
+        web.uiDelegate = context.coordinator
+        web.load(archive, mimeType: "application/x-webarchive", characterEncodingName: "utf-8", baseURL: baseURL)
+        return web
+    }
+
+    func updateNSView(_ nsView: WKWebView, context: Context) { context.coordinator.openLink = openLink }
+}
+
+/// Keeps a saved copy frozen. The archive is the one page load it allows; a clicked link
+/// leaves the copy for the live page, in a tab; everything else is cancelled.
+@MainActor
+final class SavedCopyNavigator: NSObject, WKNavigationDelegate, WKUIDelegate {
+    var openLink: (URL) -> Void
+    private var archiveLoaded = false
+
+    init(openLink: @escaping (URL) -> Void) { self.openLink = openLink }
+
+    /// JavaScript off, a throwaway store, and a proxy on the discard port of this Mac, which
+    /// refuses every connection. Archived resources never touch the network, so they load;
+    /// nothing else can.
+    static func configuration() -> WKWebViewConfiguration {
+        let store = WKWebsiteDataStore.nonPersistent()
+        store.proxyConfigurations = [ProxyConfiguration(socksv5Proxy: .hostPort(host: "127.0.0.1", port: 9))]
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = store
+        config.defaultWebpagePreferences.allowsContentJavaScript = false
+        config.preferences.javaScriptCanOpenWindowsAutomatically = false
+        return config
+    }
+
+    enum Decision: Equatable {
+        case allow, cancel
+        case openInTab(URL)
+        case openInApp(URL)
+    }
+
+    /// What a saved copy does with a navigation. Pure, so the rules are testable without
+    /// WebKit's navigation objects.
+    static func decide(url: URL?, type: WKNavigationType, isMainFrame: Bool,
+                       archiveLoaded: Bool, current: URL?) -> Decision {
+        guard let url else { return .cancel }
+        if isMainFrame, !archiveLoaded { return .allow }               // the archive itself
+        if type == .linkActivated {
+            if isMainFrame, url.fragment != nil, let current, sameDocument(url, current) { return .allow }
+            if let app = JarWebView.forAnotherApp(url) { return .openInApp(app) }
+            if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" { return .openInTab(url) }
+            return .cancel
+        }
+        // The archive's own frames load from the archive; a frame it doesn't hold fails at
+        // the proxy. The page itself never moves on its own (redirects, forms, refreshes).
+        return isMainFrame ? .cancel : .allow
+    }
+
+    private static func sameDocument(_ a: URL, _ b: URL) -> Bool {
+        var x = URLComponents(url: a, resolvingAgainstBaseURL: false)
+        var y = URLComponents(url: b, resolvingAgainstBaseURL: false)
+        x?.fragment = nil
+        y?.fragment = nil
+        return x != nil && x?.url == y?.url
+    }
+
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                 decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
+        let isMainFrame = navigationAction.targetFrame?.isMainFrame ?? true
+        let decision = Self.decide(url: navigationAction.request.url, type: navigationAction.navigationType,
+                                   isMainFrame: isMainFrame, archiveLoaded: archiveLoaded, current: webView.url)
+        if decision == .allow, isMainFrame { archiveLoaded = true }
+        decisionHandler(decision == .allow ? .allow : .cancel)
+        perform(decision)
+    }
+
+    /// target=_blank inside the copy follows the same rules as a click; it never gets a window.
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                 for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        perform(Self.decide(url: navigationAction.request.url, type: .linkActivated, isMainFrame: false,
+                            archiveLoaded: true, current: nil))
+        return nil
+    }
+
+    /// After WebKit has its answer: leaving the copy tears down this web view.
+    private func perform(_ decision: Decision) {
+        switch decision {
+        case .openInTab(let url): Task { @MainActor in self.openLink(url) }
+        case .openInApp(let url): NSWorkspace.shared.open(url)
+        case .allow, .cancel: break
+        }
+    }
 }

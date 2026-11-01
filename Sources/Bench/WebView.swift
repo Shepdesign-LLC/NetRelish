@@ -1,8 +1,9 @@
 // WebView.swift — a WKWebView bound to one jar's data store. WebKit fixes the
 // configuration at init, so there is one web view per tab (built lazily) and the Bench
-// shows the active tab's. A page that opens a new window (target=_blank, window.open)
-// gets a new tab in the same jar, on the configuration WebKit hands over.
+// shows the active tab's. A page that opens a new window (target=_blank, or window.open
+// from a click) gets a new tab in the same jar, on the configuration WebKit hands over.
 
+import AppKit
 import OSLog
 import Pantry
 import SwiftUI
@@ -24,10 +25,12 @@ final class JarWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     private(set) var canGoBack = false
     private(set) var canGoForward = false
 
-    /// A tab's web view on its jar's data store.
+    /// A tab's web view on its jar's data store. Pages can open windows only from a click:
+    /// macOS lets script open them on its own by default, which is how pop-unders work.
     convenience init(jarId: String) {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = JarProfile.dataStore(for: jarId)   // non-negotiable 6
+        config.preferences.javaScriptCanOpenWindowsAutomatically = false
         self.init(jarId: jarId, configuration: config, openedByPage: false)
     }
 
@@ -70,10 +73,10 @@ final class JarWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
         var candidate = trimmed
         if !candidate.contains("://") { candidate = "https://" + candidate }
         guard let url = URL(string: candidate), url.host != nil else {
-            log.error("load: not a URL: \(text, privacy: .public)")
+            log.error("load: not a URL: \(text, privacy: .private)")
             return
         }
-        log.info("load: \(url.absoluteString, privacy: .public) in jar \(self.jarId, privacy: .public)")
+        log.info("load: \(url.absoluteString, privacy: .private) in jar \(self.jarId, privacy: .public)")
         webView.load(URLRequest(url: url))
     }
 
@@ -90,7 +93,7 @@ final class JarWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     /// built on `configuration`, or nil when no tab could be made.
     var onNewWindow: ((WKWebViewConfiguration) -> WKWebView?)?
 
-    /// Set by the Bench: the page closed its own window (`window.close()`).
+    /// Set by the Bench, for windows a page opened: the page closed it (`window.close()`).
     var onClose: (() -> Void)?
 
     func goBack() { webView.goBack() }
@@ -109,21 +112,41 @@ final class JarWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     }
 
     // MARK: WKNavigationDelegate
-    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { sync(); log.info("start \(webView.url?.absoluteString ?? "-", privacy: .public)") }
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { sync(); log.info("start \(webView.url?.absoluteString ?? "-", privacy: .private)") }
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) { sync() }
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { sync(); log.info("finish \(webView.url?.absoluteString ?? "-", privacy: .public) size=\(webView.bounds.width)x\(webView.bounds.height)") }
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { sync(); log.info("finish \(webView.url?.absoluteString ?? "-", privacy: .private) size=\(webView.bounds.width)x\(webView.bounds.height)") }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) { sync(); log.error("fail \(error.localizedDescription, privacy: .public)") }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: any Error) { sync(); log.error("provisional fail \(error.localizedDescription, privacy: .public)") }
+
+    /// A click on a link WebKit can't show (mailto:, tel:, an app's own scheme) goes to the
+    /// app that handles it. Anything else that isn't a click on one stays as WebKit has it.
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                 decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
+        guard let url = Self.forAnotherApp(navigationAction.request.url) else { decisionHandler(.allow); return }
+        if navigationAction.navigationType == .linkActivated { NSWorkspace.shared.open(url) }
+        decisionHandler(.cancel)
+    }
+
+    /// The URL, if WebKit can't show it and another app should (mailto:, tel:, zoommtg:).
+    static func forAnotherApp(_ url: URL?) -> URL? {
+        guard let url, let scheme = url.scheme?.lowercased(), scheme != "javascript",
+              !WKWebView.handlesURLScheme(scheme) else { return nil }
+        return url
+    }
 
     // MARK: WKUIDelegate
 
     /// target=_blank and window.open land here. Without this, WebKit drops them and the
-    /// link does nothing. If the Bench can't make a tab, the link opens in this one instead.
+    /// link does nothing. If the Bench can't make a tab, a clicked link opens in this one.
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        log.info("new window: \(navigationAction.request.url?.absoluteString ?? "-", privacy: .public) in jar \(self.jarId, privacy: .public)")
+        log.info("new window: \(navigationAction.request.url?.absoluteString ?? "-", privacy: .private) in jar \(self.jarId, privacy: .public)")
+        if let url = Self.forAnotherApp(navigationAction.request.url) {
+            NSWorkspace.shared.open(url)   // a mailto: with target=_blank shouldn't leave an empty tab
+            return nil
+        }
         if let child = onNewWindow?(configuration) { return child }
-        webView.load(navigationAction.request)
+        if navigationAction.navigationType == .linkActivated { webView.load(navigationAction.request) }
         return nil
     }
 

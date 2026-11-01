@@ -43,7 +43,7 @@ enum PaletteSource {
 
     static func commands(_ workbench: Workbench) -> [PaletteRow] {
         var rows: [PaletteRow] = []
-        if workbench.activeTab != nil {
+        if workbench.benchTab != nil {
             rows.append(PaletteRow(id: "cmd.capture", kind: .command, title: "Capture this page",
                                    subtitle: "Into Brine", shortcut: "⌘D") { workbench.captureActivePage() })
             rows.append(PaletteRow(id: "cmd.seal", kind: .command, title: "Seal this page",
@@ -53,9 +53,17 @@ enum PaletteSource {
             rows.append(PaletteRow(id: "cmd.fill", kind: .command, title: "Fill this form",
                                    subtitle: "From your card", shortcut: "⌘⇧F") { workbench.fillFromMe() })
             rows.append(PaletteRow(id: "cmd.close", kind: .command, title: "Close Tab", shortcut: "⌘W") { workbench.closeActiveTab() })
-            let pinned = workbench.activeTab?.isPinned == true
+            let pinned = workbench.benchTab?.isPinned == true
             rows.append(PaletteRow(id: "cmd.pin", kind: .command, title: pinned ? "Unpin Tab" : "Pin Tab",
                                    shortcut: "⌘⇧P") { workbench.togglePinActiveTab() })
+        }
+        if let copy = workbench.savedCopy {
+            if copy.url != nil {
+                rows.append(PaletteRow(id: "cmd.livepage", kind: .command, title: "Open Live Page",
+                                       subtitle: "In a new tab") { workbench.openLivePage(copy) })
+            }
+            rows.append(PaletteRow(id: "cmd.closecopy", kind: .command, title: "Close Saved Copy",
+                                   shortcut: "⌘W") { workbench.closeActiveTab() })
         }
         if workbench.activeJar != nil {
             rows.append(PaletteRow(id: "cmd.newtab", kind: .command, title: "New Tab", shortcut: "⌘T") { _ = workbench.newTab() })

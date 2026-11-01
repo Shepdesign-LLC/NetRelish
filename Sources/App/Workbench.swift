@@ -47,6 +47,9 @@ final class Workbench {
     var activeJar: Jar? { jars.first { $0.id == activeJarId } }
     var showingBrine: Bool { activeJarId == SmartJar.brineId }
     var activeTab: Tab? { tabs.first { $0.id == activeTabId } }
+    /// The tab the Bench is showing, or nil when Brine or a saved copy covers it. Capture,
+    /// Seal, Fill and Pin act on this, never on a tab the user can't see.
+    var benchTab: Tab? { savedCopy == nil && !showingBrine ? activeTab : nil }
 
     init(store: PantryStore = .shared, vault: VaultStore = .live) {
         self.store = store
@@ -58,7 +61,7 @@ final class Workbench {
 
     /// Bench → Fill from Me (⌘⇧F). The jar's own card wins over Me. Never runs on its own.
     func fillFromMe() {
-        guard let tab = activeTab, let filler = formFiller else { return }
+        guard let tab = benchTab, let filler = formFiller else { return }
         Task { @MainActor in
             do {
                 guard let identity = try vault.identity(for: tab.jarId), !identity.isEmpty else {
@@ -155,7 +158,7 @@ final class Workbench {
     func activateBrine() { activate(jarId: SmartJar.brineId) }
 
     private func activate(jarId: String) {
-        sealedCopy = nil                  // picking a jar always leaves a saved copy
+        savedCopy = nil                   // picking a jar always leaves a saved copy
         guard jarId != activeJarId else { return }
         touchActiveTab()
         activeJarId = jarId
@@ -199,11 +202,14 @@ final class Workbench {
 
     // MARK: Tabs
 
+    /// A new, active tab. With `jarId`, in that jar or nowhere: a jar that isn't on the Shelf
+    /// gets no tab. `openedBy` is the tab whose page opened this one as a new window.
     @discardableResult
-    func newTab(url: String? = nil, interactionState: Data? = nil, in jarId: String? = nil) -> Tab? {
-        sealedCopy = nil
+    func newTab(url: String? = nil, interactionState: Data? = nil, in jarId: String? = nil,
+                openedBy openerId: String? = nil) -> Tab? {
+        savedCopy = nil
         let target = jarId ?? (showingBrine ? jars.first?.id : activeJarId)
-        guard let target, target != SmartJar.brineId else { return nil }
+        guard let target, jars.contains(where: { $0.id == target }) else { return nil }
         if activeJarId != target { activate(jarId: target) }
         var tab = Tab(interactionState: interactionState, isPinned: false, sortOrder: Double(tabs.count),
                       title: nil, touchedAt: Date(), url: url, jarId: target)
@@ -211,6 +217,7 @@ final class Workbench {
             try store.write { db in try tab.insert(db) }
             loadTabs()
             activeTabId = tab.id
+            if let openerId { openerOf[tab.id] = openerId }
             return tab
         } catch {
             assertionFailure("Workbench.newTab: \(error)")
@@ -219,30 +226,40 @@ final class Workbench {
     }
 
     func activateTab(_ tab: Tab) {
-        sealedCopy = nil
+        savedCopy = nil
         guard tab.id != activeTabId else { return }
         touchActiveTab()
         activeTabId = tab.id
         touchActiveTab()
     }
 
+    /// Which tab opened which, for tabs a page opened as new windows. Closing one goes back
+    /// to its opener, the way closing a popup does in any browser.
+    private var openerOf: [String: String] = [:]
+
     func closeTab(_ tab: Tab) {
         do {
             try store.write { db in _ = try tab.delete(db) }
             let wasActive = tab.id == activeTabId
+            let opener = openerOf.removeValue(forKey: tab.id)
             loadTabs()
-            if wasActive { activeTabId = tabs.first?.id }
+            if wasActive { activeTabId = opener.flatMap { id in tabs.first { $0.id == id }?.id } ?? tabs.first?.id }
         } catch {
             assertionFailure("Workbench.closeTab: \(error)")
         }
     }
 
-    func closeActiveTab() { if let activeTab { closeTab(activeTab) } }
+    /// ⌘W. With a saved copy showing, closes the copy, not the tab hidden behind it.
+    func closeActiveTab() {
+        if savedCopy != nil { savedCopy = nil; return }
+        if let benchTab { closeTab(benchTab) }
+    }
 
-    /// Closes a tab by id, in any jar. Used when a page closes its own window.
+    /// Closes a tab by id, in any jar, for a page that closed its own window. A pinned tab
+    /// stays: only the user closes those.
     func closeTab(id: String) {
         let tab = tabs.first { $0.id == id } ?? (try? store.read { db in try Tab.fetchOne(db, key: id) })
-        if let tab { closeTab(tab) }
+        if let tab, !tab.isPinned { closeTab(tab) }
     }
 
     func togglePin(_ tab: Tab) {
@@ -253,7 +270,7 @@ final class Workbench {
         loadTabs()
     }
 
-    func togglePinActiveTab() { if let activeTab { togglePin(activeTab) } }
+    func togglePinActiveTab() { if let benchTab { togglePin(benchTab) } }
 
     /// Navigation happened in a tab: remember where it is and that it was just used.
     func tabDidNavigate(_ tabId: String, url: URL?, title: String) {
@@ -305,7 +322,7 @@ final class Workbench {
     /// the jar's default Recipe (non-negotiable 3). The drip starts first and the disk work
     /// happens behind it, so the gesture feels instant however heavy the page is.
     func sealActiveTab() async {
-        guard let tab = activeTab, let jarId = tab.jarId, let provider = sealProvider else {
+        guard let tab = benchTab, let jarId = tab.jarId, let provider = sealProvider else {
             report("Nothing to seal — open a page first")
             return
         }
@@ -358,7 +375,7 @@ final class Workbench {
     /// no `sealedAt` — that's P2. The generated `capture` titles the item with its URL, so the
     /// tab's real title is written over it here.
     func captureActivePage() {
-        guard let tab = activeTab, let url = tab.url, !url.isEmpty else {
+        guard let tab = benchTab, let url = tab.url, !url.isEmpty else {
             report("Nothing to capture — open a page first")
             return
         }
@@ -382,14 +399,15 @@ final class Workbench {
         (try? store.read { db in try store.search(db, query) }) ?? []
     }
 
-    /// The sealed item whose saved copy is showing, or nil. The Bench presents it.
-    var sealedCopy: Item?
+    /// The sealed item whose saved copy is showing, or nil. The Bench presents it, over the
+    /// active tab, which stays open behind it.
+    var savedCopy: Item?
 
     /// Opens a Pantry item. A sealed one opens its saved copy, the page as it was when sealed.
     /// Anything else opens its tab if one is already open, else a new tab in its jar.
     func open(_ item: Item) {
         if item.state == .sealed, item.snapshotPath != nil {
-            sealedCopy = item
+            savedCopy = item
             return
         }
         if let existing = tabs.first(where: { $0.url == item.url }) {
@@ -400,11 +418,18 @@ final class Workbench {
         newTab(url: item.url, interactionState: item.sunkInteractionState, in: item.jarId ?? activeJarId)
     }
 
-    /// The live page behind a sealed copy, in a new tab in the item's jar.
+    /// The live page behind a saved copy, in a new tab in the item's jar, or in the jar
+    /// you're in if that one is gone.
     func openLivePage(_ item: Item) {
-        sealedCopy = nil
+        savedCopy = nil
         guard let url = item.url else { return }
-        newTab(url: url, in: item.jarId ?? activeJarId)
+        newTab(url: url, in: item.jarId.flatMap { id in jars.first { $0.id == id }?.id })
+    }
+
+    /// A link clicked inside a saved copy: the live page, in a new tab in the copy's jar.
+    func openLink(_ url: URL, from item: Item) {
+        savedCopy = nil
+        newTab(url: url.absoluteString, in: item.jarId.flatMap { id in jars.first { $0.id == id }?.id })
     }
 
     /// The archive bytes for a sealed item, or nil if the file is gone.

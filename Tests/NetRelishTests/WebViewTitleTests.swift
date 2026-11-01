@@ -34,7 +34,7 @@ import WebKit
         bench.newJar(name: "Meridian", tint: nil, shelfLifeDays: 3)
         let opener = try #require(bench.newTab(url: "https://example.com/"))
         let webViews = BenchWebViews()
-        webViews.makeTab = { jarId in bench.newTab(in: jarId) }
+        webViews.makeTab = { jarId, openerId in bench.newTab(in: jarId, openedBy: openerId) }
         webViews.closeTab = { tabId in bench.closeTab(id: tabId) }
         return (bench, webViews, webViews.view(for: opener))
     }
@@ -42,7 +42,7 @@ import WebKit
     @Test("A new window becomes a new, active tab in the opener's jar")
     func opensATab() throws {
         let (bench, webViews, opener) = try setUp()
-        let child = try #require(webViews.openNewWindow(from: opener, configuration: WKWebViewConfiguration()))
+        let child = try #require(webViews.openNewWindow(from: opener, configuration: opener.webView.configuration))
 
         #expect(bench.tabs.count == 2)
         let tab = try #require(bench.activeTab)
@@ -55,7 +55,7 @@ import WebKit
     @Test("A page that closes its own window closes its tab")
     func closesItsTab() throws {
         let (bench, webViews, opener) = try setUp()
-        _ = try #require(webViews.openNewWindow(from: opener, configuration: WKWebViewConfiguration()))
+        _ = try #require(webViews.openNewWindow(from: opener, configuration: opener.webView.configuration))
         let popupTab = try #require(bench.activeTab)
         let child = try #require(webViews.existing(for: popupTab.id))
 
@@ -67,7 +67,69 @@ import WebKit
     func noTabMaker() throws {
         let (bench, webViews, opener) = try setUp()
         webViews.makeTab = nil
-        #expect(webViews.openNewWindow(from: opener, configuration: WKWebViewConfiguration()) == nil)
+        #expect(webViews.openNewWindow(from: opener, configuration: opener.webView.configuration) == nil)
         #expect(bench.tabs.count == 1)
+    }
+
+    @Test("Closing a page's window goes back to the tab that opened it")
+    func returnsToOpener() throws {
+        let (bench, webViews, _) = try setUp()
+        let second = try #require(bench.newTab(url: "https://example.com/second"))
+        let opener = webViews.view(for: second)            // not the first tab, so first-tab fallback can't pass this
+        _ = try #require(webViews.openNewWindow(from: opener, configuration: opener.webView.configuration))
+        let popupTab = try #require(bench.activeTab)
+        let child = try #require(webViews.existing(for: popupTab.id))
+
+        child.webViewDidClose(child.webView)
+        #expect(bench.activeTabId == second.id)
+    }
+
+    @Test("A page can't close a tab you pinned")
+    func pinnedStays() throws {
+        let (bench, webViews, opener) = try setUp()
+        _ = try #require(webViews.openNewWindow(from: opener, configuration: opener.webView.configuration))
+        let popupTab = try #require(bench.activeTab)
+        let child = try #require(webViews.existing(for: popupTab.id))
+        bench.togglePinActiveTab()
+
+        child.webViewDidClose(child.webView)
+        #expect(bench.tabs.count == 2)
+    }
+
+    @Test("A tab you opened yourself ignores window.close()")
+    func ownTabIgnoresClose() throws {
+        let (bench, _, opener) = try setUp()
+        opener.webViewDidClose(opener.webView)
+        #expect(bench.tabs.count == 1)
+    }
+
+    @Test("A new window on another jar's data store gets no tab")
+    func refusesOtherStore() throws {
+        let (bench, webViews, opener) = try setUp()
+        let foreign = WKWebViewConfiguration()
+        foreign.websiteDataStore = JarProfile.dataStore(for: "some-other-jar")
+        #expect(webViews.openNewWindow(from: opener, configuration: foreign) == nil)
+        #expect(bench.tabs.count == 1)
+    }
+
+    @Test("A jar that isn't on the Shelf gets no tab")
+    func unknownJar() throws {
+        let (bench, _, _) = try setUp()
+        #expect(bench.newTab(in: "no-such-jar") == nil)
+        #expect(bench.tabs.count == 1)
+    }
+
+    @Test("Pages can't open windows without a click")
+    func noAutomaticWindows() throws {
+        let (_, _, opener) = try setUp()
+        #expect(opener.webView.configuration.preferences.javaScriptCanOpenWindowsAutomatically == false)
+    }
+
+    @Test("mailto: and tel: go to another app; web pages stay in the Bench")
+    func otherApps() {
+        #expect(JarWebView.forAnotherApp(URL(string: "mailto:ryan@example.com")) != nil)
+        #expect(JarWebView.forAnotherApp(URL(string: "tel:+15551234567")) != nil)
+        #expect(JarWebView.forAnotherApp(URL(string: "https://example.com")) == nil)
+        #expect(JarWebView.forAnotherApp(URL(string: "about:blank")) == nil)
     }
 }

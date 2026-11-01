@@ -2,6 +2,7 @@ import Foundation
 import GRDB
 import Pantry
 import Testing
+import WebKit
 @testable import NetRelish
 
 /// Seal, with the web view stubbed: the archive bytes and the extraction are handed in, so
@@ -94,7 +95,7 @@ import Testing
 }
 
 /// Opening a sealed item from search shows its saved copy, not the live page.
-@Suite("Sealed copy") @MainActor struct SealedCopyTests {
+@Suite("Saved copy") @MainActor struct SavedCopyTests {
 
     private func sealedBench() async throws -> (Workbench, Item) {
         let store = try PantryStore()
@@ -115,7 +116,7 @@ import Testing
     func opensTheCopy() async throws {
         let (bench, item) = try await sealedBench()
         bench.open(item)
-        #expect(bench.sealedCopy?.id == item.id)
+        #expect(bench.savedCopy?.id == item.id)
         #expect(bench.tabs.isEmpty)
         #expect(bench.snapshotData(for: item) == Data("WEBARCHIVE".utf8))
     }
@@ -125,7 +126,7 @@ import Testing
         let (bench, item) = try await sealedBench()
         bench.open(item)
         bench.openLivePage(item)
-        #expect(bench.sealedCopy == nil)
+        #expect(bench.savedCopy == nil)
         #expect(bench.activeTab?.url == item.url)
         #expect(bench.activeTab?.jarId == item.jarId)
     }
@@ -135,7 +136,7 @@ import Testing
         let (bench, item) = try await sealedBench()
         bench.open(item)
         bench.activate(index: 0)
-        #expect(bench.sealedCopy == nil)
+        #expect(bench.savedCopy == nil)
     }
 
     @Test("An item captured but not sealed still opens as a live tab")
@@ -143,7 +144,78 @@ import Testing
         let (bench, _) = try await sealedBench()
         let captured = try bench.store.write { db in try bench.store.root(db).capture(db, url: "https://example.com/other") }
         bench.open(captured)
-        #expect(bench.sealedCopy == nil)
+        #expect(bench.savedCopy == nil)
         #expect(bench.activeTab?.url == "https://example.com/other")
+    }
+
+    @Test("With a saved copy showing, ⌘S, ⌘D and Pin leave the tab behind it alone, and ⌘W closes the copy")
+    func commandsSkipTheHiddenTab() async throws {
+        let (bench, item) = try await sealedBench()
+        let hidden = try #require(bench.newTab(url: "https://example.com/live"))
+        bench.tabDidNavigate(hidden.id, url: URL(string: "https://example.com/live"), title: "Live")
+        let before = try bench.store.read { db in try Item.fetchCount(db) }
+        bench.open(item)
+        #expect(bench.benchTab == nil)
+
+        await bench.sealActiveTab()
+        bench.captureActivePage()
+        bench.togglePinActiveTab()
+        #expect(bench.tabs.map(\.id) == [hidden.id])
+        #expect(bench.tabs.first?.isPinned == false)
+        #expect(try bench.store.read { db in try Item.fetchCount(db) } == before)
+        #expect(bench.savedCopy?.id == item.id)
+
+        bench.closeActiveTab()
+        #expect(bench.savedCopy == nil)
+        #expect(bench.tabs.map(\.id) == [hidden.id])
+        #expect(bench.benchTab?.id == hidden.id)
+    }
+
+    @Test("A link in the copy opens the live page in a new tab in the copy's jar")
+    func linkOpensLive() async throws {
+        let (bench, item) = try await sealedBench()
+        bench.open(item)
+        bench.openLink(URL(string: "https://example.com/terms")!, from: item)
+        #expect(bench.savedCopy == nil)
+        #expect(bench.activeTab?.url == "https://example.com/terms")
+        #expect(bench.activeTab?.jarId == item.jarId)
+    }
+
+    @Test("The copy's web view runs no script, keeps nothing, and can't reach the network")
+    func frozenConfiguration() {
+        let config = SavedCopyNavigator.configuration()
+        #expect(config.defaultWebpagePreferences.allowsContentJavaScript == false)
+        #expect(config.websiteDataStore.isPersistent == false)
+        #expect(config.websiteDataStore.proxyConfigurations.count == 1)
+    }
+
+    @Test("The copy loads the archive once, and only a click leaves it")
+    func navigationRules() {
+        let page = URL(string: "https://example.com/invoice")!
+        let other = URL(string: "https://example.com/terms")!
+        func decide(_ url: URL, _ type: WKNavigationType, main: Bool = true, loaded: Bool = true) -> SavedCopyNavigator.Decision {
+            SavedCopyNavigator.decide(url: url, type: type, isMainFrame: main, archiveLoaded: loaded, current: page)
+        }
+        #expect(decide(page, .other, loaded: false) == .allow)                        // the archive
+        #expect(decide(other, .other) == .cancel)                                      // a redirect or refresh
+        #expect(decide(other, .formSubmitted) == .cancel)
+        #expect(decide(page, .reload) == .cancel)
+        #expect(decide(other, .linkActivated) == .openInTab(other))
+        #expect(decide(URL(string: "https://example.com/invoice#net-30")!, .linkActivated) == .allow)
+        #expect(decide(URL(string: "mailto:ap@example.com")!, .linkActivated) == .openInApp(URL(string: "mailto:ap@example.com")!))
+        #expect(decide(URL(string: "javascript:alert(1)")!, .linkActivated) == .cancel)
+        #expect(decide(other, .other, main: false) == .allow)                          // the archive's own frames
+    }
+
+    @Test("The palette offers the copy's commands, not the hidden tab's")
+    func paletteFollowsTheCopy() async throws {
+        let (bench, item) = try await sealedBench()
+        _ = bench.newTab(url: "https://example.com/live")
+        bench.open(item)
+        let titles = PaletteSource.commands(bench).map(\.title)
+        #expect(titles.contains("Open Live Page"))
+        #expect(titles.contains("Close Saved Copy"))
+        #expect(!titles.contains("Seal this page"))
+        #expect(!titles.contains("Close Tab"))
     }
 }

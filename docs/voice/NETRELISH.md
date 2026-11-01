@@ -24,7 +24,8 @@ differ, ADR 0010 says which one wins. Short version:
 **Pantry · jar** (a project; also a profile) · **note** · **tab** (a website) ·
 **keep** (put a tab in a jar) · **seal** · **brine** (where idle tabs sink) ·
 **fill** · **shelf** (left) · **bench** (middle) · **panel** (right) ·
-**vault** · **local copy** · **recipe** · **Ask the Pantry**
+**vault** · **saved copy** (a sealed page, read only; ADR 0013) · **local copy** (a
+Pickle site) · **recipe** · **Ask the Pantry**
 
 Use them in code too. A CSS class or Swift type called `Sidebar` is a bug.
 

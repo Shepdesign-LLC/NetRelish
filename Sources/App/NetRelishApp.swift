@@ -36,19 +36,20 @@ struct NetRelishApp: App {
             CommandMenu("Bench") {
                 Button("Command Palette…") { workbench.showPalette = true }.keyboardShortcut("k", modifiers: .command)
                 Button("Capture This Page") { workbench.captureActivePage() }.keyboardShortcut("d", modifiers: .command)
-                    .disabled(workbench.activeTab == nil)
+                    .disabled(workbench.benchTab == nil)
                 Button("Seal") { Task { await workbench.sealActiveTab() } }.keyboardShortcut("s", modifiers: .command)
-                    .disabled(workbench.activeTab == nil || workbench.showingBrine)
+                    .disabled(workbench.benchTab == nil)
                 Divider()
                 Button("Fill from Me") { workbench.fillFromMe() }.keyboardShortcut("f", modifiers: [.command, .shift])
-                    .disabled(workbench.activeTab == nil)
+                    .disabled(workbench.benchTab == nil)
             }
             CommandMenu("Tab") {
                 Button("New Tab") { workbench.newTab() }.keyboardShortcut("t", modifiers: .command)
-                Button("Close Tab") { workbench.closeActiveTab() }.keyboardShortcut("w", modifiers: .command)
-                    .disabled(workbench.activeTab == nil)
-                Button(workbench.activeTab?.isPinned == true ? "Unpin Tab" : "Pin Tab") { workbench.togglePinActiveTab() }
-                    .keyboardShortcut("p", modifiers: [.command, .shift]).disabled(workbench.activeTab == nil)
+                Button(workbench.savedCopy != nil ? "Close Saved Copy" : "Close Tab") { workbench.closeActiveTab() }
+                    .keyboardShortcut("w", modifiers: .command)
+                    .disabled(workbench.benchTab == nil && workbench.savedCopy == nil)
+                Button(workbench.benchTab?.isPinned == true ? "Unpin Tab" : "Pin Tab") { workbench.togglePinActiveTab() }
+                    .keyboardShortcut("p", modifiers: [.command, .shift]).disabled(workbench.benchTab == nil)
             }
         }
 
