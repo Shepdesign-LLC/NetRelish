@@ -51,14 +51,21 @@ jobs:
         env:
           BRANCH: ${{ inputs.branch }}
         run: |
-          if git diff --quiet -- NetRelish.xcodeproj; then
-            echo "NetRelish.xcodeproj already matches project.yml"
+          # XcodeGen writes the project and, for targets that declare them in project.yml,
+          # their Info.plist and entitlements files. All of them are committed, so all of
+          # them are carried; nothing else the runner touched is.
+          # (A deleted file is listed as modified too, hence sort -u; no match is not an error.)
+          git ls-files --modified --deleted --others --exclude-standard | sort -u \
+            | { grep -E '^NetRelish\.xcodeproj/|\.entitlements$|(^|/)Info\.plist$' || true; } \
+            | while IFS= read -r f; do git add -A -- "$f"; done
+          if git diff --cached --quiet; then
+            echo "NetRelish.xcodeproj and its plists already match project.yml"
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          git status --short
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add NetRelish.xcodeproj
           git commit -m "chore(project): regenerate NetRelish.xcodeproj from project.yml"
           git push origin "HEAD:$BRANCH"
           echo "changed=true" >> "$GITHUB_OUTPUT"
