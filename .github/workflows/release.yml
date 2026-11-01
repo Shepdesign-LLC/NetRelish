@@ -6,6 +6,9 @@ name: Release
 #
 #   git tag v0.4.0 && git push origin v0.4.0
 #
+# Or, without the right to push tags: Actions → Release → Run workflow, on main, with the
+# version. That tags main's current commit itself and runs the same steps.
+#
 # The notes come from docs/releases/<tag>.md, written by hand before tagging.
 # Nothing is published until the artifact itself has passed Gatekeeper's checks:
 # "Check the artifact, not the checkmark."
@@ -16,12 +19,17 @@ name: Release
 on:
   push:
     tags: ['v[0-9]+.[0-9]+.[0-9]+*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, like v0.4.0. Tags main's current commit.
+        required: true
 
 permissions:
-  contents: write          # gh release create
+  contents: write          # gh release create; the tag, when started by hand
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.version || github.ref_name }}
   cancel-in-progress: false
 
 env:
@@ -60,8 +68,12 @@ jobs:
 
       - name: Version from the tag
         id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${INPUT_VERSION:-$GITHUB_REF_NAME}"   # started by hand: the input; else the pushed tag
+          echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$' \
+            || { echo "::error::'$TAG' is not vMAJOR.MINOR.PATCH (optionally -preview.N)"; exit 1; }
           VERSION="${TAG#v}"                       # 0.4.0 or 0.4.0-preview.1
           MARKETING="${VERSION%%-*}"               # CFBundleShortVersionString: numbers only
           case "$MARKETING" in
@@ -79,6 +91,26 @@ jobs:
             echo "notes=$NOTES"
             echo "dmg=NetRelish-$VERSION.dmg"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Tag main (when started by hand)
+        # A tag created with this workflow's token starts no second run (GitHub's loop guard).
+        # Re-running after a failure is fine: a tag already on this commit is kept as it is.
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          [ "$GITHUB_REF" = "refs/heads/main" ] || { echo "::error::Start a release from main, not $GITHUB_REF"; exit 1; }
+          EXISTING=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha 2>/dev/null || true)
+          echo "$EXISTING" | grep -Eq '^[0-9a-f]{40}$' || EXISTING=""   # a 404 body is not a commit
+          if [ -z "$EXISTING" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA" >/dev/null
+            echo "Tagged $GITHUB_SHA as $TAG"
+          elif [ "$EXISTING" = "$GITHUB_SHA" ]; then
+            echo "$TAG is already on $GITHUB_SHA"
+          else
+            echo "::error::$TAG already names $EXISTING, not main's $GITHUB_SHA"; exit 1
+          fi
 
       - name: Import the Developer ID certificate into a throwaway keychain
         env:
