@@ -573,8 +573,10 @@ struct PanelView: View {
         case .savedCopy(let item):
             PanelHeader(title: item.title, subtitle: item.domain)
             PanelItemSections(item: item, workbench: workbench)
+                .id(item.id)                          // fresh state per item: no labels or draft carried over
         case .tab(let tab):
             PanelTabSections(tab: tab, workbench: workbench)
+                .id(tab.id)
         case .jar(let jar):
             PanelHeader(title: jar.name, subtitle: "Jar")
             PanelSection("Jar") {
@@ -600,24 +602,33 @@ private struct PanelTabSections: View {
     @Bindable var workbench: Workbench
     @State private var item: Item?
 
+    init(tab: Tab, workbench: Workbench) {
+        self.tab = tab
+        self.workbench = workbench
+        _item = State(initialValue: workbench.pantryItem(for: tab.url))   // no "not in your Pantry" flash
+    }
+
     var body: some View {
-        PanelHeader(title: (tab.title?.isEmpty == false ? tab.title : nil) ?? tab.url ?? "New Tab",
-                    subtitle: tab.url.flatMap { URL(string: $0)?.host })
-        PanelSection("Tab") {
-            PanelRow("Jar", workbench.jarName(for: tab.jarId))
-            PanelRow("Shelf life", shelfLife)
-        }
-        if let item {
-            PanelItemSections(item: item, workbench: workbench)
-        } else {
-            PanelSection("Pantry") {
-                PanelNote("Not in your Pantry yet. ⌘D captures this page; ⌘S seals it.")
+        // One real container, so the task has a view to run on (on EmptyView it never would).
+        VStack(alignment: .leading, spacing: 0) {
+            PanelHeader(title: (tab.title?.isEmpty == false ? tab.title : nil) ?? tab.url ?? "New Tab",
+                        subtitle: tab.url.flatMap { URL(string: $0)?.host })
+            PanelSection("Tab") {
+                PanelRow("Jar", workbench.jarName(for: tab.jarId))
+                PanelRow("Shelf life", shelfLife)
+            }
+            if let item {
+                PanelItemSections(item: item, workbench: workbench)
+                    .id(item.id)
+            } else if let url = tab.url, !url.isEmpty {
+                PanelSection("Pantry") {
+                    PanelNote("Not in your Pantry yet. ⌘D captures this page; ⌘S seals it.")
+                }
             }
         }
-        EmptyView()
-            .task(id: "\(tab.url ?? "")|\(workbench.itemCount)|\(workbench.sealedItems.count)") {
-                item = workbench.pantryItem(for: tab.url)
-            }
+        .task(id: "\(tab.url ?? "")|\(workbench.itemCount)|\(workbench.sealedItems.count)") {
+            item = workbench.pantryItem(for: tab.url)
+        }
     }
 
     private var shelfLife: String {
@@ -632,42 +643,50 @@ private struct PanelTabSections: View {
 private struct PanelItemSections: View {
     let item: Item
     @Bindable var workbench: Workbench
-    @State private var labels: [Pantry.Label] = []   // not SwiftUI.Label
+    @State private var labels: [Pantry.Label]   // not SwiftUI.Label
     @State private var newLabel = ""
 
+    init(item: Item, workbench: Workbench) {
+        self.item = item
+        self.workbench = workbench
+        _labels = State(initialValue: workbench.labels(of: item))
+    }
+
     var body: some View {
-        PanelSection("Pantry") {
-            PanelRow("Kind", item.kind.rawValue.capitalized)
-            PanelRow("State", PanelText.state(item, jar: workbench.jarName(for: item.jarId ?? item.sunkOriginJarId)))
-            PanelRow("Source", PanelText.source(item.source))
-            PanelRow("Captured", item.createdAt.formatted(date: .abbreviated, time: .shortened))
-            if let sealed = item.sealedAt {
-                PanelRow("Sealed", sealed.formatted(date: .abbreviated, time: .shortened))
+        // One real container, so the task has a view to run on (on EmptyView it never would).
+        VStack(alignment: .leading, spacing: 0) {
+            PanelSection("Pantry") {
+                PanelRow("Kind", item.kind.rawValue.capitalized)
+                PanelRow("State", PanelText.state(item, jar: workbench.jarName(for: item.jarId ?? item.sunkOriginJarId)))
+                PanelRow("Source", PanelText.source(item.source))
+                PanelRow("Captured", item.createdAt.formatted(date: .abbreviated, time: .shortened))
+                if let sealed = item.sealedAt {
+                    PanelRow("Sealed", sealed.formatted(date: .abbreviated, time: .shortened))
+                }
             }
-        }
-        PanelSection("Labels") {
-            ForEach(labels) { label in
-                HStack(spacing: NRSpace.sp2) {
-                    Text(label.name).font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg)
-                    Spacer()
-                    Button { workbench.removeLabel(label, from: item) } label: {
-                        Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+            PanelSection("Labels") {
+                ForEach(labels) { label in
+                    HStack(spacing: NRSpace.sp2) {
+                        Text(label.name).font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg)
+                        Spacer()
+                        Button { workbench.removeLabel(label, from: item) } label: {
+                            Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                        }
+                        .buttonStyle(.plain).foregroundStyle(NRColor.fg2)
+                        .help("Remove \(label.name)").accessibilityLabel("Remove \(label.name)")
                     }
-                    .buttonStyle(.plain).foregroundStyle(NRColor.fg2)
-                    .help("Remove \(label.name)").accessibilityLabel("Remove \(label.name)")
                 }
+                TextField("Add a label", text: $newLabel)
+                    .textFieldStyle(.plain)
+                    .font(NRType.font(NRType.fsSm))
+                    .foregroundStyle(NRColor.fg)
+                    .onSubmit {
+                        workbench.addLabel(newLabel, to: item)
+                        newLabel = ""
+                    }
             }
-            TextField("Add a label", text: $newLabel)
-                .textFieldStyle(.plain)
-                .font(NRType.font(NRType.fsSm))
-                .foregroundStyle(NRColor.fg)
-                .onSubmit {
-                    workbench.addLabel(newLabel, to: item)
-                    newLabel = ""
-                }
         }
-        EmptyView()
-            .task(id: "\(item.id)|\(workbench.labelRevision)") { labels = workbench.labels(of: item) }
+        .task(id: "\(item.id)|\(workbench.labelRevision)") { labels = workbench.labels(of: item) }
     }
 }
 
@@ -752,12 +771,18 @@ enum PanelText {
         }
     }
 
+    /// A shelf life in the largest unit that says it exactly: 3 days, 12 hours, 90 minutes.
+    /// Short ones exist (the demo sets minutes), so nothing rounds up to an hour.
     static func days(_ days: Double) -> String {
-        if days < 1 {
-            let hours = max(1, Int((days * 24).rounded()))
-            return hours == 1 ? "1 hour" : "\(hours) hours"
+        let units: [(perDay: Double, name: String)] = [(1, "day"), (24, "hour"), (1_440, "minute"), (86_400, "second")]
+        for unit in units {
+            let value = days * unit.perDay
+            if value >= 1, abs(value - value.rounded()) < 1e-6 {
+                let n = Int(value.rounded())
+                return n == 1 ? "1 \(unit.name)" : "\(n) \(unit.name)s"
+            }
         }
-        let whole = Int(days.rounded())
-        return whole == 1 ? "1 day" : "\(whole) days"
+        let seconds = max(1, Int((days * 86_400).rounded()))
+        return seconds == 1 ? "1 second" : "\(seconds) seconds"
     }
 }

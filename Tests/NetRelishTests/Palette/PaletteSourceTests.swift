@@ -270,6 +270,9 @@ import Testing
         #expect(PanelText.days(3) == "3 days")
         #expect(PanelText.days(1) == "1 day")
         #expect(PanelText.days(0.5) == "12 hours")
+        #expect(PanelText.days(1.5) == "36 hours")              // exact, not rounded to 2 days
+        #expect(PanelText.days(90.0 / 1_440) == "90 minutes")   // short demo shelf lives aren't "1 hour"
+        #expect(PanelText.days(1.0 / 1_440) == "1 minute"
         #expect(PanelText.state(Item(state: .brined), jar: "Brine") == "In Brine")
         #expect(PanelText.state(Item(state: .sealed, jarId: "j"), jar: "Meridian") == "Sealed in Meridian")
     }

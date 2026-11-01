@@ -233,6 +233,17 @@ private func freshStore() throws -> PantryStore { try PantryStore(inMemory: ()) 
         #expect(stillThere == before + 1)
     }
 
+    @Test("Any case means any letter, not only ASCII: Éclair and éclair are one label")
+    func labelsFoldEveryLetter() throws {
+        let store = try freshStore()
+        let item = try store.write { db -> Item in var item = Item(title: "Pastry brief"); try item.insert(db); return item }
+        try store.write { db -> Void in
+            _ = try store.addLabel(db, named: "Éclair", to: item)
+            _ = try store.addLabel(db, named: "éclair", to: item)
+        }
+        #expect(try store.read { db in try item.labels(db).map(\.name) } == ["Éclair"])
+    }
+
     @Test("A page's item is its sealed copy when there is one, else its newest capture")
     func itemForPage() throws {
         let store = try freshStore()

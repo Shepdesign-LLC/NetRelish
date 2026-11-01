@@ -111,7 +111,8 @@ public final class PantryStore: Sendable {
     public func addLabel(_ db: Database, named name: String, to item: Item) throws -> Label? {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        var label = try Label.filter(sql: "lower(name) = lower(?)", arguments: [trimmed]).fetchOne(db)
+        // GRDB's lowercased is Swift's, so "Éclair" and "éclair" match; SQLite's lower() only folds ASCII.
+        var label = try Label.filter(Label.Columns.name.lowercased == trimmed.lowercased()).fetchOne(db)
             ?? Label(name: trimmed)
         if try !label.exists(db) { try label.insert(db) }
         let ids = try item.labels(db).map(\.id)
