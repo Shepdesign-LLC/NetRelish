@@ -1,0 +1,73 @@
+name: Regenerate Xcode project
+
+# NetRelish.xcodeproj is generated from project.yml by XcodeGen, which only runs on a Mac.
+# Work that adds files or targets (a new Swift file, the Share extension) is written where
+# there is no Mac, so this does the regeneration here: it runs scripts/gen-project.sh on a
+# branch, commits the result if it changed, and starts CI on that commit, which then checks
+# the committed project against a fresh generation exactly as on every PR.
+#
+# Run it from the Actions tab, or: gh workflow run regen-project.yml -f branch=<branch>
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to regenerate the project on (never main)
+        required: true
+
+permissions:
+  contents: write    # commit the regenerated project to the branch
+  actions: write     # start CI on that commit
+
+concurrency:
+  group: regen-${{ inputs.branch }}
+  cancel-in-progress: false
+
+jobs:
+  regenerate:
+    name: Regenerate and commit
+    runs-on: macos-latest      # the same image CI's "Generated files" job uses
+    timeout-minutes: 15
+    steps:
+      - name: Never main
+        env:
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          case "$BRANCH" in
+            main|refs/heads/main|'') echo "::error::Refusing to commit to '$BRANCH'"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Regenerate NetRelish.xcodeproj
+        run: |
+          brew install xcodegen >/dev/null
+          scripts/gen-project.sh
+
+      - name: Commit if it changed
+        id: commit
+        env:
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          if git diff --quiet -- NetRelish.xcodeproj; then
+            echo "NetRelish.xcodeproj already matches project.yml"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add NetRelish.xcodeproj
+          git commit -m "chore(project): regenerate NetRelish.xcodeproj from project.yml"
+          git push origin "HEAD:$BRANCH"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Start CI on the new commit
+        # A push made with this workflow's token starts no workflows (GitHub's loop guard),
+        # but a dispatch does, so CI still runs on the commit the PR now points at.
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ inputs.branch }}
+        run: gh workflow run ci.yml --ref "$BRANCH"

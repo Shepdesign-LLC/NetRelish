@@ -19,6 +19,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # regen-project.yml starts CI here after committing a regenerated project, because a
+  # push made with a workflow's own token starts no workflows.
+  workflow_dispatch:
 
 env:
   DERIVED: .build/DerivedData
