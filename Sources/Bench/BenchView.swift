@@ -1,6 +1,6 @@
 // BenchView.swift — the web panes (manifest §8 Bench + Tabs). A tab strip at tabH, the
 // address bar, and the active tab's WKWebView. One web view per tab, each on its jar's
-// data store. When the Shelf's Brine jar is active, the Bench shows Brine instead; when a
+// data store. When a smart jar is active, the Bench shows that jar's rows instead; when a
 // sealed item is opened, it shows that item's saved copy.
 
 import AppKit
@@ -64,22 +64,18 @@ struct BenchView: View {
     @Bindable var workbench: Workbench
     @State private var webViews = BenchWebViews()
 
-    /// One container, so the wiring and the clean-up run whatever the Bench is showing. A
-    /// tab closed or sunk while Brine or a saved copy is up still lets go of its web view.
+    /// One container, so the wiring runs whatever the Bench is showing first.
     var body: some View {
         ZStack { content }
             .onAppear { wire() }
-            .onChange(of: workbench.tabs.map(\.id)) { old, new in
-                for gone in Set(old).subtracting(new) { webViews.forget(gone) }
-            }
     }
 
     @ViewBuilder private var content: some View {
         if let item = workbench.savedCopy {
             SavedCopyView(item: item, workbench: workbench)
                 .id(item.id)
-        } else if workbench.showingBrine {
-            BrineView(workbench: workbench)
+        } else if let smart = workbench.activeSmartJar {
+            SmartJarView(smart: smart, workbench: workbench)
         } else if let jar = workbench.activeJar {
             VStack(spacing: 0) {
                 TabStrip(workbench: workbench, jar: jar)
@@ -106,6 +102,9 @@ struct BenchView: View {
     private func wire() {
         webViews.makeTab = { [workbench] jarId, openerId in workbench.newTab(in: jarId, openedBy: openerId) }
         webViews.closeTab = { [workbench] tabId in workbench.closeTab(id: tabId) }
+        // Only tabs that are really gone let go of their web views. A jar you switch away
+        // from, or one hidden behind a smart jar or a saved copy, keeps its pages live.
+        workbench.onTabsGone = { [webViews] ids in ids.forEach(webViews.forget) }
         workbench.interactionStateProvider = { [webViews] tab in
             webViews.existing(for: tab.id)?.interactionState
         }

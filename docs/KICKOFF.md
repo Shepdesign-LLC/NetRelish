@@ -57,7 +57,7 @@ One prompt, one PR, one demo. P0 is five PRs (0–4). P1 is roughly six. P1 clos
 | Feature | Phase |
 |---|---|
 | Jars are profiles | P1 (prompt 5) |
-| Smart jars (Unsorted · Today · Sealed · Sinking soon), ⌘⇧1–4 | P2 |
+| Smart jars (Unsorted · Today · Sealed · Sinking soon), ⌃⌘1–4 | P2 |
 | Kind detection at capture (URL/MIME → `Item.kind` + meta) | P2 |
 | Reader view (Defuddle body, ⌘⇧R) | P2 |
 | Content blocker (`WKContentRuleList`, EasyList, per-jar toggle) | P2 |

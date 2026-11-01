@@ -18,7 +18,7 @@ This replaces the 1.0 lists in `NetRelish_Plan_and_Roadmap.md` §4 and §5 (P3, 
 | Already working | Shelf, jars as profiles, Brine, Seal |
 | Bench | Links that open a new window or popup work. No split view. |
 | Search | Opening a sealed result shows the saved copy, not the live site |
-| Smart Jars | Unsorted (Brine), Today, Sealed, Sinking soon, ⌘⇧1–4 |
+| Smart Jars | Unsorted (Brine), Today, Sealed, Sinking soon, ⌃⌘1–4 (ADR 0014) |
 | Reader view | Reader screen from the Defuddle body, ⌘⇧R |
 | Inspector | Kind, source, sealed date, labels |
 | Share extension | Capture from Safari or any app with a share sheet |

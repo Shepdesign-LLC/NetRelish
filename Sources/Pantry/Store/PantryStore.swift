@@ -94,4 +94,23 @@ public final class PantryStore: Sendable {
             ORDER BY bm25(items_fts)
             """, arguments: [pattern])
     }
+
+    // MARK: Smart jars — queries, never places (non-negotiable 2). Nothing moves into one.
+
+    /// Today: everything that came into the Pantry since midnight, in any jar, newest first.
+    public func today(_ db: Database, now: Date = Date(), calendar: Calendar = .current) throws -> [Item] {
+        try Item.filter(Item.Columns.createdAt >= calendar.startOfDay(for: now))
+            .order(Item.Columns.createdAt.desc).fetchAll(db)
+    }
+
+    /// Sealed: every sealed item, most recently sealed first.
+    public func sealed(_ db: Database) throws -> [Item] {
+        try Item.filter(Item.Columns.state == ItemState.sealed)
+            .order(Item.Columns.sealedAt.desc, Item.Columns.createdAt.desc).fetchAll(db)
+    }
+
+    /// Sinking soon: open tabs, in any jar, in the last tenth of their shelf life.
+    public func sinkingSoon(_ db: Database, now: Date = Date()) throws -> [Tab] {
+        ShelfLife.sinkingSoon(try Tab.fetchAll(db), jars: try Jar.fetchAll(db), now: now)
+    }
 }

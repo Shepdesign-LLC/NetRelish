@@ -28,7 +28,10 @@ struct NetRelishApp: App {
                         .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: .command)
                 }
                 Divider()
-                Button("Brine") { workbench.activateBrine() }.keyboardShortcut("1", modifiers: [.command, .shift])
+                ForEach(SmartJar.allCases) { smart in
+                    Button(smart.name) { workbench.activate(smart) }
+                        .keyboardShortcut(KeyEquivalent(Character(String(smart.number))), modifiers: SmartJar.shortcutModifiers)
+                }
                 Divider()
                 Button("Edit Jar…") { workbench.requestEditActiveJar() }.keyboardShortcut("e", modifiers: [.command, .shift])
                     .disabled(workbench.activeJar == nil)
@@ -81,7 +84,7 @@ struct ContentView: View {
         }
         .frame(minWidth: 880, minHeight: 560)
         .background(NRColor.bg)
-        .navigationTitle(workbench.showingBrine ? "Brine" : (workbench.activeJar?.name ?? "NetRelish"))
+        .navigationTitle(workbench.activeSmartJar?.name ?? workbench.activeJar?.name ?? "NetRelish")
         .navigationSubtitle("\(workbench.itemCount) \(workbench.itemCount == 1 ? "item" : "items")")
         .task { await workbench.observe() }
         .task { await workbench.runSweep() }
@@ -92,4 +95,13 @@ struct ContentView: View {
             MeOnboardingSheet(vault: workbench.vault) { workbench.fillFromMe() }
         }
     }
+}
+
+extension SmartJar {
+    /// The one place the smart jars' modifier keys live: the Jars menu, the Shelf's tooltips
+    /// and ⌘K all read these, so they can't disagree.
+    /// ⌃⌘, not the manifest's original ⌘⇧: ⌘⇧3 and ⌘⇧4 are macOS's screenshot keys (ADR 0014).
+    static let shortcutModifiers: EventModifiers = [.control, .command]
+    static let shortcutSymbols = "⌃⌘"
+    var shortcutLabel: String { "\(Self.shortcutSymbols)\(number)" }
 }

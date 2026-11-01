@@ -31,4 +31,24 @@ public enum ShelfLife {
         guard let r = remaining(of: tab, in: jar, now: now) else { return false }
         return r > 0 && r < 0.1
     }
+
+    /// The tabs that are fading, across every jar, the one closest to sinking first. The
+    /// strip fades exactly these, so the Sinking soon jar and the tab strip always agree.
+    public static func sinkingSoon(_ tabs: [Tab], jars: [Jar], now: Date = Date()) -> [Tab] {
+        let byId = Dictionary(jars.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return tabs
+            .compactMap { tab -> (tab: Tab, left: TimeInterval)? in
+                guard let jar = tab.jarId.flatMap({ byId[$0] }), isFading(tab, in: jar, now: now),
+                      let left = timeLeft(of: tab, in: jar, now: now) else { return nil }
+                return (tab, left)
+            }
+            .sorted { $0.left < $1.left }
+            .map { $0.tab }
+    }
+
+    /// Seconds until the tab sinks; nil when it can't.
+    public static func timeLeft(of tab: Tab, in jar: Jar, now: Date = Date()) -> TimeInterval? {
+        guard let r = remaining(of: tab, in: jar, now: now), let life = seconds(for: jar) else { return nil }
+        return r * life
+    }
 }

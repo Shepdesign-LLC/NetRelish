@@ -77,8 +77,10 @@ enum PaletteSource {
             PaletteRow(id: "jar.\(jar.id)", kind: .jar, title: jar.name, subtitle: "Jar",
                        tint: jar.tint.flatMap(OKLCH.init)?.color) { workbench.activate(jar) }
         }
-        rows.append(PaletteRow(id: "jar.brine", kind: .jar, title: "Brine", subtitle: "Everything unsorted",
-                               shortcut: "⌘⇧1") { workbench.activateBrine() })
+        for smart in SmartJar.allCases {
+            rows.append(PaletteRow(id: "jar.\(smart.rawValue)", kind: .jar, title: smart.name, subtitle: smart.paletteSubtitle,
+                                   shortcut: smart.shortcutLabel) { workbench.activate(smart) })
+        }
         return rows
     }
 

@@ -1,7 +1,7 @@
 // ShelfView.swift — the jar rail (manifest §8 Shelf). shelfW wide on the leading edge,
 // surface2, one jar per row with its label under it, the active row tinted relish100
-// (relish placement #3). Smart jars sit at the bottom under a hairline — Brine first,
-// ⌘⇧1 — then New Jar last.
+// (relish placement #3). Smart jars sit at the bottom under a hairline — Brine, Today,
+// Sealed, Sinking soon, ⌃⌘1–4 — then New Jar last.
 
 import Pantry
 import SwiftUI
@@ -28,8 +28,13 @@ struct ShelfView: View {
                 .padding(.vertical, NRSpace.sp2)
             }
             Rectangle().fill(NRColor.hairline).frame(height: NRSpace.hairline)
-            SmartJarRow(name: "Brine", count: workbench.brine.count, isActive: workbench.showingBrine) {
-                workbench.activateBrine()
+            VStack(spacing: NRSpace.sp1) {
+                ForEach(SmartJar.allCases) { smart in
+                    SmartJarRow(smart: smart, count: workbench.count(of: smart),
+                                isActive: workbench.activeSmartJar == smart) {
+                        workbench.activate(smart)
+                    }
+                }
             }
             .padding(.vertical, NRSpace.sp1)
             Rectangle().fill(NRColor.hairline).frame(height: NRSpace.hairline)
@@ -82,12 +87,18 @@ struct JarRow: View {
     }
 }
 
-/// A smart jar: `#nr-jar-smart`, neutral, with a count.
+/// A smart jar: `#nr-jar-smart`, neutral. Brine and Sinking soon carry a count badge
+/// (relish placement #6), because those are the two that ask for something; Today and
+/// Sealed only ever grow, so a number there is noise.
 struct SmartJarRow: View {
-    let name: String
+    let smart: SmartJar
     let count: Int
     let isActive: Bool
     let activate: () -> Void
+
+    private var showsCount: Bool { smart == .brine || smart == .sinking }
+    /// The rail is 56pt wide; "Sinking soon" says "Sinking" there and in full everywhere else.
+    private var shelfLabel: String { smart == .sinking ? "Sinking" : smart.name }
 
     var body: some View {
         Button(action: activate) {
@@ -95,9 +106,9 @@ struct SmartJarRow: View {
                 NRSymbol.jarSmart.image.resizable().frame(width: 20, height: 20)
                     .foregroundStyle(isActive ? NRColor.fg : NRColor.fg2)
                     .overlay(alignment: .topTrailing) {
-                        if count > 0 { NRBadge("\(count)").offset(x: 10, y: -6) }
+                        if showsCount, count > 0 { NRBadge("\(count)").offset(x: 10, y: -6) }
                     }
-                Text(name).font(NRType.font(NRType.fsXs)).lineLimit(1)
+                Text(shelfLabel).font(NRType.font(NRType.fsXs)).lineLimit(1).minimumScaleFactor(0.85)
                     .foregroundStyle(isActive ? NRColor.fg : NRColor.fg2)
             }
             .frame(width: 48, height: 44)
@@ -105,8 +116,8 @@ struct SmartJarRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help("\(name) — ⌘⇧1")
-        .accessibilityLabel(name)
+        .help("\(smart.name) — \(smart.shortcutLabel)")
+        .accessibilityLabel(showsCount ? "\(smart.name), \(count)" : smart.name)
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 }

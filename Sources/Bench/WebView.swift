@@ -118,20 +118,65 @@ final class JarWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) { sync(); log.error("fail \(error.localizedDescription, privacy: .public)") }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: any Error) { sync(); log.error("provisional fail \(error.localizedDescription, privacy: .public)") }
 
-    /// A click on a link WebKit can't show (mailto:, tel:, an app's own scheme) goes to the
-    /// app that handles it. Anything else that isn't a click on one stays as WebKit has it.
+    /// Download links stay downloads, never page loads. A link WebKit can't show goes to
+    /// another app: mail, phone, Messages and FaceTime links straight away on a click;
+    /// anything else (a Zoom or Teams link, smb:, a script jumping to an app) only after
+    /// the person says yes, the way Safari asks. A frame inside the page never gets to.
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
-        guard let url = Self.forAnotherApp(navigationAction.request.url) else { decisionHandler(.allow); return }
-        if navigationAction.navigationType == .linkActivated { NSWorkspace.shared.open(url) }
-        decisionHandler(.cancel)
+        if navigationAction.shouldPerformDownload { decisionHandler(.download); return }
+        let clicked = navigationAction.navigationType == .linkActivated
+        let mainFrame = navigationAction.targetFrame?.isMainFrame ?? true
+        switch Self.handoff(navigationAction.request.url, clicked: clicked) {
+        case .stay:
+            decisionHandler(.allow)
+        case .open(let url):
+            decisionHandler(.cancel)
+            NSWorkspace.shared.open(url)
+        case .ask(let url):
+            decisionHandler(.cancel)
+            if clicked || mainFrame { askToOpen(url, from: webView) }
+        }
     }
 
-    /// The URL, if WebKit can't show it and another app should (mailto:, tel:, zoommtg:).
-    static func forAnotherApp(_ url: URL?) -> URL? {
+    /// The schemes a click hands straight to their app.
+    static let schemesForOtherApps: Set<String> = ["mailto", "tel", "sms", "facetime", "facetime-audio"]
+
+    enum Handoff: Equatable {
+        case stay            // WebKit shows it
+        case open(URL)       // straight to its app
+        case ask(URL)        // to another app, once the person says yes
+    }
+
+    /// What happens to a URL that may belong to another app.
+    static func handoff(_ url: URL?, clicked: Bool) -> Handoff {
         guard let url, let scheme = url.scheme?.lowercased(), scheme != "javascript",
-              !WKWebView.handlesURLScheme(scheme) else { return nil }
+              !WKWebView.handlesURLScheme(scheme) else { return .stay }
+        return clicked && schemesForOtherApps.contains(scheme) ? .open(url) : .ask(url)
+    }
+
+    /// The URL, if it's a mail, phone, Messages or FaceTime link. The saved copy hands off
+    /// these and nothing else.
+    static func forAnotherApp(_ url: URL?) -> URL? {
+        guard let url, let scheme = url.scheme?.lowercased(), schemesForOtherApps.contains(scheme) else { return nil }
         return url
+    }
+
+    /// Asks before leaving for another app. Nothing happens if no app on this Mac opens the
+    /// link, or if the window is already asking something.
+    private func askToOpen(_ url: URL, from webView: WKWebView) {
+        guard let window = webView.window, window.attachedSheet == nil,
+              let app = NSWorkspace.shared.urlForApplication(toOpen: url) else { return }
+        var name = FileManager.default.displayName(atPath: app.path)
+        if name.hasSuffix(".app") { name = String(name.dropLast(4)) }
+        let alert = NSAlert()
+        alert.messageText = "Open this link in \(name)?"
+        alert.informativeText = "The page you're on wants to open \(name)."
+        alert.addButton(withTitle: "Open \(name)")
+        alert.addButton(withTitle: "Cancel")
+        alert.beginSheetModal(for: window) { response in
+            if response == .alertFirstButtonReturn { NSWorkspace.shared.open(url) }
+        }
     }
 
     // MARK: WKUIDelegate
@@ -141,9 +186,11 @@ final class JarWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         log.info("new window: \(navigationAction.request.url?.absoluteString ?? "-", privacy: .private) in jar \(self.jarId, privacy: .public)")
-        if let url = Self.forAnotherApp(navigationAction.request.url) {
-            NSWorkspace.shared.open(url)   // a mailto: with target=_blank shouldn't leave an empty tab
-            return nil
+        // An app link with target=_blank shouldn't leave an empty tab behind.
+        switch Self.handoff(navigationAction.request.url, clicked: navigationAction.navigationType == .linkActivated) {
+        case .open(let url): NSWorkspace.shared.open(url); return nil
+        case .ask(let url): askToOpen(url, from: webView); return nil
+        case .stay: break
         }
         if let child = onNewWindow?(configuration) { return child }
         if navigationAction.navigationType == .linkActivated { webView.load(navigationAction.request) }

@@ -204,6 +204,7 @@ import WebKit
         #expect(decide(URL(string: "https://example.com/invoice#net-30")!, .linkActivated) == .allow)
         #expect(decide(URL(string: "mailto:ap@example.com")!, .linkActivated) == .openInApp(URL(string: "mailto:ap@example.com")!))
         #expect(decide(URL(string: "javascript:alert(1)")!, .linkActivated) == .cancel)
+        #expect(decide(URL(string: "smb://example.com/share")!, .linkActivated) == .cancel)   // the copy reaches nothing
         #expect(decide(other, .other, main: false) == .allow)                          // the archive's own frames
     }
 

@@ -76,7 +76,7 @@ Not relish: links (use `--nr-fg` underlined), selection (system), toolbar icons,
 
 | Component | Spec |
 |---|---|
-| **Shelf** (jar rail) | `--shelf-w` wide, leading edge, `--nr-surface-2`. One `#nr-jar` per row, 40pt hit target, label under icon at `--fs-xs`. Active row: `--relish-100` tint + `--nr-fg` label. Smart jars at the bottom under a hairline. New Jar button last. ⌘1–9 / ⌘⇧1–4. |
+| **Shelf** (jar rail) | `--shelf-w` wide, leading edge, `--nr-surface-2`. One `#nr-jar` per row, 40pt hit target, label under icon at `--fs-xs`. Active row: `--relish-100` tint + `--nr-fg` label. Smart jars at the bottom under a hairline. New Jar button last. ⌘1–9 / ⌃⌘1–4 (smart jars; ⌘⇧3/4 are macOS screenshot keys, ADR 0014). |
 | **Tabs** | `--tab-h`, `--r-2` top corners, `--nr-surface` active / transparent inactive. Active tab carries `#nr-lip`. Pinned tabs show a pin glyph and never sink. Sinking tabs fade to `--nr-fg-3` over the last 10% of shelf life. |
 | **Bench** | The web panes. Chrome is `--nr-surface`, hairline-separated. Nothing brand-colored touches the page. |
 | **Inspector** | `--inspector-w`, trailing edge, `--nr-surface-2`. Sections separated by hairlines, `--fs-sm` labels in `--nr-fg-2`. |
@@ -115,6 +115,7 @@ Dark-green glass · gradient text in the product · relish backgrounds · a seco
 ---
 
 ## Changelog
+- **v1.2.1 (Nov 1 2026)** — smart jars move from ⌘⇧1–4 to ⌃⌘1–4: ⌘⇧3 and ⌘⇧4 are macOS's screenshot keys and never reach the app. Decided by Ryan (ADR 0014).
 - **v1.2 (Oct 21 2026)** — second drip approved: the jar fill plays a `#nr-drip` in the jar's tint when something lands in a jar; Seal keeps the relish drip. Decided by Ryan in the workstation prototype review (`docs/design/netrelish-workstation.html` implements it).
 - **v1.1.2 (Sept 21 2026)** — relish-100/300/700/ink take the Sept 15 Design Kit values, per the v1.1 note that the earlier file wins on values. relish-500 unchanged.
 - **v1.1.1 (Sept 16 2026)** — `tokens.css` OKLCH values re-derived exactly from their hex fallbacks; the v1.1 numbers were approximations that rendered darker (relish-500 came out `#9CE700`). Hexes unchanged. Decided by Ryan, ADR 0001.
