@@ -207,6 +207,62 @@ permissions:
   contents: read
 
 jobs:
+  # TEMPORARY (PR #51): measures which architecture the tracer launches children
+  # in, so the fix is chosen on evidence. Removed before this PR leaves draft.
+  tracer-probe:
+    name: Tracer probe (temporary)
+    runs-on: xcode-27
+    permissions:
+      contents: read
+    steps:
+      - name: Build probe binaries (untraced)
+        run: |
+          mkdir -p "$RUNNER_TEMP/probe" && cd "$RUNNER_TEMP/probe"
+          printf '%s\n' '#include <stdio.h>' \
+            'int main(void){' '#if defined(__arm64__)' 'puts("arm64");' '#else' 'puts("x86_64");' '#endif' 'return 0;}' > arch.c
+          clang -arch arm64 -arch x86_64 -o arch-fat arch.c
+          clang -arch arm64 -o arch-arm64 arch.c
+          lipo -archs arch-fat arch-arm64
+          cat > probe.sh <<'EOF'
+          #!/bin/bash
+          d="$(dirname "$0")"
+          echo "== $1"
+          echo "   uname -m          : $(uname -m)"
+          echo "   fat child         : $("$d/arch-fat" 2>&1)"
+          echo "   arm64-only child  : $("$d/arch-arm64" 2>&1)"
+          echo "   DYLD_INSERT_LIBRARIES set: ${DYLD_INSERT_LIBRARIES:+yes}"
+          EOF
+          chmod +x probe.sh
+          test -x /opt/homebrew/bin/bash || brew install bash
+          ./probe.sh "baseline: runner shell, untraced"
+
+      - uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        id: init
+        with:
+          languages: swift
+
+      - name: Probe — runner shell, traced (as the build runs today)
+        run: |
+          lipo -archs "$CODEQL_RUNNER" "$SEMMLE_PRELOAD_libtrace" || true
+          "$RUNNER_TEMP/probe/probe.sh" "runner /bin/bash, action tracer"
+
+      - name: Probe — Homebrew arm64 bash, traced
+        shell: /opt/homebrew/bin/bash --noprofile --norc -eo pipefail {0}
+        run: |
+          echo "shell itself: $(uname -m) (builtin-free check below)"
+          "$RUNNER_TEMP/probe/probe.sh" "homebrew arm64 bash, action tracer"
+          ( unset DYLD_INSERT_LIBRARIES; "$RUNNER_TEMP/probe/probe.sh" "homebrew arm64 bash, preload unset" )
+
+      - name: Probe — CLI-driven tracing from an arm64 parent (action tracer env stripped)
+        shell: /opt/homebrew/bin/bash --noprofile --norc -o pipefail {0}
+        run: |
+          cq="${{ steps.init.outputs.codeql-path }}"
+          for v in $(compgen -e | grep -E '^(DYLD_|SEMMLE_|CODEQL_TRACER|CODEQL_EXTRACTOR|CODEQL_RUNNER)'); do unset "$v"; done
+          "$RUNNER_TEMP/probe/probe.sh" "homebrew arm64 bash, tracer env stripped"
+          "$cq" database create "$RUNNER_TEMP/probe-db" --language=swift --overwrite \
+            --command="$RUNNER_TEMP/probe/probe.sh 'codeql database create --command (CLI tracer)'" 2>&1 \
+            | grep -E '^\[.*\] \[build-stdout\]|== |uname|child|DYLD' || true
+
   analyze:
     name: Analyze (swift)
     runs-on: xcode-27
