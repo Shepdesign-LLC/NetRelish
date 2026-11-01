@@ -1,14 +1,19 @@
 // NetRelishApp.swift — the app. SwiftUI lifecycle, one main window, and the
 // DEBUG-only Design Kit as a second Window scene (Window → Design Kit).
 
-import AppKit
 import GRDB
 import Pantry
 import SwiftUI
 
 @main
 struct NetRelishApp: App {
-    @State private var workbench = Workbench(inbox: ShareInbox())
+    @State private var workbench = Workbench(inbox: NetRelishApp.shareInbox)
+
+    /// The Share extension's inbox, except when this app is hosting the tests: they must never
+    /// take what you've shared into the Pantry.
+    private static var shareInbox: ShareInbox? {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil ? ShareInbox() : nil
+    }
 
     init() {
         #if DEBUG
@@ -95,9 +100,6 @@ struct ContentView: View {
         .navigationSubtitle("\(workbench.itemCount) \(workbench.itemCount == 1 ? "item" : "items")")
         .task { await workbench.observe() }
         .task { await workbench.runSweep() }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            workbench.receiveShared()
-        }
         .sheet(isPresented: $workbench.showPalette) {
             PaletteView(workbench: workbench)
         }

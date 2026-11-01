@@ -59,7 +59,12 @@ final class ShareViewController: NSViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         let items = extensionContext?.inputItems.compactMap { $0 as? NSExtensionItem } ?? []
-        pageTitle = items.first?.attributedContentText?.string ?? items.first?.attributedTitle?.string ?? ""
+        // The title the sharing app gave, else its text; first line only, so a shared selection
+        // doesn't become a paragraph-long title.
+        let given = [items.first?.attributedTitle?.string, items.first?.attributedContentText?.string]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty } ?? ""
+        pageTitle = String((given.split(whereSeparator: \.isNewline).first ?? "").prefix(300))
         titleField.stringValue = pageTitle.isEmpty ? "Untitled page" : pageTitle
         let provider = items.flatMap { $0.attachments ?? [] }.first { $0.hasItemConformingToTypeIdentifier(UTType.url.identifier) }
         guard let provider else {

@@ -1,6 +1,7 @@
 // Workbench.swift — the app's live state: the jars on the Shelf, the active jar, its tabs,
 // the active tab, Brine, and the sweep that sinks idle tabs. Observed by everything.
 
+import AppKit
 import Foundation
 import GRDB
 import Observation
@@ -145,13 +146,30 @@ final class Workbench {
         self.vault = vault
         self.inbox = inbox
         load()
+        if inbox != nil { watchInbox() }
     }
 
     // MARK: The Share extension
 
+    /// Watches the inbox for as long as the app runs, whether or not a window is open: at
+    /// launch, every 5 seconds, and whenever the app comes forward. A page shared from Safari
+    /// is in Brine within seconds, and at once when you switch to NetRelish.
+    private func watchInbox() {
+        _ = NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification,
+                                                   object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.receiveShared() }
+        }
+        Task { [weak self] in
+            while !Task.isCancelled {
+                self?.receiveShared()
+                try? await Task.sleep(for: .seconds(5))
+                if self == nil { return }
+            }
+        }
+    }
+
     /// Takes in whatever was shared from another app's Share menu since the last look, into
-    /// Brine. Runs at launch, when the app comes forward, and with every sweep, so a page
-    /// shared from Safari is in Brine within seconds even while NetRelish is behind it.
+    /// Brine.
     func receiveShared() {
         guard let inbox else { return }
         do {
@@ -261,19 +279,14 @@ final class Workbench {
         }
     }
 
-    /// The sweep: every few seconds, sink what is past its shelf life and take in shared pages;
-    /// every second, tick the clock.
+    /// The sweep: every few seconds, sink what is past its shelf life; every second, tick the clock.
     func runSweep() async {
-        receiveShared()
         var ticks = 0
         while !Task.isCancelled {
             try? await Task.sleep(for: .seconds(1))
             now = Date()
             ticks += 1
-            if ticks % 5 == 0 {
-                sweep()
-                receiveShared()
-            }
+            if ticks % 5 == 0 { sweep() }
         }
     }
 
