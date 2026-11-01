@@ -95,6 +95,35 @@ public final class PantryStore: Sendable {
             """, arguments: [pattern])
     }
 
+    // MARK: The Panel
+
+    /// The Pantry's item for a page: its sealed copy if there is one, else the newest capture.
+    public func item(_ db: Database, url: String) throws -> Item? {
+        try Item.filter(Item.Columns.url == url)
+            .order(Item.Columns.sealedAt.desc, Item.Columns.createdAt.desc)   // NULL sealedAt sorts last
+            .fetchOne(db)
+    }
+
+    /// Puts a label on an item, by name. A label that already exists under that name, in any
+    /// case, is reused, so "Client" and "client" are one label. Labelling a sealed item adds a
+    /// row beside it; the item and its snapshot are untouched (non-negotiable 3).
+    @discardableResult
+    public func addLabel(_ db: Database, named name: String, to item: Item) throws -> Label? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        var label = try Label.filter(sql: "lower(name) = lower(?)", arguments: [trimmed]).fetchOne(db)
+            ?? Label(name: trimmed)
+        if try !label.exists(db) { try label.insert(db) }
+        let ids = try item.labels(db).map(\.id)
+        if !ids.contains(label.id) { try item.setLabels(ids + [label.id], db) }
+        return label
+    }
+
+    /// Takes a label off an item. The label itself stays, for the other items that carry it.
+    public func removeLabel(_ db: Database, _ label: Label, from item: Item) throws {
+        try item.setLabels(try item.labels(db).map(\.id).filter { $0 != label.id }, db)
+    }
+
     // MARK: Smart jars — queries, never places (non-negotiable 2). Nothing moves into one.
 
     /// Today: everything that came into the Pantry since midnight, in any jar, newest first.

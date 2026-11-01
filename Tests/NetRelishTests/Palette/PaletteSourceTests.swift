@@ -213,3 +213,74 @@ import Testing
         #expect(bench.tabs.count == 1)
     }
 }
+
+/// The Panel describes whatever the Bench is showing.
+@Suite("Panel") @MainActor struct PanelTests {
+
+    private func bench() throws -> Workbench {
+        let bench = Workbench(store: try PantryStore())
+        bench.newJar(name: "Meridian", tint: nil, shelfLifeDays: 3)
+        return bench
+    }
+
+    @Test("Its subject follows the Bench: a jar, a tab, a smart jar, a saved copy")
+    func subject() async throws {
+        let bench = try bench()
+        let jar = try #require(bench.activeJar)
+        #expect(bench.panelSubject == .jar(jar))
+
+        let tab = try #require(bench.newTab(url: "https://example.com/terms"))
+        let shown = try #require(bench.tabs.first { $0.id == tab.id })   // not nested: #require inside #expect won't expand
+        #expect(bench.panelSubject == .tab(shown))
+
+        bench.activate(.today)
+        #expect(bench.panelSubject == .smartJar(.today))
+
+        bench.activate(jar)
+        bench.sealProvider = { _ in (Data("WEBARCHIVE".utf8), Extraction.Result(title: "Terms", excerpt: "", body: "Net thirty.")) }
+        await bench.sealActiveTab()
+        let sealed = try #require(bench.sealedItems.first)
+        bench.open(sealed)
+        #expect(bench.panelSubject == .savedCopy(sealed))
+    }
+
+    @Test("A captured page shows its Pantry item, and labels added there stick")
+    func labelsFromThePanel() throws {
+        let bench = try bench()
+        _ = bench.newTab(url: "https://example.com/brief")
+        bench.tabDidNavigate(bench.activeTab!.id, url: URL(string: "https://example.com/brief"), title: "Brief")
+        #expect(bench.pantryItem(for: "https://example.com/brief") == nil)
+        bench.captureActivePage()
+        let item = try #require(bench.pantryItem(for: "https://example.com/brief"))
+
+        let revision = bench.labelRevision
+        bench.addLabel("client", to: item)
+        bench.addLabel("Spec", to: item)
+        #expect(bench.labelRevision > revision)
+        #expect(bench.labels(of: item).map(\.name) == ["client", "Spec"])   // sorted, any case
+
+        bench.removeLabel(try #require(bench.labels(of: item).first), from: item)
+        #expect(bench.labels(of: item).map(\.name) == ["Spec"])
+    }
+
+    @Test("The Panel's words")
+    func words() {
+        #expect(PanelText.source(.browse) == "Browsing")
+        #expect(PanelText.source(.shareExtension) == "The Share menu")
+        #expect(PanelText.days(3) == "3 days")
+        #expect(PanelText.days(1) == "1 day")
+        #expect(PanelText.days(0.5) == "12 hours")
+        #expect(PanelText.state(Item(state: .brined), jar: "Brine") == "In Brine")
+        #expect(PanelText.state(Item(state: .sealed, jarId: "j"), jar: "Meridian") == "Sealed in Meridian")
+    }
+
+    @Test("⌘K can show and hide it")
+    func paletteToggle() throws {
+        let bench = try bench()
+        bench.showPanel = true
+        #expect(PaletteSource.commands(bench).contains { $0.title == "Hide Panel" })
+        bench.showPanel = false
+        #expect(PaletteSource.commands(bench).contains { $0.title == "Show Panel" })
+        bench.showPanel = true
+    }
+}

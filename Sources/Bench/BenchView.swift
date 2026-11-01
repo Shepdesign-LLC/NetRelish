@@ -546,3 +546,218 @@ final class SavedCopyNavigator: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
     }
 }
+
+// MARK: - The Panel (⌘⌥I)
+
+/// The right column (manifest §8, "Inspector" row; called the Panel everywhere a person sees
+/// it, ADR 0010 row 9): token width, surface2, the trailing edge, sections between hairlines,
+/// fsSm labels in fg2. It describes whatever the Bench is showing. No relish.
+struct PanelView: View {
+    @Bindable var workbench: Workbench
+
+    var body: some View {
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 0) { content }
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(width: NRSpace.inspectorW)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(NRColor.surface2)
+        .overlay(alignment: .leading) { Rectangle().fill(NRColor.hairline).frame(width: NRSpace.hairline) }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Panel")
+    }
+
+    @ViewBuilder private var content: some View {
+        switch workbench.panelSubject {
+        case .savedCopy(let item):
+            PanelHeader(title: item.title, subtitle: item.domain)
+            PanelItemSections(item: item, workbench: workbench)
+        case .tab(let tab):
+            PanelTabSections(tab: tab, workbench: workbench)
+        case .jar(let jar):
+            PanelHeader(title: jar.name, subtitle: "Jar")
+            PanelSection("Jar") {
+                PanelRow("Shelf life", jar.shelfLifeDays.map { PanelText.days($0) } ?? "None. Tabs never sink")
+                PanelRow("Open tabs", "\(workbench.tabs.count)")
+            }
+        case .smartJar(let smart):
+            PanelHeader(title: smart.name, subtitle: "Smart jar")
+            PanelSection("Smart jar") {
+                PanelRow("Holds", "\(workbench.count(of: smart))")
+                PanelNote(smart.blurb)
+            }
+        case .nothing:
+            PanelNote("Nothing to describe yet. Open a page or a jar.")
+                .padding(NRSpace.sp3)
+        }
+    }
+}
+
+/// A live tab: its jar and shelf life, then what the Pantry holds for its page, if anything.
+private struct PanelTabSections: View {
+    let tab: Tab
+    @Bindable var workbench: Workbench
+    @State private var item: Item?
+
+    var body: some View {
+        PanelHeader(title: (tab.title?.isEmpty == false ? tab.title : nil) ?? tab.url ?? "New Tab",
+                    subtitle: tab.url.flatMap { URL(string: $0)?.host })
+        PanelSection("Tab") {
+            PanelRow("Jar", workbench.jarName(for: tab.jarId))
+            PanelRow("Shelf life", shelfLife)
+        }
+        if let item {
+            PanelItemSections(item: item, workbench: workbench)
+        } else {
+            PanelSection("Pantry") {
+                PanelNote("Not in your Pantry yet. ⌘D captures this page; ⌘S seals it.")
+            }
+        }
+        EmptyView()
+            .task(id: "\(tab.url ?? "")|\(workbench.itemCount)|\(workbench.sealedItems.count)") {
+                item = workbench.pantryItem(for: tab.url)
+            }
+    }
+
+    private var shelfLife: String {
+        if tab.isPinned { return "Pinned. Never sinks" }
+        guard let jar = workbench.jars.first(where: { $0.id == tab.jarId }),
+              let left = ShelfLife.timeLeft(of: tab, in: jar, now: workbench.now) else { return "Never sinks" }
+        return "Sinks " + workbench.now.addingTimeInterval(left).formatted(.relative(presentation: .named))
+    }
+}
+
+/// An item in the Pantry: what it is, where it came from, when, and its labels.
+private struct PanelItemSections: View {
+    let item: Item
+    @Bindable var workbench: Workbench
+    @State private var labels: [Pantry.Label] = []   // not SwiftUI.Label
+    @State private var newLabel = ""
+
+    var body: some View {
+        PanelSection("Pantry") {
+            PanelRow("Kind", item.kind.rawValue.capitalized)
+            PanelRow("State", PanelText.state(item, jar: workbench.jarName(for: item.jarId ?? item.sunkOriginJarId)))
+            PanelRow("Source", PanelText.source(item.source))
+            PanelRow("Captured", item.createdAt.formatted(date: .abbreviated, time: .shortened))
+            if let sealed = item.sealedAt {
+                PanelRow("Sealed", sealed.formatted(date: .abbreviated, time: .shortened))
+            }
+        }
+        PanelSection("Labels") {
+            ForEach(labels) { label in
+                HStack(spacing: NRSpace.sp2) {
+                    Text(label.name).font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg)
+                    Spacer()
+                    Button { workbench.removeLabel(label, from: item) } label: {
+                        Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                    }
+                    .buttonStyle(.plain).foregroundStyle(NRColor.fg2)
+                    .help("Remove \(label.name)").accessibilityLabel("Remove \(label.name)")
+                }
+            }
+            TextField("Add a label", text: $newLabel)
+                .textFieldStyle(.plain)
+                .font(NRType.font(NRType.fsSm))
+                .foregroundStyle(NRColor.fg)
+                .onSubmit {
+                    workbench.addLabel(newLabel, to: item)
+                    newLabel = ""
+                }
+        }
+        EmptyView()
+            .task(id: "\(item.id)|\(workbench.labelRevision)") { labels = workbench.labels(of: item) }
+    }
+}
+
+private struct PanelHeader: View {
+    let title: String
+    let subtitle: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(NRType.font(NRType.fsMd, weight: .medium)).foregroundStyle(NRColor.fg).lineLimit(2)
+            if let subtitle, !subtitle.isEmpty {
+                Text(subtitle).font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2).lineLimit(1)
+            }
+        }
+        .padding(NRSpace.sp3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct PanelSection<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    init(_ title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        Rectangle().fill(NRColor.hairline).frame(height: NRSpace.hairline)
+        VStack(alignment: .leading, spacing: NRSpace.sp2) {
+            Text(title.uppercased()).font(NRType.font(NRType.fsXs, weight: .medium)).foregroundStyle(NRColor.fg2)
+            content
+        }
+        .padding(NRSpace.sp3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct PanelRow: View {
+    let key: String
+    let value: String
+    init(_ key: String, _ value: String) { self.key = key; self.value = value }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: NRSpace.sp2) {
+            Text(key).font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2)
+            Spacer(minLength: NRSpace.sp2)
+            Text(value).font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg)
+                .multilineTextAlignment(.trailing).lineLimit(2)
+        }
+    }
+}
+
+private struct PanelNote: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+    var body: some View {
+        Text(text).font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// The Panel's words, kept out of the views so tests can read them.
+enum PanelText {
+    static func state(_ item: Item, jar: String) -> String {
+        switch item.state {
+        case .brined: "In Brine"
+        case .jarred: "In \(jar)"
+        case .sealed: item.jarId == nil ? "Sealed" : "Sealed in \(jar)"
+        }
+    }
+
+    static func source(_ source: CaptureSource) -> String {
+        switch source {
+        case .browse: "Browsing"
+        case .shareExtension: "The Share menu"
+        case .clipboard: "The clipboard"
+        case .drop: "Dropped in"
+        case .shortcut: "Shortcuts"
+        case .recipe: "A Recipe"
+        }
+    }
+
+    static func days(_ days: Double) -> String {
+        if days < 1 {
+            let hours = max(1, Int((days * 24).rounded()))
+            return hours == 1 ? "1 hour" : "\(hours) hours"
+        }
+        let whole = Int(days.rounded())
+        return whole == 1 ? "1 day" : "\(whole) days"
+    }
+}

@@ -481,6 +481,69 @@ final class Workbench {
         }
     }
 
+    // MARK: The Panel (⌘⌥I)
+
+    /// The right column (manifest §8, ADR 0010 row 9: "Panel", never "Inspector"). Shown
+    /// unless you hide it; the choice is remembered.
+    var showPanel: Bool = UserDefaults.standard.object(forKey: "panel.visible") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(showPanel, forKey: "panel.visible") }
+    }
+
+    /// What the Panel describes: whatever the Bench is showing.
+    enum PanelSubject: Equatable {
+        case savedCopy(Item)
+        case tab(Tab)
+        case jar(Jar)
+        case smartJar(SmartJar)
+        case nothing
+    }
+
+    var panelSubject: PanelSubject {
+        if let savedCopy { return .savedCopy(savedCopy) }
+        if let smart = activeSmartJar { return .smartJar(smart) }
+        if let tab = benchTab { return .tab(tab) }
+        if let jar = activeJar { return .jar(jar) }
+        return .nothing
+    }
+
+    /// Bumped whenever a label changes, so the Panel reads them again.
+    private(set) var labelRevision = 0
+
+    /// The Pantry's item for a page, if it was captured or sealed.
+    func pantryItem(for url: String?) -> Item? {
+        guard let url, !url.isEmpty else { return nil }
+        return try? store.read { db in try store.item(db, url: url) }
+    }
+
+    func labels(of item: Item) -> [Label] {
+        (try? store.read { db in try item.labels(db) })?.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending } ?? []
+    }
+
+    func addLabel(_ name: String, to item: Item) {
+        do {
+            try store.write { db in _ = try store.addLabel(db, named: name, to: item) }
+            labelRevision += 1
+        } catch {
+            log.error("label: \(String(describing: error), privacy: .public)")
+            report("Couldn’t add that label")
+        }
+    }
+
+    func removeLabel(_ label: Label, from item: Item) {
+        do {
+            try store.write { db in try store.removeLabel(db, label, from: item) }
+            labelRevision += 1
+        } catch {
+            log.error("label: \(String(describing: error), privacy: .public)")
+            report("Couldn’t remove that label")
+        }
+    }
+
+    /// A jar's name for display, or Brine for an item with no jar.
+    func jarName(for id: String?) -> String {
+        id.flatMap { id in jars.first { $0.id == id }?.name } ?? "Brine"
+    }
+
     // MARK: Reader view (⌘⇧R)
 
     /// The article Reader view is showing, and the tab and page it came from.
