@@ -50,6 +50,10 @@ enum PaletteSource {
                                    subtitle: "Into the jar, frozen", shortcut: "⌘S") {
                 Task { await workbench.sealActiveTab() }
             })
+            rows.append(PaletteRow(id: "cmd.reader", kind: .command,
+                                   title: workbench.isReading ? "Back to the page" : "Reader view",
+                                   subtitle: workbench.isReading ? nil : "The article alone, in clean type",
+                                   shortcut: "⌘⇧R") { Task { await workbench.toggleReader() } })
             rows.append(PaletteRow(id: "cmd.fill", kind: .command, title: "Fill this form",
                                    subtitle: "From your card", shortcut: "⌘⇧F") { workbench.fillFromMe() })
             rows.append(PaletteRow(id: "cmd.close", kind: .command, title: "Close Tab", shortcut: "⌘W") { workbench.closeActiveTab() })

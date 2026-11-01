@@ -257,6 +257,7 @@ final class Workbench {
 
     private func activate(jarId: String) {
         savedCopy = nil                   // picking a jar always leaves a saved copy
+        reader = nil
         guard jarId != activeJarId else { return }
         touchActiveTab()
         activeJarId = jarId
@@ -325,6 +326,7 @@ final class Workbench {
 
     func activateTab(_ tab: Tab) {
         savedCopy = nil
+        reader = nil
         guard tab.id != activeTabId else { return }
         touchActiveTab()
         activeTabId = tab.id
@@ -339,6 +341,7 @@ final class Workbench {
         do {
             try store.write { db in _ = try tab.delete(db) }
             onTabsGone?([tab.id])
+            if reader?.tabId == tab.id { reader = nil }
             let wasActive = tab.id == activeTabId
             let opener = openerOf.removeValue(forKey: tab.id)
             loadTabs()
@@ -373,6 +376,8 @@ final class Workbench {
 
     /// Navigation happened in a tab: remember where it is and that it was just used.
     func tabDidNavigate(_ tabId: String, url: URL?, title: String) {
+        // A new page in the tab leaves Reader view; a late title for the same page doesn't.
+        if let reader, reader.tabId == tabId, reader.url != url?.absoluteString { self.reader = nil }
         guard var tab = tabs.first(where: { $0.id == tabId }) else { return }
         tab.url = url?.absoluteString
         tab.title = title
@@ -467,6 +472,45 @@ final class Workbench {
             report("Couldn't seal: \(error)")
         }
     }
+
+    // MARK: Reader view (⌘⇧R)
+
+    /// The article Reader view is showing, and the tab and page it came from.
+    struct ReaderState: Equatable {
+        let tabId: String
+        let url: String?
+        let article: Extraction.Article
+    }
+
+    private(set) var reader: ReaderState?
+    /// Set by the Bench: pulls the article out of the tab's live page. Stubbed in tests.
+    var readerProvider: ((Tab) async throws -> Extraction.Article?)?
+
+    /// Reader view is showing for the tab on the Bench.
+    var isReading: Bool { reader != nil && reader?.tabId == benchTab?.id }
+
+    /// ⌘⇧R. Shows the page's article alone in clean type, or goes back to the page. Pages
+    /// with no article (a home page, a search) say so and stay as they are.
+    func toggleReader() async {
+        if isReading { reader = nil; return }
+        guard let tab = benchTab, let provider = readerProvider else {
+            report("Nothing to read — open a page first")
+            return
+        }
+        do {
+            guard let article = try await provider(tab) else {
+                report("This page has no article to read")
+                return
+            }
+            guard benchTab?.id == tab.id else { return }    // you moved on while it was reading
+            reader = ReaderState(tabId: tab.id, url: tab.url, article: article)
+        } catch {
+            report("Couldn't open Reader view: \(error)")
+        }
+    }
+
+    /// Back to the live page.
+    func closeReader() { reader = nil }
 
     // MARK: The palette (⌘K)
 

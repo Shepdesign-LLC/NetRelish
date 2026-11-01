@@ -42,6 +42,9 @@ struct NetRelishApp: App {
                     .disabled(workbench.benchTab == nil)
                 Button("Seal") { Task { await workbench.sealActiveTab() } }.keyboardShortcut("s", modifiers: .command)
                     .disabled(workbench.benchTab == nil)
+                Button(workbench.isReading ? "Back to the Page" : "Reader View") { Task { await workbench.toggleReader() } }
+                    .keyboardShortcut("r", modifiers: [.command, .shift])
+                    .disabled(workbench.benchTab == nil)
                 Divider()
                 Button("Fill from Me") { workbench.fillFromMe() }.keyboardShortcut("f", modifiers: [.command, .shift])
                     .disabled(workbench.benchTab == nil)
