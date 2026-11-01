@@ -1,0 +1,194 @@
+name: Release
+
+# Cuts a signed, notarized preview of the Direct (Developer ID) build and
+# publishes it as a GitHub pre-release. Runs only on a version tag, so a release
+# is always named after a version, never a branch (RELEASING.md: run 34030599628).
+#
+#   git tag v0.4.0 && git push origin v0.4.0
+#
+# The notes come from docs/releases/<tag>.md, written by hand before tagging.
+# Nothing is published until the artifact itself has passed Gatekeeper's checks:
+# "Check the artifact, not the checkmark."
+#
+# The app this builds talks to nothing new (CLAUDE.md non-negotiable 5). The only
+# network here is CI's own: Apple's notary service and GitHub Releases.
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+*']
+
+permissions:
+  contents: write          # gh release create
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DERIVED: .build/DerivedData
+  SCHEME: NetRelish (Direct)
+  CONFIGURATION: Release-Direct
+
+jobs:
+  release:
+    name: Sign, notarize and publish
+    # xcode-27 is the only image with the macOS 27 SDK.
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+
+      - name: Every secret is set
+        # A secret you remember setting is not the same as a secret that is there
+        # (RELEASING.md: the move to the org dropped all of them). Fail first, by name.
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=""
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "$(printenv "$name")" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing (docs/notarization.md §5 says where each comes from)"
+            exit 1
+          fi
+
+      - name: Version from the tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"                       # 0.4.0 or 0.4.0-preview.1
+          MARKETING="${VERSION%%-*}"               # CFBundleShortVersionString: numbers only
+          case "$MARKETING" in
+            *[!0-9.]*|'') echo "::error::$TAG is not vMAJOR.MINOR.PATCH"; exit 1 ;;
+          esac
+          NOTES="docs/releases/${TAG}.md"
+          if [ ! -s "$NOTES" ]; then
+            echo "::error file=$NOTES::Write the release notes for $TAG before tagging"
+            exit 1
+          fi
+          {
+            echo "tag=$TAG"
+            echo "version=$VERSION"
+            echo "marketing=$MARKETING"
+            echo "notes=$NOTES"
+            echo "dmg=NetRelish-$VERSION.dmg"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Import the Developer ID certificate into a throwaway keychain
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/release.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/cert.p12"
+          echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+          security find-identity -v -p codesigning "$KEYCHAIN"
+
+      - name: Build and sign (Release-Direct, hardened runtime, secure timestamp)
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcodebuild -version
+          xcodebuild -project NetRelish.xcodeproj -scheme "$SCHEME" -configuration "$CONFIGURATION" \
+            -derivedDataPath "$DERIVED" -destination 'platform=macOS' \
+            MARKETING_VERSION="${{ steps.version.outputs.marketing }}" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" PROVISIONING_PROFILE_SPECIFIER= \
+            OTHER_CODE_SIGN_FLAGS="--timestamp --keychain $KEYCHAIN" \
+            -quiet build
+          APP="$DERIVED/Build/Products/$CONFIGURATION/NetRelish.app"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign -dv --verbose=4 "$APP" 2>&1 | tee "$RUNNER_TEMP/codesign.txt"
+          grep -q "Authority=Developer ID Application" "$RUNNER_TEMP/codesign.txt" || { echo "::error::not signed with Developer ID"; exit 1; }
+          grep -q "flags=.*runtime" "$RUNNER_TEMP/codesign.txt" || { echo "::error::hardened runtime is off"; exit 1; }
+          grep -q "Timestamp=" "$RUNNER_TEMP/codesign.txt" || { echo "::error::no secure timestamp"; exit 1; }
+          echo "APP=$APP" >> "$GITHUB_ENV"
+
+      - name: Notarize and staple the app
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/NetRelish.zip"
+          notarize() {
+            xcrun notarytool submit "$1" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
+              --password "$APPLE_PASSWORD" --wait --timeout 30m --output-format json > "$RUNNER_TEMP/notary.json" || true
+            cat "$RUNNER_TEMP/notary.json"
+            ID=$(plutil -extract id raw "$RUNNER_TEMP/notary.json" 2>/dev/null || true)
+            STATUS=$(plutil -extract status raw "$RUNNER_TEMP/notary.json" 2>/dev/null || true)
+            if [ "$STATUS" != "Accepted" ]; then
+              [ -n "$ID" ] && xcrun notarytool log "$ID" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_PASSWORD"
+              echo "::error::notarization of $1 came back '${STATUS:-no answer}'"
+              exit 1
+            fi
+          }
+          notarize "$RUNNER_TEMP/NetRelish.zip"
+          xcrun stapler staple "$APP"
+          xcrun stapler validate "$APP"
+          spctl -a -vvv -t exec "$APP" 2>&1 | tee "$RUNNER_TEMP/spctl-app.txt"
+          grep -q "source=Notarized Developer ID" "$RUNNER_TEMP/spctl-app.txt" || { echo "::error::Gatekeeper does not accept the app as notarized"; exit 1; }
+          echo "notarize_fn_ok=1" >> "$GITHUB_ENV"
+
+      - name: Disk image — signed, notarized, stapled, checked
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          DMG="${{ steps.version.outputs.dmg }}"
+          STAGE="$RUNNER_TEMP/dmg"
+          mkdir -p "$STAGE"
+          ditto "$APP" "$STAGE/NetRelish.app"
+          ln -s /Applications "$STAGE/Applications"
+          hdiutil create -volname "NetRelish" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
+          codesign --sign "$APPLE_SIGNING_IDENTITY" --timestamp --keychain "$KEYCHAIN" "$DMG"
+          xcrun notarytool submit "$DMG" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_PASSWORD" --wait --timeout 30m --output-format json > "$RUNNER_TEMP/notary-dmg.json" || true
+          cat "$RUNNER_TEMP/notary-dmg.json"
+          STATUS=$(plutil -extract status raw "$RUNNER_TEMP/notary-dmg.json" 2>/dev/null || true)
+          if [ "$STATUS" != "Accepted" ]; then
+            ID=$(plutil -extract id raw "$RUNNER_TEMP/notary-dmg.json" 2>/dev/null || true)
+            [ -n "$ID" ] && xcrun notarytool log "$ID" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_PASSWORD"
+            echo "::error::notarization of the disk image came back '${STATUS:-no answer}'"
+            exit 1
+          fi
+          xcrun stapler staple "$DMG"
+          xcrun stapler validate "$DMG"
+          spctl -a -vvv -t open --context context:primary-signature "$DMG" 2>&1 | tee "$RUNNER_TEMP/spctl-dmg.txt"
+          grep -q "source=Notarized Developer ID" "$RUNNER_TEMP/spctl-dmg.txt" || { echo "::error::Gatekeeper does not accept the disk image as notarized"; exit 1; }
+          shasum -a 256 "$DMG" | tee "$DMG.sha256"
+
+      - name: Publish the pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "${{ steps.version.outputs.dmg }}" "${{ steps.version.outputs.dmg }}.sha256" \
+            --prerelease --verify-tag \
+            --title "NetRelish ${{ steps.version.outputs.version }} (preview)" \
+            --notes-file "${{ steps.version.outputs.notes }}"
+
+      - name: Remove the keychain
+        if: always()
+        run: |
+          [ -n "${KEYCHAIN:-}" ] && security delete-keychain "$KEYCHAIN" || true
+          rm -f "$RUNNER_TEMP/cert.p12"
