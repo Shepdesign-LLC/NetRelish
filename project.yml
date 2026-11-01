@@ -34,7 +34,7 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
     DEVELOPMENT_TEAM: D9QDJ44773
     CODE_SIGN_STYLE: Automatic
-    MARKETING_VERSION: "0.1.0"
+    MARKETING_VERSION: "0.4.1"   # releases override this from their tag
     CURRENT_PROJECT_VERSION: "1"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
   configs:
@@ -104,6 +104,10 @@ targets:
         CFBundleName: NetRelish
         CFBundleDisplayName: NetRelish
         CFBundleIconFile: AppIcon
+        # The version comes from the build settings, so a release's MARKETING_VERSION (from
+        # its tag) is what About shows. A literal here shipped v0.4.0 calling itself 1.0.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSMinimumSystemVersion: "27.0"
         LSApplicationCategoryType: public.app-category.productivity
         NSHumanReadableCopyright: "© 2026 Shepdesign LLC. Code MIT; the mark and the name are all rights reserved."
@@ -138,6 +142,8 @@ targets:
       path: Sources/ShareExtension/Info.plist
       properties:
         CFBundleDisplayName: NetRelish
+        CFBundleShortVersionString: $(MARKETING_VERSION)   # must match the app's
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSMinimumSystemVersion: "27.0"
         NSHumanReadableCopyright: "© 2026 Shepdesign LLC. Code MIT; the mark and the name are all rights reserved."
         NSExtension:
