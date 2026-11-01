@@ -207,61 +207,76 @@ permissions:
   contents: read
 
 jobs:
-  # TEMPORARY (PR #51): measures which architecture the tracer launches children
-  # in, so the fix is chosen on evidence. Removed before this PR leaves draft.
-  tracer-probe:
-    name: Tracer probe (temporary)
+  # TEMPORARY (PR #56): CLI-driven tracing, with NO codeql-action/init in the job.
+  # The probe on this PR measured that the runner is native arm64 until `init`
+  # runs, and that afterwards every universal program launches as x86_64 and
+  # nothing a step does can undo it (init traces Runner.Worker itself). This
+  # job never runs init: the CLI already on the image traces the real build from
+  # a clean native step, then analyzes and runs the gate. Removed or promoted
+  # into `analyze` before this PR leaves draft.
+  cli-traced:
+    name: CLI-traced build (experiment)
     runs-on: xcode-27
     permissions:
       contents: read
     steps:
-      - name: Build probe binaries (untraced)
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+
+      - name: Resolve package dependencies (untraced)
         run: |
-          mkdir -p "$RUNNER_TEMP/probe" && cd "$RUNNER_TEMP/probe"
-          printf '%s\n' '#include <stdio.h>' \
-            'int main(void){' '#if defined(__arm64__)' 'puts("arm64");' '#else' 'puts("x86_64");' '#endif' 'return 0;}' > arch.c
-          clang -arch arm64 -arch x86_64 -o arch-fat arch.c
-          clang -arch arm64 -o arch-arm64 arch.c
-          for f in arch-fat arch-arm64; do echo "$f: $(lipo -archs "$f")"; done
-          cat > probe.sh <<'EOF'
+          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
+            -derivedDataPath .build/DerivedData -resolvePackageDependencies
+
+      - name: Disable SwiftPM's manifest sandbox (same trade-off as analyze)
+        run: defaults write com.apple.dt.Xcode IDEPackageSupportDisableManifestSandbox -bool YES
+
+      - name: Locate the CodeQL CLI and probe binaries (untraced)
+        run: |
+          cq="$(ls -d /Users/runner/hostedtoolcache/CodeQL/*/arm64/codeql | sort -V | tail -1)/codeql"
+          echo "CQ=$cq" >> "$GITHUB_ENV"
+          "$cq" version --format=terse
+          echo "uname -m before tracing: $(uname -m)"
+          mkdir -p "$RUNNER_TEMP/probe"
+          printf '%s\n' '#include <stdio.h>' 'int main(void){' '#if defined(__arm64__)' 'puts("arm64");' '#else' 'puts("x86_64");' '#endif' 'return 0;}' > "$RUNNER_TEMP/probe/arch.c"
+          clang -arch arm64 -arch x86_64 -o "$RUNNER_TEMP/probe/arch-fat" "$RUNNER_TEMP/probe/arch.c"
+          cat > "$RUNNER_TEMP/build.sh" <<'EOF'
           #!/bin/bash
-          d="$(dirname "$0")"
-          echo "== $1"
-          echo "   uname -m          : $(uname -m)"
-          echo "   fat child         : $("$d/arch-fat" 2>&1)"
-          echo "   arm64-only child  : $("$d/arch-arm64" 2>&1)"
-          echo "   DYLD_INSERT_LIBRARIES set: ${DYLD_INSERT_LIBRARIES:+yes}"
+          set -eo pipefail
+          echo "TRACED: uname -m=$(uname -m) fat-child=$("$RUNNER_TEMP/probe/arch-fat") preload=${DYLD_INSERT_LIBRARIES:+set}"
+          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
+            -configuration Release-AppStore -derivedDataPath .build/DerivedData \
+            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
+          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (Direct)" \
+            -configuration Release-Direct -derivedDataPath .build/DerivedData \
+            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
           EOF
-          chmod +x probe.sh
-          test -x /opt/homebrew/bin/bash || brew install bash
-          ./probe.sh "baseline: runner shell, untraced"
+          chmod +x "$RUNNER_TEMP/build.sh"
 
-      - uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
-        id: init
-        with:
-          languages: swift
-
-      - name: Probe — runner shell, traced (as the build runs today)
+      - name: Traced build via the CLI (both flavours)
         run: |
-          for f in "$CODEQL_RUNNER" "$SEMMLE_PRELOAD_libtrace"; do echo "$(basename "$f"): $(lipo -archs "$f" 2>&1)"; done
-          "$RUNNER_TEMP/probe/probe.sh" "runner /bin/bash, action tracer"
+          "$CQ" database create "$RUNNER_TEMP/db" --language=swift --source-root=. \
+            --overwrite --command="$RUNNER_TEMP/build.sh"
 
-      - name: Probe — Homebrew arm64 bash, traced
-        shell: /opt/homebrew/bin/bash --noprofile --norc -eo pipefail {0}
+      - name: Analyze (default suite + .github/codeql)
         run: |
-          echo "shell itself: $(uname -m) (builtin-free check below)"
-          "$RUNNER_TEMP/probe/probe.sh" "homebrew arm64 bash, action tracer"
-          ( unset DYLD_INSERT_LIBRARIES; "$RUNNER_TEMP/probe/probe.sh" "homebrew arm64 bash, preload unset" )
+          "$CQ" pack install .github/codeql
+          mkdir -p .codeql-results
+          "$CQ" database analyze "$RUNNER_TEMP/db" \
+            codeql/swift-queries:codeql-suites/swift-code-scanning.qls .github/codeql \
+            --download --format=sarif-latest --sarif-category=/language:swift \
+            --output=.codeql-results/swift.sarif
+          python3 - <<'EOF'
+          import json
+          s = json.load(open(".codeql-results/swift.sarif"))
+          for r in s["runs"]:
+              ids = {x["id"] for x in r["tool"]["driver"].get("rules", [])}
+              for e in r["tool"].get("extensions", []):
+                  ids |= {x["id"] for x in e.get("rules", [])}
+              print("rules declared:", len(ids), "| outbound-network-call declared:", "netrelish/outbound-network-call" in ids, "| results:", len(r.get("results", [])))
+          EOF
 
-      - name: Probe — CLI-driven tracing from an arm64 parent (action tracer env stripped)
-        shell: /opt/homebrew/bin/bash --noprofile --norc -o pipefail {0}
-        run: |
-          cq="${{ steps.init.outputs.codeql-path }}"
-          for v in $(compgen -e | grep -E '^(DYLD_|SEMMLE_|CODEQL_TRACER|CODEQL_EXTRACTOR|CODEQL_RUNNER)'); do unset "$v"; done
-          "$RUNNER_TEMP/probe/probe.sh" "homebrew arm64 bash, tracer env stripped"
-          "$cq" database create "$RUNNER_TEMP/probe-db" --language=swift --overwrite \
-            --command="$RUNNER_TEMP/probe/probe.sh 'codeql database create --command (CLI tracer)'" 2>&1 \
-            | grep -E '^\[.*\] \[build-stdout\]|== |uname|child|DYLD' || true
+      - name: Fail if the gate fired
+        run: python3 scripts/codeql_gate.py .codeql-results
 
   analyze:
     name: Analyze (swift)
