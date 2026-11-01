@@ -79,6 +79,30 @@ import Testing
         #expect(count == 1)
     }
 
+    @Test("A shared page is announced only once it is saved, never by a write that rolls back")
+    func announcedOnlyOnCommit() throws {
+        struct Boom: Error {}
+        let store = try PantryStore(inMemory: ())
+        let url = "https://example.com/announce-\(UUID().uuidString)"   // unique: other suites capture too
+        let heard = Heard()
+        let token = NotificationCenter.default.addObserver(forName: NetRelish.onCapture.name, object: nil, queue: nil) { note in
+            if let item = note.userInfo?["value"] as? Item, item.url == url { heard.add() }
+        }
+        defer { NotificationCenter.default.removeObserver(token) }
+
+        #expect(throws: Boom.self) {
+            try store.write { db in
+                _ = try store.receive(db, [SharedPage(url: url, title: "Rolled back")])
+                throw Boom()
+            }
+        }
+        #expect(heard.count == 0)
+        #expect(try store.read { db in try store.item(db, url: url) } == nil)
+
+        _ = try store.write { db in try store.receive(db, [SharedPage(url: url, title: "Kept")]) }
+        #expect(heard.count == 1)
+    }
+
     @Test("A page shared with a clock ahead of this Mac is dated now, not in the future")
     func futureShareIsClamped() throws {
         let store = try PantryStore(inMemory: ())
@@ -88,4 +112,12 @@ import Testing
         }.first
         #expect(item?.createdAt == now)
     }
+}
+
+/// Counts notifications, from whatever thread posts them.
+private final class Heard: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = 0
+    var count: Int { lock.withLock { value } }
+    func add() { lock.withLock { value += 1 } }
 }

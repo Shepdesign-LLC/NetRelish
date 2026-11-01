@@ -128,7 +128,7 @@ public final class PantryStore: Sendable {
     // MARK: The Share extension
 
     /// Pages shared from another app's Share menu, into Brine: page Items with "The Share menu"
-    /// as their source, each announced like a ⌘D capture. Only web pages come in. A page
+    /// as their source, each announced like a ⌘D capture once the write commits. Only web pages come in. A page
     /// already waiting in Brine isn't added a second time, so sharing twice is harmless.
     @discardableResult
     public func receive(_ db: Database, _ pages: [SharedPage], now: Date = Date()) throws -> [Item] {
@@ -152,8 +152,13 @@ public final class PantryStore: Sendable {
                 url: page.url
             )
             try item.insert(db)
-            NetRelish.onCapture.emit(item)
             received.append(item)
+        }
+        // Announced only once they're saved: a write that rolls back, and leaves the pages in
+        // the inbox for the next try, has announced nothing.
+        if !received.isEmpty {
+            let saved = received
+            db.afterNextTransaction { _ in saved.forEach(NetRelish.onCapture.emit) }
         }
         return received
     }
