@@ -47,7 +47,7 @@ struct NetRelishApp: App {
                     .disabled(workbench.benchTab == nil)
                 Divider()
                 Button("Fill from Me") { workbench.fillFromMe() }.keyboardShortcut("f", modifiers: [.command, .shift])
-                    .disabled(workbench.benchTab == nil)
+                    .disabled(workbench.benchTab == nil || workbench.isReading)
             }
             CommandMenu("Tab") {
                 Button("New Tab") { workbench.newTab() }.keyboardShortcut("t", modifiers: .command)

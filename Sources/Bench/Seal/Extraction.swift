@@ -36,6 +36,8 @@ enum Extraction {
         var site: String
         var html: String
         var wordCount: Int
+        /// The page it came from, as the web view had it when Reader view read it.
+        var url: String? = nil
     }
 
     /// Fewer words than this and it isn't an article: a home page, a search, a login.
@@ -71,7 +73,8 @@ enum Extraction {
             byline: dict["byline"] as? String ?? "",
             site: dict["site"] as? String ?? "",
             html: dict["html"] as? String ?? "",
-            wordCount: (dict["words"] as? NSNumber)?.intValue ?? 0
+            wordCount: (dict["words"] as? NSNumber)?.intValue ?? 0,
+            url: webView.url?.absoluteString
         )
         log.info("reader: \(article.wordCount, privacy: .public) words")
         return article.wordCount >= articleMinimumWords ? article : nil

@@ -4,7 +4,10 @@
 import Foundation
 import GRDB
 import Observation
+import OSLog
 import Pantry
+
+private let log = Logger(subsystem: "com.shepdesign.netrelish", category: "workbench")
 
 /// SwiftUI has its own `Tab`; in this app the word means the Pantry's.
 typealias Tab = Pantry.Tab
@@ -141,8 +144,10 @@ final class Workbench {
 
     // MARK: Fill from Me
 
-    /// Bench → Fill from Me (⌘⇧F). The jar's own card wins over Me. Never runs on its own.
+    /// Bench → Fill from Me (⌘⇧F). The jar's own card wins over Me. Never runs on its own,
+    /// and never into a page Reader view is covering: you'd be filling fields you can't see.
     func fillFromMe() {
+        if isReading { report("Go back to the page to fill a form"); return }
         guard let tab = benchTab, let filler = formFiller else { return }
         Task { @MainActor in
             do {
@@ -154,7 +159,8 @@ final class Workbench {
                 let source = try tab.jarId.map { try vault.hasOverride(for: $0) } == true ? "\(activeJar?.name ?? "this jar")’s card" : "Me"
                 report(count == 0 ? "Nothing to fill on this page" : "Filled \(count) \(count == 1 ? "field" : "fields") from \(source)")
             } catch {
-                report("Couldn’t fill: \(error)")
+                log.error("fill: \(String(describing: error), privacy: .public)")
+                report("Couldn’t fill this form")
             }
         }
     }
@@ -307,6 +313,7 @@ final class Workbench {
     func newTab(url: String? = nil, interactionState: Data? = nil, in jarId: String? = nil,
                 openedBy openerId: String? = nil) -> Tab? {
         savedCopy = nil
+        reader = nil
         let target = jarId ?? (showingSmartJar ? jars.first?.id : activeJarId)
         guard let target, jars.contains(where: { $0.id == target }) else { return nil }
         if activeJarId != target { activate(jarId: target) }
@@ -469,7 +476,8 @@ final class Workbench {
             closeTab(tab)
             report("Sealed into \(jars.first { $0.id == jarId }?.name ?? "the jar")")
         } catch {
-            report("Couldn't seal: \(error)")
+            log.error("seal: \(String(describing: error), privacy: .public)")
+            report("Couldn’t seal this page")
         }
     }
 
@@ -503,9 +511,12 @@ final class Workbench {
                 return
             }
             guard benchTab?.id == tab.id else { return }    // you moved on while it was reading
-            reader = ReaderState(tabId: tab.id, url: tab.url, article: article)
+            // The page the article came from, which can be ahead of the tab's saved URL while
+            // a heavy page is still loading.
+            reader = ReaderState(tabId: tab.id, url: article.url ?? tab.url, article: article)
         } catch {
-            report("Couldn't open Reader view: \(error)")
+            log.error("reader: \(String(describing: error), privacy: .public)")
+            report("Reader view couldn’t read this page")
         }
     }
 
@@ -537,7 +548,8 @@ final class Workbench {
             refreshSmartJars()
             report("Captured into Brine")   // the ValueObservation refreshes Brine on its own
         } catch {
-            report("Couldn't capture: \(error)")
+            log.error("capture: \(String(describing: error), privacy: .public)")
+            report("Couldn’t capture this page")
         }
     }
 

@@ -143,6 +143,7 @@ import WebKit
 
         await bench.toggleReader()
         _ = bench.newTab(url: "https://example.com/other")
+        #expect(bench.reader == nil)                 // a new tab leaves it, so closing that tab can't bring it back
         let other = try #require(bench.tabs.first { $0.id == tabId })
         bench.activateTab(other)
         #expect(bench.reader == nil)
@@ -186,5 +187,63 @@ import WebKit
             #expect(defs.contains { $0.contains(entry.light) }, "\(entry.token) light should be \(entry.light)")
             #expect(defs.contains { $0.contains(entry.dark) }, "\(entry.token) dark should be \(entry.dark)")
         }
+    }
+
+    @Test("Reader view keeps the page the article came from, even before the tab's URL catches up")
+    func usesTheLivePageURL() async throws {
+        var live = sample
+        live.url = "https://example.com/next"            // the web view is already on the next page
+        let bench = try bench(live)                       // the tab still says /notes
+        let tabId = try #require(bench.activeTab?.id)
+        await bench.toggleReader()
+        #expect(bench.reader?.url == "https://example.com/next")
+        bench.tabDidNavigate(tabId, url: URL(string: "https://example.com/next"), title: "Next")
+        #expect(bench.isReading)                          // that load finishing isn't a new page
+    }
+
+    @Test("Fill from Me won't write into a page Reader view is covering")
+    func noFillWhileReading() async throws {
+        let bench = try bench(sample)
+        var filled = 0
+        bench.formFiller = { _, _ in filled += 1; return 1 }
+        await bench.toggleReader()
+        bench.fillFromMe()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(filled == 0)
+        #expect(bench.fillStatus == "Go back to the page to fill a form")
+        #expect(!PaletteSource.commands(bench).map(\.title).contains("Fill this form"))
+    }
+
+    @Test("A failure says so in plain words, never the raw error")
+    func plainFailure() async throws {
+        struct Boom: Error {}
+        let bench = try bench(sample)
+        bench.readerProvider = { _ in throw Boom() }
+        await bench.toggleReader()
+        #expect(bench.reader == nil)
+        #expect(bench.fillStatus == "Reader view couldn’t read this page")
+    }
+
+    @Test("The reader's type is the token scale: sizes, line heights, weights up to 600 (manifest §5)")
+    func typeIsTokens() throws {
+        let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let css = try String(contentsOf: repo.appendingPathComponent("design/tokens.css"), encoding: .utf8)
+        func values(_ pattern: String, in text: String) -> [String] {
+            let regex = try! NSRegularExpression(pattern: pattern)
+            return regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).compactMap {
+                Range($0.range(at: 1), in: text).map { String(text[$0]) }
+            }
+        }
+        let sizes = Set(values(#"--fs-[a-z0-9]+:\s*([0-9]+)px"#, in: css))
+        let heights = Set(values(#"--lh-[a-z]+:\s*([0-9.]+)"#, in: css))
+        let page = ReaderPage.html(for: sample)
+        let used = values(#"font-size:\s*([0-9]+)px"#, in: page) + values(#"font:\s*([0-9]+)px"#, in: page)
+        #expect(!used.isEmpty)
+        for size in used { #expect(sizes.contains(size), "\(size)px isn't on the --fs scale") }
+        for h in values(#"line-height:\s*([0-9.]+)"#, in: page) + values(#"font:\s*[0-9]+px/([0-9.]+)"#, in: page) {
+            #expect(heights.contains(h), "line height \(h) isn't an --lh token")
+        }
+        for w in values(#"font-weight:\s*([0-9]+)"#, in: page) { #expect((Int(w) ?? 0) <= 600, "weight \(w) is over 600") }
     }
 }

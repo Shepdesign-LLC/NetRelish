@@ -381,7 +381,8 @@ struct ReaderHost: NSViewRepresentable {
     func updateNSView(_ nsView: WKWebView, context: Context) { context.coordinator.openLink = follow }
 }
 
-/// The reader's one page. Colors are the Bench's tokens (tokens.css), light and dark.
+/// The reader's one page. Colors, sizes, line heights and weights are the Bench's tokens
+/// (tokens.css, manifest §5), light and dark; tests hold the page to them.
 enum ReaderPage {
     /// token → (light, dark), copied from design/tokens.css; a test holds them to it.
     static let palette: [(token: String, light: String, dark: String)] = [
@@ -413,14 +414,14 @@ enum ReaderPage {
         @media (prefers-color-scheme: dark) { :root { \(dark) } }
         html { background: var(--nr-bg); }
         body { margin: 0; padding: 48px 24px 96px; color: var(--nr-fg);
-               font: 18px/1.65 -apple-system, "SF Pro Text", system-ui, sans-serif; }
+               font: 20px/1.5 -apple-system, "SF Pro Text", system-ui, sans-serif; }
         article { max-width: 680px; margin: 0 auto; }
-        h1.title { font-size: 32px; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 8px; }
-        p.meta { color: var(--nr-fg-2); font-size: 14px; margin: 0 0 32px; padding-bottom: 16px;
+        h1.title { font-size: 28px; line-height: 1.15; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 8px; }
+        p.meta { color: var(--nr-fg-2); font-size: 13px; margin: 0 0 32px; padding-bottom: 16px;
                  border-bottom: 1px solid var(--nr-hairline); }
         a { color: var(--nr-fg); text-decoration: underline; text-underline-offset: 2px; }
         img, video, svg, figure { max-width: 100%; height: auto; }
-        figcaption { color: var(--nr-fg-2); font-size: 14px; }
+        figcaption { color: var(--nr-fg-2); font-size: 13px; }
         pre, code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 15px; }
         pre { overflow-x: auto; padding: 12px 16px; border: 1px solid var(--nr-hairline); border-radius: 6px; }
         blockquote { margin: 1.5em 0; padding-left: 1em; border-left: 2px solid var(--nr-hairline); color: var(--nr-fg-2); }
