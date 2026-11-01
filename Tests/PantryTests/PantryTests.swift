@@ -137,3 +137,66 @@ private func freshStore() throws -> PantryStore { try PantryStore(inMemory: ()) 
         #expect(aItems == [item.id])
     }
 }
+
+/// The smart jars are queries over the one Item table and the open tabs (non-negotiable 2):
+/// nothing is moved into one, so each test only writes ordinary rows and reads the query.
+@Suite("Smart jars") struct SmartJarQueryTests {
+
+    @Test("Today is everything created since midnight, in any jar, newest first")
+    func today() throws {
+        let store = try freshStore()
+        let calendar = Calendar(identifier: .gregorian)
+        let now = calendar.date(from: DateComponents(year: 2026, month: 11, day: 1, hour: 15))!
+        let midnight = calendar.startOfDay(for: now)
+        try store.write { db in
+            var jar = Jar(name: "Meridian", shelfLifeDays: 3)
+            try jar.insert(db)
+            var yesterday = Item(createdAt: midnight.addingTimeInterval(-60), title: "Yesterday")
+            var morning = Item(createdAt: midnight.addingTimeInterval(3600), title: "Morning")
+            var afternoon = Item(createdAt: now, title: "Afternoon", jarId: jar.id)
+            try yesterday.insert(db); try morning.insert(db); try afternoon.insert(db)
+        }
+        let titles = try store.read { db in try store.today(db, now: now, calendar: calendar).map(\.title) }
+        #expect(titles == ["Afternoon", "Morning"])
+    }
+
+    @Test("Sealed is every sealed item, most recently sealed first; captured items stay out")
+    func sealed() throws {
+        let store = try freshStore()
+        let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+        try store.write { db in
+            var first = Item(sealedAt: t0, state: .sealed, title: "First")
+            var second = Item(sealedAt: t0.addingTimeInterval(60), state: .sealed, title: "Second")
+            var captured = Item(title: "Captured")
+            try first.insert(db); try second.insert(db); try captured.insert(db)
+        }
+        let titles = try store.read { db in try store.sealed(db).map(\.title) }
+        #expect(titles == ["Second", "First"])
+    }
+
+    @Test("Sinking soon is the fading tabs, soonest first; pinned, fresh and forever tabs stay out")
+    func sinkingSoon() throws {
+        let store = try freshStore()
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let day: TimeInterval = 86_400
+        let ids = try store.write { db -> [String: String] in
+            var oneDay = Jar(name: "One day", shelfLifeDays: 1)
+            var forever = Jar(name: "Forever", shelfLifeDays: nil)
+            try oneDay.insert(db); try forever.insert(db)
+            func tab(_ title: String, age: TimeInterval, pinned: Bool = false, jar: Jar) throws -> String {
+                var t = Tab(isPinned: pinned, sortOrder: 0, title: title, touchedAt: now.addingTimeInterval(-age), jarId: jar.id)
+                try t.insert(db)
+                return t.id
+            }
+            return [
+                "late": try tab("Late", age: day * 0.98, jar: oneDay),
+                "fading": try tab("Fading", age: day * 0.92, jar: oneDay),
+                "fresh": try tab("Fresh", age: day * 0.5, jar: oneDay),
+                "pinned": try tab("Pinned", age: day * 0.95, pinned: true, jar: oneDay),
+                "forever": try tab("Forever", age: day * 50, jar: forever),
+            ]
+        }
+        let sinking = try store.read { db in try store.sinkingSoon(db, now: now).map(\.id) }
+        #expect(sinking == [ids["late"]!, ids["fading"]!])
+    }
+}

@@ -28,7 +28,10 @@ struct NetRelishApp: App {
                         .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: .command)
                 }
                 Divider()
-                Button("Brine") { workbench.activateBrine() }.keyboardShortcut("1", modifiers: [.command, .shift])
+                ForEach(SmartJar.allCases) { smart in
+                    Button(smart.name) { workbench.activate(smart) }
+                        .keyboardShortcut(KeyEquivalent(Character(String(smart.number))), modifiers: [.command, .shift])
+                }
                 Divider()
                 Button("Edit Jar…") { workbench.requestEditActiveJar() }.keyboardShortcut("e", modifiers: [.command, .shift])
                     .disabled(workbench.activeJar == nil)
@@ -81,7 +84,7 @@ struct ContentView: View {
         }
         .frame(minWidth: 880, minHeight: 560)
         .background(NRColor.bg)
-        .navigationTitle(workbench.showingBrine ? "Brine" : (workbench.activeJar?.name ?? "NetRelish"))
+        .navigationTitle(workbench.activeSmartJar?.name ?? workbench.activeJar?.name ?? "NetRelish")
         .navigationSubtitle("\(workbench.itemCount) \(workbench.itemCount == 1 ? "item" : "items")")
         .task { await workbench.observe() }
         .task { await workbench.runSweep() }

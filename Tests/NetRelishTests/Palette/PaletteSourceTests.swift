@@ -65,3 +65,85 @@ import Testing
         #expect(PaletteSource.pantryRows(for: "Exam", workbench: bench).first?.subtitle == "Brine")
     }
 }
+
+/// ⌘⇧1–4 and the Shelf: four smart jars, each a query, none a place to put things.
+@Suite("Smart jars") @MainActor struct SmartJarTests {
+
+    private func bench() throws -> Workbench {
+        let bench = Workbench(store: try PantryStore())
+        bench.newJar(name: "Meridian", tint: nil, shelfLifeDays: 1)
+        return bench
+    }
+
+    @Test("Smart jar ids round-trip, in shelf order, ⌘⇧1–4")
+    func ids() {
+        #expect(SmartJar.allCases.map(\.name) == ["Brine", "Today", "Sealed", "Sinking soon"])
+        #expect(SmartJar.allCases.map(\.number) == [1, 2, 3, 4])
+        for smart in SmartJar.allCases { #expect(SmartJar(id: smart.id) == smart) }
+        #expect(SmartJar(id: "smart:nope") == nil)
+        #expect(SmartJar(id: "read-later") == nil)
+        #expect(SmartJar.brineId == "smart:brine")   // the id Brine always had
+    }
+
+    @Test("Showing a smart jar hides the jar's tabs from commands, and ⌘T still opens a tab in a real jar")
+    func showingASmartJar() throws {
+        let bench = try bench()
+        let jarId = try #require(bench.activeJar?.id)
+        _ = try #require(bench.newTab(url: "https://example.com"))
+        bench.activate(.sealed)
+        #expect(bench.activeSmartJar == .sealed)
+        #expect(bench.activeJar == nil)
+        #expect(bench.benchTab == nil)
+        #expect(bench.tabs.isEmpty)
+
+        let tab = try #require(bench.newTab())
+        #expect(tab.jarId == jarId)
+        #expect(bench.activeSmartJar == nil)
+    }
+
+    @Test("Today and Sealed fill themselves as you capture and seal")
+    func fillThemselves() async throws {
+        let bench = try bench()
+        _ = bench.newTab(url: "https://example.com/terms")
+        bench.tabDidNavigate(bench.activeTab!.id, url: URL(string: "https://example.com/terms"), title: "Terms")
+        bench.captureActivePage()
+        #expect(bench.today.map(\.title) == ["Terms"])
+        #expect(bench.count(of: .sealed) == 0)
+
+        bench.sealProvider = { _ in (Data("WEBARCHIVE".utf8), Extraction.Result(title: "Terms", excerpt: "", body: "Net thirty.")) }
+        await bench.sealActiveTab()
+        #expect(bench.sealedItems.map(\.title) == ["Terms"])
+        #expect(bench.count(of: .today) == 2)          // the capture and the seal
+    }
+
+    @Test("A fading tab shows in Sinking soon, and opening it starts its shelf life over")
+    func sinkingSoon() throws {
+        let bench = try bench()
+        let jarId = try #require(bench.activeJar?.id)
+        let tab = try #require(bench.newTab(url: "https://example.com/old"))
+        try bench.store.write { db in
+            var old = try #require(try Tab.fetchOne(db, key: tab.id))
+            old.touchedAt = Date().addingTimeInterval(-86_400 * 0.95)
+            try old.update(db)
+        }
+        _ = bench.newTab(url: "https://example.com/new")   // so the old one isn't active
+        bench.activate(.sinking)
+        #expect(bench.sinkingSoon.map(\.id) == [tab.id])
+        #expect(bench.count(of: .sinking) == 1)
+
+        bench.open(try #require(bench.sinkingSoon.first))
+        #expect(bench.activeJar?.id == jarId)
+        #expect(bench.activeTabId == tab.id)
+        #expect(bench.sinkingSoon.isEmpty)
+    }
+
+    @Test("⌘K lists all four smart jars with their shortcuts")
+    func palette() throws {
+        let bench = try bench()
+        let rows = PaletteSource.jars(bench)
+        for smart in SmartJar.allCases {
+            let row = try #require(rows.first { $0.title == smart.name })
+            #expect(row.shortcut == "⌘⇧\(smart.number)")
+        }
+    }
+}

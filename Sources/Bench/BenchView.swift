@@ -1,6 +1,6 @@
 // BenchView.swift — the web panes (manifest §8 Bench + Tabs). A tab strip at tabH, the
 // address bar, and the active tab's WKWebView. One web view per tab, each on its jar's
-// data store. When the Shelf's Brine jar is active, the Bench shows Brine instead; when a
+// data store. When a smart jar is active, the Bench shows that jar's rows instead; when a
 // sealed item is opened, it shows that item's saved copy.
 
 import AppKit
@@ -78,8 +78,8 @@ struct BenchView: View {
         if let item = workbench.savedCopy {
             SavedCopyView(item: item, workbench: workbench)
                 .id(item.id)
-        } else if workbench.showingBrine {
-            BrineView(workbench: workbench)
+        } else if let smart = workbench.activeSmartJar {
+            SmartJarView(smart: smart, workbench: workbench)
         } else if let jar = workbench.activeJar {
             VStack(spacing: 0) {
                 TabStrip(workbench: workbench, jar: jar)

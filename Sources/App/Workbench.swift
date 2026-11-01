@@ -9,9 +9,60 @@ import Pantry
 /// SwiftUI has its own `Tab`; in this app the word means the Pantry's.
 typealias Tab = Pantry.Tab
 
-/// The Shelf's one smart jar for now. Not a row: Brine is a query (non-negotiable 2).
-enum SmartJar {
-    static let brineId = "smart:brine"
+/// The Shelf's smart jars, ⌘⇧1–4. None is a row: each is a query that fills itself, and
+/// nothing is ever moved into one (non-negotiable 2: Brine is a query, not a place).
+enum SmartJar: String, CaseIterable, Identifiable {
+    case brine, today, sealed, sinking
+
+    /// The id the Workbench holds in `activeJarId` while this smart jar is showing.
+    var id: String { "smart:\(rawValue)" }
+    static let brineId = SmartJar.brine.id
+
+    init?(id: String?) {
+        guard let id, id.hasPrefix("smart:") else { return nil }
+        self.init(rawValue: String(id.dropFirst("smart:".count)))
+    }
+
+    var name: String {
+        switch self {
+        case .brine: "Brine"
+        case .today: "Today"
+        case .sealed: "Sealed"
+        case .sinking: "Sinking soon"
+        }
+    }
+
+    /// The digit in its ⌘⇧ shortcut.
+    var number: Int { (Self.allCases.firstIndex(of: self) ?? 0) + 1 }
+
+    /// Under its name in ⌘K.
+    var paletteSubtitle: String {
+        switch self {
+        case .brine: "Everything unsorted"
+        case .today: "What came in today"
+        case .sealed: "Every sealed page"
+        case .sinking: "Tabs about to sink"
+        }
+    }
+
+    /// One line at the top of the smart jar, saying what fills it.
+    var blurb: String {
+        switch self {
+        case .brine: "Tabs sink here when their jar's shelf life runs out. Nothing is lost."
+        case .today: "Everything that came into your Pantry since midnight, from every jar."
+        case .sealed: "Every page you've sealed, newest first. Each one opens as it was."
+        case .sinking: "Open tabs near the end of their jar's shelf life. Open one and it starts fresh."
+        }
+    }
+
+    var emptyMessage: String {
+        switch self {
+        case .brine: "Nothing has sunk yet."
+        case .today: "Nothing came in today."
+        case .sealed: "Nothing sealed yet. Press ⌘S on a page you'll need again."
+        case .sinking: "Nothing is about to sink."
+        }
+    }
 }
 
 @MainActor
@@ -23,6 +74,11 @@ final class Workbench {
     private(set) var tabs: [Tab] = []          // the active jar's tabs, in order
     private(set) var activeTabId: String?
     private(set) var brine: [Item] = []
+    /// The Today and Sealed smart jars, kept current by `observe()`.
+    private(set) var todayItems: [Item] = []
+    private(set) var sealedItems: [Item] = []
+    /// Every open tab in every jar. Sinking soon is worked out from these and the clock.
+    private(set) var allTabs: [Tab] = []
     private(set) var itemCount = 0
     /// Ticks once a second so the strip can fade tabs in their last 10%.
     private(set) var now = Date()
@@ -45,11 +101,33 @@ final class Workbench {
     var showMeOnboarding = false
 
     var activeJar: Jar? { jars.first { $0.id == activeJarId } }
-    var showingBrine: Bool { activeJarId == SmartJar.brineId }
+    /// The smart jar the Bench is showing, if one is.
+    var activeSmartJar: SmartJar? { SmartJar(id: activeJarId) }
+    var showingSmartJar: Bool { activeSmartJar != nil }
     var activeTab: Tab? { tabs.first { $0.id == activeTabId } }
-    /// The tab the Bench is showing, or nil when Brine or a saved copy covers it. Capture,
-    /// Seal, Fill and Pin act on this, never on a tab the user can't see.
-    var benchTab: Tab? { savedCopy == nil && !showingBrine ? activeTab : nil }
+    /// The tab the Bench is showing, or nil when a smart jar or a saved copy covers it.
+    /// Capture, Seal, Fill and Pin act on this, never on a tab the user can't see.
+    var benchTab: Tab? { savedCopy == nil && !showingSmartJar ? activeTab : nil }
+
+    /// Today, re-checked against the clock, so the list empties at midnight on its own.
+    var today: [Item] {
+        let start = Calendar.current.startOfDay(for: now)
+        return todayItems.filter { $0.createdAt >= start }
+    }
+
+    /// Open tabs in the last tenth of their shelf life, soonest to sink first. The clock
+    /// ticks every second, so this moves without a database change.
+    var sinkingSoon: [Tab] { ShelfLife.sinkingSoon(allTabs, jars: jars, now: now) }
+
+    /// What a smart jar holds right now, for its count on the Shelf.
+    func count(of smart: SmartJar) -> Int {
+        switch smart {
+        case .brine: brine.count
+        case .today: today.count
+        case .sealed: sealedItems.count
+        case .sinking: sinkingSoon.count
+        }
+    }
 
     init(store: PantryStore = .shared, vault: VaultStore = .live) {
         self.store = store
@@ -103,8 +181,18 @@ final class Workbench {
         }
     }
 
+    /// Today, Sealed and every open tab. `observe()` keeps these current in the app; this
+    /// reads them straight after the Workbench's own writes, so they never lag a gesture.
+    private func refreshSmartJars() {
+        guard let smart = try? store.read({ db in
+            (try store.today(db), try store.sealed(db), try Tab.fetchAll(db))
+        }) else { return }
+        (todayItems, sealedItems, allTabs) = smart
+    }
+
     private func loadTabs() {
-        guard let jarId = activeJarId, jarId != SmartJar.brineId else { tabs = []; activeTabId = nil; return }
+        refreshSmartJars()
+        guard let jarId = activeJarId, SmartJar(id: jarId) == nil else { tabs = []; activeTabId = nil; return }
         tabs = (try? store.read { db in
             try Tab.filter(Tab.Columns.jarId == jarId).order(Tab.Columns.sortOrder).fetchAll(db)
         }) ?? []
@@ -114,16 +202,21 @@ final class Workbench {
     }
 
     func observe() async {
-        let observation = ValueObservation.tracking { db -> ([Jar], Int, [Item]) in
-            let root = try PantryStore.shared.root(db)
-            return (try root.jars(db), try Item.fetchCount(db), try root.brine(db))
+        let store = self.store
+        let observation = ValueObservation.tracking { db -> ([Jar], Int, [Item], [Item], [Item], [Tab]) in
+            let root = try store.root(db)
+            return (try root.jars(db), try Item.fetchCount(db), try root.brine(db),
+                    try store.today(db), try store.sealed(db), try Tab.fetchAll(db))
         }
         do {
-            for try await (jars, count, brine) in observation.values(in: store.dbQueue) {
+            for try await (jars, count, brine, today, sealed, allTabs) in observation.values(in: store.dbQueue) {
                 self.jars = jars
                 self.itemCount = count
                 self.brine = brine
-                if activeJarId == nil || (activeJarId != SmartJar.brineId && !jars.contains { $0.id == activeJarId }) {
+                self.todayItems = today
+                self.sealedItems = sealed
+                self.allTabs = allTabs
+                if activeJarId == nil || (!showingSmartJar && !jars.contains { $0.id == activeJarId }) {
                     activate(jars.first)
                 }
             }
@@ -155,7 +248,8 @@ final class Workbench {
         activate(jarId: jars[index].id)
     }
 
-    func activateBrine() { activate(jarId: SmartJar.brineId) }
+    func activateBrine() { activate(.brine) }
+    func activate(_ smart: SmartJar) { activate(jarId: smart.id) }
 
     private func activate(jarId: String) {
         savedCopy = nil                   // picking a jar always leaves a saved copy
@@ -164,7 +258,7 @@ final class Workbench {
         activeJarId = jarId
         activeTabId = nil
         loadTabs()
-        if jarId != SmartJar.brineId {
+        if SmartJar(id: jarId) == nil {
             try? store.write { db in
                 var root = try store.root(db)
                 root.activeJarId = jarId
@@ -208,7 +302,7 @@ final class Workbench {
     func newTab(url: String? = nil, interactionState: Data? = nil, in jarId: String? = nil,
                 openedBy openerId: String? = nil) -> Tab? {
         savedCopy = nil
-        let target = jarId ?? (showingBrine ? jars.first?.id : activeJarId)
+        let target = jarId ?? (showingSmartJar ? jars.first?.id : activeJarId)
         guard let target, jars.contains(where: { $0.id == target }) else { return nil }
         if activeJarId != target { activate(jarId: target) }
         var tab = Tab(interactionState: interactionState, isPinned: false, sortOrder: Double(tabs.count),
@@ -388,6 +482,7 @@ final class Workbench {
                     try item.update(db)
                 }
             }
+            refreshSmartJars()
             report("Captured into Brine")   // the ValueObservation refreshes Brine on its own
         } catch {
             report("Couldn't capture: \(error)")
@@ -436,6 +531,18 @@ final class Workbench {
     func snapshotData(for item: Item) -> Data? {
         guard let path = item.snapshotPath else { return nil }
         return try? store.snapshots.read(path)
+    }
+
+    /// Opens a tab from Sinking soon: its jar, then the tab, touched so its shelf life starts
+    /// over. Only the touch is written, so the tab keeps the scroll and history it had.
+    func open(_ tab: Tab) {
+        guard let jarId = tab.jarId, jars.contains(where: { $0.id == jarId }) else { return }
+        activate(jarId: jarId)
+        guard var fresh = tabs.first(where: { $0.id == tab.id }) else { return }
+        activeTabId = fresh.id
+        fresh.touchedAt = Date()
+        try? store.write { db in try fresh.update(db) }
+        loadTabs()
     }
 
     /// Reopens a Brine item as a tab, with its scroll and history, in the jar it sank from
