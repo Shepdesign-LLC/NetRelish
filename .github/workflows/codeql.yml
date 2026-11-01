@@ -230,9 +230,19 @@ jobs:
       - name: Disable SwiftPM's manifest sandbox (same trade-off as analyze)
         run: defaults write com.apple.dt.Xcode IDEPackageSupportDisableManifestSandbox -bool YES
 
-      - name: Locate the CodeQL CLI and probe binaries (untraced)
+      - name: Fetch the CodeQL CLI and build probe binaries (untraced)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          cq="$(ls -d /Users/runner/hostedtoolcache/CodeQL/*/arm64/codeql | sort -V | tail -1)/codeql"
+          # No init action, so nothing installs CodeQL for us. Same version the
+          # action used on this image (2.27.3), from the action's own release.
+          dl="$RUNNER_TEMP/cq-dl"; mkdir -p "$dl"
+          gh release download codeql-bundle-v2.27.3 -R github/codeql-action -D "$dl" -p 'codeql-bundle-osx*.tar.gz' \
+            || gh release download codeql-bundle-v2.27.3 -R github/codeql-action -D "$dl" -p 'codeql-bundle.tar.gz'
+          ls -la "$dl"
+          f="$(ls "$dl"/*arm64*.tar.gz 2>/dev/null | head -1)"; [ -n "$f" ] || f="$(ls "$dl"/*.tar.gz | head -1)"
+          tar -xzf "$f" -C "$RUNNER_TEMP"
+          cq="$RUNNER_TEMP/codeql/codeql"
           echo "CQ=$cq" >> "$GITHUB_ENV"
           "$cq" version --format=terse
           echo "uname -m before tracing: $(uname -m)"
