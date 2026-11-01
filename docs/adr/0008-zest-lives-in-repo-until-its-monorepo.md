@@ -1,6 +1,6 @@
 # ADR 0008 — Zest lives in this repo until its monorepo exists
 
-**Status:** proposed · **Date:** 2026-10-21 · **PR:** docs: Zest lineup index
+**Status:** superseded in part by ADR 0015 (Zest's free tools move into the app in 1.1) · **Date:** 2026-10-21 · **PR:** docs: Zest lineup index
 
 The Zest ecosystem — a web product line on the Vercel / Supabase / Stripe stack
 per `zest/docs/ZEST-SPEC.md` §8 — is staged in this repo under `/zest` until
