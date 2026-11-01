@@ -1,7 +1,7 @@
 // ShelfView.swift — the jar rail (manifest §8 Shelf). shelfW wide on the leading edge,
 // surface2, one jar per row with its label under it, the active row tinted relish100
 // (relish placement #3). Smart jars sit at the bottom under a hairline — Brine, Today,
-// Sealed, Sinking soon, ⌘⇧1–4 — then New Jar last.
+// Sealed, Sinking soon, ⌃⌘1–4 — then New Jar last.
 
 import Pantry
 import SwiftUI

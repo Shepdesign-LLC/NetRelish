@@ -66,7 +66,7 @@ import Testing
     }
 }
 
-/// ⌘⇧1–4 and the Shelf: four smart jars, each a query, none a place to put things.
+/// ⌃⌘1–4 and the Shelf: four smart jars, each a query, none a place to put things.
 @Suite("Smart jars") @MainActor struct SmartJarTests {
 
     private func bench() throws -> Workbench {
@@ -75,7 +75,7 @@ import Testing
         return bench
     }
 
-    @Test("Smart jar ids round-trip, in shelf order, ⌘⇧1–4")
+    @Test("Smart jar ids round-trip, in shelf order, ⌃⌘1–4")
     func ids() {
         #expect(SmartJar.allCases.map(\.name) == ["Brine", "Today", "Sealed", "Sinking soon"])
         #expect(SmartJar.allCases.map(\.number) == [1, 2, 3, 4])

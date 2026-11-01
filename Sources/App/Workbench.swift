@@ -9,7 +9,7 @@ import Pantry
 /// SwiftUI has its own `Tab`; in this app the word means the Pantry's.
 typealias Tab = Pantry.Tab
 
-/// The Shelf's smart jars, ⌘⇧1–4. None is a row: each is a query that fills itself, and
+/// The Shelf's smart jars, ⌃⌘1–4. None is a row: each is a query that fills itself, and
 /// nothing is ever moved into one (non-negotiable 2: Brine is a query, not a place).
 enum SmartJar: String, CaseIterable, Identifiable {
     case brine, today, sealed, sinking

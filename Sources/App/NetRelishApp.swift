@@ -100,7 +100,8 @@ struct ContentView: View {
 extension SmartJar {
     /// The one place the smart jars' modifier keys live: the Jars menu, the Shelf's tooltips
     /// and ⌘K all read these, so they can't disagree.
-    static let shortcutModifiers: EventModifiers = [.command, .shift]
-    static let shortcutSymbols = "⌘⇧"
+    /// ⌃⌘, not the manifest's original ⌘⇧: ⌘⇧3 and ⌘⇧4 are macOS's screenshot keys (ADR 0014).
+    static let shortcutModifiers: EventModifiers = [.control, .command]
+    static let shortcutSymbols = "⌃⌘"
     var shortcutLabel: String { "\(Self.shortcutSymbols)\(number)" }
 }

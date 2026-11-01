@@ -300,7 +300,7 @@ Five cheap features that put us at parity with the strongest read-later-with-a-b
 | Feature | Phase | Implementation | Acceptance |
 |---|---|---|---|
 | Jars are profiles | P1 | One `WKWebsiteDataStore` per jar, persisted by jar id | Log into a site in Jar A; Jar B is logged out |
-| Smart jars | P2 | Unsorted · Today · Sealed · Sinking soon — saved queries with the jar icon and a filter glyph | Appear at the bottom of the shelf; ⌘⇧1–4 |
+| Smart jars | P2 | Unsorted · Today · Sealed · Sinking soon — saved queries with the jar icon and a filter glyph | Appear at the bottom of the shelf; ⌃⌘1–4 |
 | Kind detection at capture | P2 | URL/MIME rules → `Item.kind` (YouTube → `page` with `meta.video`, PDF → `file`, github.com → `page` with `meta.repo`) | Capture 5 known URLs; kinds correct without user input |
 | Reader view | P2 | Toggle renders the Defuddle-extracted `body` in the Bench with system type | ⌘⇧R toggles; scroll position preserved |
 | Content blocker | P2 | `WKContentRuleList` compiled from EasyList at first launch, per-jar on/off | Ad-heavy page loads with blocker on; toggle off reloads with ads |
