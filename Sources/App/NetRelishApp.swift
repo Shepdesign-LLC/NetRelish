@@ -21,6 +21,8 @@ struct NetRelishApp: App {
         _workbench = State(initialValue: workbench)
         // The Shortcuts that act on the app (Seal the page in front, Open a Jar) find it here.
         AppDependencyManager.shared.add(dependency: workbench)
+        // "Open <jar> in NetRelish" needs the jar names: told at launch and on every change.
+        workbench.onJarsChanged = { _ in NetRelishShortcuts.updateAppShortcutParameters() }
         #if DEBUG
         DesignKitSnapshot.runIfRequested()
         #endif

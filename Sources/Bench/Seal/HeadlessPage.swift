@@ -27,6 +27,13 @@ final class HeadlessPage: NSObject, WKNavigationDelegate {
     /// so the text Seal pulls out matches what you'd see.
     private let window: NSWindow
     private var pending: CheckedContinuation<Void, Error>?
+    /// The whole load's time limit, from the first request to the page it settles on.
+    private var deadline: Task<Void, Never>?
+    /// The pause after a page finishes, restarted by every new page a redirect brings.
+    private var settling: Task<Void, Never>?
+    private var settle: Duration = .zero
+    /// True once a page has finished loading in this load.
+    private var loadedOnce = false
 
     /// A page in `jarId`'s profile, so it loads with that jar's sign-ins and nobody else's.
     init(jarId: String) {
@@ -44,32 +51,54 @@ final class HeadlessPage: NSObject, WKNavigationDelegate {
         webView.navigationDelegate = self
     }
 
-    /// Loads `url` and returns once it has finished, plus a short pause for scripts that fill
-    /// the page after load.
+    /// Loads `url` and returns once the page has settled: it finished, and nothing new
+    /// started for `settle`. That gives scripts that fill the page after load time to run,
+    /// and follows a script or meta-refresh redirect to the page it lands on. A redirect that
+    /// fails fails the load, and `timeout` covers everything from the first request.
     func load(_ url: URL, timeout seconds: Int = 30, settle: Duration = .milliseconds(800)) async throws {
-        try await wait(seconds: seconds) { $0.load(URLRequest(url: url)) }
-        try? await Task.sleep(for: settle)
+        try await wait(seconds: seconds, settle: settle) { $0.load(URLRequest(url: url)) }
     }
 
     /// Tests load markup directly, with no network.
-    func load(html: String, baseURL: URL?, timeout seconds: Int = 10) async throws {
-        try await wait(seconds: seconds) { $0.loadHTMLString(html, baseURL: baseURL) }
+    func load(html: String, baseURL: URL?, timeout seconds: Int = 10, settle: Duration = .zero) async throws {
+        try await wait(seconds: seconds, settle: settle) { $0.loadHTMLString(html, baseURL: baseURL) }
     }
 
-    private func wait(seconds: Int, start: (WKWebView) -> Void) async throws {
+    private func wait(seconds: Int, settle: Duration, start: (WKWebView) -> Void) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             pending = continuation
+            self.settle = settle
+            loadedOnce = false
+            refusedFile = false
             start(webView)
-            Task { [weak self] in
-                try? await Task.sleep(for: .seconds(seconds))
+            deadline = Task { [weak self] in
+                do { try await Task.sleep(for: .seconds(seconds)) } catch { return }
                 self?.finish(.failure(Failure.timedOut(seconds)))
             }
+        }
+    }
+
+    /// Starts the settling pause over. `whenIdle` is for a navigation that ended without a
+    /// page of its own: the load only finishes if no other page is still on its way.
+    private func startSettling(whenIdle: Bool = false) {
+        settling?.cancel()
+        settling = nil
+        if settle == .zero, !whenIdle { finish(.success(())); return }
+        let settle = self.settle
+        settling = Task { [weak self] in
+            do { try await Task.sleep(for: settle) } catch { return }
+            guard let self, !(whenIdle && self.webView.isLoading) else { return }
+            self.finish(.success(()))
         }
     }
 
     private func finish(_ result: Result<Void, Error>) {
         guard let pending else { return }
         self.pending = nil
+        deadline?.cancel()
+        deadline = nil
+        settling?.cancel()
+        settling = nil
         if case .failure = result { webView.stopLoading() }
         pending.resume(with: result)
     }
@@ -80,8 +109,16 @@ final class HeadlessPage: NSObject, WKNavigationDelegate {
     /// "Frame load interrupted".
     private var refusedFile = false
 
+    /// A new page is on its way, a redirect by script or meta refresh among them: the pause
+    /// waits for it.
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        settling?.cancel()
+        settling = nil
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        finish(.success(()))
+        loadedOnce = true
+        startSettling()
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) {
@@ -93,9 +130,14 @@ final class HeadlessPage: NSObject, WKNavigationDelegate {
     }
 
     private func failed(_ error: any Error) {
-        // A page that redirects itself while loading cancels the first navigation; the next
-        // one carries on, and finishes or times out.
-        if (error as NSError).domain == NSURLErrorDomain, (error as NSError).code == NSURLErrorCancelled { return }
+        let cancelled = (error as NSError).domain == NSURLErrorDomain && (error as NSError).code == NSURLErrorCancelled
+        // A redirect cancels the navigation it replaces; the next one finishes or fails on its
+        // own. A page that has loaded and then reaches for a file stays the page it was.
+        if cancelled || (loadedOnce && refusedFile) {
+            refusedFile = false
+            if loadedOnce { startSettling(whenIdle: true) }
+            return
+        }
         finish(.failure(Failure.failed(refusedFile ? "That link is a file, not a page." : error.localizedDescription)))
     }
 

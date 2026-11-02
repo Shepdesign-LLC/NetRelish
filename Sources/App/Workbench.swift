@@ -265,6 +265,11 @@ final class Workbench {
         do {
             for try await (jars, count, brine, today, sealed, allTabs) in observation.values(in: store.dbQueue) {
                 self.jars = jars
+                let names = jars.map { "\($0.id)\u{1F}\($0.name)" }
+                if names != jarNamesTold {
+                    jarNamesTold = names
+                    onJarsChanged?(jars)
+                }
                 self.itemCount = count
                 self.brine = brine
                 self.todayItems = today
@@ -274,10 +279,17 @@ final class Workbench {
                     activate(jars.first)
                 }
             }
+        } catch is CancellationError {
+            // The window went away; nothing to keep current.
         } catch {
             assertionFailure("Workbench.observe: \(error)")
         }
     }
+
+    /// Set by the app: called at launch and whenever a jar is added, renamed or removed, so
+    /// Siri and Spotlight know the names in "Open <jar> in NetRelish".
+    var onJarsChanged: (([Jar]) -> Void)?
+    @ObservationIgnored private var jarNamesTold: [String]?
 
     /// The sweep: every few seconds, sink what is past its shelf life; every second, tick the clock.
     func runSweep() async {
@@ -492,6 +504,8 @@ final class Workbench {
 
         do {
             let (archive, extracted) = try await provider(tab)
+            // A Shortcut stopped while the page froze keeps nothing: no item, no Recipe.
+            try Task.checkCancellation()
             try store.write { db in
                 _ = try store.sealPage(
                     db, url: tab.url,
@@ -499,9 +513,11 @@ final class Workbench {
                     body: extracted.body, excerpt: extracted.excerpt,
                     archive: archive, jarId: jarId, source: .browse)
             }
-            closeTab(tab)
+            closeIfStillOn(tab)
             report("Sealed into \(jars.first { $0.id == jarId }?.name ?? "the jar")")
             return true
+        } catch is CancellationError {
+            return false
         } catch {
             log.error("seal: \(String(describing: error), privacy: .public)")
             report("Couldn’t seal this page")
@@ -537,9 +553,10 @@ final class Workbench {
 
     /// Shortcuts' Seal with a link: a full Seal of a page that isn't open, the same as ⌘S
     /// would make of it. Into `jarId`, or the jar the page was last kept in, else the active
-    /// jar, else the first on the Shelf.
+    /// jar, else the first on the Shelf. The page loads in that jar's profile, unless
+    /// `profileJarId` names another (a tab's own jar, whose sign-ins the page was open with).
     @discardableResult
-    func sealPage(at url: URL, into jarId: String?) async throws -> Item {
+    func sealPage(at url: URL, into jarId: String?, profileJarId: String? = nil) async throws -> Item {
         guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
             throw ShortcutError.notAWebPage
         }
@@ -553,10 +570,17 @@ final class Workbench {
         }
         let page: OffscreenPage
         do {
-            page = try await offscreenLoader(url, target.id)
+            page = try await offscreenLoader(url, profileJarId ?? target.id)
+        } catch let failure as HeadlessPage.Failure {
+            log.error("offscreen seal: \(failure.description, privacy: .public)")
+            throw ShortcutError.pageDidNotLoad(failure.description)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
+            // Freezing or reading the page went wrong, not loading it. The details are for
+            // the log; the person gets a plain sentence.
             log.error("offscreen seal: \(String(describing: error), privacy: .public)")
-            throw ShortcutError.pageDidNotLoad(String(describing: error))
+            throw ShortcutError.couldNotSeal
         }
         // A Shortcut cancelled while the page loaded keeps nothing: no item, no Recipe.
         try Task.checkCancellation()
@@ -584,12 +608,25 @@ final class Workbench {
         if let jarId, !jars.contains(where: { $0.id == jarId }) { throw ShortcutError.jarGone }
         let title = tab.title?.isEmpty == false ? tab.title! : link
         if sealProvider != nil, livePageAvailable?(tab) == true {
-            guard await sealActiveTab(into: jarId) else { throw ShortcutError.couldNotSeal }
+            guard await sealActiveTab(into: jarId) else {
+                try Task.checkCancellation()
+                throw ShortcutError.couldNotSeal
+            }
             return title
         }
-        let item = try await sealPage(at: url, into: jarId ?? tab.jarId)
-        closeTab(tab)
+        // Loaded in the tab's own jar, so the page is the one its sign-ins show, as ⌘S would
+        // freeze it (non-negotiable 6), then kept in the jar named.
+        let item = try await sealPage(at: url, into: jarId ?? tab.jarId, profileJarId: tab.jarId)
+        closeIfStillOn(tab)
         return item.title
+    }
+
+    /// Closes a tab after Seal, unless it went to another page while Seal worked: then only
+    /// the page it was on is sealed, and the page it's on now stays open.
+    private func closeIfStillOn(_ tab: Tab) {
+        let now = tabs.first { $0.id == tab.id } ?? (try? store.read { db in try Tab.fetchOne(db, key: tab.id) })
+        guard let now, now.url == tab.url else { return }
+        closeTab(now)
     }
 
     /// Shortcuts' "Open a Jar": shows the jar on the Bench. False if it no longer exists.
