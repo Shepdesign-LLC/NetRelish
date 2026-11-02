@@ -19,7 +19,8 @@ icon = os.path.join(app, "Contents", "Resources", "AppIcon.icns")
 # background.png; dmgbuild finds background@2x.png beside it and packs one HiDPI TIFF.
 background = defines["background"]  # noqa: F821
 
-window_rect = ((200, 140), (layout["width"], layout["height"]))
+# Finder counts the title bar inside the height; without it the footer is cut off.
+window_rect = ((200, 140), (layout["width"], layout["height"] + layout["titleBarHeight"]))
 default_view = "icon-view"
 show_status_bar = False
 show_tab_view = False

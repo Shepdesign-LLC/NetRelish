@@ -103,7 +103,10 @@ func drawIcons(app: String) {
         ("/Applications", "Applications", layout.applications),
     ]
     for (path, name, point) in items {
-        let icon = NSWorkspace.shared.icon(forFile: path)
+        // A freshly built app isn't registered with Launch Services yet, so ask for its own
+        // icon file rather than the generic one Finder would guess.
+        let own = (path as NSString).appendingPathComponent("Contents/Resources/AppIcon.icns")
+        let icon = NSImage(contentsOfFile: own) ?? NSWorkspace.shared.icon(forFile: path)
         let rect = NSRect(x: point[0] - layout.iconSize / 2, y: flip(point[1]) - layout.iconSize / 2,
                           width: layout.iconSize, height: layout.iconSize)
         icon.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)

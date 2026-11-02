@@ -1,7 +1,8 @@
 {
-  "comment": "The disk image window, in points. gen-dmg-background.swift draws to it and settings.py lays Finder out by it, so the two always agree.",
+  "comment": "The disk image window, in points. gen-dmg-background.swift draws to it and settings.py lays Finder out by it, so the two always agree. Finder counts its title bar inside the window's height, so the window is height + titleBarHeight tall.",
   "width": 640,
   "height": 400,
+  "titleBarHeight": 32,
   "iconSize": 128,
   "textSize": 13,
   "app": [176, 168],
