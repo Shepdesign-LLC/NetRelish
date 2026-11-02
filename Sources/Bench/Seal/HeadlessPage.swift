@@ -73,6 +73,8 @@ final class HeadlessPage: NSObject, WKNavigationDelegate {
             start(webView)
             deadline = Task { [weak self] in
                 do { try await Task.sleep(for: .seconds(seconds)) } catch { return }
+                // A timer that had already run out when it was stopped still wakes: ignore it.
+                guard !Task.isCancelled else { return }
                 self?.finish(.failure(Failure.timedOut(seconds)))
             }
         }
@@ -87,7 +89,7 @@ final class HeadlessPage: NSObject, WKNavigationDelegate {
         let settle = self.settle
         settling = Task { [weak self] in
             do { try await Task.sleep(for: settle) } catch { return }
-            guard let self, !(whenIdle && self.webView.isLoading) else { return }
+            guard !Task.isCancelled, let self, !(whenIdle && self.webView.isLoading) else { return }
             self.finish(.success(()))
         }
     }
