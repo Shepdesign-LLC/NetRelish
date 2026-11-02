@@ -7,7 +7,7 @@ name: Disk image preview
 # The artifact "disk-image-preview" holds:
 #   preview.png / preview@2x.png  the window, drawn from the same layout Finder uses
 #   finder.png                    a capture of Finder showing it, when the runner allows one
-#   NetRelish-preview.dmg         the image itself (unsigned: open it with Control-click, Open)
+#   NetRelish-preview.dmg         the image itself (signed ad hoc, not notarized: Control-click, Open)
 
 permissions:
   contents: read
@@ -43,9 +43,10 @@ jobs:
           xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (Direct)" -configuration Release-Direct \
             -derivedDataPath "$DERIVED" -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
 
+      - name: Sign it ad hoc, so the image's signature check runs as in a release
+        run: codesign --force --deep --sign - "$DERIVED/Build/Products/Release-Direct/NetRelish.app"
+
       - name: Make the disk image
-        env:
-          MAKE_DMG_UNSIGNED: "1"
         run: |
           mkdir -p "$RUNNER_TEMP/out"
           scripts/dmg/make-dmg.sh "$DERIVED/Build/Products/Release-Direct/NetRelish.app" \

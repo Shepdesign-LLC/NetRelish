@@ -12,7 +12,9 @@ format = "ULFO"            # lzfse: smaller than zlib, and the OS floor is macOS
 filesystem = "HFS+"
 files = [app]
 symlinks = {"Applications": "/Applications"}
-hide_extensions = [app_name]
+# No hide_extensions: dmgbuild hides one by writing com.apple.FinderInfo onto the bundle,
+# which breaks its code signature ("resource fork, Finder information, or similar detritus
+# not allowed"; v0.4.2's first run). Finder hides ".app" by default anyway.
 
 # The disk's own icon is the app icon: the mark, never redrawn (manifest §2).
 icon = os.path.join(app, "Contents", "Resources", "AppIcon.icns")
