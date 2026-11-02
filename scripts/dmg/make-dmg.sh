@@ -54,7 +54,11 @@ check "Applications"
 check ".background.tiff"
 check ".DS_Store"
 check ".VolumeIcon.icns"
-codesign --verify --deep --strict "$MOUNT/NetRelish.app" 2>/dev/null || [ "${MAKE_DMG_UNSIGNED:-}" = 1 ] || {
-  hdiutil detach "$MOUNT" -quiet; echo "make-dmg: the app's signature didn't survive the copy" >&2; exit 1; }
+if [ "${MAKE_DMG_UNSIGNED:-}" != 1 ] && ! codesign --verify --deep --strict --verbose=2 "$MOUNT/NetRelish.app"; then
+  xattr -l "$MOUNT/NetRelish.app" >&2 || true
+  hdiutil detach "$MOUNT" -quiet
+  echo "make-dmg: the app's signature didn't survive the copy (codesign says why, above)" >&2
+  exit 1
+fi
 hdiutil detach "$MOUNT" -quiet
 echo "wrote $OUT"
