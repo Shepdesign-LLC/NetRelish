@@ -6,6 +6,11 @@ import AppIntents
 import Foundation
 import GRDB
 
+/// The Pantry's Item. Inside an EntityQuery, `Item` names the query's own result type
+/// (`IntentItem`), so this file says `PantryRecord` for the model. (Not `Pantry.Item`: the
+/// SwiftPM build calls the module PantryKit.)
+typealias PantryRecord = Item
+
 /// A jar, as Shortcuts offers it in a picker and as Siri hears it ("Open Clients").
 public struct JarEntity: AppEntity, Sendable {
     public static let typeDisplayRepresentation: TypeDisplayRepresentation = "Jar"
@@ -67,7 +72,7 @@ public struct PantryItemEntity: AppEntity {
     /// "Sealed", "In Brine", or "In <jar>", the way the Panel says it.
     public let place: String
 
-    public init(_ item: Item, jarName: String?) {
+    init(_ item: PantryRecord, jarName: String?) {
         id = item.id
         place = switch item.state {
         case .sealed: jarName.map { "Sealed in \($0)" } ?? "Sealed"
@@ -93,7 +98,7 @@ public struct PantryItemQuery: EntityQuery, Sendable {
 
     public static func items(in store: PantryStore, ids: [String]) throws -> [PantryItemEntity] {
         try store.read { db in
-            try Item.filter(keys: ids).fetchAll(db).map { try entity($0, db) }
+            try PantryRecord.filter(keys: ids).fetchAll(db).map { try entity($0, db) }
         }
     }
 
@@ -104,7 +109,7 @@ public struct PantryItemQuery: EntityQuery, Sendable {
         }
     }
 
-    private static func entity(_ item: Item, _ db: Database) throws -> PantryItemEntity {
+    private static func entity(_ item: PantryRecord, _ db: Database) throws -> PantryItemEntity {
         PantryItemEntity(item, jarName: try item.jarId.flatMap { try Jar.fetchOne(db, key: $0)?.name })
     }
 }
