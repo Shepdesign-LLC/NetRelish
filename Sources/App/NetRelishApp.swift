@@ -1,13 +1,14 @@
 // NetRelishApp.swift — the app. SwiftUI lifecycle, one main window, and the
 // DEBUG-only Design Kit as a second Window scene (Window → Design Kit).
 
+import AppIntents
 import GRDB
 import Pantry
 import SwiftUI
 
 @main
 struct NetRelishApp: App {
-    @State private var workbench = Workbench(inbox: NetRelishApp.shareInbox)
+    @State private var workbench: Workbench
 
     /// The Share extension's inbox, except when this app is hosting the tests: they must never
     /// take what you've shared into the Pantry.
@@ -16,6 +17,10 @@ struct NetRelishApp: App {
     }
 
     init() {
+        let workbench = Workbench(inbox: NetRelishApp.shareInbox)
+        _workbench = State(initialValue: workbench)
+        // The Shortcuts that act on the app (Seal the page in front, Open a Jar) find it here.
+        AppDependencyManager.shared.add(dependency: workbench)
         #if DEBUG
         DesignKitSnapshot.runIfRequested()
         #endif

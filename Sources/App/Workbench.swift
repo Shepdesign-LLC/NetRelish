@@ -471,6 +471,8 @@ final class Workbench {
 
     /// Set by the Bench: freezes the tab's page and pulls its text out. Stubbed in tests.
     var sealProvider: ((Tab) async throws -> (Data, Extraction.Result))?
+    /// Set by the Bench: whether a tab's page is loaded in a live web view right now.
+    var livePageAvailable: ((Tab) -> Bool)?
     /// Increments to run the drip. The Bench watches it; nothing else does.
     private(set) var sealTrigger = 0
     /// The jar the drip is falling into, so its badge can tick over.
@@ -479,50 +481,123 @@ final class Workbench {
     /// Seal: stamp `sealedAt`, freeze the `.webarchive`, close the tab, fire `onSeal`, and run
     /// the jar's default Recipe (non-negotiable 3). The drip starts first and the disk work
     /// happens behind it, so the gesture feels instant however heavy the page is.
-    func sealActiveTab() async {
-        guard let tab = benchTab, let jarId = tab.jarId, let provider = sealProvider else {
+    @discardableResult
+    func sealActiveTab(into chosenJarId: String? = nil) async -> Bool {
+        guard let tab = benchTab, let jarId = chosenJarId ?? tab.jarId, let provider = sealProvider else {
             report("Nothing to seal — open a page first")
-            return
+            return false
         }
         sealingJarId = jarId
         sealTrigger += 1
 
         do {
             let (archive, extracted) = try await provider(tab)
-            let now = Date()
             try store.write { db in
-                var item = Item(
-                    body: extracted.body.isEmpty ? nil : extracted.body,
-                    createdAt: now,
-                    domain: tab.url.flatMap { URL(string: $0)?.host },
-                    excerpt: extracted.excerpt.isEmpty ? nil : extracted.excerpt,
-                    kind: .page,
-                    source: .browse,
-                    state: .brined,
+                _ = try store.sealPage(
+                    db, url: tab.url,
                     title: extracted.title.isEmpty ? (tab.title ?? tab.url ?? "Untitled") : extracted.title,
-                    updatedAt: now,
-                    url: tab.url,
-                    jarId: jarId
-                )
-                try item.insert(db)
-                // The id names the file, so the archive is written after the insert.
-                item.snapshotPath = try store.snapshots.write(archive, for: item.id)
-                try item.update(db)
-                _ = try store.root(db).seal(db, item: item)
-
-                // The jar's default Recipe, if it has one. P3 gives it an editor.
-                if let jar = try Jar.fetchOne(db, key: jarId), let recipeId = jar.defaultRecipeId,
-                   let recipe = try Recipe.fetchOne(db, key: recipeId),
-                   let sealed = try Item.fetchOne(db, key: item.id) {
-                    _ = try store.root(db).runRecipe(db, recipe: recipe, items: [sealed])
-                }
+                    body: extracted.body, excerpt: extracted.excerpt,
+                    archive: archive, jarId: jarId, source: .browse)
             }
             closeTab(tab)
             report("Sealed into \(jars.first { $0.id == jarId }?.name ?? "the jar")")
+            return true
         } catch {
             log.error("seal: \(String(describing: error), privacy: .public)")
             report("Couldn’t seal this page")
+            return false
         }
+    }
+
+    // MARK: Seal from Shortcuts
+
+    /// What an off-screen load hands Seal: the frozen page, its text, and where it ended up.
+    struct OffscreenPage: Sendable {
+        var archive: Data
+        var extracted: Extraction.Result
+        var url: String
+        var title: String?
+    }
+
+    /// Loads a page off screen in a jar's profile (non-negotiable 6) and freezes it. The real
+    /// loader by default; tests stub it, as they stub `sealProvider`.
+    var offscreenLoader: @MainActor (URL, String) async throws -> OffscreenPage = { url, jarId in
+        try await Workbench.loadOffscreen(url, jarId: jarId)
+    }
+
+    static func loadOffscreen(_ url: URL, jarId: String) async throws -> OffscreenPage {
+        let page = HeadlessPage(jarId: jarId)
+        try await page.load(url)
+        let extracted = try await Extraction.run(in: page.webView)   // while the page is live
+        let archive = try await page.webView.dataForWebArchive()
+        return OffscreenPage(archive: archive, extracted: extracted,
+                             url: page.webView.url?.absoluteString ?? url.absoluteString,
+                             title: page.webView.title)
+    }
+
+    /// Shortcuts' Seal with a link: a full Seal of a page that isn't open, the same as ⌘S
+    /// would make of it. Into `jarId`, or the jar the page was last kept in, else the active
+    /// jar, else the first on the Shelf.
+    @discardableResult
+    func sealPage(at url: URL, into jarId: String?) async throws -> Item {
+        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
+            throw ShortcutError.notAWebPage
+        }
+        let target: Jar = try store.read { db in
+            if let jarId {
+                guard let jar = try Jar.fetchOne(db, key: jarId) else { throw ShortcutError.jarGone }
+                return jar
+            }
+            guard let jar = try store.jarForSealing(db, url: url.absoluteString) else { throw ShortcutError.noJar }
+            return jar
+        }
+        let page: OffscreenPage
+        do {
+            page = try await offscreenLoader(url, target.id)
+        } catch {
+            log.error("offscreen seal: \(String(describing: error), privacy: .public)")
+            throw ShortcutError.pageDidNotLoad(String(describing: error))
+        }
+        // A Shortcut cancelled while the page loaded keeps nothing: no item, no Recipe.
+        try Task.checkCancellation()
+        let title = page.extracted.title.isEmpty
+            ? (page.title?.isEmpty == false ? page.title! : page.url)
+            : page.extracted.title
+        let item = try store.write { db in
+            try store.sealPage(db, url: page.url, title: title, body: page.extracted.body,
+                               excerpt: page.extracted.excerpt, archive: page.archive,
+                               jarId: target.id, source: .shortcut)
+        }
+        refreshSmartJars()
+        report("Sealed into \(target.name)")
+        return item
+    }
+
+    /// Shortcuts' Seal with no link: the page in front, as ⌘S seals it, into `jarId` if the
+    /// Shortcut names one, else the tab's own jar. If the page isn't loaded in a live web view
+    /// (no window, or a tab not shown yet), it's loaded off screen instead. Either way the tab
+    /// closes, the way ⌘S closes it. Returns the sealed page's title.
+    func sealFrontPage(into jarId: String? = nil) async throws -> String {
+        guard let tab = benchTab, let link = tab.url, let url = URL(string: link) else {
+            throw ShortcutError.nothingOpen
+        }
+        if let jarId, !jars.contains(where: { $0.id == jarId }) { throw ShortcutError.jarGone }
+        let title = tab.title?.isEmpty == false ? tab.title! : link
+        if sealProvider != nil, livePageAvailable?(tab) == true {
+            guard await sealActiveTab(into: jarId) else { throw ShortcutError.couldNotSeal }
+            return title
+        }
+        let item = try await sealPage(at: url, into: jarId ?? tab.jarId)
+        closeTab(tab)
+        return item.title
+    }
+
+    /// Shortcuts' "Open a Jar": shows the jar on the Bench. False if it no longer exists.
+    @discardableResult
+    func show(jarId: String) -> Bool {
+        guard jars.contains(where: { $0.id == jarId }) else { return false }
+        activate(jarId: jarId)
+        return true
     }
 
     // MARK: The Panel (⌘⌥I)

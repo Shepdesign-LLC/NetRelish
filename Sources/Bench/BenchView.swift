@@ -122,6 +122,12 @@ struct BenchView: View {
         workbench.readerProvider = { [webViews] tab in
             try await Extraction.article(in: webViews.view(for: tab).webView)
         }
+        // Shortcuts seal a tab live only when its page is already loaded in a web view;
+        // otherwise they load it off screen rather than freeze a page that hasn't arrived.
+        workbench.livePageAvailable = { [webViews] tab in
+            guard let web = webViews.existing(for: tab.id)?.webView else { return false }
+            return !web.isLoading && web.url != nil
+        }
     }
 }
 

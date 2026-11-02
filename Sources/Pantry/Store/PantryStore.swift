@@ -85,14 +85,16 @@ public final class PantryStore: Sendable {
     }
 
     /// Full-text search over title, excerpt and body. Returns items, best match first.
-    public func search(_ db: Database, _ query: String) throws -> [Item] {
+    public func search(_ db: Database, _ query: String, limit: Int? = nil) throws -> [Item] {
         guard let pattern = FTS5Pattern(matchingAllPrefixesIn: query) else { return [] }
-        return try Item.fetchAll(db, sql: """
+        let sql = """
             SELECT items.* FROM items
             JOIN items_fts ON items_fts.rowid = items.rowid
             WHERE items_fts MATCH ?
             ORDER BY bm25(items_fts)
-            """, arguments: [pattern])
+            """
+        guard let limit else { return try Item.fetchAll(db, sql: sql, arguments: [pattern]) }
+        return try Item.fetchAll(db, sql: sql + " LIMIT ?", arguments: [pattern, max(0, limit)])
     }
 
     // MARK: The Panel
@@ -123,6 +125,77 @@ public final class PantryStore: Sendable {
     /// Takes a label off an item. The label itself stays, for the other items that carry it.
     public func removeLabel(_ db: Database, _ label: Label, from item: Item) throws {
         try item.setLabels(try item.labels(db).map(\.id).filter { $0 != label.id }, db)
+    }
+
+    // MARK: Capture and Seal, shared by the app and Shortcuts
+
+    /// A page Item in Brine, the way ⌘D makes one, but saying where it came from (the Panel
+    /// shows it): `.shortcut` for Shortcuts and Siri. The title is the URL until a seal fills it.
+    /// Announced once the write commits.
+    @discardableResult
+    public func capture(_ db: Database, url: String, title: String? = nil, source: CaptureSource, now: Date = Date()) throws -> Item {
+        let given = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        var item = Item(
+            createdAt: now,
+            domain: URL(string: url)?.host,
+            kind: .page,
+            source: source,
+            state: .brined,
+            title: given.isEmpty ? url : given,
+            updatedAt: now,
+            url: url
+        )
+        try item.insert(db)
+        let saved = item
+        db.afterNextTransaction { _ in NetRelish.onCapture.emit(saved) }
+        return item
+    }
+
+    /// Seal (non-negotiable 3), in one place for ⌘S and Shortcuts: a new page Item in the jar,
+    /// its `.webarchive` frozen beside it, `sealedAt` stamped, `onSeal` fired, and the jar's
+    /// default Recipe run. Nothing changes the snapshot afterwards.
+    @discardableResult
+    public func sealPage(_ db: Database, url: String?, title: String, body: String?, excerpt: String?,
+                         archive: Data, jarId: String, source: CaptureSource, now: Date = Date()) throws -> Item {
+        var item = Item(
+            body: body?.isEmpty == false ? body : nil,
+            createdAt: now,
+            domain: url.flatMap { URL(string: $0)?.host },
+            excerpt: excerpt?.isEmpty == false ? excerpt : nil,
+            kind: .page,
+            source: source,
+            state: .brined,
+            title: title,
+            updatedAt: now,
+            url: url,
+            jarId: jarId
+        )
+        try item.insert(db)
+        // The id names the file, so the archive is written after the insert.
+        item.snapshotPath = try snapshots.write(archive, for: item.id)
+        try item.update(db)
+        let sealed = try root(db).seal(db, item: item)
+
+        // The jar's default Recipe, if it has one.
+        if let jar = try Jar.fetchOne(db, key: jarId), let recipeId = jar.defaultRecipeId,
+           let recipe = try Recipe.fetchOne(db, key: recipeId),
+           let current = try Item.fetchOne(db, key: item.id) {
+            _ = try root(db).runRecipe(db, recipe: recipe, items: [current])
+        }
+        return try Item.fetchOne(db, key: item.id) ?? sealed
+    }
+
+    /// The jar a Shortcut seals into when it doesn't name one: the jar the page was last
+    /// captured or sealed into, else the active jar, else the first on the Shelf.
+    public func jarForSealing(_ db: Database, url: String) throws -> Jar? {
+        if let id = try Item.filter(Item.Columns.url == url && Item.Columns.jarId != nil)
+            .order(Item.Columns.updatedAt.desc).fetchOne(db)?.jarId,
+           let jar = try Jar.fetchOne(db, key: id) {
+            return jar
+        }
+        let root = try root(db)
+        if let active = try root.activeJar(db) { return active }
+        return try root.jars(db).first
     }
 
     // MARK: The Share extension

@@ -1,6 +1,6 @@
-// CaptureIntent.swift — "Capture in NetRelish". Shortcuts and Siri call the same
-// NetRelish.capture the app does (non-negotiable 7: every Recipe is an App Intent;
-// capture and seal are the first two).
+// CaptureIntent.swift — "Capture in NetRelish". Shortcuts and Siri put a page in Brine the
+// way ⌘D does, with "Shortcuts" as its source (non-negotiable 7: every Recipe is an App
+// Intent; capture and seal are the first two).
 
 import AppIntents
 import Foundation
@@ -23,9 +23,11 @@ public struct CaptureIntent: AppIntent {
     public func perform() async throws -> some IntentResult & ReturnsValue<String> {
         let store = PantryStore.shared
         let link = url.absoluteString
+        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
+            throw ShortcutError.notAWebPage
+        }
         let title = try store.write { db in
-            let root = try store.root(db)
-            return try root.capture(db, url: link).title
+            try store.capture(db, url: link, source: .shortcut).title
         }
         return .result(value: title)
     }
