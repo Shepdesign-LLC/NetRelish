@@ -204,11 +204,8 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           DMG="${{ steps.version.outputs.dmg }}"
-          STAGE="$RUNNER_TEMP/dmg"
-          mkdir -p "$STAGE"
-          ditto "$APP" "$STAGE/NetRelish.app"
-          ln -s /Applications "$STAGE/Applications"
-          hdiutil create -volname "NetRelish" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
+          # The window it opens to is laid out to the brand: scripts/dmg (ADR 0019).
+          scripts/dmg/make-dmg.sh "$APP" "$DMG"
           codesign --sign "$APPLE_SIGNING_IDENTITY" --timestamp --keychain "$KEYCHAIN" "$DMG"
           xcrun notarytool submit "$DMG" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
             --password "$APPLE_PASSWORD" --wait --timeout 30m --output-format json > "$RUNNER_TEMP/notary-dmg.json" || true

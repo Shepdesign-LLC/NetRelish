@@ -1,0 +1,11 @@
+{
+  "comment": "The disk image window, in points. gen-dmg-background.swift draws to it and settings.py lays Finder out by it, so the two always agree.",
+  "width": 640,
+  "height": 400,
+  "iconSize": 128,
+  "textSize": 13,
+  "app": [176, 168],
+  "applications": [464, 168],
+  "footerHeight": 64,
+  "copy": "Drag NetRelish into Applications."
+}
