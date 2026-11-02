@@ -21,6 +21,11 @@ on:
       - '.github/workflows/dmg-preview.yml'
       - '.github/workflows/release.yml'
   workflow_dispatch:
+    inputs:
+      print_preview:
+        description: Also write the pictures into the job log, base64 (for a reviewer who can't open artifacts)
+        type: boolean
+        default: false
 
 env:
   DERIVED: .build/DerivedData
@@ -64,6 +69,15 @@ jobs:
           ID=$(swift "$RUNNER_TEMP/window.swift")
           screencapture -o -x -l "$ID" "$RUNNER_TEMP/out/finder.png"
           hdiutil detach /Volumes/NetRelish -quiet || true
+
+      - name: Write the pictures into the log
+        if: ${{ inputs.print_preview }}
+        run: |
+          cd "$RUNNER_TEMP/out"
+          for f in preview.png finder.png; do
+            [ -f "$f" ] || continue
+            echo "----- BEGIN $f -----"; base64 -i "$f" | fold -w 4000; echo "----- END $f -----"
+          done
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (node24)
         with:
