@@ -31,7 +31,7 @@ struct SealPageIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
-        guard let url else { return .result(value: try await workbench.sealFrontPage()) }
+        guard let url else { return .result(value: try await workbench.sealFrontPage(into: jar?.id)) }
         return .result(value: try await workbench.sealPage(at: url, into: jar?.id).title)
     }
 }

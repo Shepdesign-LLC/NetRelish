@@ -85,14 +85,16 @@ public final class PantryStore: Sendable {
     }
 
     /// Full-text search over title, excerpt and body. Returns items, best match first.
-    public func search(_ db: Database, _ query: String) throws -> [Item] {
+    public func search(_ db: Database, _ query: String, limit: Int? = nil) throws -> [Item] {
         guard let pattern = FTS5Pattern(matchingAllPrefixesIn: query) else { return [] }
-        return try Item.fetchAll(db, sql: """
+        let sql = """
             SELECT items.* FROM items
             JOIN items_fts ON items_fts.rowid = items.rowid
             WHERE items_fts MATCH ?
             ORDER BY bm25(items_fts)
-            """, arguments: [pattern])
+            """
+        guard let limit else { return try Item.fetchAll(db, sql: sql, arguments: [pattern]) }
+        return try Item.fetchAll(db, sql: sql + " LIMIT ?", arguments: [pattern, max(0, limit)])
     }
 
     // MARK: The Panel

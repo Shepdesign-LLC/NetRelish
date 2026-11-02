@@ -92,10 +92,38 @@ import Testing
         bench.sealProvider = { _ in
             (Data("LIVE".utf8), Extraction.Result(title: "Live page", excerpt: "", body: "From the live tab."))
         }
+        bench.livePageAvailable = { _ in true }
         #expect(try await bench.sealFrontPage() == "Live page")
         let item = try #require(try bench.store.read { db in try Item.fetchOne(db) })
         #expect(item.source == .browse)   // the same Seal as ⌘S
         #expect(try bench.store.snapshots.read(try #require(item.snapshotPath)) == Data("LIVE".utf8))
+    }
+
+    @Test("Seal with no link, a window open but the page not loaded yet, loads it off screen")
+    func sealsAnUnloadedFrontPageOffScreen() async throws {
+        let bench = try bench()
+        _ = bench.newTab(url: "https://example.com/unloaded")
+        bench.tabDidNavigate(bench.activeTab!.id, url: URL(string: "https://example.com/unloaded"), title: "Unloaded")
+        bench.sealProvider = { _ in Issue.record("froze a page that hadn't loaded"); return (Data(), Extraction.Result(title: "", excerpt: "", body: "")) }
+        bench.livePageAvailable = { _ in false }
+        #expect(try await bench.sealFrontPage() == "Invoice terms")   // the off-screen stub's title
+        let item = try #require(try bench.store.read { db in try Item.fetchOne(db) })
+        #expect(item.source == .shortcut)
+    }
+
+    @Test("Seal with no link and a jar named seals the page in front into that jar")
+    func sealsTheFrontPageIntoTheNamedJar() async throws {
+        let bench = try bench()
+        _ = bench.newTab(url: "https://example.com/front")
+        let tab = try #require(bench.activeTab)
+        bench.tabDidNavigate(tab.id, url: URL(string: "https://example.com/front"), title: "Front page")
+        let other = try #require(bench.jars.first { $0.id != tab.jarId })
+        _ = try await bench.sealFrontPage(into: other.id)
+        let item = try #require(try bench.store.read { db in try Item.fetchOne(db) })
+        #expect(item.jarId == other.id)
+
+        _ = bench.newTab(url: "https://example.com/again")
+        await #expect(throws: ShortcutError.jarGone) { try await bench.sealFrontPage(into: "no-such-jar") }
     }
 
     @Test("Seal with no link and nothing open says so")

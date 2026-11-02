@@ -111,6 +111,7 @@ import Testing
         #expect(Set(found.map(\.place)) == ["Sealed in Clients", "In Brine"])
         #expect(found.first { $0.place == "In Brine" }?.url == URL(string: "https://example.com/rye"))
         #expect(try PantryItemQuery.search(in: store, for: "pumpernickel", limit: 1).count == 1)
+        #expect(try store.read { db in try store.search(db, "pumpernickel", limit: 1) }.count == 1)   // limited in SQL
         #expect(try PantryItemQuery.search(in: store, for: "nothing-like-this").isEmpty)
 
         let ids = found.map(\.id)

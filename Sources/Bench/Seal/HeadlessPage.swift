@@ -5,6 +5,7 @@
 
 import AppKit
 import Foundation
+import Pantry
 import WebKit
 
 @MainActor

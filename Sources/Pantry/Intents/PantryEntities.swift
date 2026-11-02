@@ -70,7 +70,8 @@ public struct PantryItemEntity: AppEntity {
     public var isSealed: Bool
 
     /// "Sealed", "In Brine", or "In <jar>", the way the Panel says it.
-    public let place: String
+    @Property(title: "Where")
+    public var place: String
 
     init(_ item: PantryRecord, jarName: String?) {
         id = item.id
@@ -105,7 +106,7 @@ public struct PantryItemQuery: EntityQuery, Sendable {
     /// Full-text search, best match first, at most `limit` results.
     public static func search(in store: PantryStore, for query: String, limit: Int = 20) throws -> [PantryItemEntity] {
         try store.read { db in
-            try store.search(db, query).prefix(limit).map { try entity($0, db) }
+            try store.search(db, query, limit: limit).map { try entity($0, db) }
         }
     }
 

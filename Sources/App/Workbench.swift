@@ -471,6 +471,8 @@ final class Workbench {
 
     /// Set by the Bench: freezes the tab's page and pulls its text out. Stubbed in tests.
     var sealProvider: ((Tab) async throws -> (Data, Extraction.Result))?
+    /// Set by the Bench: whether a tab's page is loaded in a live web view right now.
+    var livePageAvailable: ((Tab) -> Bool)?
     /// Increments to run the drip. The Bench watches it; nothing else does.
     private(set) var sealTrigger = 0
     /// The jar the drip is falling into, so its badge can tick over.
@@ -480,8 +482,8 @@ final class Workbench {
     /// the jar's default Recipe (non-negotiable 3). The drip starts first and the disk work
     /// happens behind it, so the gesture feels instant however heavy the page is.
     @discardableResult
-    func sealActiveTab() async -> Bool {
-        guard let tab = benchTab, let jarId = tab.jarId, let provider = sealProvider else {
+    func sealActiveTab(into chosenJarId: String? = nil) async -> Bool {
+        guard let tab = benchTab, let jarId = chosenJarId ?? tab.jarId, let provider = sealProvider else {
             report("Nothing to seal — open a page first")
             return false
         }
@@ -556,6 +558,8 @@ final class Workbench {
             log.error("offscreen seal: \(String(describing: error), privacy: .public)")
             throw ShortcutError.pageDidNotLoad(String(describing: error))
         }
+        // A Shortcut cancelled while the page loaded keeps nothing: no item, no Recipe.
+        try Task.checkCancellation()
         let title = page.extracted.title.isEmpty
             ? (page.title?.isEmpty == false ? page.title! : page.url)
             : page.extracted.title
@@ -569,19 +573,21 @@ final class Workbench {
         return item
     }
 
-    /// Shortcuts' Seal with no link: the page in front, as ⌘S seals it. With no window open
-    /// there's no live page to freeze, so the tab's page is loaded off screen, sealed, and
-    /// the tab closed, the way ⌘S closes it. Returns the sealed page's title.
-    func sealFrontPage() async throws -> String {
+    /// Shortcuts' Seal with no link: the page in front, as ⌘S seals it, into `jarId` if the
+    /// Shortcut names one, else the tab's own jar. If the page isn't loaded in a live web view
+    /// (no window, or a tab not shown yet), it's loaded off screen instead. Either way the tab
+    /// closes, the way ⌘S closes it. Returns the sealed page's title.
+    func sealFrontPage(into jarId: String? = nil) async throws -> String {
         guard let tab = benchTab, let link = tab.url, let url = URL(string: link) else {
             throw ShortcutError.nothingOpen
         }
+        if let jarId, !jars.contains(where: { $0.id == jarId }) { throw ShortcutError.jarGone }
         let title = tab.title?.isEmpty == false ? tab.title! : link
-        if sealProvider != nil {
-            guard await sealActiveTab() else { throw ShortcutError.couldNotSeal }
+        if sealProvider != nil, livePageAvailable?(tab) == true {
+            guard await sealActiveTab(into: jarId) else { throw ShortcutError.couldNotSeal }
             return title
         }
-        let item = try await sealPage(at: url, into: tab.jarId)
+        let item = try await sealPage(at: url, into: jarId ?? tab.jarId)
         closeTab(tab)
         return item.title
     }
