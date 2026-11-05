@@ -71,7 +71,10 @@ struct BenchView: View {
     }
 
     @ViewBuilder private var content: some View {
-        if let item = workbench.savedCopy {
+        if let comparison = workbench.comparison {
+            ComparisonView(comparison: comparison, workbench: workbench)
+                .id("\(comparison.older.id)|\(comparison.newer.id)")
+        } else if let item = workbench.savedCopy {
             SavedCopyView(item: item, workbench: workbench)
                 .id(item.id)
         } else if let smart = workbench.activeSmartJar {
@@ -671,6 +674,9 @@ private struct PanelItemSections: View {
                 }
             }
             PanelSummarySection(item: item, workbench: workbench)
+            if item.state == .sealed, item.url != nil {
+                PanelSealsSection(item: item, workbench: workbench)
+            }
             PanelSection("Labels") {
                 ForEach(labels) { label in
                     HStack(spacing: NRSpace.sp2) {
@@ -727,6 +733,48 @@ private struct PanelSummarySection: View {
             }
         }
         .task(id: "\(item.id)|\(workbench.summaryRevision)") { state = workbench.summary(of: item) }
+    }
+}
+
+/// Reseal & diff (Pro): every seal of this page, sealing it again, and comparing the last two.
+private struct PanelSealsSection: View {
+    let item: Item
+    @Bindable var workbench: Workbench
+    @State private var seals: [Item]
+
+    init(item: Item, workbench: Workbench) {
+        self.item = item
+        self.workbench = workbench
+        _seals = State(initialValue: workbench.seals(of: item))
+    }
+
+    var body: some View {
+        // One real container, so the task has a view to run on.
+        VStack(alignment: .leading, spacing: 0) {
+            PanelSection("Seals") {
+                ForEach(seals.prefix(PanelText.sealsShown)) { seal in
+                    PanelRow(PanelText.sealLabel(seal, current: item), PanelText.sealDate(seal))
+                }
+                if seals.count > PanelText.sealsShown {
+                    PanelNote(PanelText.moreSeals(seals.count - PanelText.sealsShown))
+                }
+                if workbench.resealingURL == item.url {
+                    PanelNote(PanelText.resealing)
+                } else {
+                    HStack(spacing: NRSpace.sp2) {
+                        Button("Seal Again") { Task { await workbench.resealAndCompare(item) } }
+                            .buttonStyle(.nrSecondary)
+                            .help(PanelText.sealAgainHelp)
+                        if seals.count > 1 {
+                            Button("Compare") { Task { await workbench.compareWithPrevious(seals[0]) } }
+                                .buttonStyle(.nrSecondary)
+                                .help(PanelText.compareHelp)
+                        }
+                    }
+                }
+            }
+        }
+        .task(id: "\(item.id)|\(workbench.sealedItems.count)") { seals = workbench.seals(of: item) }
     }
 }
 
@@ -796,6 +844,26 @@ enum PanelText {
     enum SummaryLine: Equatable {
         case summary(String)
         case note(String)
+    }
+
+    // Reseal & diff
+
+    static let sealsShown = 5
+    static let resealing = "Sealing this page again…"
+    static let sealAgainHelp = "Seal this page again and compare it with the last seal"
+    static let compareHelp = "Compare the two most recent seals side by side"
+
+    /// "This copy" for the seal the Panel describes, "Sealed" for the others.
+    static func sealLabel(_ seal: Item, current: Item) -> String {
+        seal.id == current.id ? "This copy" : "Sealed"
+    }
+
+    static func sealDate(_ seal: Item) -> String {
+        seal.sealedAt?.formatted(date: .abbreviated, time: .shortened) ?? "Sealed"
+    }
+
+    static func moreSeals(_ n: Int) -> String {
+        n == 1 ? "1 earlier seal" : "\(n) earlier seals"
     }
 
     static func summary(_ state: SummaryState) -> SummaryLine {

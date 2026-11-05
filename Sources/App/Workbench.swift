@@ -115,7 +115,7 @@ final class Workbench {
     var activeTab: Tab? { tabs.first { $0.id == activeTabId } }
     /// The tab the Bench is showing, or nil when a smart jar or a saved copy covers it.
     /// Capture, Seal, Fill and Pin act on this, never on a tab the user can't see.
-    var benchTab: Tab? { savedCopy == nil && !showingSmartJar ? activeTab : nil }
+    var benchTab: Tab? { savedCopy == nil && comparison == nil && !showingSmartJar ? activeTab : nil }
 
     /// Today, re-checked against the clock, so the list empties at midnight on its own.
     var today: [Item] {
@@ -381,6 +381,7 @@ final class Workbench {
 
     private func activate(jarId: String) {
         savedCopy = nil                   // picking a jar always leaves a saved copy
+        comparison = nil
         reader = nil
         guard jarId != activeJarId else { return }
         touchActiveTab()
@@ -432,6 +433,7 @@ final class Workbench {
     func newTab(url: String? = nil, interactionState: Data? = nil, in jarId: String? = nil,
                 openedBy openerId: String? = nil) -> Tab? {
         savedCopy = nil
+        comparison = nil
         reader = nil
         let target = jarId ?? (showingSmartJar ? jars.first?.id : activeJarId)
         guard let target, jars.contains(where: { $0.id == target }) else { return nil }
@@ -452,6 +454,7 @@ final class Workbench {
 
     func activateTab(_ tab: Tab) {
         savedCopy = nil
+        comparison = nil
         reader = nil
         guard tab.id != activeTabId else { return }
         touchActiveTab()
@@ -479,6 +482,7 @@ final class Workbench {
 
     /// ⌘W. With a saved copy showing, closes the copy, not the tab hidden behind it.
     func closeActiveTab() {
+        if comparison != nil { comparison = nil; return }
         if savedCopy != nil { savedCopy = nil; return }
         if let benchTab { closeTab(benchTab) }
     }
@@ -620,7 +624,8 @@ final class Workbench {
     /// jar, else the first on the Shelf. The page loads in that jar's profile, unless
     /// `profileJarId` names another (a tab's own jar, whose sign-ins the page was open with).
     @discardableResult
-    func sealPage(at url: URL, into jarId: String?, profileJarId: String? = nil) async throws -> Item {
+    func sealPage(at url: URL, into jarId: String?, profileJarId: String? = nil,
+                  source: CaptureSource = .shortcut) async throws -> Item {
         guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
             throw ShortcutError.notAWebPage
         }
@@ -654,7 +659,7 @@ final class Workbench {
         let item = try store.write { db in
             try store.sealPage(db, url: page.url, title: title, body: page.extracted.body,
                                excerpt: page.extracted.excerpt, archive: page.archive,
-                               jarId: target.id, source: .shortcut)
+                               jarId: target.id, source: source)
         }
         refreshSmartJars()
         report("Sealed into \(target.name)")
@@ -702,6 +707,75 @@ final class Workbench {
         return true
     }
 
+    // MARK: Reseal & diff (Pro)
+
+    /// Two seals of the same page, side by side on the Bench. `diff` is nil while it's worked out.
+    struct Comparison: Equatable {
+        let older: Item
+        let newer: Item
+        var diff: PageDiff?
+        /// Neither seal kept any article text, so there is nothing to compare.
+        var hasText: Bool { !(older.body ?? "").isEmpty || !(newer.body ?? "").isEmpty }
+    }
+
+    /// The comparison the Bench is showing, over everything else.
+    private(set) var comparison: Comparison?
+    /// The page being sealed again, by URL, while its fresh copy loads.
+    private(set) var resealingURL: String?
+
+    /// Every seal of a page, newest first.
+    func seals(of item: Item) -> [Item] {
+        guard let url = item.url else { return [] }
+        return (try? store.read { db in try store.seals(db, url: url) }) ?? []
+    }
+
+    /// Seals the page again, in its own jar's profile, and compares the new seal with the latest
+    /// one before it. The earlier seal is never touched (non-negotiable 3).
+    func resealAndCompare(_ item: Item) async {
+        guard Pro.isUnlocked else { report(Pro.lockedLine); return }
+        guard let link = item.url, let url = URL(string: link) else {
+            report("This page has no link to seal again")
+            return
+        }
+        guard resealingURL == nil else { return }
+        resealingURL = link
+        defer { resealingURL = nil }
+        let before = seals(of: item).first ?? item
+        do {
+            let fresh = try await sealPage(at: url, into: item.jarId ?? before.jarId, source: .browse)
+            await compare(before, fresh)
+        } catch is CancellationError {
+            return
+        } catch {
+            log.error("reseal: \(String(describing: error), privacy: .public)")
+            report("Couldn’t seal this page again")
+        }
+    }
+
+    /// Compares a seal with the one before it.
+    func compareWithPrevious(_ item: Item) async {
+        guard let older = try? store.read({ db in try store.previousSeal(db, before: item) }) else {
+            report("This page has only been sealed once")
+            return
+        }
+        await compare(older, item)
+    }
+
+    /// Shows two seals side by side. The difference is worked out off the main thread, so a
+    /// long page never stalls the window.
+    func compare(_ older: Item, _ newer: Item) async {
+        guard Pro.isUnlocked else { report(Pro.lockedLine); return }
+        // A saved copy open underneath stays open: Done goes back to it.
+        comparison = Comparison(older: older, newer: newer, diff: nil)
+        let (a, b) = (older.body ?? "", newer.body ?? "")
+        let diff = await Task.detached(priority: .userInitiated) { PageDiff(old: a, new: b) }.value
+        guard comparison?.older.id == older.id, comparison?.newer.id == newer.id else { return }
+        comparison?.diff = diff
+    }
+
+    /// Back to whatever the Bench showed before.
+    func closeComparison() { comparison = nil }
+
     // MARK: The Panel (⌘⌥I)
 
     /// The right column (manifest §8, ADR 0010 row 9: "Panel", never "Inspector"). Shown
@@ -720,6 +794,7 @@ final class Workbench {
     }
 
     var panelSubject: PanelSubject {
+        if let comparison { return .savedCopy(comparison.newer) }
         if let savedCopy { return .savedCopy(savedCopy) }
         if let smart = activeSmartJar { return .smartJar(smart) }
         if let tab = benchTab { return .tab(tab) }
@@ -850,6 +925,7 @@ final class Workbench {
     /// Anything else opens its tab if one is already open, else a new tab in its jar.
     func open(_ item: Item) {
         if item.state == .sealed, item.snapshotPath != nil {
+            comparison = nil
             savedCopy = item
             return
         }

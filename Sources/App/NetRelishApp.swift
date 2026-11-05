@@ -76,9 +76,10 @@ struct NetRelishApp: App {
             }
             CommandMenu("Tab") {
                 Button("New Tab") { workbench.newTab() }.keyboardShortcut("t", modifiers: .command)
-                Button(workbench.savedCopy != nil ? "Close Saved Copy" : "Close Tab") { workbench.closeActiveTab() }
+                Button(workbench.comparison != nil ? "Close Comparison"
+                       : workbench.savedCopy != nil ? "Close Saved Copy" : "Close Tab") { workbench.closeActiveTab() }
                     .keyboardShortcut("w", modifiers: .command)
-                    .disabled(workbench.benchTab == nil && workbench.savedCopy == nil)
+                    .disabled(workbench.benchTab == nil && workbench.savedCopy == nil && workbench.comparison == nil)
                 Button(workbench.benchTab?.isPinned == true ? "Unpin Tab" : "Pin Tab") { workbench.togglePinActiveTab() }
                     .keyboardShortcut("p", modifiers: [.command, .shift]).disabled(workbench.benchTab == nil)
             }
