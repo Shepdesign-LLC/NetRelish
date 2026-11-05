@@ -97,7 +97,7 @@ struct ProofPage: View {
         }
         .padding(54)   // three-quarter-inch margins
         .frame(width: ProofPage.size.width, height: ProofPage.size.height, alignment: .topLeading)
-        .background(Color.white)
+        .background(NRColor.bg)
     }
 }
 

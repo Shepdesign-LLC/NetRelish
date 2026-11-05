@@ -27,7 +27,7 @@ import Testing
         let provenance = try #require(bench.provenance(of: item))
         #expect(provenance.fingerprint == Provenance.fingerprint(of: Data("WEBARCHIVE".utf8)))
         #expect(!bench.timestampsOn)
-        #expect(PanelText.timestamp(provenance, on: bench.timestampsOn) == "Off in this build")
+        #expect(PanelText.timestamp(provenance, on: bench.timestampsOn) == "Not set up")
         #expect(PanelText.shortFingerprint(provenance.fingerprint).count == 17)
     }
 

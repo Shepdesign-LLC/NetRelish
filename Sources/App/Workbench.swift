@@ -253,7 +253,7 @@ final class Workbench {
     /// Asks where to save the proof of a sealed page, then saves it there: a one-page PDF,
     /// the saved copy itself and the timestamp token (ADR 0022).
     func exportProof(_ item: Item) {
-        guard Pro.isUnlocked else { report(Pro.lockedLine); return }
+        guard Pro.isUnlocked else { report(Pro.proofLockedLine); return }
         guard let provenance = provenance(of: item), let path = item.snapshotPath else {
             report("This page’s fingerprint isn’t ready yet")
             return

@@ -69,6 +69,7 @@ public actor ProvenanceWorker {
         guard let waiting = try? store.read({ db in try store.awaitingProvenance(db, stamping: stamping) }),
               !waiting.isEmpty else { return [] }
         var changed: [String] = []
+        func note(_ id: String) { if changed.last != id { changed.append(id) } }   // once per page
         for item in waiting {
             if Task.isCancelled { break }
             var provenance: Provenance
@@ -77,9 +78,10 @@ public actor ProvenanceWorker {
             } else {
                 guard let fingerprint = try? store.fingerprint(of: item) else { continue }   // no saved copy on disk
                 provenance = Provenance(fingerprint: fingerprint)
-                if record(provenance, item.id) { changed.append(item.id) }
+                if record(provenance, item.id) { note(item.id) }
             }
-            guard let authority, provenance.status == .fingerprinted else { continue }
+            // A fingerprint that isn't 32 bytes can't be stamped; leave it rather than stop.
+            guard let authority, provenance.status == .fingerprinted, provenance.digest.count == 32 else { continue }
             let request = TimestampRequest(digest: provenance.digest, nonce: nonce())
             do {
                 let reply = try await authority.timestamp(request)
@@ -92,10 +94,10 @@ public actor ProvenanceWorker {
                 return changed   // offline: everything waits for the next sweep, uncounted
             } catch {
                 provenance = ProvenanceWorker.afterFailure(provenance)
-                if record(provenance, item.id) { changed.append(item.id) }
+                if record(provenance, item.id) { note(item.id) }
                 return changed   // the rest wait for the next sweep
             }
-            if record(provenance, item.id) { changed.append(item.id) }
+            if record(provenance, item.id) { note(item.id) }
         }
         return changed
     }

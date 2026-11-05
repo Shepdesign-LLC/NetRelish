@@ -890,7 +890,7 @@ enum PanelText {
         }
         switch provenance.status {
         case .failed: return "Couldn’t get one"
-        default: return on ? "Waiting" : "Off in this build"
+        default: return on ? "Waiting" : "Not set up"
         }
     }
 

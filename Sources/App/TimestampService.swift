@@ -20,6 +20,15 @@ struct TimestampService: TimestampAuthority {
 
     private static let log = Logger(subsystem: "com.shepdesign.netrelish", category: "provenance")
 
+    /// No cookies, no cache, nothing kept between requests: no stamp can be linked to another.
+    private static let session: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieStorage = nil
+        configuration.urlCache = nil
+        return URLSession(configuration: configuration)
+    }()
+
     /// The authority this build is set up with, or nil when none is (provenance then only
     /// fingerprints).
     static var configured: TimestampService? {
@@ -37,16 +46,25 @@ struct TimestampService: TimestampAuthority {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await URLSession.shared.data(for: post)
+            (data, response) = try await TimestampService.session.data(for: post)
         } catch let error as URLError {
             TimestampService.log.error("timestamp request: \(error.localizedDescription, privacy: .public)")
             throw TimestampUnreachable()
         }
+        // Anything but a timestamp reply (a server error, a Wi-Fi sign-in page answering for
+        // everyone) is treated as not reaching the authority: it waits, and isn't counted.
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw TimestampError.malformed
+            TimestampService.log.error("timestamp request: HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+            throw TimestampUnreachable()
         }
         // Read it (which checks it answers this request), then check who signed it.
-        let stamp = try Timestamp(response: data, for: request)
+        let stamp: Timestamp
+        do {
+            stamp = try Timestamp(response: data, for: request)
+        } catch TimestampError.malformed {
+            TimestampService.log.error("timestamp request: the reply wasn't a timestamp")
+            throw TimestampUnreachable()
+        }
         guard TimestampService.signatureIsValid(stamp.token) else {
             TimestampService.log.error("timestamp token: signature or certificate didn't check out")
             throw TimestampError.malformed
@@ -69,6 +87,9 @@ struct TimestampService: TimestampAuthority {
         // `.valid` means the signature checks out and the certificate is trusted.
         var status = CMSSignerStatus.unsigned
         let checked = CMSDecoderCopySignerStatus(decoder, 0, SecPolicyCreateBasicX509(), true, &status, nil, nil)
+        if checked != errSecSuccess || status != .valid {
+            log.error("timestamp token: OSStatus \(checked), signer status \(status.rawValue)")
+        }
         return checked == errSecSuccess && status == .valid
     }
 }

@@ -9,4 +9,7 @@ enum Pro {
 
     /// What a locked Pro feature says, once there is a lock.
     static let lockedLine = "Reseal & diff is part of NetRelish Pro."
+
+    /// What Export Proof says when Pro is locked.
+    static let proofLockedLine = "Export Proof is part of NetRelish Pro."
 }
