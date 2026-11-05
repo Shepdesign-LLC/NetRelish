@@ -276,3 +276,67 @@ private struct FixedSummarizer: Summarizer {
         #expect(PanelText.summary(.failed) == .note("Apple Intelligence couldn’t summarize this page."))
     }
 }
+
+/// The live page's price, which a reseal finds changed.
+@MainActor private final class PricePage {
+    var price = "$29/mo"
+}
+
+/// Reseal & diff on the Bench: Seal Again loads the page off screen (stubbed), seals it, and
+/// shows the two seals side by side.
+@Suite("Reseal & diff on the Bench") @MainActor struct ResealTests {
+
+    @Test("Seal Again makes a second seal and compares it with the first")
+    func sealAgainCompares() async throws {
+        let bench = Workbench(store: try PantryStore())
+        bench.newJar(name: "Meridian", tint: nil, shelfLifeDays: 3)
+        let jarId = try #require(bench.activeJar?.id)
+        let link = "https://example.com/pricing"
+        let page = PricePage()
+        bench.offscreenLoader = { url, _ in
+            Workbench.OffscreenPage(
+                archive: Data("WEBARCHIVE".utf8),
+                extracted: Extraction.Result(title: "Pricing", excerpt: "", body: "Pro costs \(page.price). Support is by email."),
+                url: url.absoluteString, title: "Pricing")
+        }
+        let first = try await bench.sealPage(at: URL(string: link)!, into: jarId)
+        page.price = "$39/mo"
+
+        await bench.resealAndCompare(first)
+
+        let seals = bench.seals(of: first)
+        #expect(seals.count == 2)
+        #expect(seals.last?.id == first.id)
+        let comparison = try #require(bench.comparison)
+        #expect(comparison.older.id == first.id)
+        #expect(comparison.newer.id == seals.first?.id)
+        #expect(comparison.diff?.changeCount == 1)
+        #expect(bench.panelSubject == .savedCopy(comparison.newer))
+        #expect(bench.resealingURL == nil)
+
+        bench.closeComparison()
+        #expect(bench.comparison == nil)
+    }
+
+    @Test("Compare with only one seal says so and opens nothing")
+    func compareNeedsTwo() async throws {
+        let bench = Workbench(store: try PantryStore())
+        bench.newJar(name: "Meridian", tint: nil, shelfLifeDays: 3)
+        bench.offscreenLoader = { url, _ in
+            Workbench.OffscreenPage(archive: Data("W".utf8),
+                                    extracted: Extraction.Result(title: "Pricing", excerpt: "", body: "Once."),
+                                    url: url.absoluteString, title: "Pricing")
+        }
+        let only = try await bench.sealPage(at: URL(string: "https://example.com/once")!, into: bench.activeJar?.id)
+        await bench.compareWithPrevious(only)
+        #expect(bench.comparison == nil)
+        #expect(bench.fillStatus == "This page has only been sealed once")
+    }
+
+    @Test("The comparison's words")
+    func words() {
+        #expect(ComparisonText.spoken([.init("Pro costs", .same), .init("$29/mo.", .removed)]) == "Pro costs Removed: $29/mo.")
+        #expect(PanelText.moreSeals(1) == "1 earlier seal")
+        #expect(PanelText.moreSeals(3) == "3 earlier seals")
+    }
+}
