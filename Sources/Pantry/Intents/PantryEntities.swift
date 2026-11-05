@@ -73,6 +73,10 @@ public struct PantryItemEntity: AppEntity {
     @Property(title: "Where")
     public var place: String
 
+    /// Seal & Summarize's summary, once it's written. Empty otherwise.
+    @Property(title: "Summary")
+    public var summary: String?
+
     init(_ item: PantryRecord, jarName: String?) {
         id = item.id
         place = switch item.state {
@@ -83,6 +87,7 @@ public struct PantryItemEntity: AppEntity {
         title = item.title
         url = item.url.flatMap(URL.init(string:))
         isSealed = item.state == .sealed
+        if case .done(let text)? = item.storedSummary { summary = text } else { summary = nil }
     }
 
     public var displayRepresentation: DisplayRepresentation {

@@ -141,12 +141,43 @@ final class Workbench {
     /// their own or none, so they never take what you shared.
     let inbox: ShareInbox?
 
-    init(store: PantryStore = .shared, vault: VaultStore = .live, inbox: ShareInbox? = nil) {
+    /// Writes summaries for Seal & Summarize. The app passes the on-device one; tests pass a
+    /// stand-in or none, so no test ever waits on a model.
+    let summaries: SummaryWorker?
+
+    init(store: PantryStore = .shared, vault: VaultStore = .live, inbox: ShareInbox? = nil,
+         summarizer: (any Summarizer)? = nil) {
         self.store = store
         self.vault = vault
         self.inbox = inbox
+        self.summaries = summarizer.map { SummaryWorker(store: store, summarizer: $0) }
         load()
         if inbox != nil { watchInbox() }
+        summarizeWaiting()   // anything sealed just before the last quit
+    }
+
+    // MARK: Seal & Summarize
+
+    /// Ticks when summaries land, so the Panel reads them again.
+    private(set) var summaryRevision = 0
+
+    /// Starts writing summaries for sealed pages that are waiting for one. Seal never waits
+    /// on this: the page is sealed and the tab closed first.
+    func summarizeWaiting() {
+        guard summaries != nil else { return }
+        Task { @MainActor [weak self] in await self?.summarizeWaitingNow() }
+    }
+
+    /// The same, awaited. Tests call this to know the summaries are written.
+    func summarizeWaitingNow() async {
+        guard let summaries else { return }
+        let changed = await summaries.sweep()
+        if !changed.isEmpty { summaryRevision += 1 }
+    }
+
+    /// Where a sealed page's summary stands, for the Panel. Nil when none is coming.
+    func summary(of item: Item) -> SummaryState? {
+        try? store.read { db in try store.summaryState(db, of: item.id) }
     }
 
     // MARK: The Share extension
@@ -338,7 +369,8 @@ final class Workbench {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
         var jar = Jar(glyph: "nr-jar", isPinned: false, name: trimmed, shelfLifeDays: shelfLifeDays,
-                      sortOrder: Double(jars.count), tint: tint)
+                      sortOrder: Double(jars.count), tint: tint,
+                      defaultRecipeId: PantryStore.sealAndSummarizeRecipeId)   // every jar runs it on Seal
         do {
             try store.write { db in try jar.insert(db) }
             load()
@@ -515,6 +547,7 @@ final class Workbench {
             }
             closeIfStillOn(tab)
             report("Sealed into \(jars.first { $0.id == jarId }?.name ?? "the jar")")
+            summarizeWaiting()
             return true
         } catch is CancellationError {
             return false
@@ -594,6 +627,7 @@ final class Workbench {
         }
         refreshSmartJars()
         report("Sealed into \(target.name)")
+        summarizeWaiting()
         return item
     }
 

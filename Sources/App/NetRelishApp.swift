@@ -13,11 +13,21 @@ struct NetRelishApp: App {
     /// The Share extension's inbox, except when this app is hosting the tests: they must never
     /// take what you've shared into the Pantry.
     private static var shareInbox: ShareInbox? {
-        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil ? ShareInbox() : nil
+        isHostingTests ? nil : ShareInbox()
+    }
+
+    /// Seal & Summarize's model: Apple's, on this Mac. None while hosting the tests, which
+    /// bring their own stand-in.
+    private static var summarizer: (any Summarizer)? {
+        isHostingTests ? nil : OnDeviceSummarizer()
+    }
+
+    private static var isHostingTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
     init() {
-        let workbench = Workbench(inbox: NetRelishApp.shareInbox)
+        let workbench = Workbench(inbox: NetRelishApp.shareInbox, summarizer: NetRelishApp.summarizer)
         _workbench = State(initialValue: workbench)
         // The Shortcuts that act on the app (Seal the page in front, Open a Jar) find it here.
         AppDependencyManager.shared.add(dependency: workbench)
