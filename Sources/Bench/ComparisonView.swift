@@ -53,7 +53,7 @@ struct ComparisonView: View {
             columnTitle(ComparisonText.columnTitle(comparison.newer))
         }
         .fixedSize(horizontal: false, vertical: true)
-        .background(NRColor.surface2)
+        .background(NRColor.surface)   // surface2 is kept for changed rows
     }
 
     private func columnTitle(_ text: String) -> some View {
@@ -110,7 +110,7 @@ private struct ComparisonRow: View {
             if let spans {
                 Text(ComparisonText.styled(spans))
                     .font(NRType.font(NRType.fsMd))
-                    .lineSpacing(3)
+                    .lineSpacing(NRType.fsMd * (NRType.lhBody - 1))
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityLabel(ComparisonText.spoken(spans))
@@ -151,10 +151,10 @@ enum ComparisonText {
                 piece.foregroundColor = NRColor.fg
             case .removed:
                 piece.foregroundColor = NRColor.fg3
-                piece.strikethroughStyle = .single
+                piece.strikethroughStyle = Text.LineStyle.single
             case .added:
                 piece.foregroundColor = NRColor.fg
-                piece.underlineStyle = .single
+                piece.underlineStyle = Text.LineStyle.single
             }
             out += piece
         }

@@ -624,7 +624,8 @@ final class Workbench {
     /// jar, else the first on the Shelf. The page loads in that jar's profile, unless
     /// `profileJarId` names another (a tab's own jar, whose sign-ins the page was open with).
     @discardableResult
-    func sealPage(at url: URL, into jarId: String?, profileJarId: String? = nil) async throws -> Item {
+    func sealPage(at url: URL, into jarId: String?, profileJarId: String? = nil,
+                  source: CaptureSource = .shortcut) async throws -> Item {
         guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
             throw ShortcutError.notAWebPage
         }
@@ -658,7 +659,7 @@ final class Workbench {
         let item = try store.write { db in
             try store.sealPage(db, url: page.url, title: title, body: page.extracted.body,
                                excerpt: page.extracted.excerpt, archive: page.archive,
-                               jarId: target.id, source: .shortcut)
+                               jarId: target.id, source: source)
         }
         refreshSmartJars()
         report("Sealed into \(target.name)")
@@ -741,7 +742,7 @@ final class Workbench {
         defer { resealingURL = nil }
         let before = seals(of: item).first ?? item
         do {
-            let fresh = try await sealPage(at: url, into: item.jarId ?? before.jarId)
+            let fresh = try await sealPage(at: url, into: item.jarId ?? before.jarId, source: .browse)
             await compare(before, fresh)
         } catch is CancellationError {
             return
@@ -764,7 +765,7 @@ final class Workbench {
     /// long page never stalls the window.
     func compare(_ older: Item, _ newer: Item) async {
         guard Pro.isUnlocked else { report(Pro.lockedLine); return }
-        savedCopy = nil
+        // A saved copy open underneath stays open: Done goes back to it.
         comparison = Comparison(older: older, newer: newer, diff: nil)
         let (a, b) = (older.body ?? "", newer.body ?? "")
         let diff = await Task.detached(priority: .userInitiated) { PageDiff(old: a, new: b) }.value
@@ -924,6 +925,7 @@ final class Workbench {
     /// Anything else opens its tab if one is already open, else a new tab in its jar.
     func open(_ item: Item) {
         if item.state == .sealed, item.snapshotPath != nil {
+            comparison = nil
             savedCopy = item
             return
         }

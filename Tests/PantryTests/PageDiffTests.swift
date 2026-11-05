@@ -83,22 +83,43 @@ import Testing
         #expect(diff?.changeCount == 1)
         #expect(elapsed < .seconds(10), "a debug build is slower; this only guards against a blow-up")
     }
+
+    @Test("A page rewritten end to end is shown removed, then added, without stalling")
+    func rewrittenPage() {
+        let old = (0..<8_000).map { "Old sentence \($0) here." }.joined(separator: " ")
+        let new = (0..<8_000).map { "New sentence \($0) there." }.joined(separator: " ")
+        let clock = ContinuousClock()
+        var diff: PageDiff?
+        let elapsed = clock.measure { diff = PageDiff(old: old, new: new) }
+        #expect(diff?.changeCount == 16_000)
+        #expect(diff?.rows.first?.new == nil && diff?.rows.last?.old == nil, "removed first, then added")
+        #expect(elapsed < .seconds(10))
+    }
+
+    @Test("The same start and end stay lined up around a changed middle")
+    func trimmedEnds() {
+        let diff = PageDiff(old: "Intro here. Price is 29. Outro here.", new: "Intro here. Price is 39. Outro here.")
+        #expect(diff.rows.count == 3)
+        #expect(diff.rows.map(\.isChange) == [false, true, false])
+        #expect(diff.rows.map(\.id) == [0, 1, 2])
+    }
 }
 
 @Suite("Reseal & diff: a page's seals") struct ResealStoreTests {
 
-    private func seal(_ store: PantryStore, body: String, at date: Date) throws -> Item {
+    private func seal(_ store: PantryStore, body: String) throws -> Item {
         try store.write { db in
             try store.sealPage(db, url: "https://example.com/pricing", title: "Pricing", body: body, excerpt: nil,
-                               archive: Data("A".utf8), jarId: "read-later", source: .browse, now: date)
+                               archive: Data("A".utf8), jarId: "read-later", source: .browse)
         }
     }
 
+    // Back-to-back seals can share a millisecond; the order must still be newest first.
     @Test("Sealing a page again keeps both seals, newest first, and the earlier one untouched")
     func seals() throws {
         let store = try PantryStore(inMemory: ())
-        let first = try seal(store, body: "Pro costs $29/mo.", at: Date(timeIntervalSince1970: 1_000))
-        let second = try seal(store, body: "Pro costs $39/mo.", at: Date(timeIntervalSince1970: 2_000))
+        let first = try seal(store, body: "Pro costs $29/mo.")
+        let second = try seal(store, body: "Pro costs $39/mo.")
         let seals = try store.read { db in try store.seals(db, url: "https://example.com/pricing") }
         #expect(seals.map(\.id) == [second.id, first.id])
         #expect(seals.last?.body == "Pro costs $29/mo.", "the earlier seal keeps its own text")

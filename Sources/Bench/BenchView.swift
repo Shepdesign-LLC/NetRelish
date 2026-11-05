@@ -749,24 +749,27 @@ private struct PanelSealsSection: View {
     }
 
     var body: some View {
-        PanelSection("Seals") {
-            ForEach(seals.prefix(PanelText.sealsShown)) { seal in
-                PanelRow(PanelText.sealLabel(seal, current: item), PanelText.sealDate(seal))
-            }
-            if seals.count > PanelText.sealsShown {
-                PanelNote(PanelText.moreSeals(seals.count - PanelText.sealsShown))
-            }
-            if workbench.resealingURL == item.url {
-                PanelNote(PanelText.resealing)
-            } else {
-                HStack(spacing: NRSpace.sp2) {
-                    Button("Seal Again") { Task { await workbench.resealAndCompare(item) } }
-                        .buttonStyle(.nrSecondary)
-                        .help(PanelText.sealAgainHelp)
-                    if seals.count > 1 {
-                        Button("Compare") { Task { await workbench.compareWithPrevious(seals[0]) } }
+        // One real container, so the task has a view to run on.
+        VStack(alignment: .leading, spacing: 0) {
+            PanelSection("Seals") {
+                ForEach(seals.prefix(PanelText.sealsShown)) { seal in
+                    PanelRow(PanelText.sealLabel(seal, current: item), PanelText.sealDate(seal))
+                }
+                if seals.count > PanelText.sealsShown {
+                    PanelNote(PanelText.moreSeals(seals.count - PanelText.sealsShown))
+                }
+                if workbench.resealingURL == item.url {
+                    PanelNote(PanelText.resealing)
+                } else {
+                    HStack(spacing: NRSpace.sp2) {
+                        Button("Seal Again") { Task { await workbench.resealAndCompare(item) } }
                             .buttonStyle(.nrSecondary)
-                            .help(PanelText.compareHelp)
+                            .help(PanelText.sealAgainHelp)
+                        if seals.count > 1 {
+                            Button("Compare") { Task { await workbench.compareWithPrevious(seals[0]) } }
+                                .buttonStyle(.nrSecondary)
+                                .help(PanelText.compareHelp)
+                        }
                     }
                 }
             }
@@ -847,7 +850,7 @@ enum PanelText {
 
     static let sealsShown = 5
     static let resealing = "Sealing this page again…"
-    static let sealAgainHelp = "Save a fresh copy of this page and compare it with the last one"
+    static let sealAgainHelp = "Seal this page again and compare it with the last seal"
     static let compareHelp = "Compare the two most recent seals side by side"
 
     /// "This copy" for the seal the Panel describes, "Sealed" for the others.

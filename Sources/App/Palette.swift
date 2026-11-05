@@ -63,7 +63,10 @@ enum PaletteSource {
             rows.append(PaletteRow(id: "cmd.pin", kind: .command, title: pinned ? "Unpin Tab" : "Pin Tab",
                                    shortcut: "⌘⇧P") { workbench.togglePinActiveTab() })
         }
-        if let copy = workbench.savedCopy {
+        if workbench.comparison != nil {
+            rows.append(PaletteRow(id: "cmd.closecomparison", kind: .command, title: "Close Comparison",
+                                   shortcut: "⌘W") { workbench.closeComparison() })
+        } else if let copy = workbench.savedCopy {
             if copy.url != nil {
                 rows.append(PaletteRow(id: "cmd.livepage", kind: .command, title: "Open Live Page",
                                        subtitle: "In a new tab") { workbench.openLivePage(copy) })

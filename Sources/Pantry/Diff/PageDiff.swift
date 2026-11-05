@@ -91,10 +91,42 @@ public struct PageDiff: Sendable, Equatable {
 
     // MARK: Lining up
 
+    /// Above this many sentence pairs left after the common start and end are set aside, the
+    /// middle is shown as removed, then added, without lining it up. The diff's memory grows
+    /// with the square of the changes, so a rewritten page must never stall the comparison.
+    static let maxSentencePairs = 50_000_000
+
+    /// One row before it gets its id.
+    private typealias Cell = (old: [Span]?, new: [Span]?, change: Bool)
+
     /// Sentences in both seals line up as unchanged rows. Between them, the removed and added
     /// sentences pair up in order: a pair is one changed row, compared word by word, and what
     /// is left over is a row with one side empty.
     static func align(_ a: [String], _ b: [String]) -> [Row] {
+        // The common start and end are unchanged rows; only the middle needs diffing.
+        var head = 0
+        while head < a.count, head < b.count, a[head] == b[head] { head += 1 }
+        var tail = 0
+        while tail < a.count - head, tail < b.count - head, a[a.count - 1 - tail] == b[b.count - 1 - tail] { tail += 1 }
+
+        let midA = Array(a[head..<(a.count - tail)])
+        let midB = Array(b[head..<(b.count - tail)])
+        var cells: [Cell] = []
+        cells.reserveCapacity(a.count + b.count)
+        for k in 0..<head { cells.append(([Span(a[k], .same)], [Span(b[k], .same)], false)) }
+        if midA.count * midB.count > maxSentencePairs {
+            for s in midA { cells.append(([Span(s, .removed)], nil, true)) }
+            for s in midB { cells.append((nil, [Span(s, .added)], true)) }
+        } else {
+            cells += alignMiddle(midA, midB)
+        }
+        for k in 0..<tail {
+            cells.append(([Span(a[a.count - tail + k], .same)], [Span(b[b.count - tail + k], .same)], false))
+        }
+        return cells.enumerated().map { Row(id: $0.offset, old: $0.element.old, new: $0.element.new, isChange: $0.element.change) }
+    }
+
+    private static func alignMiddle(_ a: [String], _ b: [String]) -> [Cell] {
         var removed = Set<Int>()
         var inserted = Set<Int>()
         for change in b.difference(from: a) {
@@ -104,11 +136,11 @@ public struct PageDiff: Sendable, Equatable {
             }
         }
 
-        var rows: [Row] = []
+        var rows: [Cell] = []
         var i = 0
         var j = 0
         func add(_ old: [Span]?, _ new: [Span]?, change: Bool) {
-            rows.append(Row(id: rows.count, old: old, new: new, isChange: change))
+            rows.append((old, new, change))
         }
 
         while i < a.count || j < b.count {

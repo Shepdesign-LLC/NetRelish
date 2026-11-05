@@ -10,8 +10,10 @@ ADR 0012 puts Reseal & diff in 1.0 as a Pro feature. The plan's demo: seal a pri
 - **How it looks (Ryan, Nov 5): monochrome.** Removed words are struck through in `--nr-fg-3`, added words are underlined in `--nr-fg`, and changed rows sit on `--nr-surface-2`. No new tokens, no relish (manifest §4). VoiceOver reads "Removed:" and "Added:" because strikethrough and underline aren't spoken.
 - **Where you start it:** the Panel's new Seals section on a sealed page lists its seals, and has Seal Again and Compare (the two most recent seals).
 - **Pro, for now (Ryan, Nov 5): ungated.** Buying Pro isn't built yet, so one check, `Pro.isUnlocked`, returns yes, and Reseal & diff can be demoed. When StoreKit and the direct build's license key land, that check is the only thing that changes.
-- **Speed:** the plan's budget is 1 second for a 2 MB page. A test compares a 2 MB page with one edit and prints the time, so it's measured on every CI run. The comparison runs off the main thread, so the window never stalls.
+- **Speed:** the plan's budget is 1 second for a 2 MB page. A test compares a 2 MB page with one edit and prints the time, so it's measured on every CI run. The comparison runs off the main thread, so the window never stalls. The same start and end of the two pages are set aside first; if the middle that's left is still huge (a page rewritten end to end), it's shown as removed, then added, without lining it up.
 - **Proposed follow-ups:**
   - Keep paragraph breaks in the text frozen at Seal, so later comparisons can line up by paragraph as well as sentence. Earlier seals keep working sentence by sentence.
   - A "layout changed" line for pages whose text is the same but whose saved copy differs (the plan's risk table).
   - Choosing any two seals to compare, not just the latest two.
+  - A seal stores the address the page ended up at. A page that redirects, or adds to its address, is sealed again under the new address, so its Seals list starts over. Matching on the address that was asked for would keep them together.
+  - A long run of text with no sentence punctuation is cut every 400 characters, counted from its start. One word added early moves every later cut, so the whole run shows as changed.
