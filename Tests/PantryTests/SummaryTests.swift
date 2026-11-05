@@ -158,7 +158,7 @@ private struct ModelGaveUp: Error {}
     @Test("Only a sealed page has text a summarizer may read")
     func sealedTextIsSealedOnly() throws {
         let store = try store()
-        let captured = try store.write { db in try store.capture(db, url: "https://example.com/live") }
+        let captured = try store.write { db in try store.capture(db, url: "https://example.com/live", source: .browse) }
         var withBody = captured
         withBody.body = "Text on a page that was never sealed."
         #expect(SealedText(withBody) == nil)

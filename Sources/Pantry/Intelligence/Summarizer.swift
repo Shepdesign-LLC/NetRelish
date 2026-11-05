@@ -38,8 +38,11 @@ public struct OnDeviceSummarizer: Summarizer {
     public func summarize(_ page: SealedText) async throws -> String {
         do {
             return try await respond(page)
-        } catch LanguageModelSession.GenerationError.exceededContextWindowSize {
-            // A page dense enough to overflow the window: once more with less of it.
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            // Most often a page dense enough to overflow the model's window. Once more with
+            // a third of it; a second failure is the answer.
             return try await respond(page.shortened(to: SealedText.characterLimit / 3))
         }
     }
