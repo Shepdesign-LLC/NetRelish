@@ -153,6 +153,13 @@ final class Workbench {
         self.summaries = summarizer.map { SummaryWorker(store: store, summarizer: $0) }
         load()
         if inbox != nil { watchInbox() }
+        if summaries != nil {
+            // Coming back to NetRelish (say, after turning Apple Intelligence on) tries again.
+            _ = NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification,
+                                                       object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.summarizeWaiting() }
+            }
+        }
         summarizeWaiting()   // anything sealed just before the last quit
     }
 
@@ -173,6 +180,30 @@ final class Workbench {
         guard let summaries else { return }
         let changed = await summaries.sweep()
         if !changed.isEmpty { summaryRevision += 1 }
+        retryLaterIfStillWaiting()
+    }
+
+    /// Whether a minute's retry is already set.
+    private var summaryRetryScheduled = false
+
+    /// A page still says "Summarizing" (the model is downloading, or busy): look again in a
+    /// minute, so the line stays true while you watch. Pages set aside because Apple
+    /// Intelligence is off wait for you to come back to the app instead.
+    private func retryLaterIfStillWaiting() {
+        guard !summaryRetryScheduled else { return }
+        let stillWaiting = (try? store.read { db in
+            try store.awaitingSummary(db).contains { item in
+                if case .unavailable? = item.storedSummary { return false }
+                return true
+            }
+        }) ?? false
+        guard stillWaiting else { return }
+        summaryRetryScheduled = true
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(60))
+            self?.summaryRetryScheduled = false
+            self?.summarizeWaiting()
+        }
     }
 
     /// Where a sealed page's summary stands, for the Panel. Nil when none is coming.

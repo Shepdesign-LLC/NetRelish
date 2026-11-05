@@ -272,6 +272,7 @@ private struct FixedSummarizer: Summarizer {
         #expect(PanelText.summary(.pending) == .note("Summarizing on this Mac…"))
         #expect(PanelText.summary(.unavailable(.appleIntelligenceOff))
                 == .note("Turn on Apple Intelligence in System Settings and sealed pages get a summary here."))
-        #expect(PanelText.summary(.failed) == .note("Couldn’t summarize this page."))
+        #expect(PanelText.summary(.retrying(attempts: 1)) == .note("Summarizing on this Mac…"))
+        #expect(PanelText.summary(.failed) == .note("Apple Intelligence couldn’t summarize this page."))
     }
 }

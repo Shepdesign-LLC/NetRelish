@@ -61,19 +61,27 @@ public actor SummaryWorker {
             case .unavailable(let why):
                 if record(.unavailable(why), item.id) { changed.append(item.id) }
             case .ready:
-                let state: SummaryState
                 do {
                     let text = try await summarizer.summarize(page)
-                    state = text.isEmpty ? .failed : .done(text)
+                    if record(text.isEmpty ? .failed : .done(text), item.id) { changed.append(item.id) }
                 } catch is CancellationError {
                     return changed
                 } catch {
-                    state = .failed
+                    // Often passing: the model is busy, or limited while the app is in the
+                    // background. Counted, and the rest wait for the next sweep.
+                    if record(SummaryWorker.afterFailure(item.storedSummary), item.id) { changed.append(item.id) }
+                    return changed
                 }
-                if record(state, item.id) { changed.append(item.id) }
             }
         }
         return changed
+    }
+
+    /// What a failure turns a page's summary into: another try, until the last.
+    static func afterFailure(_ stored: SummaryState?) -> SummaryState {
+        var attempts = 1
+        if case .retrying(let before)? = stored { attempts = before + 1 }
+        return attempts >= SummaryState.maxAttempts ? .failed : .retrying(attempts: attempts)
     }
 
     private func record(_ state: SummaryState, _ itemId: String) -> Bool {

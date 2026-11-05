@@ -801,11 +801,11 @@ enum PanelText {
     static func summary(_ state: SummaryState) -> SummaryLine {
         switch state {
         case .done(let text): .summary(text)
-        case .pending: .note("Summarizing on this Mac…")
+        case .pending, .retrying: .note("Summarizing on this Mac…")
         case .noText: .note("This page had no article text to summarize.")
         case .unavailable(.appleIntelligenceOff): .note("Turn on Apple Intelligence in System Settings and sealed pages get a summary here.")
         case .unavailable(.deviceNotEligible): .note("This Mac can’t write summaries. It doesn’t support Apple Intelligence.")
-        case .failed: .note("Couldn’t summarize this page.")
+        case .failed: .note("Apple Intelligence couldn’t summarize this page.")
         }
     }
 

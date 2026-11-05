@@ -15,6 +15,7 @@ private actor StandInSummarizer: Summarizer {
     }
 
     func set(_ readiness: SummarizerReadiness) { readinessAnswer = readiness }
+    func respond(with next: Result<String, Error>) { answer = next }
     func readiness() async -> SummarizerReadiness { readinessAnswer }
     func summarize(_ page: SealedText) async throws -> String {
         handed.append(page)
@@ -131,16 +132,33 @@ private struct ModelGaveUp: Error {}
         #expect(try store.read { db in try store.summaryState(db, of: item.id) } == .pending)
     }
 
-    @Test("A model that fails marks the page failed, and it isn't retried on its own")
+    @Test("A model that keeps failing gets three tries, then the page is marked failed for good")
     func failed() async throws {
         let store = try store()
         let item = try seal(store)
         let model = StandInSummarizer(answer: .failure(ModelGaveUp()))
         let worker = SummaryWorker(store: store, summarizer: model)
+
+        await worker.sweep()
+        #expect(try reread(item, in: store).storedSummary == .retrying(attempts: 1))
+        #expect(try store.read { db in try store.awaitingSummary(db) }.map(\.id) == [item.id], "still waiting")
         await worker.sweep()
         await worker.sweep()
         #expect(try reread(item, in: store).storedSummary == .failed)
-        #expect(await model.handed.count == 1)
+        await worker.sweep()
+        #expect(await model.handed.count == SummaryState.maxAttempts, "a failed page isn't tried again")
+    }
+
+    @Test("A passing failure (the model was busy) is tried again, and the summary lands")
+    func busyThenFine() async throws {
+        let store = try store()
+        let item = try seal(store)
+        let model = StandInSummarizer(answer: .failure(ModelGaveUp()))
+        let worker = SummaryWorker(store: store, summarizer: model)
+        await worker.sweep()
+        await model.respond(with: .success("Net thirty."))
+        await worker.sweep()
+        #expect(try reread(item, in: store).storedSummary == .done("Net thirty."))
     }
 
     @Test("Sweeps that overlap summarize each page once")

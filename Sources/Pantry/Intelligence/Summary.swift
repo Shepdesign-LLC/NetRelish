@@ -17,6 +17,9 @@ public enum SummaryUnavailable: String, Sendable, Equatable {
 
 /// Where a sealed page's summary stands.
 public enum SummaryState: Sendable, Equatable {
+    /// How many times the model may fail a page before it's marked failed.
+    public static let maxAttempts = 3
+
     /// The jar's Recipe asked for one and it hasn't been written yet. Never stored: it is
     /// worked out from the Recipe that ran (`PantryStore.summaryState`).
     case pending
@@ -26,7 +29,10 @@ public enum SummaryState: Sendable, Equatable {
     case noText
     /// This Mac can't summarize right now. Tried again whenever summaries are swept.
     case unavailable(SummaryUnavailable)
-    /// The model tried and gave nothing usable. Not retried on its own.
+    /// The model failed this many times, which can be passing (busy, rate-limited in the
+    /// background). Tried again on the next sweep, until `SummaryState.maxAttempts`.
+    case retrying(attempts: Int)
+    /// The model failed `maxAttempts` times. Not retried on its own.
     case failed
 }
 
@@ -47,10 +53,20 @@ extension Item {
             return .noText
         case "unavailable":
             return (entry["reason"] as? String).flatMap(SummaryUnavailable.init(rawValue:)).map { .unavailable($0) }
+        case "retry":
+            return (entry["attempts"] as? Int).map { .retrying(attempts: $0) }
         case "failed":
             return .failed
         default:
             return nil
+        }
+    }
+
+    /// No summary yet, due another try, or set aside because this Mac couldn't summarize.
+    var isAwaitingSummary: Bool {
+        switch storedSummary {
+        case nil, .unavailable?, .retrying?: true
+        case .pending?, .done?, .noText?, .failed?: false
         }
     }
 
@@ -63,6 +79,7 @@ extension Item {
         case .done(let text): obj[Item.summaryMetaKey] = ["status": "done", "text": text]
         case .noText: obj[Item.summaryMetaKey] = ["status": "noText"]
         case .unavailable(let why): obj[Item.summaryMetaKey] = ["status": "unavailable", "reason": why.rawValue]
+        case .retrying(let attempts): obj[Item.summaryMetaKey] = ["status": "retry", "attempts": attempts]
         case .failed: obj[Item.summaryMetaKey] = ["status": "failed"]
         }
         meta = obj.isEmpty ? nil : try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys])
@@ -116,20 +133,21 @@ extension PantryStore {
     public static let sealAndSummarizeRecipeId = "seal-summarize"
 
     /// Sealed pages whose last Recipe run had a summarize step, and that have no summary yet,
-    /// or were set aside because this Mac couldn't summarize. Newest seal first.
+    /// are due another try, or were set aside because this Mac couldn't summarize. Newest
+    /// seal first. Finished pages are filtered out in SQLite, so this stays cheap as the
+    /// Pantry grows.
     public func awaitingSummary(_ db: Database) throws -> [Item] {
         let candidates = try Item.fetchAll(db, sql: """
             SELECT DISTINCT items.* FROM items
             JOIN batches ON batches.id = items.batchId
             JOIN steps ON steps.recipeId = batches.recipeId
             WHERE steps.action = ? AND items.state = ? AND items.sealedAt IS NOT NULL
+              AND (items.meta IS NULL
+                   OR json_extract(CAST(items.meta AS TEXT), '$.summary.status') IS NULL
+                   OR json_extract(CAST(items.meta AS TEXT), '$.summary.status') IN ('unavailable', 'retry'))
             ORDER BY items.sealedAt DESC
             """, arguments: [StepAction.summarize.rawValue, ItemState.sealed.rawValue])
-        return candidates.filter { item in
-            guard let stored = item.storedSummary else { return true }
-            if case .unavailable = stored { return true }
-            return false
-        }
+        return candidates.filter { $0.isAwaitingSummary }
     }
 
     /// Where an item's summary stands, for the Panel: what's stored, else `.pending` if the
