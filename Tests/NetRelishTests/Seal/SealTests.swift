@@ -57,9 +57,24 @@ import WebKit
         #expect(bench.searchPantry("invoice").count == 1)
     }
 
-    @Test("With no default Recipe on the jar, sealing runs nothing (P3 fills this in)")
+    @Test("A new jar runs Seal & Summarize on Seal")
+    func newJarsSealAndSummarize() async throws {
+        let bench = try bench()
+        #expect(bench.activeJar?.defaultRecipeId == PantryStore.sealAndSummarizeRecipeId)
+        await bench.sealActiveTab()
+        let batches = try bench.store.read { db in try Batch.fetchAll(db) }
+        #expect(batches.map(\.recipeId) == [PantryStore.sealAndSummarizeRecipeId])
+    }
+
+    @Test("With no default Recipe on the jar, sealing runs nothing")
     func noDefaultRecipe() async throws {
         let bench = try bench()
+        var jar = bench.activeJar!
+        try bench.store.write { db in
+            jar.defaultRecipeId = nil
+            try jar.update(db)
+        }
+        bench.load()
         await bench.sealActiveTab()
         let batches = try bench.store.read { db in try Batch.fetchCount(db) }
         #expect(batches == 0)
@@ -218,5 +233,46 @@ import WebKit
         #expect(titles.contains("Close Saved Copy"))
         #expect(!titles.contains("Seal this page"))
         #expect(!titles.contains("Close Tab"))
+    }
+}
+
+/// A summarizer that always answers the same, for the Workbench's half of Seal & Summarize.
+private struct FixedSummarizer: Summarizer {
+    let text: String
+    func readiness() async -> SummarizerReadiness { .ready }
+    func summarize(_ page: SealedText) async throws -> String { text }
+}
+
+/// ⌘S, then the summary: Seal returns at once, and the summary lands after for the Panel.
+@Suite("Seal & Summarize on the Bench") @MainActor struct SealAndSummarizeTests {
+
+    @Test("After ⌘S the tab closes at once, and the summary lands for the Panel")
+    func summaryLandsAfterSeal() async throws {
+        let bench = Workbench(store: try PantryStore(), summarizer: FixedSummarizer(text: "Net thirty, with a pumpernickel clause."))
+        bench.newJar(name: "Meridian", tint: nil, shelfLifeDays: 3)
+        _ = bench.newTab(url: "https://example.com/invoice")
+        bench.tabDidNavigate(bench.activeTab!.id, url: URL(string: "https://example.com/invoice"), title: "Invoice terms")
+        bench.sealProvider = { _ in
+            (Data("WEBARCHIVE".utf8),
+             Extraction.Result(title: "Invoice terms", excerpt: "Net thirty.",
+                               body: "The client agreed to net thirty with a pumpernickel clause."))
+        }
+        #expect(await bench.sealActiveTab())
+        let item = try #require(try bench.store.read { db in try Item.fetchOne(db) })
+        #expect(bench.tabs.isEmpty, "the tab closed without waiting on the model")
+
+        await bench.summarizeWaitingNow()   // joins the sweep ⌘S started, if it's still going
+        #expect(bench.summary(of: item) == .done("Net thirty, with a pumpernickel clause."))
+        #expect(bench.summaryRevision > 0, "the Panel is told to read it again")
+    }
+
+    @Test("The Panel's summary lines")
+    func panelWords() {
+        #expect(PanelText.summary(.done("Net thirty.")) == .summary("Net thirty."))
+        #expect(PanelText.summary(.pending) == .note("Summarizing on this Mac…"))
+        #expect(PanelText.summary(.unavailable(.appleIntelligenceOff))
+                == .note("Turn on Apple Intelligence in System Settings and sealed pages get a summary here."))
+        #expect(PanelText.summary(.retrying(attempts: 1)) == .note("Summarizing on this Mac…"))
+        #expect(PanelText.summary(.failed) == .note("Apple Intelligence couldn’t summarize this page."))
     }
 }

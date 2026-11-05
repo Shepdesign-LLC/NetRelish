@@ -670,6 +670,7 @@ private struct PanelItemSections: View {
                     PanelRow("Sealed", sealed.formatted(date: .abbreviated, time: .shortened))
                 }
             }
+            PanelSummarySection(item: item, workbench: workbench)
             PanelSection("Labels") {
                 ForEach(labels) { label in
                     HStack(spacing: NRSpace.sp2) {
@@ -693,6 +694,39 @@ private struct PanelItemSections: View {
             }
         }
         .task(id: "\(item.id)|\(workbench.labelRevision)") { labels = workbench.labels(of: item) }
+    }
+}
+
+/// Seal & Summarize's result for a sealed page: the summary, or one line saying where it
+/// stands. Nothing at all for a page no summary is coming for.
+private struct PanelSummarySection: View {
+    let item: Item
+    @Bindable var workbench: Workbench
+    @State private var state: SummaryState?
+
+    init(item: Item, workbench: Workbench) {
+        self.item = item
+        self.workbench = workbench
+        _state = State(initialValue: workbench.summary(of: item))
+    }
+
+    var body: some View {
+        // One real container, so the task has a view to run on (on EmptyView it never would).
+        VStack(alignment: .leading, spacing: 0) {
+            if let state {
+                PanelSection("Summary") {
+                    switch PanelText.summary(state) {
+                    case .summary(let text):
+                        Text(text).font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .textSelection(.enabled)
+                    case .note(let text):
+                        PanelNote(text)
+                    }
+                }
+            }
+        }
+        .task(id: "\(item.id)|\(workbench.summaryRevision)") { state = workbench.summary(of: item) }
     }
 }
 
@@ -758,6 +792,23 @@ private struct PanelNote: View {
 
 /// The Panel's words, kept out of the views so tests can read them.
 enum PanelText {
+    /// The summary to show, or a line about it in the note style.
+    enum SummaryLine: Equatable {
+        case summary(String)
+        case note(String)
+    }
+
+    static func summary(_ state: SummaryState) -> SummaryLine {
+        switch state {
+        case .done(let text): .summary(text)
+        case .pending, .retrying: .note("Summarizing on this Mac…")
+        case .noText: .note("This page had no article text to summarize.")
+        case .unavailable(.appleIntelligenceOff): .note("Turn on Apple Intelligence in System Settings and sealed pages get a summary here.")
+        case .unavailable(.deviceNotEligible): .note("This Mac can’t write summaries. It doesn’t support Apple Intelligence.")
+        case .failed: .note("Apple Intelligence couldn’t summarize this page.")
+        }
+    }
+
     static func state(_ item: Item, jar: String) -> String {
         switch item.state {
         case .brined: "In Brine"
