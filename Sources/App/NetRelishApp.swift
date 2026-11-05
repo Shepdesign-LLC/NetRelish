@@ -22,12 +22,19 @@ struct NetRelishApp: App {
         isHostingTests ? nil : OnDeviceSummarizer()
     }
 
+    /// Pro provenance's timestamp authority, from the build settings (ADR 0022). None while
+    /// hosting the tests: they never reach the network.
+    private static var timestamps: (any TimestampAuthority)? {
+        isHostingTests ? nil : TimestampService.configured
+    }
+
     private static var isHostingTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
     init() {
-        let workbench = Workbench(inbox: NetRelishApp.shareInbox, summarizer: NetRelishApp.summarizer)
+        let workbench = Workbench(inbox: NetRelishApp.shareInbox, summarizer: NetRelishApp.summarizer,
+                                  timestamps: NetRelishApp.timestamps)
         _workbench = State(initialValue: workbench)
         // The Shortcuts that act on the app (Seal the page in front, Open a Jar) find it here.
         AppDependencyManager.shared.add(dependency: workbench)

@@ -73,7 +73,7 @@ Every user-facing string follows `docs/voice/SHEPDESIGN-VOICE.md` (the house voi
 - Branch per phase task: `p1/shelf-rail`, `p2/seal-webarchive`. Small PRs. Conventional commits.
 - Every PR body has: **What**, **Demo** (steps in the built app), **Rule check** (which non-negotiables it touches), **Brand check** (which manifest sections it touches).
 - Tests for Store and Intelligence are required. UI tests for capture → jar → seal.
-- Never commit secrets. Timestamping and license endpoints come from `Config.xcconfig`, gitignored.
+- Never commit secrets. The timestamping and license endpoints are public addresses, committed in `Config/Base.xcconfig` (ADR 0022); a local `Config.xcconfig` (gitignored) can override them.
 - Performance budgets are in `/docs/NetRelish_Plan_and_Roadmap.md` §5. Measure before you claim.
 - When a decision isn't covered here, propose it in the PR as a one-line ADR under `/docs/adr/`. Don't silently pick.
 

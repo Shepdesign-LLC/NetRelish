@@ -145,12 +145,22 @@ final class Workbench {
     /// stand-in or none, so no test ever waits on a model.
     let summaries: SummaryWorker?
 
+    /// Fingerprints every sealed page, and timestamps it when this build has a timestamp
+    /// authority and Pro is unlocked (ADR 0022).
+    let provenanceWorker: ProvenanceWorker
+
+    /// Whether sealed pages get timestamps, not only fingerprints.
+    let timestampsOn: Bool
+
     init(store: PantryStore = .shared, vault: VaultStore = .live, inbox: ShareInbox? = nil,
-         summarizer: (any Summarizer)? = nil) {
+         summarizer: (any Summarizer)? = nil, timestamps: (any TimestampAuthority)? = nil) {
         self.store = store
         self.vault = vault
         self.inbox = inbox
         self.summaries = summarizer.map { SummaryWorker(store: store, summarizer: $0) }
+        let authority = Pro.isUnlocked ? timestamps : nil
+        self.provenanceWorker = ProvenanceWorker(store: store, authority: authority)
+        self.timestampsOn = authority != nil
         load()
         if inbox != nil { watchInbox() }
         if summaries != nil {
@@ -160,7 +170,15 @@ final class Workbench {
                 MainActor.assumeIsolated { self?.summarizeWaiting() }
             }
         }
+        if timestampsOn {
+            // Coming back to NetRelish (say, after the Mac was offline) tries the stamps again.
+            _ = NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification,
+                                                       object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.stampWaiting() }
+            }
+        }
         summarizeWaiting()   // anything sealed just before the last quit
+        stampWaiting()
     }
 
     // MARK: Seal & Summarize
@@ -209,6 +227,58 @@ final class Workbench {
     /// Where a sealed page's summary stands, for the Panel. Nil when none is coming.
     func summary(of item: Item) -> SummaryState? {
         try? store.read { db in try store.summaryState(db, of: item.id) }
+    }
+
+    // MARK: Provenance (Pro)
+
+    /// Ticks when provenance lands, so the Panel reads it again.
+    private(set) var provenanceRevision = 0
+
+    /// Starts fingerprinting and timestamping sealed pages that are waiting. Seal never waits.
+    func stampWaiting() {
+        Task { @MainActor [weak self] in await self?.stampWaitingNow() }
+    }
+
+    /// The same, awaited. Tests call this to know the provenance is written.
+    func stampWaitingNow() async {
+        let changed = await provenanceWorker.sweep()
+        if !changed.isEmpty { provenanceRevision += 1 }
+    }
+
+    /// The provenance stored on a sealed page, read fresh.
+    func provenance(of item: Item) -> Provenance? {
+        (try? store.read { db in try Item.fetchOne(db, key: item.id) })?.provenance
+    }
+
+    /// Asks where to save the proof of a sealed page, then saves it there: a one-page PDF,
+    /// the saved copy itself and the timestamp token (ADR 0022).
+    func exportProof(_ item: Item) {
+        guard Pro.isUnlocked else { report(Pro.proofLockedLine); return }
+        guard let provenance = provenance(of: item), let path = item.snapshotPath else {
+            report("This page’s fingerprint isn’t ready yet")
+            return
+        }
+        let panel = NSSavePanel()
+        panel.title = "Export Proof"
+        panel.prompt = "Export"
+        panel.nameFieldStringValue = ProofText.exportName(item)
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let target = panel.url else { return }
+        do {
+            let archive = try store.snapshots.read(path)
+            guard Provenance.fingerprint(of: archive) == provenance.fingerprint else {
+                // Never expected: the saved copy is frozen. Say so rather than export a proof
+                // that wouldn't check out.
+                report("The saved copy no longer matches its fingerprint")
+                return
+            }
+            let jarName = jars.first { $0.id == item.jarId }?.name
+            try ProofExport.write(item: item, provenance: provenance, archive: archive, jarName: jarName, to: target)
+            report("Proof exported")
+        } catch {
+            log.error("export proof: \(String(describing: error), privacy: .public)")
+            report("Couldn’t export the proof")
+        }
     }
 
     // MARK: The Share extension
@@ -583,6 +653,7 @@ final class Workbench {
             closeIfStillOn(tab)
             report("Sealed into \(jars.first { $0.id == jarId }?.name ?? "the jar")")
             summarizeWaiting()
+            stampWaiting()
             return true
         } catch is CancellationError {
             return false
@@ -664,6 +735,7 @@ final class Workbench {
         refreshSmartJars()
         report("Sealed into \(target.name)")
         summarizeWaiting()
+        stampWaiting()
         return item
     }
 

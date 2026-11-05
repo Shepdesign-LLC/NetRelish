@@ -677,6 +677,9 @@ private struct PanelItemSections: View {
             if item.state == .sealed, item.url != nil {
                 PanelSealsSection(item: item, workbench: workbench)
             }
+            if item.state == .sealed, item.snapshotPath != nil {
+                PanelProofSection(item: item, workbench: workbench)
+            }
             PanelSection("Labels") {
                 ForEach(labels) { label in
                     HStack(spacing: NRSpace.sp2) {
@@ -778,6 +781,37 @@ private struct PanelSealsSection: View {
     }
 }
 
+/// Provenance (Pro): the saved copy's fingerprint, its timestamp, and Export Proof.
+private struct PanelProofSection: View {
+    let item: Item
+    @Bindable var workbench: Workbench
+    @State private var provenance: Provenance?
+
+    init(item: Item, workbench: Workbench) {
+        self.item = item
+        self.workbench = workbench
+        _provenance = State(initialValue: workbench.provenance(of: item))
+    }
+
+    var body: some View {
+        // One real container, so the task has a view to run on.
+        VStack(alignment: .leading, spacing: 0) {
+            PanelSection("Proof") {
+                if let provenance {
+                    PanelRow("Fingerprint", PanelText.shortFingerprint(provenance.fingerprint))
+                    PanelRow("Timestamp", PanelText.timestamp(provenance, on: workbench.timestampsOn))
+                    Button("Export Proof…") { workbench.exportProof(item) }
+                        .buttonStyle(.nrSecondary)
+                        .help(PanelText.exportProofHelp)
+                } else {
+                    PanelNote(PanelText.fingerprinting)
+                }
+            }
+        }
+        .task(id: "\(item.id)|\(workbench.provenanceRevision)") { provenance = workbench.provenance(of: item) }
+    }
+}
+
 private struct PanelHeader: View {
     let title: String
     let subtitle: String?
@@ -840,6 +874,26 @@ private struct PanelNote: View {
 
 /// The Panel's words, kept out of the views so tests can read them.
 enum PanelText {
+    // Provenance
+
+    static let fingerprinting = "Working out this page’s fingerprint…"
+    static let exportProofHelp = "Save a PDF, the saved copy and its timestamp, so anyone can check what this page said and when"
+
+    /// The first and last eight characters, enough to compare by eye; the proof has it whole.
+    static func shortFingerprint(_ hex: String) -> String {
+        hex.count > 16 ? "\(hex.prefix(8))…\(hex.suffix(8))" : hex
+    }
+
+    static func timestamp(_ provenance: Provenance, on: Bool) -> String {
+        if let stamp = provenance.timestamp {
+            return stamp.time.formatted(date: .abbreviated, time: .shortened)
+        }
+        switch provenance.status {
+        case .failed: return "Couldn’t get one"
+        default: return on ? "Waiting" : "Not set up"
+        }
+    }
+
     /// The summary to show, or a line about it in the note style.
     enum SummaryLine: Equatable {
         case summary(String)
