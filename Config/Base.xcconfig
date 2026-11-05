@@ -1,9 +1,15 @@
 // Base.xcconfig — shared by every configuration.
-// Endpoints and license settings live in Config.xcconfig (gitignored, see
-// Config.xcconfig.example). The include is optional so a fresh clone builds.
-#include? "../Config.xcconfig"
 
-// Defaults so the build never fails on an unset endpoint; the app treats an
-// empty string as "feature off". Config.xcconfig overrides these.
-NR_TIMESTAMP_URL =
+// The endpoints the app may talk to besides page loads and StoreKit (non-negotiable 5).
+// They are public addresses, not secrets, so they're committed here (ADR 0022). An empty
+// string means "feature off". Note `/$()/`: in an xcconfig, `//` starts a comment.
+
+// RFC 3161 timestamping for Pro provenance: DigiCert's public timestamp authority.
+NR_TIMESTAMP_URL = http:/$()/timestamp.digicert.com
+
+// One-time license activation for the Direct build. Not set up yet.
 NR_LICENSE_ACTIVATION_URL =
+
+// A local Config.xcconfig (gitignored, see Config.xcconfig.example) overrides these, say to
+// point at a test authority. It comes last so its values win. Optional, so a fresh clone builds.
+#include? "../Config.xcconfig"
