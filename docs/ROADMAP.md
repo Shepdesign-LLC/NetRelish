@@ -1,143 +1,153 @@
 # Roadmap & positioning
 
-The business layer of NetRelish, translated from Ryan's working business
-plan (v1.0, Aug 2026) into the vocabulary and architecture of the
-shipped product. The plan itself is deliberately **not in this repo** —
-it lives at `/Volumes/WORK/New Projects/NetRelish/business-plan.md`.
+Where NetRelish is going and why, in one page. Kept current with the plan.
 
-**Ground rules.** CLAUDE.md remains law. Where the plan says Workspace,
-the product says **Jar**; where it says Ingredient, the product says
-item; where it describes cloud SaaS mechanics, those are now
-**adopted** rather than translated — see "Reversed on 2026-08-18" below.
-The vocabulary translation still holds absolutely. The repo went public
-in Aug 2026 and `business-plan.md` was purged from its history first, as
-this note had asked. Keep it that way: strategy stays off the public
-record.
+**What wins when this page disagrees:** `CLAUDE.md` (the contract), then the accepted
+ADRs in `docs/adr/`, then `docs/NetRelish_Plan_and_Roadmap.md` (the 12-week plan to the
+Mac App Store). This page summarizes them. It never overrides them.
+
+Ryan's business plan (v1.0, Aug 2026) stays out of this repo, which is public. Strategy
+stays off the public record.
+
+*Last updated Nov 5, 2026.*
 
 ---
 
 ## Positioning
 
-NetRelish sits **between research and execution**. The product answers
-one question:
+NetRelish is a native Mac browser with a Pantry. It sits **between research and
+execution**, and answers one question:
 
 > "I found all this stuff. Now what?"
 
-Every competitor owns a neighboring space — bookmark managers own
-saving, Notion owns documents, read-later apps own consuming, AI
-assistants own answering. Nobody owns the gap between *found it* and
-*used it*. That gap is the product.
+Bookmark managers own saving, Notion owns documents, read-later apps own reading, and AI
+browsers own answering. Nobody owns the gap between *found it* and *used it*. That gap
+is the product.
 
-The plan's sharpest line is approved for marketing copy:
+- **Tagline:** "Savor the web. Get more done."
+- **Approved for marketing copy:** "Don't just save the web. Use it."
+- **The wedge:** NetRelish's intelligence reads only what you sealed. It never sees a
+  live tab, never clicks, never acts inside a signed-in session. That closes the attack
+  surface every AI browser on Chromium is exposed to. It's a consequence of how
+  NetRelish is built, not a slogan, so it's a proof point, listed third, not the
+  headline.
 
-> **Don't just save the web. Use it.**
-
-The tagline stays **"Savor the web. Get more done."** (CLAUDE.md §1 —
-the tagline is the spec). The plan's alternates live in §36 of the plan
-as a copy bench for the site.
-
-One metaphor correction, ours wins: in NetRelish the **Pantry is what
-you've preserved**, not the internet. The web is the market you shop
-in; the Pantry is home.
+In NetRelish the **Pantry is what you've kept**, not the internet. The web is the market
+you shop in; the Pantry is home.
 
 ## Who it's for
 
-The plan's market ladder, unchanged — it's right:
+1. **Web designers and developers.** They research constantly, repeat the same workflows
+   across clients, and fight tab chaos daily. This is Ryan; the first user is the
+   persona.
+2. **Marketers.** Competitor, SEO and campaign research. Jars are client files.
+3. **Business professionals.** Market research, vendor comparisons, planning.
+4. **Researchers, lawyers, consultants.** People whose job is to keep receipts on the
+   web.
 
-1. **Web designers & developers** — research constantly, repeat
-   workflows across clients, feel tab-chaos daily. (This is Ryan.
-   The first user is the persona.)
-2. **Marketers** — competitor research, SEO research, campaign
-   research. Jars are client files.
-3. **Business professionals** — market research, vendor comparisons,
-   planning.
-4. **Students & knowledge workers** — projects, reading lists, topic
-   collections.
+Sell to the first group first. They have the problem every day, and their public work
+brings in the rest.
 
-Sell to 1 first. They already have the problem at high frequency, and
-their public output attracts 2–4.
+## Business-plan words, and what the product calls them
 
-## Translation table
-
-| Business plan says | The product says | Status |
+| The business plan says | The product says | Status |
 | :-- | :-- | :-- |
-| Workspace | **Jar** | shipped |
-| Ingredient | item (`page/note/task/file/message`) | shipped |
-| Relish This (extension button) | **Jar it** (`⌘J`) | shipped |
-| Save-in-seconds capture panel | `⌘J` — zero-UI capture, already organized | shipped |
-| Browser Tab Intelligence | the engine's suggestion strip | shipped |
-| AI categorization / related resources | on-device embeddings + entities (§8) | shipped |
-| Repeatable workflow / Recipe | **Recipe** — recorded, not authored | shipped |
-| Web clipper | `⌘J` on a selection | shipped (page-level); element-level is future |
-| "What am I missing?" gap analysis | hosted intelligence, a fifth engine layer | **P5** |
-| Relish Report (website analysis) | naming is Ryan's call when scheduled | **P8** |
-| Knowledge graph | entities + embeddings exist; the visual surface is scheduled | **P12** |
-| Public collections / marketplace / teams | scheduled — no longer gated on user count | **P7, P10, P11** |
-| Accounts, cloud backend, LLM API | **adopted**, not translated — see "Reversed on 2026-08-18" | **P1, P4, P5** |
-
-The plan's own thesis — *"NetRelish should live inside the browser"* —
-is now fulfilled twice over: on the Mac, NetRelish **is** the browser;
-everywhere else, the extension rides in Chrome exactly as the plan
-first imagined (P3).
+| Workspace | **Jar** (a project, and its own browsing profile) | Shipped |
+| Ingredient | item (`page · note · task · file · message`) | Shipped |
+| "Relish This" / save in seconds | **Capture** (⌘D) into Brine, or Share → NetRelish from any app | Shipped |
+| Preserve a page | **Seal** (⌘S): a saved copy, full-text searchable | Shipped |
+| Repeatable workflow | **Recipe**, each one a Shortcut | Built-in Seal & Summarize: 1.0. Record one and replay it with ⌘R: 1.1 |
+| AI summaries | Seal & Summarize, on-device with Apple Intelligence | 1.0 |
+| AI categorization, related items | Semantic search, on-device | 1.1 |
+| Web clipper | Page-level capture | Shipped. Highlights and notes (Notebook): 1.1 |
+| Proof of what a page said | Reseal & diff, and provenance export | 1.0, Pro |
+| Sharing a collection | Jar bundles over AirDrop, no account either end | 1.1, Pro |
+| Website analysis ("Relish Report") | Not on the native roadmap | Ryan's call if it returns |
+| "What am I missing?" gap analysis | Not on the native roadmap: it needed hosted intelligence | Ruled out by non-negotiable 5 |
+| Knowledge graph | Not on the native roadmap | Ryan's call if it returns |
+| Public collections, marketplace, teams | Not on the native roadmap: they need a server | Ruled out by non-negotiable 5 |
 
 ## Roadmap
 
-### Shipped — v0.1
+### The 12 weeks to the Mac App Store
 
-The eight weeks of CLAUDE.md §11: shell, Brine, Jars, Ask the Pantry,
-Sealing, the engine, Recipes, notes/tasks/files/labels. Signed +
-notarized release pipeline. Aero Relish design system.
+Launch target: **Dec 14, 2026**. On Nov 1 Ryan held the date and cut the scope
+(ADR 0012).
 
-### Now — the master plan
+| Phase | What | Dates | Status |
+| :-- | :-- | :-- | :-- |
+| P0 Pivot | Swift foundation; the data model generated from System Designer | Sep 14–18 | Done |
+| P1 Bench + Shelf + Brine | Tabs, the jar rail, jars as profiles, Brine, ⌘K, ⌘D | Sep 21 – Oct 2 | Done |
+| P2 Seal | Saved copies, search, Reader view, Smart Jars, the Panel | Oct 5–16 | Done |
+| P3 Recipes + Shortcuts + Share | Share menu, Shortcuts, Seal & Summarize | Oct 19–30 | Built. Seal & Summarize merged Nov 5 |
+| P4 Pro | Reseal & diff, provenance export, buying Pro | Nov 2–13 | Not started |
+| P5 App Store prep | Sandbox and privacy review, StoreKit 2, accessibility, onboarding | Nov 16–25 | Not started |
+| P6 TestFlight + launch | Testers, App Store listing, submission | Nov 30 – Dec 11 | Not started |
 
-Twelve projects, six phases. Summarised here; the spec is authoritative.
+Previews 0.4.0–0.4.2 ship the finished phases as a signed direct download
+(`docs/releases/`).
 
-| Phase | Projects |
-| :-- | :-- |
-| 1 Foundation | P0 constitution + monorepo + notarization · P1 backend |
-| 2 MVP | P2 web app · P3 extension · P5 hosted intelligence |
-| 3 Business | P6 billing · P7 public jars and growth |
-| 4 Mac home | P4 sync |
-| 5 Premium | P8 Relish Reports · P9 competitive research |
-| 6 Scale | P10 teams · P11 marketplace · P12 knowledge graph |
+### What 1.0 includes (ADR 0012)
 
-Already shipped and not re-listed above: the eight weeks of CLAUDE.md §11,
-and **passwords** (2026-08-11) — save and fill logins vaulted in the macOS
-Keychain, never in `netrelish.db`, never near FTS or the engine. The fill
-path runs Rust→page; the UI layer only ever sees usernames. Detection is a
-suggestion; saving and filling are user gestures. Still wanted: a management
-panel, CSV import from Safari/Chrome, a multi-account picker, Touch ID on
-reveal, and subdomain matching.
+- **Browsing:** the Shelf, jars as profiles, Brine, links that open new windows become
+  tabs.
+- **Keeping:** Capture, Seal, search that opens the saved copy, Smart Jars (Brine, Today,
+  Sealed, Sinking soon), Reader view, the Panel, the Share menu, Shortcuts.
+- **Recipes:** a few built-in ones, one per jar, run on Seal and listed in Shortcuts.
+  "Seal & Summarize" uses on-device Foundation Models.
+- **Pro:** reseal & diff, provenance export, buying and restoring Pro (StoreKit 2), and a
+  license key for the direct build.
+- **App Store prep:** everything in P5.
 
-Still unscheduled, still wanted: element-level clipping, email via IMAP, a
-PWA companion.
+Free and Pro: Free, and Pro at $39/yr or $99 lifetime ("Buy once, use forever."). Pro
+launches with two features at those prices.
 
-### Reversed on 2026-08-18
+### 1.1 (January 2027)
 
-This section used to list what the plan asked for and the architecture
-refused. Ryan reversed all four. Kept rather than deleted — the reversal
-should stay legible:
+- Moved from 1.0 by ADR 0012: Ask the Pantry, content blocker, split view, Jar bundles,
+  semantic search, unlimited Recipes, recording a Recipe and replaying it with ⌘R.
+- Notebook: highlights and notes on saved pages.
+- Zest: the free Zest tools inside the app, offline, in their own window (ADR 0015).
+- Proposed, not decided: Panel notes, which need a model change in System Designer first.
 
-| Was out | Now | Where |
-| :-- | :-- | :-- |
-| Accounts, cloud backend | **In** — Supabase, full account sync | P1, P4 |
-| LLM API in the product | **In** — hosted, metered by plan | P5 |
-| Extension as a capture surface | **In** — MV3, Chrome + Edge | P3 |
-| Public collections, marketplace, teams | **In** — scheduled, phases 3 and 6 | P7, P10, P11 |
+### After 1.1
 
-What survives: the on-device embedding model stays (it does ranking and
-clustering offline, and the hosted model does prose — they are
-complementary); offline remains the floor; the vocabulary in CLAUDE.md §2 is
-unchanged; and §4a now bounds what may leave the machine.
+- **Duo companion (iOS):** capture and Brine on the phone. Post-1.0 with no date fixed
+  (the plan pencils it in for 1.1; ADR 0012's 1.1 list doesn't include it). The Pantry
+  core is already a Swift package for it (ADR 0009).
+- **1.2:** Pickle, a jar with a local dev environment (direct build only); voice notes;
+  opt-in larger on-device models (MLX).
+- **1.3:** Pickle with Docker; a visionOS "Pantry as a room" demo.
 
-The full decomposition is
-`docs/superpowers/specs/2026-08-18-netrelish-master-plan-design.md`.
+### The site
 
-## Metrics that matter (plan §30, kept)
+netrelish.com moves from Astro to WordPress the week of Jan 4, 2027 (ADR 0016). It
+lives in its own repo, `netrelish-site`. Its roadmap page and changelog must match this
+page before they go live.
 
-Activation (first item preserved), time-to-value, second-jar creation,
-weekly actives, items per active user, suggestion acceptance rate,
-recipe reuse, retention. Accounts make server-side measurement possible
-for the first time. What gets measured is not yet decided, and per
-§4a nothing is collected until it is written down. Until then: opt-in
-feedback and download counts.
+## Retired
+
+These came from the August Tauri plan and were dropped with the September pivot to a
+native Mac app (`docs/NetRelish_Plan_and_Roadmap.md`, and `CLAUDE.md` § Retired). They are
+listed so the change stays visible.
+
+- **Accounts, a cloud backend, sync through a server, and a hosted LLM.** Browsing data
+  never leaves the Mac (non-negotiable 5). The only network calls are page loads,
+  StoreKit, provenance timestamps and the direct build's license activation. Sync for
+  Duo, when it comes, goes through the person's own iCloud Drive.
+- **A Chrome/Edge extension and a web app.** NetRelish is the browser, on the Mac.
+- **The Tauri app's features** (the suggestion strip, `⌘J` "Jar it", the password vault)
+  are not being carried over. The native app's Me card (Keychain, ⌘⇧F) covers form
+  filling.
+
+## Metrics that matter
+
+- **Seals per active user per week:** the one number that says the Pantry is being used.
+- **Free → Pro conversion, and Pro refunds.**
+- **Recipes created per Pro user.**
+- **Crash-free sessions.**
+- **App Store rating.**
+
+Targets are in the plan, §8. NetRelish has no analytics: these numbers come from App
+Store Connect and StoreKit, and from feedback people choose to send. Nothing more is
+collected unless it's written down first.
