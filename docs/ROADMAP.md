@@ -112,9 +112,8 @@ launches with two features at those prices.
 
 ### After 1.1
 
-- **Duo companion (iOS):** capture and Brine on the phone. Post-1.0 with no date fixed
-  (the plan pencils it in for 1.1; ADR 0012's 1.1 list doesn't include it). The Pantry
-  core is already a Swift package for it (ADR 0009).
+- **Duo companion (iOS):** capture and Brine on the phone. Post-1.0, no date (Ryan,
+  Nov 5). The Pantry core is already a Swift package for it (ADR 0009).
 - **1.2:** Pickle, a jar with a local dev environment (direct build only); voice notes;
   opt-in larger on-device models (MLX).
 - **1.3:** Pickle with Docker; a visionOS "Pantry as a room" demo.
