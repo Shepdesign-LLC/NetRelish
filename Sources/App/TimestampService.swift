@@ -26,6 +26,7 @@ struct TimestampService: TimestampAuthority {
         configuration.httpShouldSetCookies = false
         configuration.httpCookieStorage = nil
         configuration.urlCache = nil
+        // NETRELISH-ALLOW-ENDPOINT: adr-0022 — RFC 3161 timestamping, allowed by rule 5
         return URLSession(configuration: configuration)
     }()
 
@@ -46,6 +47,7 @@ struct TimestampService: TimestampAuthority {
         let data: Data
         let response: URLResponse
         do {
+            // NETRELISH-ALLOW-ENDPOINT: adr-0022 — the one POST of a fingerprint to the authority
             (data, response) = try await TimestampService.session.data(for: post)
         } catch let error as URLError {
             TimestampService.log.error("timestamp request: \(error.localizedDescription, privacy: .public)")

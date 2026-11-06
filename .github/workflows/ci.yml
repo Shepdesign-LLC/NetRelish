@@ -83,11 +83,22 @@ jobs:
     runs-on: xcode-27
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
-      - name: Test (Debug-AppStore, both bundles)
+      # Signed ad hoc, not unsigned: StoreKit's local test store (ProStoreKitTests) won't talk
+      # to an unsigned app. The sandbox and app-group entitlements are left off here so the
+      # tests keep the plain file access they've always had; the release jobs are unchanged.
+      - name: Test (Debug-AppStore, both bundles; signed ad hoc for StoreKit's test store)
         run: |
           xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
             -configuration Debug-AppStore -derivedDataPath "$DERIVED" \
-            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet test
+            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- \
+            CODE_SIGNING_REQUIRED=NO CODE_SIGN_ENTITLEMENTS= ENABLE_APP_SANDBOX=NO \
+            -resultBundlePath TestResults.xcresult -quiet test
+      - name: Keep the test results when they fail, so the errors can be read
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (node24)
+        with:
+          name: test-results
+          path: TestResults.xcresult
       - name: Render the Design Kit (light + dark)
         run: |
           "$DERIVED/Build/Products/Debug-AppStore/NetRelish.app/Contents/MacOS/NetRelish" --snapshot design-kit-snapshots

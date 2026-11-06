@@ -28,13 +28,24 @@ struct NetRelishApp: App {
         isHostingTests ? nil : TimestampService.configured
     }
 
+    /// Whether Pro is unlocked (ADR 0023). The App Store build asks StoreKit; the Direct
+    /// build stays unlocked until its license key lands (ADR 0007). Tests bring their own.
+    private static var pro: ProStore {
+        if isHostingTests { return ProStore(unlocked: true) }
+        #if DIRECT_BUILD
+        return ProStore(unlocked: true)
+        #else
+        return .live()
+        #endif
+    }
+
     private static var isHostingTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
     init() {
         let workbench = Workbench(inbox: NetRelishApp.shareInbox, summarizer: NetRelishApp.summarizer,
-                                  timestamps: NetRelishApp.timestamps)
+                                  timestamps: NetRelishApp.timestamps, pro: NetRelishApp.pro)
         _workbench = State(initialValue: workbench)
         // The Shortcuts that act on the app (Seal the page in front, Open a Jar) find it here.
         AppDependencyManager.shared.add(dependency: workbench)
@@ -52,6 +63,9 @@ struct NetRelishApp: App {
         .defaultSize(width: 1180, height: 820)
         .commands {
             // Jars menu: ⌘1–9 switch jars (manifest §8 Shelf).
+            CommandGroup(after: .appInfo) {
+                Button("NetRelish Pro…") { workbench.showingPro = true }
+            }
             CommandMenu("Jars") {
                 ForEach(Array(workbench.jars.prefix(9).enumerated()), id: \.element.id) { index, jar in
                     Button(jar.name) { workbench.activate(index: index) }
@@ -130,6 +144,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $workbench.showMeOnboarding) {
             MeOnboardingSheet(vault: workbench.vault) { workbench.fillFromMe() }
+        }
+        .sheet(isPresented: $workbench.showingPro) {
+            ProView(pro: workbench.pro) { workbench.showingPro = false }
         }
     }
 }

@@ -1,0 +1,20 @@
+# ADR 0023 — How buying Pro works
+
+**Status:** proposed · **Date:** 2026-11-06 · **PR:** feat(pro): buying Pro with StoreKit 2
+
+ADR 0003 fixes what Pro contains and its prices (Free, and Pro at $39/yr or $99 lifetime, "Buy once, use forever."); ADR 0012 puts buying and restoring Pro in 1.0. This is how.
+
+- **One place decides.** `ProStore.isUnlocked` replaces the hard-coded `Pro.isUnlocked` (ADR 0021). In the App Store build it reads StoreKit 2's verified record of what this Apple Account bought, and keeps listening: a purchase on another Mac, a renewal or a refund lands without a relaunch. The Direct build stays unlocked until its license key lands (ADR 0007).
+- **Two products.** `com.shepdesign.netrelish.pro.annual` (auto-renewing, one-year) and `com.shepdesign.netrelish.pro.lifetime` (non-consumable). Lifetime wins when both are owned. A refunded purchase never unlocks; an expired year neither. No trial (Ryan, Nov 6); one can be added later in App Store Connect without an app change.
+- **What's gated:** Seal Again, Compare and Export Proof, exactly ADR 0003's list as built so far. Fingerprints stay free (they're local and cost nothing); timestamps start when Pro unlocks and stop when it lapses, from the next sweep. Sealing, jars, search: never gated.
+- **Locked looks like this (Ryan, Nov 6):** the Pro buttons stay visible with a neutral "PRO" tag beside them (hairline and `--nr-fg-2`, not the relish badge, which §4 keeps for counts). Using one opens the Pro sheet instead of doing nothing.
+- **The Pro sheet** opens from the app menu ("NetRelish Pro…") or from a locked feature: the cog, the two features in a sentence each, both prices as the App Store formats them, Restore Purchases, and the required Terms of Use and Privacy Policy links. One primary button: Lifetime. The purchase itself runs through the system's own confirmation sheet (SwiftUI's purchase action); NetRelish never sees payment details. StoreKit is already an allowed network call (non-negotiable 5).
+- **Tested against Apple's local test store.** `Config/NetRelish.storekit` is a local catalog with the same product IDs; CI buys, refunds and restores against it (`SKTestSession`), with no network and no real account. The decision itself (`apply`) is tested as a pure function: refunds, expiry, lifetime-beats-annual.
+- **Demo until TestFlight (Ryan, Nov 6):** CI renders the Pro sheet light and dark into the `design-kit-snapshots` artifact. Real buying is demoed in P6 through TestFlight's sandbox. The Direct preview build stays fully unlocked.
+- **Ryan's one-time setup in App Store Connect** (the products live there, not in code; needed before TestFlight, not for this PR):
+  1. appstoreconnect.apple.com → My Apps → NetRelish → Monetization → **Subscriptions** → "+" to make a group named `NetRelish Pro`, then "+" a subscription: Reference Name `Pro Annual`, Product ID `com.shepdesign.netrelish.pro.annual`, duration 1 year, price $39.99 tier→ choose $39.99 (Apple's tiers have no $39.00), localization: display name `Pro Annual`, description "Every year, until you cancel."
+  2. Monetization → **In-App Purchases** → "+", type Non-Consumable: Reference Name `Pro Lifetime`, Product ID `com.shepdesign.netrelish.pro.lifetime`, price $99.99 tier, localization: display name `Pro Lifetime`, description "Buy once, use forever."
+  3. Both need a Review screenshot before submission; the P6 pass takes those from the built app.
+  4. If the final tiers differ from $39/$99, the site and ROADMAP.md change to match; the app never hard-codes a price.
+- **One manifest note for Ryan:** the Pro sheet shows the cog. Manifest §2 lists the cog's places as "Site, onboarding, empty states, About window"; this ADR proposes adding "the Pro sheet" to that list (a v1.2.3 changelog line). If you'd rather not, say so and the sheet drops the mark.
+- **Proposed follow-ups:** the Direct build's license key (ADR 0007); gating the fourth and later Recipes ("3 Recipes" free, ADR 0003) when the Recipe editor lands in 1.1; Family Sharing stays off (plan §P5).
