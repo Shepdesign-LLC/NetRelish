@@ -39,8 +39,8 @@ public actor ProvenanceWorker {
         self.nonce = nonce
     }
 
-    /// Gives or takes away the authority, as Pro unlocks or lapses (ADR 0023). Takes effect
-    /// from the next sweep; a sweep already running finishes with what it has.
+    /// Gives or takes away the authority, as Pro unlocks or lapses (ADR 0023). A sweep
+    /// already running picks it up from its next page, since each page reads it afresh.
     public func set(authority newAuthority: (any TimestampAuthority)?) {
         authority = newAuthority
     }

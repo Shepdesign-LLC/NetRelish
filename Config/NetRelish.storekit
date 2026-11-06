@@ -7,7 +7,7 @@
     {
       "displayPrice" : "99.0",
       "familyShareable" : false,
-      "internalID" : "A1B2C3D4",
+      "internalID" : "1762400001",
       "localizations" : [
         {
           "description" : "Buy once, use forever.",
@@ -30,7 +30,7 @@
   },
   "subscriptionGroups" : [
     {
-      "id" : "D4E5F6A7",
+      "id" : "1762400100",
       "localizations" : [
 
       ],
@@ -46,7 +46,7 @@
           "displayPrice" : "39.0",
           "familyShareable" : false,
           "groupNumber" : 1,
-          "internalID" : "B2C3D4E5",
+          "internalID" : "1762400002",
           "introductoryOffer" : null,
           "localizations" : [
             {
@@ -58,7 +58,7 @@
           "productID" : "com.shepdesign.netrelish.pro.annual",
           "recurringSubscriptionPeriod" : "P1Y",
           "referenceName" : "Pro Annual",
-          "subscriptionGroupID" : "D4E5F6A7",
+          "subscriptionGroupID" : "1762400100",
           "type" : "RecurringSubscription"
         }
       ]

@@ -16,4 +16,5 @@ ADR 0003 fixes what Pro contains and its prices (Free, and Pro at $39/yr or $99 
   2. Monetization → **In-App Purchases** → "+", type Non-Consumable: Reference Name `Pro Lifetime`, Product ID `com.shepdesign.netrelish.pro.lifetime`, price $99.99 tier, localization: display name `Pro Lifetime`, description "Buy once, use forever."
   3. Both need a Review screenshot before submission; the P6 pass takes those from the built app.
   4. If the final tiers differ from $39/$99, the site and ROADMAP.md change to match; the app never hard-codes a price.
+- **One manifest note for Ryan:** the Pro sheet shows the cog. Manifest §2 lists the cog's places as "Site, onboarding, empty states, About window"; this ADR proposes adding "the Pro sheet" to that list (a v1.2.3 changelog line). If you'd rather not, say so and the sheet drops the mark.
 - **Proposed follow-ups:** the Direct build's license key (ADR 0007); gating the fourth and later Recipes ("3 Recipes" free, ADR 0003) when the Recipe editor lands in 1.1; Family Sharing stays off (plan §P5).

@@ -183,10 +183,20 @@ final class ProStore {
         do {
             try await AppStore.sync()
         } catch {
+            // Offline, or the sign-in was cancelled. Never claim the account hasn't bought
+            // Pro when the App Store didn't answer (the house rule: never claim more than
+            // is true). What it did already buy still unlocks.
             ProStore.log.error("restore: \(error.localizedDescription, privacy: .public)")
+            await refresh()
+            note = isUnlocked ? ProText.restored : ProText.storeUnreachable
+            return
         }
         await refresh()
         note = isUnlocked ? ProText.restored : ProText.nothingToRestore
+    }
+
+    deinit {
+        updates?.cancel()
     }
 }
 

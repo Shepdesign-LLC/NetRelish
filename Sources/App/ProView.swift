@@ -8,7 +8,7 @@ import StoreKit
 import SwiftUI
 
 struct ProView: View {
-    @Bindable var pro: ProStore
+    let pro: ProStore
     /// Closes the sheet. Passed in so snapshots can render the view with no Workbench.
     let done: () -> Void
     @Environment(\.purchase) private var purchase
@@ -32,6 +32,8 @@ struct ProView: View {
         .padding(NRSpace.sp6)
         .frame(width: 440)
         .background(NRColor.surface)
+        // Opened offline at launch? Ask for the prices again now.
+        .task { if pro.offers.isEmpty { await pro.loadOffers() } }
     }
 
     private var header: some View {

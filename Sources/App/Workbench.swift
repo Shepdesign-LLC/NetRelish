@@ -182,11 +182,13 @@ final class Workbench {
                 MainActor.assumeIsolated { self?.summarizeWaiting() }
             }
         }
-        if timestampsOn {
-            // Coming back to NetRelish (say, after the Mac was offline) tries the stamps again.
+        if timestamps != nil {
+            // Coming back to NetRelish (say, after the Mac was offline) tries the stamps
+            // again. Registered whenever this build can stamp at all — Pro may be locked now
+            // and bought later — and gated inside on Pro being unlocked then.
             _ = NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification,
                                                        object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.stampWaiting() }
+                MainActor.assumeIsolated { if self?.timestampsOn == true { self?.stampWaiting() } }
             }
         }
         summarizeWaiting()   // anything sealed just before the last quit
@@ -194,10 +196,15 @@ final class Workbench {
         pro.onChange = { [weak self] in self?.proChanged() }
     }
 
+    /// The last Pro flip being applied, so two quick flips land in order.
+    private var proFlip: Task<Void, Never>?
+
     /// Pro was bought, restored, refunded or lapsed: stamping follows, from the next sweep.
     private func proChanged() {
         let authority = pro.isUnlocked ? timestampAuthority : nil
-        Task { @MainActor [weak self] in
+        let previous = proFlip
+        proFlip = Task { @MainActor [weak self] in
+            await previous?.value
             await self?.provenanceWorker.set(authority: authority)
             await self?.stampWaitingNow()
         }
