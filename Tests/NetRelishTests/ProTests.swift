@@ -112,6 +112,18 @@ import Testing
         return session
     }
 
+    /// The test store settles purchases and refunds asynchronously, like the real one. Reads
+    /// again, briefly, until the store agrees — the app itself hears these through
+    /// Transaction.updates whenever they land.
+    private func refresh(_ store: ProStore, until settled: @MainActor (ProStore) -> Bool) async {
+        for _ in 0..<50 {
+            await store.refresh()
+            if settled(store) { return }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        await store.refresh()
+    }
+
     @Test("The catalog offers both plans, priced")
     func offers() async throws {
         let session = try makeSession()
@@ -130,12 +142,12 @@ import Testing
         #expect(!store.isUnlocked)
 
         let transaction = try await session.buyProduct(identifier: ProPlan.lifetime.rawValue)
-        await store.refresh()
+        await refresh(store, until: { $0.isUnlocked })
         #expect(store.isUnlocked)
         #expect(store.plan == .lifetime)
 
         try session.refundTransaction(identifier: UInt(transaction.id))
-        await store.refresh()
+        await refresh(store, until: { !$0.isUnlocked })
         #expect(!store.isUnlocked)
         #expect(store.plan == nil)
         _ = session
@@ -146,7 +158,7 @@ import Testing
         let session = try makeSession()
         _ = try await session.buyProduct(identifier: ProPlan.annual.rawValue)
         let store = ProStore.live()
-        await store.refresh()
+        await refresh(store, until: { $0.isUnlocked })
         #expect(store.isUnlocked)
         #expect(store.plan == .annual)
         #expect(store.renews.map { $0 > Date() } == true)
