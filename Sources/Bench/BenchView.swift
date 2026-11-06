@@ -773,6 +773,7 @@ private struct PanelSealsSection: View {
                                 .buttonStyle(.nrSecondary)
                                 .help(PanelText.compareHelp)
                         }
+                        if !workbench.pro.isUnlocked { ProTag() }
                     }
                 }
             }
@@ -800,9 +801,12 @@ private struct PanelProofSection: View {
                 if let provenance {
                     PanelRow("Fingerprint", PanelText.shortFingerprint(provenance.fingerprint))
                     PanelRow("Timestamp", PanelText.timestamp(provenance, on: workbench.timestampsOn))
-                    Button("Export Proof…") { workbench.exportProof(item) }
-                        .buttonStyle(.nrSecondary)
-                        .help(PanelText.exportProofHelp)
+                    HStack(spacing: NRSpace.sp2) {
+                        Button("Export Proof…") { workbench.exportProof(item) }
+                            .buttonStyle(.nrSecondary)
+                            .help(PanelText.exportProofHelp)
+                        if !workbench.pro.isUnlocked { ProTag() }
+                    }
                 } else {
                     PanelNote(PanelText.fingerprinting)
                 }

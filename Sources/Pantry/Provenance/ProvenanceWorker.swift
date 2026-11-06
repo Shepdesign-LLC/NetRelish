@@ -22,7 +22,7 @@ public struct TimestampUnreachable: Error {
 
 public actor ProvenanceWorker {
     private let store: PantryStore
-    private let authority: (any TimestampAuthority)?
+    private var authority: (any TimestampAuthority)?
     private let nonce: @Sendable () -> [UInt8]
     private var running: Task<[String], Never>?
     private var again = false
@@ -37,6 +37,12 @@ public actor ProvenanceWorker {
         self.store = store
         self.authority = authority
         self.nonce = nonce
+    }
+
+    /// Gives or takes away the authority, as Pro unlocks or lapses (ADR 0023). Takes effect
+    /// from the next sweep; a sweep already running finishes with what it has.
+    public func set(authority newAuthority: (any TimestampAuthority)?) {
+        authority = newAuthority
     }
 
     /// Fingerprints and stamps every sealed page that's waiting, and returns the ids whose

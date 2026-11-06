@@ -149,18 +149,30 @@ final class Workbench {
     /// authority and Pro is unlocked (ADR 0022).
     let provenanceWorker: ProvenanceWorker
 
+    /// Whether Pro is unlocked, and buying it (ADR 0023). The app passes StoreKit's answer in
+    /// the App Store build and a fixed yes in the Direct build; tests default to unlocked.
+    let pro: ProStore
+
+    /// The Pro sheet: what Pro adds, the prices, buying and restoring. Opens from the app
+    /// menu, or by using a Pro feature while it's locked.
+    var showingPro = false
+
+    private let timestampAuthority: (any TimestampAuthority)?
+
     /// Whether sealed pages get timestamps, not only fingerprints.
-    let timestampsOn: Bool
+    var timestampsOn: Bool { pro.isUnlocked && timestampAuthority != nil }
 
     init(store: PantryStore = .shared, vault: VaultStore = .live, inbox: ShareInbox? = nil,
-         summarizer: (any Summarizer)? = nil, timestamps: (any TimestampAuthority)? = nil) {
+         summarizer: (any Summarizer)? = nil, timestamps: (any TimestampAuthority)? = nil,
+         pro: ProStore = ProStore(unlocked: true)) {
         self.store = store
         self.vault = vault
         self.inbox = inbox
+        self.pro = pro
         self.summaries = summarizer.map { SummaryWorker(store: store, summarizer: $0) }
-        let authority = Pro.isUnlocked ? timestamps : nil
+        self.timestampAuthority = timestamps
+        let authority = pro.isUnlocked ? timestamps : nil
         self.provenanceWorker = ProvenanceWorker(store: store, authority: authority)
-        self.timestampsOn = authority != nil
         load()
         if inbox != nil { watchInbox() }
         if summaries != nil {
@@ -179,6 +191,16 @@ final class Workbench {
         }
         summarizeWaiting()   // anything sealed just before the last quit
         stampWaiting()
+        pro.onChange = { [weak self] in self?.proChanged() }
+    }
+
+    /// Pro was bought, restored, refunded or lapsed: stamping follows, from the next sweep.
+    private func proChanged() {
+        let authority = pro.isUnlocked ? timestampAuthority : nil
+        Task { @MainActor [weak self] in
+            await self?.provenanceWorker.set(authority: authority)
+            await self?.stampWaitingNow()
+        }
     }
 
     // MARK: Seal & Summarize
@@ -253,7 +275,7 @@ final class Workbench {
     /// Asks where to save the proof of a sealed page, then saves it there: a one-page PDF,
     /// the saved copy itself and the timestamp token (ADR 0022).
     func exportProof(_ item: Item) {
-        guard Pro.isUnlocked else { report(Pro.proofLockedLine); return }
+        guard pro.isUnlocked else { showingPro = true; return }
         guard let provenance = provenance(of: item), let path = item.snapshotPath else {
             report("This page’s fingerprint isn’t ready yet")
             return
@@ -804,7 +826,7 @@ final class Workbench {
     /// Seals the page again, in its own jar's profile, and compares the new seal with the latest
     /// one before it. The earlier seal is never touched (non-negotiable 3).
     func resealAndCompare(_ item: Item) async {
-        guard Pro.isUnlocked else { report(Pro.lockedLine); return }
+        guard pro.isUnlocked else { showingPro = true; return }
         guard let link = item.url, let url = URL(string: link) else {
             report("This page has no link to seal again")
             return
@@ -836,7 +858,7 @@ final class Workbench {
     /// Shows two seals side by side. The difference is worked out off the main thread, so a
     /// long page never stalls the window.
     func compare(_ older: Item, _ newer: Item) async {
-        guard Pro.isUnlocked else { report(Pro.lockedLine); return }
+        guard pro.isUnlocked else { showingPro = true; return }
         // A saved copy open underneath stays open: Done goes back to it.
         comparison = Comparison(older: older, newer: newer, diff: nil)
         let (a, b) = (older.body ?? "", newer.body ?? "")

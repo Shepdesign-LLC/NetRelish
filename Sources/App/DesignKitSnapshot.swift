@@ -18,28 +18,37 @@ enum DesignKitSnapshot {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
             NSApplication.shared.appearance = NSAppearance(named: appearance)
-            let view = DesignKitContent()
+            write(DesignKitContent()
                 .padding(NRSpace.sp6)
                 .frame(width: 1180)
-                .background(NRColor.bg)
-                .environment(\.colorScheme, name == "dark" ? .dark : .light)
-                .environment(\.nrReduceMotion, false)
-            let renderer = ImageRenderer(content: view)
-            renderer.scale = 2
-            guard let image = renderer.nsImage,
-                  let tiff = image.tiffRepresentation,
-                  let rep = NSBitmapImageRep(data: tiff),
-                  let png = rep.representation(using: .png, properties: [:]) else {
-                FileHandle.standardError.write("snapshot: failed to render \(name)\n".data(using: .utf8)!)
-                exit(1)
-            }
-            let url = dir.appendingPathComponent("design-kit-\(name).png")
-            do { try png.write(to: url) } catch {
-                FileHandle.standardError.write("snapshot: \(error)\n".data(using: .utf8)!)
-                exit(1)
-            }
-            print("wrote \(url.path) (\(Int(image.size.width))×\(Int(image.size.height)))")
+                .background(NRColor.bg), as: "design-kit-\(name)", name, to: dir)
+            // The Pro sheet, locked, with the catalog's prices (ADR 0023), for PR demos.
+            write(ProView(pro: ProStore(unlocked: false, offers: [
+                ProOffer(plan: .annual, price: "$39.00"),
+                ProOffer(plan: .lifetime, price: "$99.00"),
+            ]), done: {}), as: "pro-\(name)", name, to: dir)
         }
+    }
+
+    private static func write(_ content: some View, as file: String, _ scheme: String, to dir: URL) {
+        let view = content
+            .environment(\.colorScheme, scheme == "dark" ? .dark : .light)
+            .environment(\.nrReduceMotion, false)
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2
+        guard let image = renderer.nsImage,
+              let tiff = image.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else {
+            FileHandle.standardError.write("snapshot: failed to render \(file)\n".data(using: .utf8)!)
+            exit(1)
+        }
+        let url = dir.appendingPathComponent("\(file).png")
+        do { try png.write(to: url) } catch {
+            FileHandle.standardError.write("snapshot: \(error)\n".data(using: .utf8)!)
+            exit(1)
+        }
+        print("wrote \(url.path) (\(Int(image.size.width))×\(Int(image.size.height)))")
     }
 }
 #endif

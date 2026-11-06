@@ -80,7 +80,7 @@ Launch target: **Dec 14, 2026**. On Nov 1 Ryan held the date and cut the scope
 | P1 Bench + Shelf + Brine | Tabs, the jar rail, jars as profiles, Brine, ⌘K, ⌘D | Sep 21 – Oct 2 | Done |
 | P2 Seal | Saved copies, search, Reader view, Smart Jars, the Panel | Oct 5–16 | Done |
 | P3 Recipes + Shortcuts + Share | Share menu, Shortcuts, Seal & Summarize | Oct 19–30 | Built. Seal & Summarize merged Nov 5 |
-| P4 Pro | Reseal & diff, provenance export, buying Pro | Nov 2–13 | In progress: Reseal & diff and provenance export built |
+| P4 Pro | Reseal & diff, provenance export, buying Pro | Nov 2–13 | In progress: Reseal & diff and provenance export shipped; buying Pro built (App Store build; the Direct build stays unlocked until its license key) |
 | P5 App Store prep | Sandbox and privacy review, StoreKit 2, accessibility, onboarding | Nov 16–25 | Not started |
 | P6 TestFlight + launch | Testers, App Store listing, submission | Nov 30 – Dec 11 | Not started |
 
