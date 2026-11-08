@@ -9,7 +9,7 @@ Mac App Store). This page summarizes them. It never overrides them.
 Ryan's business plan (v1.0, Aug 2026) stays out of this repo, which is public. Strategy
 stays off the public record.
 
-*Last updated Nov 5, 2026.*
+*Last updated Nov 8, 2026.*
 
 ---
 
@@ -79,13 +79,14 @@ Launch target: **Dec 14, 2026**. On Nov 1 Ryan held the date and cut the scope
 | P0 Pivot | Swift foundation; the data model generated from System Designer | Sep 14–18 | Done |
 | P1 Bench + Shelf + Brine | Tabs, the jar rail, jars as profiles, Brine, ⌘K, ⌘D | Sep 21 – Oct 2 | Done |
 | P2 Seal | Saved copies, search, Reader view, Smart Jars, the Panel | Oct 5–16 | Done |
-| P3 Recipes + Shortcuts + Share | Share menu, Shortcuts, Seal & Summarize | Oct 19–30 | Built. Seal & Summarize merged Nov 5 |
-| P4 Pro | Reseal & diff, provenance export, buying Pro | Nov 2–13 | In progress: Reseal & diff and provenance export shipped; buying Pro built (App Store build; the Direct build stays unlocked until its license key) |
+| P3 Recipes + Shortcuts + Share | Share menu, Shortcuts, Seal & Summarize | Oct 19–30 | Done. Seal & Summarize merged Nov 5 |
+| P4 Pro | Reseal & diff, provenance export, buying Pro | Nov 2–13 | In progress: Reseal & diff, provenance export and buying Pro (StoreKit 2) merged. Left: the Direct build's license key |
 | P5 App Store prep | Sandbox and privacy review, StoreKit 2, accessibility, onboarding | Nov 16–25 | Not started |
 | P6 TestFlight + launch | Testers, App Store listing, submission | Nov 30 – Dec 11 | Not started |
 
 Previews 0.4.0–0.4.2 ship the finished phases as a signed direct download
-(`docs/releases/`).
+(`docs/releases/`). 0.5.0 is next: Seal & Summarize and the two Pro features, unlocked
+in the direct build until its license key lands.
 
 ### What 1.0 includes (ADR 0012)
 
@@ -122,7 +123,8 @@ launches with two features at those prices.
 
 netrelish.com moves from Astro to WordPress the week of Jan 4, 2027 (ADR 0016). It
 lives in its own repo, `netrelish-site`. Its roadmap page and changelog must match this
-page before they go live.
+page before they go live. The site's changelog syncs itself from `docs/releases/` and the
+commits since the last tag: a daily job there opens a pull request when something changed.
 
 ## Retired
 
