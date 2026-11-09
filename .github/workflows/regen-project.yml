@@ -40,6 +40,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
         with:
           ref: ${{ inputs.branch }}
+          # No token in .git/config while XcodeGen (from Homebrew) and the repository's
+          # scripts run. The push below is handed one, for that command alone.
+          persist-credentials: false
 
       - name: Regenerate NetRelish.xcodeproj
         run: |
@@ -50,6 +53,7 @@ jobs:
         id: commit
         env:
           BRANCH: ${{ inputs.branch }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           # XcodeGen writes the project and, for targets that declare them in project.yml,
           # their Info.plist and entitlements files. All of them are committed, so all of
@@ -67,7 +71,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "chore(project): regenerate NetRelish.xcodeproj from project.yml"
-          git push origin "HEAD:$BRANCH"
+          # The token goes to this one git command through its environment: not in .git/config,
+          # not on the command line.
+          AUTH=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')
+          echo "::add-mask::$AUTH"
+          GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" \
+            GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $AUTH" \
+            git push origin "HEAD:$BRANCH"
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Start CI on the new commit

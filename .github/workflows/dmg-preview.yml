@@ -37,6 +37,8 @@ jobs:
     runs-on: xcode-27
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          persist-credentials: false   # read-only job: leave no token in .git/config
 
       - name: Build the app (unsigned — CI has no certificate)
         run: |
