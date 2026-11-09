@@ -10,9 +10,17 @@ name: Release
 # version. That runs the same steps and tags main's commit itself, last, once the disk
 # image has passed Gatekeeper, so a run that fails leaves no tag behind.
 #
-# The notes come from docs/releases/<tag>.md, written by hand before tagging.
+# The notes come from docs/releases/<tag>.md, written by hand before tagging, and are
+# read as git objects of the released commit, never through the checkout: a symlink there
+# would otherwise publish whatever it points at on the runner (scripts/release_notes.py).
 # Nothing is published until the artifact itself has passed Gatekeeper's checks:
 # "Check the artifact, not the checkmark."
+#
+# Two jobs, so a write credential never meets the build:
+#   build    read-only token, no saved credentials. Everything that runs code from
+#            outside (Xcode, SwiftPM, PyPI's dmgbuild, the repository's scripts) runs here.
+#   publish  the only job that can write: tags main and publishes the release. It checks
+#            nothing out and runs nothing from the repository or from PyPI.
 #
 # The app this builds talks to nothing new (CLAUDE.md non-negotiable 5). The only
 # network here is CI's own: Apple's notary service and GitHub Releases.
@@ -26,8 +34,8 @@ on:
         description: Version to release, like v0.4.0. Tags main's current commit.
         required: true
 
-permissions:
-  contents: write          # gh release create; the tag, when started by hand
+# Nothing by default; each job asks for exactly what it needs.
+permissions: {}
 
 concurrency:
   group: release-${{ inputs.version || github.ref_name }}
@@ -39,13 +47,24 @@ env:
   CONFIGURATION: Release-Direct
 
 jobs:
-  release:
-    name: Sign, notarize and publish
+  build:
+    name: Build, sign and notarize
     # xcode-27 is the only image with the macOS 27 SDK.
     runs-on: xcode-27
     timeout-minutes: 60
+    permissions:
+      contents: read        # the commit, and a read-only look at the tag and releases
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      dmg: ${{ steps.version.outputs.dmg }}
+      tag_action: ${{ steps.tag.outputs.action }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          # Leave no token in .git/config for the build tools, PyPI packages and scripts
+          # this job runs. It only ever reads.
+          persist-credentials: false
 
       - name: Every secret is set
         # A secret you remember setting is not the same as a secret that is there
@@ -80,23 +99,39 @@ jobs:
           case "$MARKETING" in
             *[!0-9.]*|'') echo "::error::$TAG is not vMAJOR.MINOR.PATCH"; exit 1 ;;
           esac
-          NOTES="docs/releases/${TAG}.md"
-          if [ ! -s "$NOTES" ]; then
-            echo "::error file=$NOTES::Write the release notes for $TAG before tagging"
-            exit 1
-          fi
           {
             echo "tag=$TAG"
             echo "version=$VERSION"
             echo "marketing=$MARKETING"
-            echo "notes=$NOTES"
             echo "dmg=NetRelish-$VERSION.dmg"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Release notes are a regular file in the commit
+        # Read from git's objects for this commit, never through the working tree, and only
+        # through real directories: a symlinked notes file, docs/ or docs/releases/ is
+        # refused. Here it fails the run before any signing; publish reads the notes again,
+        # on its own, from GitHub, so nothing this job runs can change what is published.
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: python3 -I scripts/release_notes.py "$GITHUB_SHA" "$TAG" "$RUNNER_TEMP/notes-check.md"
+
+      - name: The commit is on main
+        # A tag push runs whatever commit the tag names. Releasing one main doesn't contain
+        # is refused here, before any signing, and again by publish before it tags. (The
+        # guard against a tag pusher who also edits this file is GitHub's: see ADR 0024.)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          STATUS=$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...main" --jq .status)
+          case "$STATUS" in
+            identical|ahead) ;;   # main is this commit, or has it and more
+            *) echo "::error::$GITHUB_SHA is not on main (compare says '$STATUS'); release from main"; exit 1 ;;
+          esac
+
       - name: Check the tag (when started by hand)
         # Read-only, and early, so a run that can't be tagged fails before any signing. The tag
-        # itself is made last, after Gatekeeper accepts the disk image: a run that fails
-        # leaves nothing behind, and a later run from a fixed main tags the fixed commit.
+        # itself is made last, by publish, after Gatekeeper accepts the disk image: a run that
+        # fails leaves nothing behind, and a later run from a fixed main tags the fixed commit.
         id: tag
         if: github.event_name == 'workflow_dispatch'
         env:
@@ -142,12 +177,13 @@ jobs:
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          MARKETING: ${{ steps.version.outputs.marketing }}
         run: |
           xcodebuild -version
           xcodebuild -project NetRelish.xcodeproj -scheme "$SCHEME" -configuration "$CONFIGURATION" \
             -derivedDataPath "$DERIVED" -destination 'platform=macOS' \
-            MARKETING_VERSION="${{ steps.version.outputs.marketing }}" \
-            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            MARKETING_VERSION="$MARKETING" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" PROVISIONING_PROFILE_SPECIFIER= \
             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
@@ -194,7 +230,6 @@ jobs:
           xcrun stapler validate "$APP"
           spctl -a -vvv -t exec "$APP" 2>&1 | tee "$RUNNER_TEMP/spctl-app.txt"
           grep -q "source=Notarized Developer ID" "$RUNNER_TEMP/spctl-app.txt" || { echo "::error::Gatekeeper does not accept the app as notarized"; exit 1; }
-          echo "notarize_fn_ok=1" >> "$GITHUB_ENV"
 
       - name: Disk image — signed, notarized, stapled, checked
         env:
@@ -202,8 +237,8 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DMG: ${{ steps.version.outputs.dmg }}
         run: |
-          DMG="${{ steps.version.outputs.dmg }}"
           # The window it opens to is laid out to the brand: scripts/dmg (ADR 0019).
           scripts/dmg/make-dmg.sh "$APP" "$DMG"
           codesign --sign "$APPLE_SIGNING_IDENTITY" --timestamp --keychain "$KEYCHAIN" "$DMG"
@@ -222,35 +257,118 @@ jobs:
           spctl -a -vvv -t open --context context:primary-signature "$DMG" 2>&1 | tee "$RUNNER_TEMP/spctl-dmg.txt"
           grep -q "source=Notarized Developer ID" "$RUNNER_TEMP/spctl-dmg.txt" || { echo "::error::Gatekeeper does not accept the disk image as notarized"; exit 1; }
           shasum -a 256 "$DMG" | tee "$DMG.sha256"
+          # Only these two leave this job.
+          mkdir -p "$RUNNER_TEMP/release"
+          cp "$DMG" "$DMG.sha256" "$RUNNER_TEMP/release/"
 
-      - name: Tag main (when started by hand)
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
-          ACTION: ${{ steps.tag.outputs.action }}
-        run: |
-          # The token's own ref writes start no second run (GitHub's loop guard).
-          case "$ACTION" in
-            create) gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA" >/dev/null ;;
-            move)   gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" -f sha="$GITHUB_SHA" -F force=true >/dev/null ;;
-            keep)   ;;
-            *)      echo "::error::no tag decision ('$ACTION')"; exit 1 ;;
-          esac
-          echo "$TAG is $GITHUB_SHA"
-
-      - name: Publish the pre-release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "${{ steps.version.outputs.tag }}" \
-            "${{ steps.version.outputs.dmg }}" "${{ steps.version.outputs.dmg }}.sha256" \
-            --prerelease --verify-tag \
-            --title "NetRelish ${{ steps.version.outputs.version }} (preview)" \
-            --notes-file "${{ steps.version.outputs.notes }}"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (node24)
+        with:
+          name: release-files
+          path: ${{ runner.temp }}/release
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Remove the keychain
         if: always()
         run: |
           [ -n "${KEYCHAIN:-}" ] && security delete-keychain "$KEYCHAIN" || true
           rm -f "$RUNNER_TEMP/cert.p12"
+
+  publish:
+    name: Tag and publish
+    needs: build
+    # No checkout and nothing from the repository or PyPI runs here: the write token never
+    # shares a job with the code the build ran.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write       # the tag and the release: the only write in this workflow
+      actions: read         # fetch the build job's disk image from this run
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.build.outputs.tag }}
+      VERSION: ${{ needs.build.outputs.version }}
+      DMG: ${{ needs.build.outputs.dmg }}
+      TAG_ACTION: ${{ needs.build.outputs.tag_action }}
+    steps:
+      - name: The build's outputs are what they should be
+        run: |
+          echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$' || { echo "::error::bad tag '$TAG'"; exit 1; }
+          [ "$VERSION" = "${TAG#v}" ] && [ "$DMG" = "NetRelish-$VERSION.dmg" ] || { echo "::error::version and disk image name don't follow from $TAG"; exit 1; }
+
+      - name: Fetch the disk image the build made
+        run: |
+          OUT="$RUNNER_TEMP/release"
+          gh run download "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY" -n release-files -D "$OUT"
+          cd "$OUT"
+          # Exactly the two files, both regular files, and the checksum matches.
+          [ "$(find . -mindepth 1 | wc -l)" -eq 2 ] || { find . -mindepth 1; echo "::error::the build's files are not just the disk image and its checksum"; exit 1; }
+          for f in "$DMG" "$DMG.sha256"; do
+            [ -f "$f" ] && [ ! -L "$f" ] || { echo "::error::$f is missing or not a regular file"; exit 1; }
+          done
+          sha256sum -c "$DMG.sha256"
+
+      - name: Release notes, read from the commit by GitHub
+        # Read again here, from GitHub's own copy of the commit, so the build job (which runs
+        # third-party code) can't change what's published. The tree lists only real paths: a
+        # symlink, or a symlinked docs/ or docs/releases/, never yields this exact path as a
+        # blob of a regular file's mode.
+        run: |
+          NOTES_PATH="docs/releases/$TAG.md"
+          TREE=$(gh api "repos/$GITHUB_REPOSITORY/git/trees/$GITHUB_SHA?recursive=1")
+          [ "$(jq -r .truncated <<<"$TREE")" = "false" ] || { echo "::error::the commit's tree is too big to list"; exit 1; }
+          ENTRY=$(jq -c --arg p "$NOTES_PATH" '[.tree[] | select(.path == $p)]' <<<"$TREE")
+          [ "$(jq length <<<"$ENTRY")" = 1 ] || { echo "::error::$NOTES_PATH isn't in $GITHUB_SHA"; exit 1; }
+          MODE=$(jq -r '.[0].mode' <<<"$ENTRY"); TYPE=$(jq -r '.[0].type' <<<"$ENTRY"); BLOB=$(jq -r '.[0].sha' <<<"$ENTRY")
+          case "$MODE/$TYPE" in
+            100644/blob|100755/blob) ;;
+            *) echo "::error::$NOTES_PATH is not a regular file in $GITHUB_SHA (mode $MODE, $TYPE); not publishing it"; exit 1 ;;
+          esac
+          echo "$BLOB" | grep -Eq '^[0-9a-f]{40}$' || { echo "::error::bad blob id '$BLOB'"; exit 1; }
+          gh api "repos/$GITHUB_REPOSITORY/git/blobs/$BLOB" --jq .content | base64 -d > "$RUNNER_TEMP/notes.md"
+          SIZE=$(wc -c < "$RUNNER_TEMP/notes.md")
+          [ "$SIZE" -gt 0 ] && [ "$SIZE" -le 125000 ] || { echo "::error::$NOTES_PATH is $SIZE bytes"; exit 1; }
+          iconv -f UTF-8 -t UTF-8 "$RUNNER_TEMP/notes.md" > /dev/null || { echo "::error::$NOTES_PATH is not UTF-8"; exit 1; }
+          [ "$(git hash-object --no-filters "$RUNNER_TEMP/notes.md")" = "$BLOB" ] || { echo "::error::the notes didn't arrive intact"; exit 1; }
+
+      - name: The commit is still on main
+        run: |
+          STATUS=$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...main" --jq .status)
+          case "$STATUS" in
+            identical|ahead) ;;
+            *) echo "::error::$GITHUB_SHA is not on main (compare says '$STATUS')"; exit 1 ;;
+          esac
+
+      - name: Tag main (when started by hand)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          # The token's own ref writes start no second run (GitHub's loop guard).
+          # Read again rather than trusting build's decision: re-running a failed publish
+          # finds the tag it already made, and keeps it.
+          CURRENT=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha 2>/dev/null || true)
+          case "$TAG_ACTION" in
+            create)
+              if [ "$CURRENT" != "$GITHUB_SHA" ]; then
+                gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA" >/dev/null
+              fi ;;
+            move)   gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" -f sha="$GITHUB_SHA" -F force=true >/dev/null ;;
+            keep)   ;;
+            *)      echo "::error::no tag decision ('$TAG_ACTION')"; exit 1 ;;
+          esac
+          echo "$TAG is $GITHUB_SHA"
+
+      - name: Publish the pre-release
+        run: |
+          # The tag must still name the commit that was built and whose notes were read: a
+          # tag moved while the build ran would attach this release to other source.
+          REF=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG")
+          KIND=$(jq -r .object.type <<<"$REF"); POINTS=$(jq -r .object.sha <<<"$REF")
+          if [ "$KIND" = "tag" ]; then   # an annotated tag: peel it to its commit
+            POINTS=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$POINTS" --jq .object.sha)
+          fi
+          [ "$POINTS" = "$GITHUB_SHA" ] || { echo "::error::$TAG now points at $POINTS, not the built $GITHUB_SHA"; exit 1; }
+          gh release create "$TAG" -R "$GITHUB_REPOSITORY" \
+            "$RUNNER_TEMP/release/$DMG" "$RUNNER_TEMP/release/$DMG.sha256" \
+            --prerelease --verify-tag \
+            --title "NetRelish $VERSION (preview)" \
+            --notes-file "$RUNNER_TEMP/notes.md"

@@ -32,6 +32,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          persist-credentials: false   # read-only job: leave no token in .git/config
       - name: Regenerate Tokens.swift and Symbols.swift
         run: |
           swift scripts/gen-tokens.swift design/tokens.css > /tmp/Tokens.swift
@@ -70,6 +72,8 @@ jobs:
             configuration: Release-Direct
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          persist-credentials: false   # read-only job: leave no token in .git/config
       - name: Toolchain
         run: xcodebuild -version
       - name: Build (unsigned — CI has no certificate)
@@ -83,6 +87,8 @@ jobs:
     runs-on: xcode-27
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          persist-credentials: false   # read-only job: leave no token in .git/config
       # Signed ad hoc, not unsigned: StoreKit's local test store (ProStoreKitTests) won't talk
       # to an unsigned app. The sandbox and app-group entitlements are left off here so the
       # tests keep the plain file access they've always had; the release jobs are unchanged.
@@ -117,6 +123,8 @@ jobs:
     runs-on: xcode-27
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          persist-credentials: false   # read-only job: leave no token in .git/config
       - name: Build and test (macOS)
         # The plain build before the tests is deliberate: it compiles the library
         # without testability — the graph an iOS consumer (Duo) actually gets.
@@ -147,5 +155,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          persist-credentials: false   # read-only job: leave no token in .git/config
       - name: The gate enforces what it claims to
         run: python3 -m unittest discover -s scripts/tests -v

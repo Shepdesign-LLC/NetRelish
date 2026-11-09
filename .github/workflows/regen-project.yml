@@ -6,6 +6,13 @@ name: Regenerate Xcode project
 # branch, commits the result if it changed, and starts CI on that commit, which then checks
 # the committed project against a fresh generation exactly as on every PR.
 #
+# Two jobs, so the write token never shares a runner with the code it would be guarding
+# (ADR 0024):
+#   regenerate  read-only. Runs Homebrew's XcodeGen and the branch's scripts, and hands on
+#               a patch of the project, plist and entitlements files, nothing else.
+#   push        the only job that can write. Runs nothing from the branch or Homebrew:
+#               checks the patch touches only those files, applies it, commits, pushes.
+#
 # Run it from the Actions tab, or: gh workflow run regen-project.yml -f branch=<branch>
 
 on:
@@ -15,9 +22,8 @@ on:
         description: Branch to regenerate the project on (never main)
         required: true
 
-permissions:
-  contents: write    # commit the regenerated project to the branch
-  actions: write     # start CI on that commit
+# Nothing by default; each job asks for exactly what it needs.
+permissions: {}
 
 concurrency:
   group: regen-${{ inputs.branch }}
@@ -25,36 +31,39 @@ concurrency:
 
 jobs:
   regenerate:
-    name: Regenerate and commit
+    name: Regenerate
     runs-on: macos-latest      # the same image CI's "Generated files" job uses
     timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
     steps:
-      - name: Never main
+      - name: A branch, and never main
         env:
           BRANCH: ${{ inputs.branch }}
         run: |
           case "$BRANCH" in
-            main|refs/heads/main|'') echo "::error::Refusing to commit to '$BRANCH'"; exit 1 ;;
+            main|refs/*|'') echo "::error::Refusing '$BRANCH': give a branch name, not main or a ref"; exit 1 ;;
           esac
+          git check-ref-format --branch "$BRANCH" >/dev/null || { echo "::error::'$BRANCH' is not a branch name"; exit 1; }
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
         with:
-          ref: ${{ inputs.branch }}
+          ref: refs/heads/${{ inputs.branch }}
+          persist-credentials: false   # this job only reads
 
       - name: Regenerate NetRelish.xcodeproj
         run: |
           brew install xcodegen >/dev/null
           scripts/gen-project.sh
 
-      - name: Commit if it changed
-        id: commit
-        env:
-          BRANCH: ${{ inputs.branch }}
+      - name: The change, as a patch
+        id: diff
         run: |
           # XcodeGen writes the project and, for targets that declare them in project.yml,
-          # their Info.plist and entitlements files. All of them are committed, so all of
-          # them are carried; nothing else the runner touched is.
-          # (A deleted file is listed as modified too, hence sort -u; no match is not an error.)
+          # their Info.plist and entitlements files. All of them are carried; nothing else the
+          # runner touched is. (A deleted file is listed as modified too, hence sort -u.)
           git ls-files --modified --deleted --others --exclude-standard | sort -u \
             | { grep -E '^NetRelish\.xcodeproj/|\.entitlements$|(^|/)Info\.plist$' || true; } \
             | while IFS= read -r f; do git add -A -- "$f"; done
@@ -64,17 +73,71 @@ jobs:
             exit 0
           fi
           git status --short
+          mkdir -p "$RUNNER_TEMP/regen"
+          git diff --cached --binary --no-renames > "$RUNNER_TEMP/regen/project.patch"
+          git rev-parse HEAD > "$RUNNER_TEMP/regen/base"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - if: steps.diff.outputs.changed == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (node24)
+        with:
+          name: regen-patch
+          path: ${{ runner.temp }}/regen
+          if-no-files-found: error
+          retention-days: 3
+
+  push:
+    name: Commit and push
+    needs: regenerate
+    if: needs.regenerate.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write    # commit the regenerated project to the branch
+      actions: write     # fetch the patch, and start CI on the new commit
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: ${{ inputs.branch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          ref: refs/heads/${{ inputs.branch }}
+          persist-credentials: false
+
+      - name: Apply the patch, if it touches only generated files
+        run: |
+          P="$RUNNER_TEMP/regen"
+          gh run download "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY" -n regen-patch -D "$P"
+          BASE=$(cat "$P/base")
+          echo "$BASE" | grep -Eq '^[0-9a-f]{40}$' || { echo "::error::bad base '$BASE'"; exit 1; }
+          [ "$BASE" = "$(git rev-parse HEAD)" ] || { echo "::error::$BRANCH moved since it was regenerated ($BASE); run this again"; exit 1; }
+          # git apply refuses paths outside the tree or through a symlink on its own.
+          git apply --index "$P/project.patch"
+          # Every changed path is a generated one...
+          git diff --cached --name-only -z --no-renames | tr '\0' '\n' | while IFS= read -r f; do
+            echo "$f" | grep -Eq '^NetRelish\.xcodeproj/|\.entitlements$|(^|/)Info\.plist$' \
+              || { echo "::error::the patch changes $f, which XcodeGen doesn't write"; exit 1; }
+          done
+          # ...and none becomes a symlink or a submodule.
+          if git diff --cached --raw --no-renames | awk '{print $2}' | grep -Eq '^(120000|160000)$'; then
+            echo "::error::the patch adds a symlink or submodule"; exit 1
+          fi
+          git status --short
+
+      - name: Commit and push
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "chore(project): regenerate NetRelish.xcodeproj from project.yml"
-          git push origin "HEAD:$BRANCH"
-          echo "changed=true" >> "$GITHUB_OUTPUT"
+          # The token goes to this one git command through its environment: not in .git/config,
+          # not on the command line.
+          AUTH=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')
+          echo "::add-mask::$AUTH"
+          GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" \
+            GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $AUTH" \
+            git push origin "HEAD:refs/heads/$BRANCH"
 
       - name: Start CI on the new commit
         # A push made with this workflow's token starts no workflows (GitHub's loop guard),
         # but a dispatch does, so CI still runs on the commit the PR now points at.
-        if: steps.commit.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ inputs.branch }}
-        run: gh workflow run ci.yml --ref "$BRANCH"
+        run: gh workflow run ci.yml --ref "$BRANCH" -R "$GITHUB_REPOSITORY"
