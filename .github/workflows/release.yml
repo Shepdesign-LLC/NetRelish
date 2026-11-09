@@ -115,6 +115,19 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
         run: python3 -I scripts/release_notes.py "$GITHUB_SHA" "$TAG" "$RUNNER_TEMP/notes-check.md"
 
+      - name: The commit is on main
+        # A tag push runs whatever commit the tag names. Releasing one main doesn't contain
+        # is refused here, before any signing, and again by publish before it tags. (The
+        # guard against a tag pusher who also edits this file is GitHub's: see ADR 0024.)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          STATUS=$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...main" --jq .status)
+          case "$STATUS" in
+            identical|ahead) ;;   # main is this commit, or has it and more
+            *) echo "::error::$GITHUB_SHA is not on main (compare says '$STATUS'); release from main"; exit 1 ;;
+          esac
+
       - name: Check the tag (when started by hand)
         # Read-only, and early, so a run that can't be tagged fails before any signing. The tag
         # itself is made last, by publish, after Gatekeeper accepts the disk image: a run that
@@ -318,12 +331,26 @@ jobs:
           iconv -f UTF-8 -t UTF-8 "$RUNNER_TEMP/notes.md" > /dev/null || { echo "::error::$NOTES_PATH is not UTF-8"; exit 1; }
           [ "$(git hash-object --no-filters "$RUNNER_TEMP/notes.md")" = "$BLOB" ] || { echo "::error::the notes didn't arrive intact"; exit 1; }
 
+      - name: The commit is still on main
+        run: |
+          STATUS=$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...main" --jq .status)
+          case "$STATUS" in
+            identical|ahead) ;;
+            *) echo "::error::$GITHUB_SHA is not on main (compare says '$STATUS')"; exit 1 ;;
+          esac
+
       - name: Tag main (when started by hand)
         if: github.event_name == 'workflow_dispatch'
         run: |
           # The token's own ref writes start no second run (GitHub's loop guard).
+          # Read again rather than trusting build's decision: re-running a failed publish
+          # finds the tag it already made, and keeps it.
+          CURRENT=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha 2>/dev/null || true)
           case "$TAG_ACTION" in
-            create) gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA" >/dev/null ;;
+            create)
+              if [ "$CURRENT" != "$GITHUB_SHA" ]; then
+                gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA" >/dev/null
+              fi ;;
             move)   gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" -f sha="$GITHUB_SHA" -F force=true >/dev/null ;;
             keep)   ;;
             *)      echo "::error::no tag decision ('$TAG_ACTION')"; exit 1 ;;
@@ -332,6 +359,14 @@ jobs:
 
       - name: Publish the pre-release
         run: |
+          # The tag must still name the commit that was built and whose notes were read: a
+          # tag moved while the build ran would attach this release to other source.
+          REF=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG")
+          KIND=$(jq -r .object.type <<<"$REF"); POINTS=$(jq -r .object.sha <<<"$REF")
+          if [ "$KIND" = "tag" ]; then   # an annotated tag: peel it to its commit
+            POINTS=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$POINTS" --jq .object.sha)
+          fi
+          [ "$POINTS" = "$GITHUB_SHA" ] || { echo "::error::$TAG now points at $POINTS, not the built $GITHUB_SHA"; exit 1; }
           gh release create "$TAG" -R "$GITHUB_REPOSITORY" \
             "$RUNNER_TEMP/release/$DMG" "$RUNNER_TEMP/release/$DMG.sha256" \
             --prerelease --verify-tag \

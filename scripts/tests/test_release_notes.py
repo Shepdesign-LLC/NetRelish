@@ -77,7 +77,8 @@ class ReleaseNotesTests(unittest.TestCase):
         with self.assertRaises(release_notes.NotesError) as caught:
             self.repo.read(commit, tag)
         self.assertIn(fragment, str(caught.exception))
-        self.assertNotIn("x-access-token", str(caught.exception))
+        # Nothing from the planted secret reaches the message.
+        self.assertNotIn(SECRET.split()[-1], str(caught.exception))
 
     # What should be published is published.
 
@@ -124,6 +125,47 @@ class ReleaseNotesTests(unittest.TestCase):
         self.repo.git("commit", "-q", "-m", "gitlink")
         self.assertRefused(self.repo.git("rev-parse", "HEAD"), "docs is not a directory")
 
+    def test_refuses_the_notes_path_as_a_directory(self):
+        self.repo.write(f"{PATH}/inner", NOTES)
+        self.assertRefused(self.repo.commit(), "not a regular file")
+
+    def test_refuses_the_notes_path_as_a_submodule(self):
+        self.repo.write("README", "x")
+        commit = self.repo.commit()
+        self.repo.git("update-index", "--add", "--cacheinfo", f"160000,{commit},{PATH}")
+        self.repo.git("commit", "-q", "-m", "gitlink")
+        self.assertRefused(self.repo.git("rev-parse", "HEAD"), "not a regular file")
+
+    def test_refuses_a_tree_that_lists_a_name_twice(self):
+        blob = subprocess.run(["git", "-C", str(self.repo.dir), "hash-object", "-w", "--stdin"],
+                              input=NOTES.encode(), capture_output=True, check=True).stdout.decode().strip()
+        bad = subprocess.run(["git", "-C", str(self.repo.dir), "hash-object", "-w", "--stdin"],
+                             input=SECRET.encode(), capture_output=True, check=True).stdout.decode().strip()
+
+        def tree(entries):
+            body = b"".join(mode + b" " + name + b"\0" + bytes.fromhex(oid) for mode, name, oid in entries)
+            return subprocess.run(
+                ["git", "-C", str(self.repo.dir), "hash-object", "-t", "tree", "--literally", "-w", "--stdin"],
+                input=body, capture_output=True, check=True).stdout.decode().strip()
+
+        name = f"{TAG}.md".encode()
+        releases = tree([(b"100644", name, blob), (b"100644", name, bad)])
+        docs = tree([(b"40000", b"releases", releases)])
+        root = tree([(b"40000", b"docs", docs)])
+        commit = self.repo.git("commit-tree", root, "-m", "duplicate")
+        self.assertRefused(commit, "more than once")
+
+    def test_reads_the_root_notes_from_a_subdirectory(self):
+        self.repo.write(PATH, NOTES)
+        self.repo.write(f"sub/{PATH}", SECRET)   # a decoy, at the same path under sub/
+        commit = self.repo.commit()
+        cwd = os.getcwd()
+        os.chdir(self.repo.dir / "sub")
+        try:
+            self.assertEqual(release_notes.read_notes(".", commit, TAG), NOTES)
+        finally:
+            os.chdir(cwd)
+
     # Missing, empty, too big, not text, or a bad tag: nothing is published.
 
     def test_refuses_missing_notes(self):
@@ -150,7 +192,7 @@ class ReleaseNotesTests(unittest.TestCase):
     def test_refuses_a_tag_that_is_not_a_version(self):
         self.repo.write(PATH, NOTES)
         commit = self.repo.commit()
-        for tag in ["../../etc/passwd", "v1.2", "main", "v1.2.3/../../x", ""]:
+        for tag in ["../../etc/passwd", "v1.2", "main", "v1.2.3/../../x", "", "v1.2.3\n", "v1.2.3\n.md"]:
             with self.subTest(tag=tag):
                 self.assertRefused(commit, "is not vMAJOR.MINOR.PATCH", tag=tag)
 
@@ -162,6 +204,18 @@ class ReleaseNotesTests(unittest.TestCase):
         with self.assertRaises(release_notes.NotesError):
             release_notes.write_notes(NOTES, str(out))
         self.assertEqual(self.repo.secret.read_text(), SECRET)
+
+    def test_main_writes_nothing_for_a_symlinked_notes_file(self):
+        self.repo.link(PATH, str(self.repo.secret))
+        commit = self.repo.commit()
+        out = self.repo.root / "notes.md"
+        cwd = os.getcwd()
+        os.chdir(self.repo.dir)
+        try:
+            self.assertEqual(release_notes.main(["x", commit, TAG, str(out)]), 1)
+        finally:
+            os.chdir(cwd)
+        self.assertFalse(out.exists())
 
     def test_main_writes_the_notes_and_fails_closed(self):
         self.repo.write(PATH, NOTES)

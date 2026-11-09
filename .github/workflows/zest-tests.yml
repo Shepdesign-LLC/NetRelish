@@ -7,6 +7,10 @@ on:
     branches: [main]
     paths: ['zest/**', '.github/workflows/zest-tests.yml']
 
+# Tests only: npm and Playwright's packages run here, so the token can only read.
+permissions:
+  contents: read
+
 concurrency:
   group: zest-tests-${{ github.ref }}
   cancel-in-progress: true

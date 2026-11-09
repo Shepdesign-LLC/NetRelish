@@ -46,17 +46,23 @@ def _git(repo, *args):
 def _entries(repo, tree):
     """Every entry of one tree, by exact name: {name: (mode, type, object id)}."""
     entries = {}
-    for record in _git(repo, "ls-tree", "-z", tree).split(b"\0"):
+    # --full-tree: without it, ls-tree lists only what lies under the caller's current
+    # directory, even for a bare tree id, and a run from a subdirectory would read another file.
+    for record in _git(repo, "ls-tree", "--full-tree", "-z", tree).split(b"\0"):
         if not record:
             continue
         meta, _, name = record.partition(b"\t")
         mode, kind, oid = meta.decode("ascii").split(" ")
-        entries[name.decode("utf-8", "surrogateescape")] = (mode, kind, oid)
+        key = name.decode("utf-8", "surrogateescape")
+        if key in entries:
+            raise NotesError(f"tree {tree} lists {key!r} more than once")
+        entries[key] = (mode, kind, oid)
     return entries
 
 
 def notes_path(tag):
-    if not TAG.match(tag):
+    # fullmatch: `$` alone would also accept "v1.2.3\n", and a different path with it.
+    if not TAG.fullmatch(tag):
         raise NotesError(f"'{tag}' is not vMAJOR.MINOR.PATCH (optionally -preview.N)")
     return f"docs/releases/{tag}.md"
 
