@@ -1,0 +1,30 @@
+# Code owners for the files that decide what NetRelish is allowed to ship.
+#
+# This file blocks nothing on its own. It only takes effect as a gate once "Require review
+# from Code Owners" is turned on for main in the repository's branch protection (or ruleset).
+# Until then, GitHub uses it only to request the owner's review on pull requests that touch
+# these paths.
+#
+# The repository belongs to the Shepdesign-LLC organization. An organization cannot be a code
+# owner (only people and teams can), so the maintainer's account is listed. If a team is
+# created later, list the team here instead.
+#
+# One thing to know before turning the requirement on: nobody can approve their own pull
+# request. With a single maintainer, pull requests opened from the maintainer's own account
+# would need a second reviewer or a bypass rule.
+
+# Workflows, the CodeQL query pack, and this file
+/.github/                                             @Shepdesign
+
+# The endpoint gate (non-negotiable 5) and the tests that prove it
+/scripts/codeql_gate.py                               @Shepdesign
+/scripts/tests/                                       @Shepdesign
+
+# Build settings and what the signed app is entitled to do
+/Config/                                              @Shepdesign
+/NetRelish.entitlements                               @Shepdesign
+/Sources/ShareExtension/NetRelishShare.entitlements   @Shepdesign
+
+# Third-party code that runs inside pages being captured, and its recorded checksum
+/Resources/Extraction/                                @Shepdesign
+/scripts/checksums/                                   @Shepdesign
