@@ -65,15 +65,23 @@ struct TimestampService: TimestampAuthority {
         post.httpMethod = "POST"
         post.setValue(TimestampRequest.contentType, forHTTPHeaderField: "Content-Type")
         post.setValue("application/timestamp-reply", forHTTPHeaderField: "Accept")
-        // Says what is asking and nothing about this Mac: no build, no system version, no language.
+        // Says what is asking and nothing about this Mac: no build, no system version, and
+        // the same language whatever this Mac is set to.
         post.setValue("NetRelish", forHTTPHeaderField: "User-Agent")
         post.setValue("en", forHTTPHeaderField: "Accept-Language")
         post.httpBody = request.der
         let data: Data
         do {
             data = try await reply(to: post)
-        } catch let error as URLError {
-            TimestampService.log.error("timestamp request: \(error.localizedDescription, privacy: .public)")
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch is TimestampUnreachable {
+            throw TimestampUnreachable()   // already logged where it was decided
+        } catch {
+            // Whatever stopped the exchange, the authority wasn't reached, and the page isn't
+            // blamed. Most of these are URLErrors; URLSession also passes a few through under
+            // their own names (a socket gone stale over sleep, a proxy that failed).
+            TimestampService.log.error("timestamp request: \(errorKind(error), privacy: .public) \(error.localizedDescription, privacy: .private)")
             throw TimestampUnreachable()
         }
         // Read it (which checks it answers this request), then check who signed it. Whatever
@@ -118,15 +126,18 @@ struct TimestampService: TimestampAuthority {
         return bytes
     }
 
+    /// Apple's time-stamping policy: a certificate this Mac trusts that was also issued for
+    /// time stamping. Not the basic policy, which accepts any certificate this Mac trusts for
+    /// anything (signing mail, signing code), and such a certificate is easy to come by.
+    static func timeStampingPolicy() -> SecPolicy? {
+        SecPolicyCreateWithProperties(kSecPolicyAppleTimeStamping, nil)
+    }
+
     /// True when the token is a CMS message signed by a time-stamping certificate this Mac
-    /// trusts, and what it signed is the timestamp the Pantry read.
-    static func signatureIsValid(_ token: Data) -> Bool {
-        // The time-stamping policy, not the basic one. The basic policy accepts any certificate
-        // this Mac trusts for anything (signing mail, signing code), and such a certificate is
-        // easy to come by. This one also requires that the certificate was issued for time
-        // stamping, which only a timestamp authority's is.
-        guard let policy = SecPolicyCreateWithProperties(kSecPolicyAppleTimeStamping, nil),
-              let read = try? Timestamp.signedContent(in: token) else { return false }
+    /// trusts, and what it signed is the timestamp the Pantry read. The app never passes
+    /// `policy`; tests do, to show the policy is what decides.
+    static func signatureIsValid(_ token: Data, policy: SecPolicy? = TimestampService.timeStampingPolicy()) -> Bool {
+        guard let policy, let read = try? Timestamp.signedContent(in: token) else { return false }
         var made: CMSDecoder?
         guard CMSDecoderCreate(&made) == errSecSuccess, let decoder = made else { return false }
         let fed = token.withUnsafeBytes { buffer -> OSStatus in

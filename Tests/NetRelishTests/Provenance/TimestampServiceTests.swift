@@ -1,5 +1,6 @@
 import Foundation
 import Pantry
+import Security
 import Testing
 @testable import NetRelish
 
@@ -95,6 +96,22 @@ private enum Recorded {
         "nG2H4zaw7A4=",
     ])
 
+    /// `reply` with `padding` zero bytes added as a third element after the token. The reader
+    /// takes the status and the token and ignores what follows, and the token is untouched,
+    /// so with no limit on length this is a timestamp that checks out. `padding` of 128 or more.
+    static func reply(paddedBy padding: Int) -> Data {
+        func element(_ tag: UInt8, _ value: Data) -> Data {
+            var length: [UInt8] = []
+            var left = value.count
+            while left > 0 { length.insert(UInt8(left & 0xFF), at: 0); left >>= 8 }
+            let header: [UInt8] = [tag, 0x80 | UInt8(length.count)] + length
+            return Data(header) + value
+        }
+        // The recorded reply opens with 30 82 17 74: a SEQUENCE and its two-byte length.
+        let inside = Data(reply.dropFirst(4))
+        return element(0x30, inside + element(0x04, Data(count: padding)))
+    }
+
     /// The same shape of reply from a throwaway authority made with openssl (the one
     /// Tests/PantryTests uses): properly formed, properly signed, and trusted by nobody.
     static let strangerDigest: [UInt8] = hex("a1b3e0f8033c68a27e5cd17a108a0888b870c29f5cd2f6dfc51417a9ed0892e5")
@@ -139,6 +156,7 @@ final class StandInAuthority: URLProtocol, @unchecked Sendable {
     enum Answer {
         case reply(status: Int = 200, headers: [String: String] = [:], body: Data)
         case redirect(to: URL)
+        case failure(NSError)
     }
 
     private static let lock = NSLock()
@@ -176,6 +194,8 @@ final class StandInAuthority: URLProtocol, @unchecked Sendable {
                                            headerFields: ["Location": target.absoluteString])!
             client?.urlProtocol(self, wasRedirectedTo: URLRequest(url: target), redirectResponse: response)
             client?.urlProtocolDidFinishLoading(self)
+        case .failure(let error):
+            client?.urlProtocol(self, didFailWithError: error)
         case nil:
             client?.urlProtocol(self, didFailWithError: URLError(.cannotFindHost))
         }
@@ -208,6 +228,20 @@ final class StandInAuthority: URLProtocol, @unchecked Sendable {
     func strangersTimestampIsRefused() throws {
         let stamp = try Timestamp(response: Recorded.strangerReply, for: Recorded.strangerRequest)
         #expect(!TimestampService.signatureIsValid(stamp.token))
+    }
+
+    @Test("Only a time-stamping certificate will do: the real one, asked as anything else, is refused")
+    func onlyATimeStampingCertificateWillDo() throws {
+        let stamp = try Timestamp(response: Recorded.reply, for: Recorded.request)
+        // What the service asks for is Apple's time-stamping policy, not the basic one.
+        let policy = try #require(TimestampService.timeStampingPolicy())
+        let properties = try #require(SecPolicyCopyProperties(policy) as? [String: Any])
+        #expect(properties[kSecPolicyOid as String] as? String == kSecPolicyAppleTimeStamping as String)
+        // And the policy is what decides. The same token, with the same good signature, asked
+        // as a web server's or a code signer's certificate, does not check out.
+        #expect(TimestampService.signatureIsValid(stamp.token, policy: policy))
+        #expect(!TimestampService.signatureIsValid(stamp.token, policy: SecPolicyCreateSSL(true, nil)))
+        #expect(!TimestampService.signatureIsValid(stamp.token, policy: SecPolicyCreateWithProperties(kSecPolicyAppleCodeSigning, nil)))
     }
 
     @Test("Bytes that aren't a token at all are refused")
@@ -253,7 +287,11 @@ final class StandInAuthority: URLProtocol, @unchecked Sendable {
 
     @Test("A reply longer than a timestamp is given up on, whether or not it says how long it is")
     func givesUpOnLongReplies() async throws {
-        let long = Data(repeating: 0x30, count: TimestampService.replyLimit + 1)
+        // Not noise: a real, signed reply with padding after the token. Only its length is
+        // wrong, so only the limit can refuse it.
+        let long = Recorded.reply(paddedBy: 60_000)   // 66,013 bytes
+        #expect(long.count > TimestampService.replyLimit)
+        #expect(try Timestamp(response: long, for: Recorded.request) == Timestamp(response: Recorded.reply, for: Recorded.request))
         StandInAuthority.answer("long.test", with: .reply(body: long))
         StandInAuthority.answer("long-and-says-so.test", with: .reply(headers: ["Content-Length": "\(long.count)"], body: long))
         for host in ["long.test", "long-and-says-so.test"] {
@@ -262,8 +300,17 @@ final class StandInAuthority: URLProtocol, @unchecked Sendable {
         }
     }
 
+    @Test("The same padded reply, short enough, is kept: it was the length that was refused")
+    func keepsAPaddedReplyUnderTheLimit() async throws {
+        let padded = Recorded.reply(paddedBy: 59_000)   // 65,012 bytes
+        #expect(padded.count > Recorded.reply.count && padded.count <= TimestampService.replyLimit)
+        StandInAuthority.answer("padded.test", with: .reply(body: padded))
+        let reply = try await StandInAuthority.service("padded.test").timestamp(Recorded.request)
+        #expect(reply == padded)
+    }
+
     @Test("Nothing that arrives can be held against the page: every bad reply is the same as no reply",
-          arguments: ["refusal", "another page's timestamp", "a stranger's timestamp", "noise", "a server error", "a sign-in page"])
+          arguments: ["refusal", "another page's timestamp", "a stranger's timestamp", "noise", "a server error", "a dropped socket", "a sign-in page"])
     func badRepliesOnlyWait(kind: String) async throws {
         let host = kind.replacingOccurrences(of: " ", with: "-").replacingOccurrences(of: "'", with: "") + ".test"
         var request = Recorded.request
@@ -278,6 +325,8 @@ final class StandInAuthority: URLProtocol, @unchecked Sendable {
             StandInAuthority.answer(host, with: .reply(body: Recorded.strangerReply))
         case "noise":
             StandInAuthority.answer(host, with: .reply(body: Data("<html>hello</html>".utf8)))
+        case "a dropped socket":   // URLSession hands some failures back under their own names, not as URLError
+            StandInAuthority.answer(host, with: .failure(NSError(domain: NSPOSIXErrorDomain, code: 57)))
         case "a server error":
             StandInAuthority.answer(host, with: .reply(status: 503, body: Data()))
         default:   // a Wi-Fi sign-in page answering for everyone
