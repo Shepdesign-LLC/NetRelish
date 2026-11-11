@@ -180,8 +180,12 @@ jobs:
           MARKETING: ${{ steps.version.outputs.marketing }}
         run: |
           xcodebuild -version
+          # -onlyUsePackageVersionsFromResolvedFile: the packages in a release are exactly the
+          # revisions in the committed Package.resolved. A lockfile that is missing or no longer
+          # satisfies project.yml fails the build here instead of resolving to something newer.
           xcodebuild -project NetRelish.xcodeproj -scheme "$SCHEME" -configuration "$CONFIGURATION" \
             -derivedDataPath "$DERIVED" -destination 'platform=macOS' \
+            -onlyUsePackageVersionsFromResolvedFile \
             MARKETING_VERSION="$MARKETING" \
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \

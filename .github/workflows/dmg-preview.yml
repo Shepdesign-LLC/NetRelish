@@ -43,7 +43,8 @@ jobs:
       - name: Build the app (unsigned — CI has no certificate)
         run: |
           xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (Direct)" -configuration Release-Direct \
-            -derivedDataPath "$DERIVED" -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
+            -derivedDataPath "$DERIVED" -destination 'platform=macOS' -onlyUsePackageVersionsFromResolvedFile \
+            CODE_SIGNING_ALLOWED=NO -quiet build
 
       - name: Sign it ad hoc, so the image's signature check runs as in a release
         run: codesign --force --deep --sign - "$DERIVED/Build/Products/Release-Direct/NetRelish.app"

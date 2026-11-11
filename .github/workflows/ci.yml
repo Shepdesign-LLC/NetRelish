@@ -83,10 +83,14 @@ jobs:
       - name: Toolchain
         run: xcodebuild -version
       - name: Build (unsigned — CI has no certificate)
+        # -onlyUsePackageVersionsFromResolvedFile: build with exactly the package revisions in the
+        # committed Package.resolved, as the release does. Changing a package in project.yml
+        # without committing the updated lockfile fails here.
         run: |
           xcodebuild -project NetRelish.xcodeproj -scheme "${{ matrix.scheme }}" \
             -configuration "${{ matrix.configuration }}" -derivedDataPath "$DERIVED" \
-            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
+            -destination 'platform=macOS' -onlyUsePackageVersionsFromResolvedFile \
+            CODE_SIGNING_ALLOWED=NO -quiet build
 
   test:
     name: Test
@@ -102,7 +106,8 @@ jobs:
         run: |
           xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
             -configuration Debug-AppStore -derivedDataPath "$DERIVED" \
-            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- \
+            -destination 'platform=macOS' -onlyUsePackageVersionsFromResolvedFile \
+            CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- \
             CODE_SIGNING_REQUIRED=NO CODE_SIGN_ENTITLEMENTS= ENABLE_APP_SANDBOX=NO \
             -resultBundlePath TestResults.xcresult -quiet test
       - name: Keep the test results when they fail, so the errors can be read
