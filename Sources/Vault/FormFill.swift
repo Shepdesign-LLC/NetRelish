@@ -9,12 +9,20 @@
 //
 // It never touches: password or hidden inputs, autocomplete="off", autocomplete tokens we
 // don't hold (cc-*, username, one-time-code…), disabled/readonly fields, or anything that
-// already has a value. And it fills only what you can see, where you are:
-//   - a field that isn't drawn (display:none, hidden, fully transparent, a pixel wide,
-//     parked off the page, or marked aria-hidden) is left alone, so a page can't show one
-//     box and collect the rest of the card through fields you never saw;
-//   - with the cursor in a form, only that form is filled.
-// Those checks are a best effort, not a proof: a page can still disguise a field it draws.
+// already has a value. And it fills only what you could have seen, where you are:
+//   - a field is left alone if it's display:none, hidden, transparent or nearly so, a pixel
+//     wide, inside a box collapsed to nothing, parked above or to the left of the page
+//     (where no scrolling reaches), or marked aria-hidden. Further down the page, or down
+//     a panel that scrolls, counts as seen;
+//   - with the cursor in a form, only that form is filled;
+//   - what to fill is decided before anything is written, so a page can't reveal more
+//     fields, or move them into the form, as the first one fills.
+// That stops the plain version of showing one box and collecting the rest of the card. It
+// is a best effort, not a proof: a page that sets out to can still hide a field this
+// passes, under another element, in the page's own color, cut away with clip or clip-path,
+// or parked far to the right or far down a page that scrolls there.
+// One cost: a site that hides its real <select> and draws its own dropdown doesn't get
+// State or Country filled, because the real one can't be seen.
 
 import WebKit
 
@@ -65,6 +73,16 @@ enum FormFill {
     const activeOf = getter(Document.prototype, 'activeElement');
     const active = activeOf ? activeOf.call(document) : null;
     const root = getter(Document.prototype, 'documentElement').call(document);
+    const bodyOf = getter(Document.prototype, 'body');
+    const body = bodyOf ? bodyOf.call(document) : null;
+
+    // Boxes above a field are read through the prototypes too: a <form> hands back its own
+    // field for any name a field has taken (name="parentElement", name="scrollTop").
+    const own = {};
+    for (const n of ['parentElement', 'clientLeft', 'clientTop', 'scrollLeft', 'scrollTop', 'scrollWidth', 'scrollHeight'])
+      own[n] = getter(Element.prototype, n);
+    const get = (e, n) => own[n].call(e);
+    const rectOf = e => Element.prototype.getBoundingClientRect.call(e);
 
     function fieldFor(el) {
       if (el.disabled || el.readOnly) return null;
@@ -84,17 +102,57 @@ enum FormFill {
       return null;
     }
 
-    // Drawn, big enough to be a field, and somewhere on the page.
-    function canBeSeen(el) {
-      if (!el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return false;
-      if (el.closest('[aria-hidden="true"], [inert]')) return false;
-      const box = el.getBoundingClientRect();
-      if (box.width < 8 || box.height < 8) return false;
+    // Inside what the page itself can scroll to.
+    function onPage(box) {
       const left = box.left + window.scrollX, top = box.top + window.scrollY;
       if (left + box.width <= 0 || top + box.height <= 0) return false;
       const pageWidth = Math.max(root.scrollWidth, window.innerWidth);
       const pageHeight = Math.max(root.scrollHeight, window.innerHeight);
       return left < pageWidth && top < pageHeight;
+    }
+
+    // Past the page's own edge, but inside what a scrolling box on the page can scroll to:
+    // an app's main panel, a long dialog. The box itself has to be on the page the same way.
+    function inScroller(el, box) {
+      for (let p = get(el, 'parentElement'); p; p = get(p, 'parentElement')) {
+        const s = getComputedStyle(p);
+        if (!/auto|scroll/.test(s.overflowX + ' ' + s.overflowY)) continue;
+        const r = rectOf(p);
+        const x = box.left - r.left - get(p, 'clientLeft') + get(p, 'scrollLeft');
+        const y = box.top - r.top - get(p, 'clientTop') + get(p, 'scrollTop');
+        if (x + box.width <= 0 || y + box.height <= 0) return false;
+        if (x >= get(p, 'scrollWidth') || y >= get(p, 'scrollHeight')) return false;
+        return r.width >= 8 && r.height >= 8 && (onPage(r) || inScroller(p, r));
+      }
+      return false;
+    }
+
+    // Too faint to notice (its own opacity times every box it sits in), or inside a box
+    // that clips what's in it and has been collapsed to nothing. A field that's positioned
+    // can sit outside a collapsed box and still show, so those are let through.
+    function fadedOrCollapsed(el) {
+      let opacity = 1, escapes = false;
+      for (let p = el; p; p = get(p, 'parentElement')) {
+        const s = getComputedStyle(p);
+        opacity *= parseFloat(s.opacity);
+        if (p !== el && p !== root && p !== body && !escapes && !/^(inline|contents)$/.test(s.display)) {
+          const r = rectOf(p);
+          if (/hidden|clip/.test(s.overflowX) && r.width < 8) return true;
+          if (/hidden|clip/.test(s.overflowY) && r.height < 8) return true;
+        }
+        if (s.position === 'absolute' || s.position === 'fixed') escapes = true;
+      }
+      return opacity < 0.1;
+    }
+
+    // Drawn, big enough to be a field, and somewhere you could scroll to.
+    function canBeSeen(el) {
+      if (!el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return false;
+      if (el.closest('[aria-hidden="true"], [inert]')) return false;
+      if (fadedOrCollapsed(el)) return false;
+      const box = el.getBoundingClientRect();
+      if (box.width < 8 || box.height < 8) return false;
+      return onPage(box) || inScroller(el, box);
     }
 
     function setValue(el, value) {
@@ -116,14 +174,23 @@ enum FormFill {
     // other fields outside any form). With the cursor nowhere, the whole page.
     const here = fields.includes(active) ? active.form : undefined;
 
-    let filled = 0;
+    // Decide first, write second. Writing a field runs the page's own input and change
+    // listeners, and one of those could un-hide the rest of its fields, or move them into
+    // this form, before the loop reached them. Nothing in the first pass runs page code.
+    const isEmpty = el => !(el.tagName === 'SELECT' ? el.selectedIndex > 0 : el.value);
+    const plan = [];
     for (const el of fields) {
       if (here !== undefined && el.form !== here) continue;
       const f = fieldFor(el);
       if (!f || !card[f]) continue;
-      if (el.tagName === 'SELECT' ? el.selectedIndex > 0 : el.value) continue;   // never overwrite
+      if (!isEmpty(el)) continue;                 // never overwrite
       if (!canBeSeen(el)) continue;
-      if (setValue(el, card[f])) filled++;
+      plan.push([el, card[f]]);
+    }
+    let filled = 0;
+    for (const [el, value] of plan) {
+      if (!isEmpty(el)) continue;                 // the page filled it in the meantime
+      if (setValue(el, value)) filled++;
     }
     return filled;
     """

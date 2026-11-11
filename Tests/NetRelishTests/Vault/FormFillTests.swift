@@ -87,6 +87,7 @@ import WebKit
 
     /// One box in view and the rest of the card asked for through fields nobody can see.
     private static let harvest = """
+    <!doctype html>
     <form>
       <input id="em" type="email">
       <input id="none" autocomplete="given-name" style="display:none">
@@ -94,6 +95,9 @@ import WebKit
       <input id="invisible" autocomplete="tel" style="visibility:hidden">
       <input id="clear" autocomplete="address-line1" style="opacity:0">
       <div style="opacity:0"><input id="inside-clear" autocomplete="address-level2"></div>
+      <input id="faint" autocomplete="address-line1" style="opacity:.01">
+      <div style="opacity:.2"><input id="inside-faint" autocomplete="address-level2" style="opacity:.2"></div>
+      <div style="height:0; overflow:hidden"><input id="collapsed" autocomplete="tel"></div>
       <input id="away" autocomplete="postal-code" style="position:absolute; left:-9999px">
       <input id="above" autocomplete="country-name" style="position:absolute; top:-9999px">
       <input id="speck" autocomplete="given-name" style="width:1px; height:1px; padding:0; border:0">
@@ -102,13 +106,91 @@ import WebKit
     """
 
     @Test("A field nobody can see is left alone, so one visible box can't collect the whole card",
-          arguments: ["none", "inside-none", "invisible", "clear", "inside-clear", "away", "above", "speck", "unannounced"])
+          arguments: ["none", "inside-none", "invisible", "clear", "inside-clear", "faint", "inside-faint", "collapsed",
+                      "away", "above", "speck", "unannounced"])
     @MainActor func leavesUnseenFieldsAlone(id: String) async throws {
         let web = try await loaded(Self.harvest)
         let filled = try await FormFill.fill(me, in: web.webView)
         #expect(filled == 1)
         #expect(try await value(web, "em") == "ryan@example.com")
         #expect(try await value(web, id) == "")
+    }
+
+    @Test("A page that reveals its hidden fields as the first one fills still gets only what was in view")
+    @MainActor func fieldsRevealedMidFillAreLeftAlone() async throws {
+        let web = try await loaded(Self.harvest + """
+
+        <script>
+          document.getElementById('em').addEventListener('input', () => {
+            for (const el of document.querySelectorAll('[style]')) el.removeAttribute('style');
+            for (const el of document.querySelectorAll('[aria-hidden]')) el.removeAttribute('aria-hidden');
+          });
+        </script>
+        """)
+        #expect(try await FormFill.fill(me, in: web.webView) == 1)
+        #expect(try await value(web, "em") == "ryan@example.com")
+        #expect(try await value(web, "none") == "")
+        #expect(try await value(web, "unannounced") == "")
+    }
+
+    @Test("A page that moves a field into the form in focus as it fills still gets only that form")
+    @MainActor func fieldsMovedIntoTheFormMidFillAreLeftAlone() async throws {
+        let web = try await loaded("""
+        <form id="f"><input id="em" type="email"></form>
+        <input id="fn" autocomplete="given-name">
+        <script>
+          document.getElementById('em').addEventListener('input', () => document.getElementById('fn').setAttribute('form', 'f'));
+        </script>
+        """)
+        _ = try await web.webView.evaluateJavaScript("document.getElementById('em').focus(); 0")
+        #expect(try await FormFill.fill(me, in: web.webView) == 1)
+        #expect(try await value(web, "em") == "ryan@example.com")
+        #expect(try await value(web, "fn") == "")
+    }
+
+    /// An app shell: the page doesn't scroll, the panel inside it does.
+    private static let shell = """
+    <!doctype html>
+    <style>html, body { height: 100%; margin: 0; overflow: hidden } main { height: 100%; overflow: auto }</style>
+    <main><form>
+      <input id="em" type="email">
+      <div style="height:2000px"></div>
+      <input id="st" autocomplete="address-line1">
+    </form></main>
+    """
+
+    @Test("A field further down a panel that scrolls is filled, wherever the panel is scrolled to", arguments: [0, 99_999])
+    @MainActor func fillsInsideAScrollingPanel(scrollTop: Int) async throws {
+        let web = try await loaded(Self.shell)
+        _ = try await web.webView.evaluateJavaScript("document.querySelector('main').scrollTop = \(scrollTop); 0")
+        #expect(try await FormFill.fill(me, in: web.webView) == 2)
+        #expect(try await value(web, "em") == "ryan@example.com")
+        #expect(try await value(web, "st") == "1 Main St")
+    }
+
+    @Test("A field further down a long page is filled")
+    @MainActor func fillsBelowTheFold() async throws {
+        let web = try await loaded("""
+        <!doctype html>
+        <form><input id="em" type="email"><div style="height:2000px"></div><input id="st" autocomplete="address-line1"></form>
+        """)
+        #expect(try await FormFill.fill(me, in: web.webView) == 2)
+    }
+
+    @Test("A field parked out of reach inside a scrolling box is still left alone")
+    @MainActor func leavesFieldsParkedInsideAScrollerAlone() async throws {
+        let web = try await loaded("""
+        <!doctype html>
+        <form><input id="em" type="email">
+          <div style="position:relative; overflow:auto; height:40px">
+            <input id="up" autocomplete="tel" style="position:absolute; top:-9999px">
+            <input id="lf" autocomplete="given-name" style="position:absolute; left:-9999px">
+          </div>
+        </form>
+        """)
+        #expect(try await FormFill.fill(me, in: web.webView) == 1)
+        #expect(try await value(web, "up") == "")
+        #expect(try await value(web, "lf") == "")
     }
 
     @Test("With the cursor in one form, only that form is filled")
@@ -147,7 +229,7 @@ import WebKit
         <script>
           window.taken = [];
           const take = v => { if (typeof v === 'string' && v) window.taken.push(v); };
-          // No real fields at all: pretend there are nine, and record whatever is written to them.
+          // Stand-in fields, one for each thing on the card, that record whatever is written to them.
           const fake = name => ({
             tagName: 'INPUT', type: 'text', disabled: false, readOnly: false, form: null, name: '', id: '',
             placeholder: '', options: [], selectedIndex: 0,
