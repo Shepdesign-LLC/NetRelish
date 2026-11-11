@@ -356,6 +356,24 @@ jobs:
       # the fix is the path-based API. It stays out of the gate because what it
       # matches is ambiguous by nature, and a red CodeQL job has to mean a
       # network call every time.
+      #
+      # The gate also writes the copy that is uploaded: the same SARIF less the
+      # calls that are both approved (one gate finding on the line, a marker
+      # citing a real ADR) and listed in .github/codeql/approved-endpoints.txt
+      # with that ADR. Everything else stays in, so an unapproved call, or an
+      # approved one nobody listed, is still an alert on the pull request that
+      # adds it, uploaded before the job fails. Other queries are untouched.
+      - name: Gate, and set aside the findings it approved
+        id: gate
+        continue-on-error: true   # the step below fails the job, after the upload
+        run: python3 scripts/codeql_gate.py .codeql-results --uploadable .codeql-upload
+
+      - name: Upload to code scanning
+        if: ${{ !cancelled() && hashFiles('.codeql-upload/*.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        with:
+          sarif_file: .codeql-upload
+
       - name: Fail if the gate fired
         if: ${{ !cancelled() && steps.gate.outcome == 'failure' }}
         run: |

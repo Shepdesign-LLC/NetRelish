@@ -1161,6 +1161,32 @@ class UploadableTests(unittest.TestCase):
 class RepositoryTests(unittest.TestCase):
     """Invariants of this repo that the gate depends on."""
 
+    def test_the_workflow_runs_the_gate_and_uploads_its_copy(self):
+        # A merge once dropped the gate and upload steps from codeql.yml and kept
+        # the rest: analyze uploaded nothing, the gate never ran, and the final
+        # step, conditioned on the missing step, was skipped. Green CI, no
+        # enforcement. Each piece, and their order, is checked here.
+        import re
+        text = (REPO / ".github" / "workflows" / "codeql.yml").read_text()
+        analyze = text.find("github/codeql-action/analyze@")
+        gate = text.find("id: gate")
+        upload = text.find("github/codeql-action/upload-sarif@")
+        fail = text.find("- name: Fail if the gate fired")
+        self.assertTrue(min(analyze, gate, upload, fail) >= 0, "a CodeQL gate step is missing")
+        self.assertLess(analyze, gate)
+        self.assertLess(gate, upload)
+        self.assertLess(upload, fail)
+        self.assertRegex(text[analyze:gate], r"upload: failure-only")
+        self.assertRegex(text[gate:upload],
+                         r"run: python3 scripts/codeql_gate\.py \.codeql-results --uploadable \.codeql-upload")
+        self.assertRegex(text[upload:fail], r"sarif_file: \.codeql-upload")
+        self.assertRegex(text[fail:], r"steps\.gate\.outcome == 'failure'")
+        # Every step a condition refers to exists, so none can be silently skipped.
+        ids = set(re.findall(r"^\s+id: ([\w-]+)\s*$", text, re.M))
+        for used in set(re.findall(r"steps\.([\w-]+)\.", text)):
+            with self.subTest(step=used):
+                self.assertIn(used, ids)
+
     def test_the_endpoint_registry_is_sound_and_every_entry_has_its_marker(self):
         # A listed call with no marker citing its ADR would never be approved,
         # so its line in the registry would be dead weight that reads as a rule.
