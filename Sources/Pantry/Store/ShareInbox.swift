@@ -58,6 +58,10 @@ public struct ShareInbox: @unchecked Sendable {   // UserDefaults is thread-safe
 
     /// The most pages taken in one go. More than this stay for the next look.
     static let batchLimit = 200
+    /// The most entries read in one look. Nobody shares this many pages between two looks, so
+    /// past it the inbox is a flood, and each look does a fixed amount of work on it rather
+    /// than reading all of it again every time.
+    static let lookLimit = 1_000
 
     /// Hands what's waiting, oldest first, to `receive`, then removes exactly those entries.
     /// If `receive` throws, they stay for next time, so a failed write loses nothing.
@@ -65,11 +69,15 @@ public struct ShareInbox: @unchecked Sendable {   // UserDefaults is thread-safe
     /// The inbox is a file other software on this Mac could write to, so what's in it is
     /// checked before it's believed. Only entries named the way the extension names them
     /// (`share.` and a UUID) are looked at. One that is too big to be a shared page, or
-    /// can't be read, is removed: it would never read. At most `batchLimit` are taken at once.
+    /// can't be read, is removed: it would never read. At most `lookLimit` are read in one
+    /// look and at most `batchLimit` of those are taken, oldest of them first; within a flood
+    /// the order across looks is by name, not by date.
     public func take(_ receive: ([SharedPage]) throws -> Void) rethrows {
-        let keys = defaults.dictionaryRepresentation().keys.filter { key in
+        let waiting = defaults.dictionaryRepresentation().keys.filter { key in
             key.hasPrefix(Self.keyPrefix) && UUID(uuidString: String(key.dropFirst(Self.keyPrefix.count))) != nil
         }
+        // By name when there are too many, so each look reads the same ones until they're gone.
+        let keys = waiting.count > Self.lookLimit ? Array(waiting.sorted().prefix(Self.lookLimit)) : waiting
         var pages: [(key: String, page: SharedPage)] = []
         for key in keys {
             if let data = defaults.data(forKey: key), data.count <= Self.entryLimit,

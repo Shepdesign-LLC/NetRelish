@@ -198,6 +198,26 @@ import Testing
             #expect(rest.map(\.title) == (ShareInbox.batchLimit..<(ShareInbox.batchLimit + 5)).map(String.init))
         }
     }
+
+    @Test("A flood far past one look is still taken in full, a batch at a time, with nothing lost or taken twice")
+    func floodPastOneLookDrains() throws {
+        try withInbox { inbox in
+            let total = ShareInbox.lookLimit + 150
+            for i in 0..<total { inbox.add(SharedPage(url: "https://example.com/\(i)", title: "\(i)")) }
+            var seen: [String] = []
+            var looks = 0
+            while looks < 20 {
+                var batch: [SharedPage] = []
+                inbox.take { batch = $0 }
+                if batch.isEmpty { break }
+                #expect(batch.count <= ShareInbox.batchLimit)
+                seen += batch.map(\.title)
+                looks += 1
+            }
+            #expect(seen.count == total)
+            #expect(Set(seen).count == total)
+        }
+    }
 }
 
 /// Counts notifications, from whatever thread posts them.
