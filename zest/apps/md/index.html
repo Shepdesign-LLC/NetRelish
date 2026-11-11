@@ -602,14 +602,26 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   });
 
   /* ---------- TOC ---------- */
+  // Built with DOM APIs only. Heading text and ids come from the document, so they are set as
+  // text and attribute values and are never parsed as markup.
+  const tocTarget = new WeakMap();   // Contents link -> the heading it scrolls to
   function buildToc() {
-    const toc = $('#toc');
-    const hs = $$('h1,h2,h3,h4', doc).filter(h => h.id);
-    toc.innerHTML = '<h4>Contents</h4>' + (hs.length ? hs.map(h => `<a href="#${h.id}" data-level="${h.tagName[1]}">${escapeHtml(h.textContent.replace(/#$/, '').trim())}</a>`).join('') : '<div class="empty">No headings yet.</div>');
+    const head = document.createElement('h4'); head.textContent = 'Contents';
+    const items = $$('h1,h2,h3,h4', doc).filter(h => h.id).map(h => {
+      const a = document.createElement('a');
+      a.setAttribute('href', '#' + h.id);
+      a.dataset.level = h.tagName[1];
+      a.textContent = h.textContent.replace(/#$/, '').trim();
+      tocTarget.set(a, h);
+      return a;
+    });
+    if (!items.length) { const empty = document.createElement('div'); empty.className = 'empty'; empty.textContent = 'No headings yet.'; items.push(empty); }
+    $('#toc').replaceChildren(head, ...items);
   }
   $('#toc').addEventListener('click', e => {
     const a = e.target.closest('a[href^="#"]'); if (!a) return;
-    e.preventDefault(); const t = doc.querySelector(a.getAttribute('href')); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // scroll to the heading element itself: no id lookup, so any id works (digits first, spaces, duplicates)
+    e.preventDefault(); const t = tocTarget.get(a); if (t && t.isConnected) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
     if (matchMedia('(max-width:760px)').matches) { state.settings.toc = false; applySettings(); } // the drawer closes on selection
   });
   // the drawer and popovers anchor below the (possibly wrapped) bar; the bar grows when

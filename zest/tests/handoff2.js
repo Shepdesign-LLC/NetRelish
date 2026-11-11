@@ -138,6 +138,25 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   ok(await md.evaluate(() => window.__pwned === undefined), 'event handlers in raw HTML never execute');
   ok(await md.$eval('#doc em', e => e.textContent) === 'kept', 'safe raw markup still renders');
   ok(await md.$$eval('#doc [onerror], #doc iframe, #doc script', n => n.length) === 0, 'handlers, frames and scripts are stripped at the sink');
+  // the Contents list is a second place document headings land: their ids and text must be inert there too,
+  // for a dropped file and for the ?text= deep link (which needs no click at all)
+  const TOC_PAYLOAD = '# Doc\n\n<h2 id=\'x"><img src=x onerror="window.__pwned=1">\'>a</h2>\n\n<h2 id=\'y" onmouseover="window.__pwned=2" x="\'>b</h2>\n\n## 2026 plan\n';
+  const TOC_HOSTILE = '#toc img, #toc script, #toc iframe, #toc [onerror], #toc [onmouseover]';
+  const tocShape = p => p.evaluate(() => ({ links: document.querySelectorAll('#toc a').length, headings: document.querySelectorAll('#doc h1[id], #doc h2[id], #doc h3[id], #doc h4[id]').length, other: [...document.querySelector('#toc').children].filter(c => !['H4', 'A'].includes(c.tagName)).length }));
+  await md.evaluate(t => { const dt = new DataTransfer(); dt.items.add(new File([t], 'toc.md', { type: 'text/markdown' })); document.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true })); }, TOC_PAYLOAD);
+  await md.waitForTimeout(600);
+  ok(await md.evaluate(() => window.__pwned === undefined), 'heading ids never execute through the Contents list (dropped file)');
+  ok(await md.$$eval(TOC_HOSTILE, n => n.length) === 0, 'Contents holds no injected elements or handlers (dropped file)');
+  let shape = await tocShape(md);
+  ok(shape.headings === 4 && shape.links === 4 && shape.other === 0, `Contents is one plain link per heading (${shape.links} links, ${shape.headings} headings)`);
+  ok(await md.$eval('#toc a:nth-of-type(2)', a => a.textContent === 'a' && a.getAttribute('href').startsWith('#x"><img')), 'a heading id is kept as an attribute value, never parsed');
+  await md.$eval('#toc a:last-of-type', a => a.click()); await md.waitForTimeout(300);   // "2026 plan": an id that starts with a digit
+  ok(mdErrs.length === 0, 'a Contents link works for a heading id that starts with a digit');
+  await md.goto('http://localhost:8774/?text=' + encodeURIComponent(TOC_PAYLOAD), { waitUntil: 'domcontentloaded' }); await md.waitForTimeout(800);
+  ok(await md.evaluate(() => window.__pwned === undefined), 'heading ids never execute through the Contents list (?text= deep link)');
+  ok(await md.$$eval(TOC_HOSTILE, n => n.length) === 0, 'Contents holds no injected elements or handlers (?text= deep link)');
+  shape = await tocShape(md);
+  ok(shape.headings === 4 && shape.links === 4 && shape.other === 0, 'the deep link renders the same four plain links');
   ok(mdErrs.length === 0, 'Zest MD: no exceptions (' + mdErrs.slice(0, 1).join('').slice(0, 80) + ')');
   await md.close();
 
@@ -149,6 +168,9 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   await mdOff.waitForTimeout(600);
   ok(await mdOff.evaluate(() => window.__pwned === undefined), 'no sanitizer → no handler execution either');
   ok(await mdOff.$$eval('#doc img, #doc iframe', n => n.length) === 0, 'no sanitizer → raw HTML is escaped, never parsed (fail closed)');
+  await mdOff.evaluate(t => { const dt = new DataTransfer(); dt.items.add(new File([t], 'toc.md', { type: 'text/markdown' })); document.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true })); }, TOC_PAYLOAD);
+  await mdOff.waitForTimeout(600);
+  ok(await mdOff.evaluate(() => window.__pwned === undefined) && await mdOff.$$eval(TOC_HOSTILE, n => n.length) === 0, 'no sanitizer → the Contents list is still plain links');
   await mdOff.close();
 
   await browser.close();
