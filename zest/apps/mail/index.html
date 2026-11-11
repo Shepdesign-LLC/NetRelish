@@ -534,9 +534,12 @@ ${preheader}${content}
   const cleanNum = (v, lo, hi, d) => { const n = Number(v); return (v == null || v === '' || typeof v === 'boolean' || !Number.isFinite(n)) ? d : Math.max(lo, Math.min(hi, n)); };
   // links and image sources keep whatever the author wrote (https, mailto, tel, app links, merge tags) except
   // URLs a browser would run as script or open as a document; those are dropped. Raster data: images stay.
-  const cleanUrl = v => { const s = String(v ?? '').replace(CTRL_RE, '').trim().slice(0, 200000); return /^(javascript|vbscript|data):/i.test(s) && !/^data:image\/(png|jpe?g|gif|webp)[;,]/i.test(s) ? '' : s; };
-  // the font stack lands in style="" attributes unescaped (escaping would change the exported email), so it is a whitelist of characters
-  const cleanFont = v => String(v ?? '').replace(/[^A-Za-z0-9 ,'_-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  // Nothing here is cut to a length: a logo kept as a data: image is long, and a cut one is a broken one.
+  const cleanUrl = v => { const s = String(v ?? '').replace(CTRL_RE, '').trim(); return /^(javascript|vbscript|data):/i.test(s) && !/^data:image\/(png|jpe?g|gif|webp)[;,]/i.test(s) ? '' : s; };
+  // the font stack lands in style="" attributes unescaped (escaping would change the exported email), so it is a whitelist of
+  // characters: letters and digits in any script (a family can be named 游ゴシック), spaces, commas, single quotes, _ and -.
+  // Nothing that closes an attribute or starts a CSS declaration, a function or a tag gets through.
+  const cleanFont = v => String(v ?? '').replace(/[^\p{L}\p{M}\p{N} ,'_-]/gu, '').replace(/\s+/g, ' ').trim();
   function sanitizeBrand(raw) {
     const r = raw && typeof raw === 'object' ? raw : {}, b = BRAND_DEFAULT();
     b.id = cleanId(r.id) || b.id;
@@ -560,12 +563,13 @@ ${preheader}${content}
       else if (f.t === 'toggle') p[f.k] = v === true;
       else if (f.t === 'color') { if (COLOR_TOKENS.some(([t]) => t === v) || BRAND_HEX.test(String(v))) p[f.k] = String(v); }
       else if (f.t === 'url') p[f.k] = cleanUrl(v);
-      else p[f.k] = String(v).slice(0, 20000);   // text and textarea
+      else p[f.k] = String(v);   // text and textarea, whole: the editor sets no limit, so a saved design isn't cut to one
     }
     return p;
   }
-  // unknown block types are dropped; ids are always regenerated (they are only used for selection)
-  const sanitizeBlocks = raw => (Array.isArray(raw) ? raw : []).slice(0, 400)
+  // unknown block types are dropped; ids are always regenerated (they are only used for selection). Every known block is
+  // kept, however many: the editor sets no limit, and a design that was saved comes back whole.
+  const sanitizeBlocks = raw => (Array.isArray(raw) ? raw : [])
     .filter(bl => bl && typeof bl === 'object' && typeof bl.type === 'string' && Object.prototype.hasOwnProperty.call(BLOCKS, bl.type))
     .map(bl => ({ id: uid(), type: bl.type, props: sanitizeProps(bl.type, bl.props) }));
 

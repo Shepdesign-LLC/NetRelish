@@ -146,6 +146,24 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   await ml.setInputFiles('#jsonFile', { name: 'template.mailpress.json', mimeType: 'application/json', buffer: otherBuf });
   await ml.waitForTimeout(600);
   ok(await brandTotal() === total0 + 1, 'opening the same design again adds no second copy');
+  // checking a design never costs an honest one anything: a long logo, a font named in another script, long text and
+  // many blocks all come back whole, on import and again after a reload
+  const LOGO = 'data:image/png;base64,' + 'A'.repeat(300000), LONG = 'word '.repeat(5000).trim();
+  const honest = { name: 'Honest', brand: { name: 'Honest brand', font: "游ゴシック, 'Hiragino Sans', sans-serif", logo: LOGO },
+    blocks: [{ type: 'text', props: { body: LONG } }].concat(Array.from({ length: 450 }, () => ({ type: 'spacer', props: {} }))) };
+  await ml.setInputFiles('#jsonFile', { name: 'honest.mailpress.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(honest)) });
+  await ml.waitForTimeout(900);
+  const honestBrand = () => ml.evaluate(() => JSON.stringify((JSON.parse(localStorage.getItem('mailpress:brands')) || []).find(b => b.name === 'Honest brand') || null));
+  const wholeDesign = async when => {
+    const b = JSON.parse(await honestBrand());
+    ok(b && b.logo.length === LOGO.length, `a long data: image logo is kept whole (${when})`);
+    ok(b && b.font.startsWith('游ゴシック'), `a font family named in another script is kept (${when})`);
+    ok(await ml.$$eval('.cv-block', n => n.length) === 451, `every block of a large design is kept (${when})`);
+    ok((await ml.$eval('#canvas', c => c.textContent)).includes(LONG), `a long text block is kept whole (${when})`);
+  };
+  await wholeDesign('on import');
+  await ml.reload({ waitUntil: 'domcontentloaded' }); await ml.waitForTimeout(900);
+  await wholeDesign('after a reload');
   // storage itself is untrusted too: brands, the draft, modules and saved designs are checked on the way in
   await ml.evaluate(x => {
     const put = (k, v) => localStorage.setItem('mailpress:' + k, JSON.stringify(v));
@@ -274,6 +292,11 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
 
   console.log('== Zest MD: on-demand libraries are pinned by hash, and Mermaid is always configured strict ==');
   const MD_SRC = fs.readFileSync(require('path').join(__dirname, '..', 'apps', 'md', 'index.html'), 'utf8');
+  // links that carry text are served from the page the service worker stored, so a fix reaches installed copies only if
+  // the worker replaces that page: its version moved on from the one that stored the old page, and visits refresh it
+  const MD_SW = fs.readFileSync(require('path').join(__dirname, '..', 'apps', 'md', 'sw.js'), 'utf8');
+  ok(/const VERSION = 'mdpress-v(\d+)'/.test(MD_SW) && +MD_SW.match(/const VERSION = 'mdpress-v(\d+)'/)[1] >= 5, 'Zest MD: the service worker version moved on, so installed copies fetch the fixed page');
+  ok(/c\.put\(APP_INDEX, shell\)/.test(MD_SW), 'Zest MD: a visit refreshes the stored page that shared links are served from');
   const vendorUrls = MD_SRC.match(/'https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/(?:KaTeX|mermaid)\/[^']+'/g) || [];
   const vendorHashed = MD_SRC.match(/'https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/(?:KaTeX|mermaid)\/[^']+', 'sha384-[A-Za-z0-9+/]{64}'/g) || [];
   ok(vendorUrls.length === 4 && vendorHashed.length === 4, `every on-demand file is listed with a sha384 (${vendorHashed.length} of ${vendorUrls.length})`);
