@@ -82,8 +82,11 @@ import sys
 from urllib.parse import unquote, urlparse
 
 # The gate. `netrelish/remote-capable-url-read` is the audit and is deliberately
-# NOT gated: it has two legitimate baseline hits, and failing on it would teach
-# everyone to ignore a red CodeQL job — the opposite of what the split was for.
+# NOT gated: what it matches is a file read or a network call depending on a
+# value no query can see, and failing on a maybe would teach everyone to ignore
+# a red CodeQL job — the opposite of what the split was for. Its baseline is
+# zero (both reads it used to flag now go by file path), so a hit still shows up
+# as a new alert on the pull request that adds it.
 GATE = "netrelish/outbound-network-call"
 
 # An approved exception is a comment on the flagged line or the one directly

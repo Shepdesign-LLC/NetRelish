@@ -344,8 +344,11 @@ jobs:
       # including while THIS job cannot build the project. The module header
       # lists all twenty-eight; read it before adding anything here.
       #
-      # Only the gate fails the build. netrelish/remote-capable-url-read has two
-      # legitimate baseline hits; failing on it would teach everyone to ignore a
-      # red CodeQL job, which is the opposite of what the split was for.
+      # Only the gate fails the build. netrelish/remote-capable-url-read is the
+      # audit: its baseline is zero now (both reads it used to flag go by file
+      # path), so any hit is a new alert on the pull request that adds it, and
+      # the fix is the path-based API. It stays out of the gate because what it
+      # matches is ambiguous by nature, and a red CodeQL job has to mean a
+      # network call every time.
       - name: Fail if the gate fired
         run: python3 scripts/codeql_gate.py .codeql-results

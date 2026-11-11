@@ -8,8 +8,9 @@
 #   RemoteCapableURLRead.ql   warning — the audit. Data/String(contentsOf:) and
 #                                       URL.resourceBytes, which are a network
 #                                       call or a local file read depending on a
-#                                       value no query can see. Baseline two,
-#                                       both legitimate.
+#                                       value no query can see. Baseline zero:
+#                                       the two reads it used to flag now go
+#                                       by file path, which cannot be remote.
 #
 # Folding the second into the first would park permanent false positives on the
 # rule meant to mean something when it fires. Each file's header says more.
