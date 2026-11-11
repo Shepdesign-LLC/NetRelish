@@ -235,6 +235,16 @@ jobs:
           spctl -a -vvv -t exec "$APP" 2>&1 | tee "$RUNNER_TEMP/spctl-app.txt"
           grep -q "source=Notarized Developer ID" "$RUNNER_TEMP/spctl-app.txt" || { echo "::error::Gatekeeper does not accept the app as notarized"; exit 1; }
 
+      - name: Make the disk image
+        # Its own step, with no Apple secret in its environment: making the image runs a Swift
+        # script, pip and dmgbuild, and none of them needs the Apple ID, its password or the
+        # signing identity. Those are given only to the next step, which signs and notarizes.
+        env:
+          DMG: ${{ steps.version.outputs.dmg }}
+        run: |
+          # The window it opens to is laid out to the brand: scripts/dmg (ADR 0019).
+          scripts/dmg/make-dmg.sh "$APP" "$DMG"
+
       - name: Disk image — signed, notarized, stapled, checked
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -243,8 +253,6 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           DMG: ${{ steps.version.outputs.dmg }}
         run: |
-          # The window it opens to is laid out to the brand: scripts/dmg (ADR 0019).
-          scripts/dmg/make-dmg.sh "$APP" "$DMG"
           codesign --sign "$APPLE_SIGNING_IDENTITY" --timestamp --keychain "$KEYCHAIN" "$DMG"
           xcrun notarytool submit "$DMG" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
             --password "$APPLE_PASSWORD" --wait --timeout 30m --output-format json > "$RUNNER_TEMP/notary-dmg.json" || true
