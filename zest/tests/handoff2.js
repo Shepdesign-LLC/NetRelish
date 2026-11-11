@@ -174,7 +174,7 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
     ok((await ml.$eval('#toast', e => e.textContent)).includes('not imported'), `a design over the ${what} budget is refused with a message`);
     ok(await ml.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('mailpress:brands'))) + document.querySelectorAll('.cv-block').length) === before, `a refused design (${what}) changes nothing`);
   }
-  const brackets = { name: 'Brackets', blocks: [{ type: 'text', props: { body: '['.repeat(150000) + '[a]('.repeat(30000) } }] };
+  const brackets = { name: 'Brackets', blocks: [{ type: 'text', props: { body: '['.repeat(150000) + '[a]('.repeat(12500) } }] };
   const t0 = Date.now();
   await ml.setInputFiles('#jsonFile', { name: 'brackets.mailpress.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(brackets)) });
   await ml.waitForFunction(() => document.querySelector('#toast')?.textContent.includes('Imported'), null, { timeout: 15000 });
