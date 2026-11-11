@@ -997,12 +997,45 @@ class UploadableTests(unittest.TestCase):
         self.checkout.results(sarif(call("Sources/A.swift", 2)))
         self.assertEqual(self.upload(), (0, [(codeql_gate.GATE, "Sources/A.swift", 2)]))
 
-    def test_one_listed_line_covers_one_call(self):
-        # A second call of the same API, approved too, is a second endpoint.
+    def test_more_approved_calls_than_listed_lines_all_stay(self):
+        # A second call of the same API, approved too, is a second endpoint:
+        # with one listed line for two calls, neither is hidden.
         self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL + "\n\n// " + MARKER + "\n" + CALL)
         self.register("Sources/A.swift  " + API + "  adr-0007")
         self.checkout.results(sarif(call("Sources/A.swift", 2), call("Sources/A.swift", 5)))
-        self.assertEqual(self.upload(), (0, [(codeql_gate.GATE, "Sources/A.swift", 5)]))
+        self.assertEqual(self.upload(), (0, [(codeql_gate.GATE, "Sources/A.swift", 2),
+                                             (codeql_gate.GATE, "Sources/A.swift", 5)]))
+
+    def test_a_new_call_above_the_listed_one_cannot_take_its_place(self):
+        # The new call comes first in the file. Choosing by source order would
+        # hide it and upload the approved one; instead both stay.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL + "\n// " + MARKER + "\n" + CALL)
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(call("Sources/A.swift", 4), call("Sources/A.swift", 2)))
+        code, uploaded = self.upload()
+        self.assertEqual(sorted(uploaded), [(codeql_gate.GATE, "Sources/A.swift", 2),
+                                            (codeql_gate.GATE, "Sources/A.swift", 4)])
+
+    def test_two_listed_lines_cover_two_calls(self):
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL + "\n\n// " + MARKER + "\n" + CALL)
+        self.register("Sources/A.swift  " + API + "  adr-0007", "Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(call("Sources/A.swift", 2), call("Sources/A.swift", 5)))
+        self.assertEqual(self.upload(), (0, []))
+
+    def test_an_unlisted_api_at_the_same_span_stays(self):
+        # The gate merges two results at one position into one finding and keeps
+        # the last message. If that one names the listed API, the other result
+        # must still be uploaded, whichever order they arrive in.
+        self.approved_call()
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        other = "URLSession.webSocketTask(with:)"
+        for order in [(other, API), (API, other)]:
+            with self.subTest(order=order):
+                self.checkout.results(sarif(*[call("Sources/A.swift", 2, api=a, start_column=5, end_column=40)
+                                              for a in order]))
+                self.upload()
+                kept = json.loads((self.out / "swift.sarif").read_text())["runs"][0]["results"]
+                self.assertIn(other, [codeql_gate.called_api(r["message"]["text"]) for r in kept])
 
     def test_a_message_naming_no_api_stays(self):
         self.approved_call()

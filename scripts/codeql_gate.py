@@ -880,15 +880,25 @@ def load_registry(repo_root, report: Report, name: str = REGISTRY) -> list[tuple
 
 
 def hide(report: Report, registry) -> None:
-    """Decide which approved findings leave the upload: each listed line covers one call."""
-    remaining = Counter(registry)
-    report.hidden = []
-    for finding, adr in sorted(report.approved, key=lambda pair: (pair[0].path, pair[0].line)):
+    """Decide which approved findings leave the upload.
+
+    A listed line covers one call. When more approved calls match a (path, API,
+    ADR) than the list has lines for, none of them is hidden: choosing which to
+    hide would let a new call placed above the approved one take its place and
+    push the real one into the upload instead. So the extra call shows up as
+    alerts on every call of that kind until someone lists it or removes it.
+    """
+    allowed = Counter(registry)
+    matching: dict[tuple, list] = {}
+    for finding, adr in report.approved:
         api = called_api(finding.message)
-        key = (finding.path, api, adr)
-        if api is not None and remaining[key] > 0:
-            remaining[key] -= 1
-            report.hidden.append((finding, adr, api))
+        if api is not None:
+            matching.setdefault((finding.path, api, adr), []).append(finding)
+    report.hidden = []
+    for key, findings in sorted(matching.items()):
+        if len(findings) <= allowed[key]:
+            report.hidden.extend((finding, key[2], key[1])
+                                 for finding in sorted(findings, key=lambda f: f.line))
 
 
 def uploadable(results_dir, out_dir, report: Report, repo_root=None) -> int:
@@ -905,7 +915,10 @@ def uploadable(results_dir, out_dir, report: Report, repo_root=None) -> int:
     other query are untouched. Returns how many results were left out.
     """
     repo_root = pathlib.Path(repo_root or pathlib.Path.cwd())
-    lines = {(finding.path, finding.line) for finding, _, _ in report.hidden}
+    # By line AND by the API each raw result names: the gate merges results at
+    # one position into one finding, keeping one message, so a second result
+    # there naming another API must not ride out on the first one's listing.
+    hidden = {(finding.path, finding.line, api) for finding, _, api in report.hidden}
     out = pathlib.Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     removed = 0
@@ -917,7 +930,8 @@ def uploadable(results_dir, out_dir, report: Report, repo_root=None) -> int:
             for result in run.get("results", []):
                 if result.get("ruleId") == GATE:
                     located = locate(result, repo_root)
-                    if not isinstance(located, str) and located in lines:
+                    if (not isinstance(located, str)
+                            and located + (called_api(result.get("message", {}).get("text")),) in hidden):
                         removed += 1
                         continue
                 kept.append(result)
