@@ -13,8 +13,9 @@
 //   - a field is left alone if it's display:none, hidden, transparent or nearly so, a pixel
 //     wide, marked aria-hidden, or out of reach: inside a box collapsed to nothing, cut off
 //     by a box it sits in, or parked where no scrolling gets to (above or to the left of
-//     the page, or of a panel that scrolls). Further down the page, or down a panel that
-//     scrolls, counts as seen;
+//     the page, or of a panel that scrolls; anywhere outside the window on a page that
+//     doesn't scroll). Further down a page that scrolls, or down a panel that scrolls,
+//     counts as seen;
 //   - with the cursor in a form, only that form is filled;
 //   - what to fill is decided before anything is written, so a page can't reveal more
 //     fields, or move them into the form, as the first one fills.
@@ -22,6 +23,8 @@
 // is a best effort, not a proof: a page that sets out to can still hide a field this
 // passes, under another element, in the page's own color, cut away with clip or clip-path,
 // or parked far to the right or far down a page that scrolls there.
+// One more cost: while a site has the page locked from scrolling (a dialog is open), only
+// the fields in the window or in the dialog are filled.
 // One cost: a site that hides its real <select> and draws its own dropdown doesn't get
 // State or Country filled, because the real one can't be seen.
 
@@ -83,12 +86,16 @@ enum FormFill {
     for (const n of ['parentElement', 'clientLeft', 'clientTop', 'clientWidth', 'clientHeight',
                      'scrollLeft', 'scrollTop', 'scrollWidth', 'scrollHeight'])
       own[n] = getter(Element.prototype, n);
-    // When the page scrolls in <body> rather than the window, that scroll counts as the page's.
-    const scrollingOf = getter(Document.prototype, 'scrollingElement');
-    const bodyScrolls = body && scrollingOf && scrollingOf.call(document) !== body;
-    const pageScroll = n => (bodyScrolls ? get(body, n) : 0);
     const get = (e, n) => own[n].call(e);
     const rectOf = e => Element.prototype.getBoundingClientRect.call(e);
+
+    // What the window does with a page too big for it comes from <html>, or from <body> when
+    // <html> says nothing. When it comes from <html>, <body> is a box like any other.
+    const rootStyle = getComputedStyle(root);
+    const bodyIsABox = body && (rootStyle.overflowX !== 'visible' || rootStyle.overflowY !== 'visible');
+    const windowStyle = bodyIsABox || !body ? rootStyle : getComputedStyle(body);
+    const scrollingOf = getter(Document.prototype, 'scrollingElement');
+    const scrolling = (scrollingOf && scrollingOf.call(document)) || root;
 
     function fieldFor(el) {
       if (el.disabled || el.readOnly) return null;
@@ -108,14 +115,20 @@ enum FormFill {
       return null;
     }
 
-    // Inside what the page itself can scroll to.
-    function onPage(box) {
-      const left = box.left + window.scrollX + pageScroll('scrollLeft');
-      const top = box.top + window.scrollY + pageScroll('scrollTop');
-      if (left + box.width <= 0 || top + box.height <= 0) return false;
-      const pageWidth = Math.max(root.scrollWidth, body ? get(body, 'scrollWidth') : 0, window.innerWidth);
-      const pageHeight = Math.max(root.scrollHeight, body ? get(body, 'scrollHeight') : 0, window.innerHeight);
-      return left < pageWidth && top < pageHeight;
+    // One direction of the window. A page that scrolls that way can bring anything on it into
+    // view. One that doesn't (overflow hidden on the page, as a site does while a dialog is
+    // open) shows what's in the window now and nothing else, and so does anything fixed to it.
+    function inWindow(overflow, at, size, shown, scrolled, extent, fixed) {
+      if (fixed || /hidden|clip/.test(overflow)) return Math.min(at + size, shown) - Math.max(at, 0) >= 8;
+      return at + scrolled + size > 0 && at + scrolled < Math.max(extent, shown);
+    }
+
+    // On the page, somewhere the window can show.
+    function onPage(box, fixed) {
+      return inWindow(windowStyle.overflowX, box.left, box.width, window.innerWidth, window.scrollX,
+                      Math.max(root.scrollWidth, get(scrolling, 'scrollWidth')), fixed)
+          && inWindow(windowStyle.overflowY, box.top, box.height, window.innerHeight, window.scrollY,
+                      Math.max(root.scrollHeight, get(scrolling, 'scrollHeight')), fixed);
     }
 
     // One direction of one box the field sits in. `at` is where the field starts inside the
@@ -131,21 +144,34 @@ enum FormFill {
       return Math.min(at + size, client) - Math.max(at, 0) >= 8;
     }
 
+    // A box that holds the positioned boxes inside it even when it isn't positioned itself:
+    // one that is transformed, filtered, or contained.
+    function holdsPositioned(s) {
+      return s.transform !== 'none' || s.translate !== 'none' || s.rotate !== 'none' || s.scale !== 'none'
+          || s.perspective !== 'none' || s.filter !== 'none'
+          || (s.backdropFilter !== undefined && s.backdropFilter !== 'none')
+          || /paint|layout|strict|content/.test(s.contain)
+          || /transform|perspective|filter|translate|rotate|scale/.test(s.willChange);
+    }
+
     // Somewhere a person could bring into view: not cut off by any box it sits in, and on
     // the page or inside a scrolling box that is (an app's main panel, a long dialog).
     //
-    // A box cuts off or scrolls only what it contains, and what contains a positioned field
-    // isn't always its parent: position:absolute is held by the nearest positioned box above
-    // it, and the plain boxes in between don't touch it; position:fixed is held by the window.
+    // A box cuts off or scrolls only what it holds, and what holds a positioned field isn't
+    // always its parent. position:absolute is held by the nearest box above that is itself
+    // positioned (or transformed), and the plain boxes in between don't touch it.
+    // position:fixed is held by the window, unless a transformed box is above it.
     function reachable(el, box) {
-      let passing = 'none';   // 'none', or which boxes above don't hold this one: 'plain' or 'all'
+      let free = 'no';   // 'no', or what the box in hand is free of: 'plain' boxes, or 'all' but transformed ones
       for (let p = el; p; p = get(p, 'parentElement')) {
         const s = getComputedStyle(p);
-        if (p !== el && p !== root && p !== body) {
-          let holds = passing !== 'all';
-          if (passing === 'plain') { if (s.position === 'static') holds = false; else passing = 'none'; }
+        if (p !== el) {
+          if (p === root || (p === body && !bodyIsABox)) continue;
+          if (free === 'plain' && s.position === 'static' && !holdsPositioned(s)) continue;
+          if (free === 'all' && !holdsPositioned(s)) continue;
+          free = 'no';
           const ox = s.overflowX, oy = s.overflowY;
-          if (holds && (ox !== 'visible' || oy !== 'visible') && !/^(inline|contents)$/.test(s.display)) {
+          if ((ox !== 'visible' || oy !== 'visible') && !/^(inline|contents)$/.test(s.display)) {
             const r = rectOf(p);
             // Collapsed to nothing in a direction it cuts off or scrolls.
             if (ox !== 'visible' && r.width < 8) return false;
@@ -157,10 +183,10 @@ enum FormFill {
             if (/auto|scroll/.test(ox + ' ' + oy)) return reachable(p, r);
           }
         }
-        if (s.position === 'fixed') passing = 'all';
-        else if (s.position === 'absolute' && passing !== 'all') passing = 'plain';
+        if (s.position === 'fixed') free = 'all';
+        else if (s.position === 'absolute') free = 'plain';
       }
-      return onPage(box);
+      return onPage(box, free === 'all');
     }
 
     // Too faint to notice: its own opacity times that of every box it sits in.

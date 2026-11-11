@@ -204,11 +204,13 @@ import WebKit
       <div style="position:relative; height:40px; overflow:auto"><input id="over" autocomplete="tel" style="position:absolute; top:-40px; height:20px"></div>
       <div style="position:relative; height:40px; width:200px; overflow:hidden"><input id="beside" autocomplete="postal-code" style="position:absolute; left:400px"></div>
       <div style="position:relative; height:40px; overflow:hidden"><div><input id="below" autocomplete="address-line1" style="position:absolute; top:60px"></div></div>
+      <div style="transform:translateZ(0); height:0; overflow:hidden"><input id="turned" autocomplete="address-level2" style="position:absolute; top:0; left:0"></div>
+      <div style="filter:blur(0); height:0; overflow:hidden"><input id="pinned" autocomplete="country-name" style="position:fixed; top:10px; left:10px"></div>
     </form>
     """
 
     @Test("A field cut off by the box it sits in is left alone, however it's positioned",
-          arguments: ["held", "shut", "over", "beside", "below"])
+          arguments: ["held", "shut", "over", "beside", "below", "turned", "pinned"])
     @MainActor func leavesFieldsCutOffByTheirBoxAlone(id: String) async throws {
         let web = try await loaded(Self.cutOff)
         #expect(try await FormFill.fill(me, in: web.webView) == 1)
@@ -226,6 +228,44 @@ import WebKit
         """)
         #expect(try await FormFill.fill(me, in: web.webView) == 1)
         #expect(try await value(web, "em") == "ryan@example.com")
+    }
+
+    @Test("On a page that can't scroll, a field outside the window is left alone",
+          arguments: ["html, body { height: 100%; overflow: hidden }", "body { overflow: hidden }", "html { overflow: hidden }"])
+    @MainActor func leavesFieldsOutsideALockedPageAlone(lock: String) async throws {
+        let web = try await loaded("""
+        <!doctype html>
+        <style>\(lock) body { margin: 0 }</style>
+        <form><input id="em" type="email"><div style="height:2000px"></div><input id="st" autocomplete="address-line1"></form>
+        """)
+        #expect(try await FormFill.fill(me, in: web.webView) == 1)
+        #expect(try await value(web, "em") == "ryan@example.com")
+        #expect(try await value(web, "st") == "")
+    }
+
+    @Test("A dialog over a locked page is filled, down to the bottom of what it scrolls")
+    @MainActor func fillsADialogOverALockedPage() async throws {
+        let web = try await loaded("""
+        <!doctype html>
+        <style>body { margin: 0; overflow: hidden } .dialog { position: fixed; inset: 0; overflow-y: auto }</style>
+        <form><input id="behind" autocomplete="tel"><div style="height:2000px"></div><input id="far" autocomplete="postal-code"></form>
+        <div class="dialog"><form><input id="em" type="email"><div style="height:2000px"></div><input id="st" autocomplete="address-line1"></form></div>
+        """)
+        _ = try await web.webView.evaluateJavaScript("document.getElementById('em').focus(); 0")
+        #expect(try await FormFill.fill(me, in: web.webView) == 2)
+        #expect(try await value(web, "st") == "1 Main St")
+        #expect(try await value(web, "far") == "")
+    }
+
+    @Test("A field fixed in place outside the window is left alone, however long the page is")
+    @MainActor func leavesAFixedFieldOutsideTheWindowAlone() async throws {
+        let web = try await loaded("""
+        <!doctype html>
+        <form><input id="em" type="email"><div style="height:3000px"></div>
+          <input id="off" autocomplete="tel" style="position:fixed; top:150vh; left:10px"></form>
+        """)
+        #expect(try await FormFill.fill(me, in: web.webView) == 1)
+        #expect(try await value(web, "off") == "")
     }
 
     @Test("A page that scrolls in its body, not the window, is filled top to bottom wherever it's scrolled to", arguments: [0, 99_999])
