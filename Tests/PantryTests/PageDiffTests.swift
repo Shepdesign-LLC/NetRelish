@@ -123,6 +123,18 @@ import Testing
         #expect(diff.rows.count == 1_502)
     }
 
+    @Test("A long page edited near its top and its bottom is past the limit: removed, then added (ADR 0025)")
+    func longPageEditedAtBothEndsIsNotLinedUp() {
+        let shared = (0..<2_500).map { "Sentence \($0) stays." }
+        let old = (["Updated in 2025."] + shared + ["Copyright 2025."]).joined(separator: " ")
+        let new = (["Updated in 2026."] + shared + ["Copyright 2026."]).joined(separator: " ")
+        let diff = PageDiff(old: old, new: new)
+        // 2,502 sentences a side, nothing trimmed: 5,004 in the middle, over the limit.
+        #expect(diff.rows.count == 5_004)
+        #expect(diff.changeCount == 5_004)
+        #expect(diff.rows.first?.new == nil && diff.rows.last?.old == nil, "removed first, then added")
+    }
+
     @Test("The same start and end stay lined up around a changed middle")
     func trimmedEnds() {
         let diff = PageDiff(old: "Intro here. Price is 29. Outro here.", new: "Intro here. Price is 39. Outro here.")

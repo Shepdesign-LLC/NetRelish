@@ -1,6 +1,6 @@
 # ADR 0022 — How provenance works
 
-**Status:** proposed · **Date:** 2026-11-05 · **PR:** feat(pro): provenance — fingerprint, timestamp, Export Proof
+**Status:** proposed; amended in part by ADR 0025 (which replies count against a page, the signer's certificate policy, and the "can't be linked" sentence) · **Date:** 2026-11-05 · **PR:** feat(pro): provenance — fingerprint, timestamp, Export Proof
 
 ADR 0003 and ADR 0012 put provenance in Pro for 1.0: "an RFC 3161 timestamp and fingerprint on every seal, exportable". The plan (§P4) says: SHA-256 of the `.webarchive`, an RFC 3161 timestamp, and a PDF export.
 

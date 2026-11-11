@@ -47,14 +47,14 @@ import Testing
         let snapshots = store()
         // Something beside the folder that a `../` name would reach.
         let parent = snapshots.directory.deletingLastPathComponent()
-        let neighbour = parent.appendingPathComponent("nr-neighbour-\(UUID().uuidString)")
-        try Data("keep".utf8).write(to: neighbour)
-        defer { try? FileManager.default.removeItem(at: neighbour) }
+        let neighbor = parent.appendingPathComponent("nr-neighbor-\(UUID().uuidString)")
+        try Data("keep".utf8).write(to: neighbor)
+        defer { try? FileManager.default.removeItem(at: neighbor) }
         _ = try snapshots.write(Data("a".utf8), for: "item-5")
 
         #expect(throws: SnapshotStore.Failure.outsideTheStore(name)) { try snapshots.read(name) }
         #expect(throws: SnapshotStore.Failure.outsideTheStore(name)) { try snapshots.remove(name) }
-        #expect(FileManager.default.contents(atPath: neighbour.path) == Data("keep".utf8))
+        #expect(FileManager.default.contents(atPath: neighbor.path) == Data("keep".utf8))
         #expect(try FileManager.default.contentsOfDirectory(atPath: snapshots.directory.path) == ["item-5.webarchive"])
     }
 
