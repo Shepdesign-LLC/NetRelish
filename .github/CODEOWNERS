@@ -19,6 +19,20 @@
 # The endpoint gate (non-negotiable 5) and the tests that prove it
 /scripts/codeql_gate.py                               @Shepdesign
 /scripts/tests/                                       @Shepdesign
+# The gate accepts an endpoint that cites an ADR, so a new ADR is part of the gate's input
+/docs/adr/                                            @Shepdesign
+
+# What gets built: the project definition, the generated project (with the Package.resolved
+# lockfile that fixes every package revision), and the script that regenerates it
+/project.yml                                          @Shepdesign
+/NetRelish.xcodeproj/                                 @Shepdesign
+/Package.swift                                        @Shepdesign
+/scripts/gen-project.sh                               @Shepdesign
+
+# Scripts the release job runs: the disk-image builder (with its pinned Python packages)
+# and the release-notes reader
+/scripts/dmg/                                         @Shepdesign
+/scripts/release_notes.py                             @Shepdesign
 
 # Build settings and what the signed app is entitled to do
 /Config/                                              @Shepdesign
@@ -28,3 +42,6 @@
 # Third-party code that runs inside pages being captured, and its recorded checksum
 /Resources/Extraction/                                @Shepdesign
 /scripts/checksums/                                   @Shepdesign
+
+# The lockfile for the packages the Zest test job installs and runs
+/zest/tests/package-lock.json                         @Shepdesign
