@@ -33,5 +33,12 @@ jobs:
           cache: npm
           cache-dependency-path: zest/tests/package-lock.json
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # The runner's apt mirrors fail to resolve now and then; retry before giving up.
+      - run: |
+          for attempt in 1 2 3; do
+            npx playwright install --with-deps chromium && exit 0
+            echo "Browser install failed (attempt $attempt of 3)"
+            sleep 15
+          done
+          exit 1
       - run: npm test
