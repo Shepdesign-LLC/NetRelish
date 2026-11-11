@@ -211,6 +211,7 @@ enum FormFill {
       if (free !== 'all') {
         if (!/hidden|clip/.test(windowStyle.overflowX)) {
           const most = Math.max(root.scrollWidth, get(scrolling, 'scrollWidth')) - window.innerWidth;
+          const [back, forward] = room(window.scrollX, Math.max(most, 0), rootStyle.direction === 'rtl' || windowStyle.direction === 'rtl');
           // The viewport's horizontal scroll origin follows <html>, not <body>'s text
           // direction (even when body supplies the viewport's overflow style).
           const [back, forward] = room(window.scrollX, Math.max(most, 0), rootStyle.direction === 'rtl');
@@ -259,6 +260,10 @@ enum FormFill {
     }
 
     // With the cursor in a field, only that field's form (or, outside any form, only the
+    // other fields outside any form). On anything else inside a form, a button say, that
+    // form. With the cursor nowhere, the whole page.
+    const formAround = active && active !== body && active !== root ? Element.prototype.closest.call(active, 'form') : null;
+    const here = fields.includes(active) ? active.form : ((active instanceof HTMLButtonElement && active.form) || formAround || undefined);
     // other fields outside any form). With the cursor nowhere, the whole page.
     const here = fields.includes(active) ? active.form : undefined;
 

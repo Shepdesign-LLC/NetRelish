@@ -378,6 +378,37 @@ import WebKit
         #expect(try await value(web, "loose") == "")
     }
 
+    @Test("With the cursor on a button in one form, only that form is filled")
+    @MainActor func fillsOnlyTheFormAroundAFocusedButton() async throws {
+        let web = try await loaded("""
+        <!doctype html>
+        <form><input id="news" type="email"><button id="go" type="button">Sign up</button></form>
+        <form><input id="fn" autocomplete="given-name"></form>
+        <input id="loose" autocomplete="tel">
+        """)
+        _ = try await web.webView.evaluateJavaScript("document.getElementById('go').focus(); 0")
+        #expect(try await web.webView.evaluateJavaScript("document.activeElement.id") as? String == "go")
+        #expect(try await FormFill.fill(me, in: web.webView) == 1)
+        #expect(try await value(web, "news") == "ryan@example.com")
+        #expect(try await value(web, "fn") == "")
+        #expect(try await value(web, "loose") == "")
+    }
+
+    @Test("On a right-to-left page that scrolls sideways, a field toward the far end is filled")
+    @MainActor func fillsAcrossARightToLeftPage() async throws {
+        let web = try await loaded("""
+        <!doctype html>
+        <html dir="rtl"><body style="margin:0">
+        <div style="width:2000px; height:10px"></div>
+        <form><input id="em" type="email" style="position:absolute; right:1500px; top:40px; width:150px"></form>
+        </body></html>
+        """)
+        let left = try await web.webView.evaluateJavaScript("document.getElementById('em').getBoundingClientRect().right") as? Double ?? 0
+        #expect(left < 0, "the field starts out past the window's left edge")
+        #expect(try await FormFill.fill(me, in: web.webView) == 1)
+        #expect(try await value(web, "em") == "ryan@example.com")
+    }
+
     @Test("With the cursor in a field outside any form, the forms are left alone")
     @MainActor func fillsOnlyLooseFieldsFromALooseField() async throws {
         let web = try await loaded("""
