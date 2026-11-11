@@ -35,11 +35,11 @@ import WebKit
     }
 
     @MainActor
-    private func loaded() async throws -> JarWebView {
+    private func loaded(_ html: String = FormFillTests.form) async throws -> JarWebView {
         let web = JarWebView(jarId: "fill-test-\(UUID().uuidString)")
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 400, height: 300), styleMask: .borderless, backing: .buffered, defer: false)
         window.contentView = web.webView
-        web.webView.loadHTMLString(Self.form, baseURL: nil)
+        web.webView.loadHTMLString(html, baseURL: nil)
         for _ in 0..<100 { try await Task.sleep(for: .milliseconds(50)); if !web.webView.isLoading { break } }
         return web
     }
@@ -81,5 +81,115 @@ import WebKit
         let web = try await loaded()
         #expect(try await FormFill.fill(Identity(), in: web.webView) == 0)
         #expect(try await value(web, "fn") == "")
+    }
+
+    // MARK: Only what you can see, where you are
+
+    /// One box in view and the rest of the card asked for through fields nobody can see.
+    private static let harvest = """
+    <form>
+      <input id="em" type="email">
+      <input id="none" autocomplete="given-name" style="display:none">
+      <div style="display:none"><input id="inside-none" autocomplete="family-name"></div>
+      <input id="invisible" autocomplete="tel" style="visibility:hidden">
+      <input id="clear" autocomplete="address-line1" style="opacity:0">
+      <div style="opacity:0"><input id="inside-clear" autocomplete="address-level2"></div>
+      <input id="away" autocomplete="postal-code" style="position:absolute; left:-9999px">
+      <input id="above" autocomplete="country-name" style="position:absolute; top:-9999px">
+      <input id="speck" autocomplete="given-name" style="width:1px; height:1px; padding:0; border:0">
+      <div aria-hidden="true"><input id="unannounced" autocomplete="family-name"></div>
+    </form>
+    """
+
+    @Test("A field nobody can see is left alone, so one visible box can't collect the whole card",
+          arguments: ["none", "inside-none", "invisible", "clear", "inside-clear", "away", "above", "speck", "unannounced"])
+    @MainActor func leavesUnseenFieldsAlone(id: String) async throws {
+        let web = try await loaded(Self.harvest)
+        let filled = try await FormFill.fill(me, in: web.webView)
+        #expect(filled == 1)
+        #expect(try await value(web, "em") == "ryan@example.com")
+        #expect(try await value(web, id) == "")
+    }
+
+    @Test("With the cursor in one form, only that form is filled")
+    @MainActor func fillsOnlyTheFormInFocus() async throws {
+        let web = try await loaded("""
+        <form><input id="news" type="email"></form>
+        <form><input id="fn" autocomplete="given-name"><input id="st" autocomplete="address-line1"></form>
+        <input id="loose" autocomplete="tel">
+        """)
+        _ = try await web.webView.evaluateJavaScript("document.getElementById('news').focus(); 0")
+        #expect(try await web.webView.evaluateJavaScript("document.activeElement.id") as? String == "news")
+        #expect(try await FormFill.fill(me, in: web.webView) == 1)
+        #expect(try await value(web, "news") == "ryan@example.com")
+        #expect(try await value(web, "fn") == "")
+        #expect(try await value(web, "st") == "")
+        #expect(try await value(web, "loose") == "")
+    }
+
+    @Test("With the cursor in a field outside any form, the forms are left alone")
+    @MainActor func fillsOnlyLooseFieldsFromALooseField() async throws {
+        let web = try await loaded("""
+        <input id="loose" autocomplete="tel"><input id="loose2" type="email">
+        <form><input id="fn" autocomplete="given-name"></form>
+        """)
+        _ = try await web.webView.evaluateJavaScript("document.getElementById('loose').focus(); 0")
+        #expect(try await FormFill.fill(me, in: web.webView) == 2)
+        #expect(try await value(web, "loose") == "303-555-0100")
+        #expect(try await value(web, "loose2") == "ryan@example.com")
+        #expect(try await value(web, "fn") == "")
+    }
+
+    @Test("A page that swaps out the browser's own functions collects nothing through them")
+    @MainActor func pageCannotInterceptTheFill() async throws {
+        let web = try await loaded("""
+        <form><input id="em" type="email"><input id="fn" autocomplete="given-name"></form>
+        <script>
+          window.taken = [];
+          const take = v => { if (typeof v === 'string' && v) window.taken.push(v); };
+          // No real fields at all: pretend there are nine, and record whatever is written to them.
+          const fake = name => ({
+            tagName: 'INPUT', type: 'text', disabled: false, readOnly: false, form: null, name: '', id: '',
+            placeholder: '', options: [], selectedIndex: 0,
+            getAttribute: a => a === 'autocomplete' ? name : null,
+            checkVisibility: () => true, closest: () => null,
+            getBoundingClientRect: () => ({ left: 10, top: 10, width: 100, height: 20 }),
+            dispatchEvent: () => true,
+            get value() { return ''; }, set value(v) { take(v); },
+          });
+          const tokens = ['given-name', 'family-name', 'email', 'tel', 'address-line1', 'address-level2', 'postal-code', 'country-name'];
+          document.querySelectorAll = () => tokens.map(fake);
+          Document.prototype.querySelectorAll = () => tokens.map(fake);
+          // And listen on every path a value takes to a real field.
+          for (const proto of [HTMLInputElement.prototype, HTMLTextAreaElement.prototype]) {
+            const real = Object.getOwnPropertyDescriptor(proto, 'value');
+            Object.defineProperty(proto, 'value', { get() { return real.get.call(this); }, set(v) { take(v); real.set.call(this, v); } });
+          }
+          const realDescriptor = Object.getOwnPropertyDescriptor;
+          Object.getOwnPropertyDescriptor = (o, k) => {
+            const d = realDescriptor(o, k);
+            return d && d.set ? { ...d, set(v) { take(v); d.set.call(this, v); } } : d;
+          };
+          String.prototype.toLowerCase = function () { take(String(this)); return String(this); };
+        </script>
+        """)
+        // The real fields are still filled...
+        #expect(try await FormFill.fill(me, in: web.webView) == 2)
+        #expect(try await value(web, "em") == "ryan@example.com")
+        #expect(try await value(web, "fn") == "Ryan")
+        // ...and nothing went through the page's stand-ins on the way.
+        let taken = try await web.webView.evaluateJavaScript("window.taken") as? [String] ?? ["unreadable"]
+        #expect(taken == [])
+    }
+
+    @Test("An element named like a browser function doesn't break or redirect the fill")
+    @MainActor func namedElementsCannotStandInForTheDocument() async throws {
+        let web = try await loaded("""
+        <img name="querySelectorAll"><img name="activeElement"><img name="documentElement">
+        <form name="querySelectorAll"><input id="em" type="email"></form>
+        """)
+        #expect(try await web.webView.evaluateJavaScript("typeof document.querySelectorAll") as? String != "function")
+        #expect(try await FormFill.fill(me, in: web.webView) == 1)
+        #expect(try await value(web, "em") == "ryan@example.com")
     }
 }
