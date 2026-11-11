@@ -450,10 +450,11 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   };
 
   /* ---------- state ---------- */
+  const SETTINGS_DEFAULT = () => ({ skin: 'press', font: 'skin', size: 17, lh: 1.65, measure: 70, theme: 'auto', custom: { paper: '#f2f3f5', sheet: '#ffffff', ink: '#1b2130', accent: '#1f4ed8', doc: 'geist', ui: 'geist', mono: 'geistMono', radius: 8 }, cleanLLM: true, rawHtml: true, toc: false, edit: false });
   const state = {
     files: [],            // {id, name, text}
     active: -1,
-    settings: Object.assign({ skin: 'press', font: 'skin', size: 17, lh: 1.65, measure: 70, theme: 'auto', custom: { paper: '#f2f3f5', sheet: '#ffffff', ink: '#1b2130', accent: '#1f4ed8', doc: 'geist', ui: 'geist', mono: 'geistMono', radius: 8 }, cleanLLM: true, rawHtml: true, toc: false, edit: false }, store.get('settings', {}))
+    settings: SETTINGS_DEFAULT()   // the saved settings replace these further down, after cleanSettings() has checked them
   };
 
   /* ---------- markdown engine ---------- */
@@ -777,6 +778,27 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
       lum(accent) > .4 ? '#0f1420' : '#ffffff', ...(dark ? SYN.dark : SYN.light)];
   }
   const tokensOk = a => Array.isArray(a) && a.length === TOKENS.length && a.every(x => /^#[0-9a-f]{6}$/.test(String(x)));
+  /* Saved settings come back from storage, which every page on this origin can write. Each value is
+     rebuilt as one this app could have saved: colors are six-digit hex, numbers stay inside their
+     sliders, choices come from their lists. Anything else falls back to the default. */
+  const HEX6 = /^#[0-9a-f]{6}$/i;
+  const cleanNum = (v, lo, hi, d) => { const n = typeof v === 'number' ? v : NaN; return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : d; };
+  function cleanSettings(raw) {
+    const r = raw && typeof raw === 'object' ? raw : {}, s = SETTINGS_DEFAULT(), d = SETTINGS_DEFAULT();
+    if (r.skin === 'custom' || Object.prototype.hasOwnProperty.call(SKINS, r.skin)) s.skin = r.skin;
+    if (['skin', 'sans', 'serif', 'mono'].includes(r.font)) s.font = r.font;
+    if (['auto', 'light', 'dark'].includes(r.theme)) s.theme = r.theme;
+    s.size = cleanNum(r.size, 14, 26, d.size); s.lh = cleanNum(r.lh, 1.3, 2, d.lh); s.measure = cleanNum(r.measure, 50, 110, d.measure);
+    for (const k of ['cleanLLM', 'rawHtml', 'toc', 'edit']) if (typeof r[k] === 'boolean') s[k] = r[k];
+    const c = r.custom && typeof r.custom === 'object' ? r.custom : {};
+    for (const k of ['paper', 'sheet', 'ink', 'accent']) if (typeof c[k] === 'string' && HEX6.test(c[k])) s.custom[k] = c[k].toLowerCase();
+    for (const k of ['doc', 'ui', 'mono']) if (FONT_CHOICES[k].includes(c[k])) s.custom[k] = c[k];
+    s.custom.radius = cleanNum(c.radius, 0, 16, d.custom.radius);
+    const b = c.brand;                 // an imported brand keeps both palettes only if every token is a color
+    if (b && typeof b === 'object' && tokensOk(b.light) && tokensOk(b.dark)) s.custom.brand = { name: String(b.name || 'Custom').slice(0, 48), light: b.light.map(String), dark: b.dark.map(String) };
+    return s;
+  }
+  state.settings = cleanSettings(store.get('settings', {}));
   function customSkin() {
     const c = state.settings.custom, isDark = lum(c.paper) < .35;
     const fonts = [F[c.doc] || F.geist, F[c.ui] || F.geist, F[c.mono] || F.geistMono];
@@ -872,11 +894,17 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     if (!file) return;
     try { importZestBrand(JSON.parse(await file.text())); } catch { toast('That file would not read as a zest-brand.json.'); }
   });
-  function renderSkins() {
-    $('#skins').innerHTML = [...Object.entries(SKINS), ['custom', customSkin()]].map(([k, sk]) => {
-      const v = sk[currentTheme()];
-      return `<button class="skin" data-skin="${k}" aria-pressed="${k === state.settings.skin}"><b style="font-family:${sk.fonts[0]}">${escapeHtml(sk.name)}</b><span class="chips"><i style="background:${v[0]}"></i><i style="background:${v[2]}"></i><i style="background:${v[6]}"></i><i style="background:${v[8]}"></i></span><small>${sk.desc}</small></button>`;
-    }).join('');
+  function renderSkins() {            // built with DOM APIs: a skin's name, font and colors are set as text and style properties, never parsed as markup
+    const el = (tag, cls) => { const n = document.createElement(tag); if (cls) n.className = cls; return n; };
+    $('#skins').replaceChildren(...[...Object.entries(SKINS), ['custom', customSkin()]].map(([k, sk]) => {
+      const v = sk[currentTheme()], b = el('button', 'skin'), name = el('b'), chips = el('span', 'chips'), desc = el('small');
+      b.dataset.skin = k; b.setAttribute('aria-pressed', k === state.settings.skin);
+      name.style.fontFamily = sk.fonts[0]; name.textContent = sk.name;
+      for (const i of [0, 2, 6, 8]) { const chip = el('i'); chip.style.background = v[i]; chips.appendChild(chip); }
+      desc.textContent = sk.desc;
+      b.append(name, chips, desc);
+      return b;
+    }));
   }
   $('#skins').addEventListener('click', e => { const b = e.target.closest('.skin'); if (!b) return; state.settings.skin = b.dataset.skin; if (b.dataset.skin === 'custom') syncCustomPanel(); applySettings(); render(); });
   function applySettings() {
