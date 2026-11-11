@@ -193,6 +193,52 @@ import WebKit
         #expect(try await value(web, "lf") == "")
     }
 
+    /// Fields a box cuts off, each hidden a different way. `em` is the one in view.
+    private static let cutOff = """
+    <!doctype html>
+    <form>
+      <input id="em" type="email">
+      <div style="position:relative; height:0; overflow:hidden"><input id="held" autocomplete="given-name" style="position:absolute; top:0; left:0"></div>
+      <div style="height:0; overflow:auto"><input id="shut" autocomplete="family-name"></div>
+      <div style="height:200px"></div>
+      <div style="position:relative; height:40px; overflow:auto"><input id="over" autocomplete="tel" style="position:absolute; top:-40px; height:20px"></div>
+      <div style="position:relative; height:40px; width:200px; overflow:hidden"><input id="beside" autocomplete="postal-code" style="position:absolute; left:400px"></div>
+      <div style="position:relative; height:40px; overflow:hidden"><div><input id="below" autocomplete="address-line1" style="position:absolute; top:60px"></div></div>
+    </form>
+    """
+
+    @Test("A field cut off by the box it sits in is left alone, however it's positioned",
+          arguments: ["held", "shut", "over", "beside", "below"])
+    @MainActor func leavesFieldsCutOffByTheirBoxAlone(id: String) async throws {
+        let web = try await loaded(Self.cutOff)
+        #expect(try await FormFill.fill(me, in: web.webView) == 1)
+        #expect(try await value(web, "em") == "ryan@example.com")
+        #expect(try await value(web, id) == "")
+    }
+
+    @Test("A positioned field that sits outside a plain box that cuts off is still filled: that box doesn't hold it")
+    @MainActor func fillsAPositionedFieldItsPlainParentCannotCutOff() async throws {
+        let web = try await loaded("""
+        <!doctype html>
+        <form style="position:relative; height:120px">
+          <div style="height:0; overflow:hidden"><input id="em" type="email" style="position:absolute; top:40px; left:10px"></div>
+        </form>
+        """)
+        #expect(try await FormFill.fill(me, in: web.webView) == 1)
+        #expect(try await value(web, "em") == "ryan@example.com")
+    }
+
+    @Test("A page that scrolls in its body, not the window, is filled top to bottom wherever it's scrolled to", arguments: [0, 99_999])
+    @MainActor func fillsWhenTheBodyScrolls(scrollTop: Int) async throws {
+        let web = try await loaded("""
+        <!doctype html>
+        <style>html { height: 100%; overflow: hidden } body { height: 100%; margin: 0; overflow: auto }</style>
+        <form><input id="em" type="email"><div style="height:2000px"></div><input id="st" autocomplete="address-line1"></form>
+        """)
+        _ = try await web.webView.evaluateJavaScript("document.body.scrollTop = \(scrollTop); 0")
+        #expect(try await FormFill.fill(me, in: web.webView) == 2)
+    }
+
     @Test("With the cursor in one form, only that form is filled")
     @MainActor func fillsOnlyTheFormInFocus() async throws {
         let web = try await loaded("""
