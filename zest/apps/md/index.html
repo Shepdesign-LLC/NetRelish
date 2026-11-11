@@ -409,7 +409,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
      KaTeX (275KB) and Mermaid (2.6MB) load on demand when a document actually uses them —
      a plain Markdown doc never pays their download or parse cost. Degrades gracefully either way. -->
 <script>window.__mdpressMissing=[];function __mdfail(n){window.__mdpressMissing.push(n)}</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.17/purify.min.js" crossorigin="anonymous" onerror="__mdfail('the HTML sanitizer (DOMPurify)')"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.17/purify.min.js" integrity="sha384-P0JNneQf81HOl9VwNXK76cQ9VMD6Nfsnepxb0cCOg8+UzEdzgPHAPV4wVQrvYQSx" crossorigin="anonymous" onerror="__mdfail('the HTML sanitizer (DOMPurify)')"></script>
 
 <script>
 (() => {
@@ -418,21 +418,32 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const has = { md: !!window.markdownit, hl: !!window.hljs, katex: !!window.renderMathInElement, mermaid: !!window.mermaid, pure: !!window.DOMPurify };
-  /* on-demand vendors: fetched the first time a document needs them, then has.* flips and render() re-runs */
+  /* on-demand vendors: fetched the first time a document needs them, then has.* flips and render() re-runs.
+     Each file is listed with the sha384 of the release named in its URL; the browser refuses a file that
+     does not match, and the document then renders without that feature. */
   const VENDOR = {
-    katex: { label: 'math (KaTeX)', css: 'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css', js: ['https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js'], ready: () => !!window.renderMathInElement },
-    mermaid: { label: 'diagrams (Mermaid)', js: ['https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js'], ready: () => !!window.mermaid },
+    katex: { label: 'math (KaTeX)',
+      css: ['https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css', 'sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+'],
+      js: [['https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js', 'sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg'],
+           ['https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js', 'sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk']],
+      ready: () => !!window.renderMathInElement },
+    mermaid: { label: 'diagrams (Mermaid)',
+      js: [['https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.17.2/mermaid.min.js', 'sha384-EOXBFmc3gx5mb+vn0vPvvGqACToJD24hhacX5Yx+8NUUQrHIle/Qi5Bg9o3zKwW2']],
+      ready: () => !!window.mermaid },
   };
+  // Diagrams render after the document sanitizer has run, so Mermaid keeps its own strict mode:
+  // diagram text never becomes a click handler or a script URL, and Mermaid cleans markup in labels itself.
+  const initMermaid = () => { try { mermaid.initialize({ startOnLoad: false, theme: currentTheme() === 'dark' ? 'dark' : 'neutral', securityLevel: 'strict' }); } catch {} };
   const vendorLoading = {};
   function loadVendor(kind) {
     if (vendorLoading[kind]) return vendorLoading[kind];
     const v = VENDOR[kind];
     vendorLoading[kind] = (async () => {
       try {
-        if (v.css) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = v.css; l.crossOrigin = 'anonymous'; document.head.appendChild(l); }
-        for (const src of v.js) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.crossOrigin = 'anonymous'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+        if (v.css) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = v.css[0]; l.integrity = v.css[1]; l.crossOrigin = 'anonymous'; document.head.appendChild(l); }
+        for (const [src, hash] of v.js) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.integrity = hash; s.crossOrigin = 'anonymous'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
         has[kind] = v.ready();
-        if (kind === 'mermaid' && has.mermaid) { try { mermaid.initialize({ startOnLoad: false, theme: currentTheme() === 'dark' ? 'dark' : 'neutral', securityLevel: 'loose' }); } catch {} }
+        if (kind === 'mermaid' && has.mermaid) initMermaid();
       } catch { has[kind] = false; }
       if (!has[kind]) { __mdfail(v.label); toast(`${v.label} could not load — the rest of the document still renders.`); }
       return has[kind];
@@ -447,10 +458,11 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   };
 
   /* ---------- state ---------- */
+  const SETTINGS_DEFAULT = () => ({ skin: 'press', font: 'skin', size: 17, lh: 1.65, measure: 70, theme: 'auto', custom: { paper: '#f2f3f5', sheet: '#ffffff', ink: '#1b2130', accent: '#1f4ed8', doc: 'geist', ui: 'geist', mono: 'geistMono', radius: 8 }, cleanLLM: true, rawHtml: true, toc: false, edit: false });
   const state = {
     files: [],            // {id, name, text}
     active: -1,
-    settings: Object.assign({ skin: 'press', font: 'skin', size: 17, lh: 1.65, measure: 70, theme: 'auto', custom: { paper: '#f2f3f5', sheet: '#ffffff', ink: '#1b2130', accent: '#1f4ed8', doc: 'geist', ui: 'geist', mono: 'geistMono', radius: 8 }, cleanLLM: true, rawHtml: true, toc: false, edit: false }, store.get('settings', {}))
+    settings: SETTINGS_DEFAULT()   // the saved settings replace these further down, after cleanSettings() has checked them
   };
 
   /* ---------- markdown engine ---------- */
@@ -602,14 +614,26 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   });
 
   /* ---------- TOC ---------- */
+  // Built with DOM APIs only. Heading text and ids come from the document, so they are set as
+  // text and attribute values and are never parsed as markup.
+  const tocTarget = new WeakMap();   // Contents link -> the heading it scrolls to
   function buildToc() {
-    const toc = $('#toc');
-    const hs = $$('h1,h2,h3,h4', doc).filter(h => h.id);
-    toc.innerHTML = '<h4>Contents</h4>' + (hs.length ? hs.map(h => `<a href="#${h.id}" data-level="${h.tagName[1]}">${escapeHtml(h.textContent.replace(/#$/, '').trim())}</a>`).join('') : '<div class="empty">No headings yet.</div>');
+    const head = document.createElement('h4'); head.textContent = 'Contents';
+    const items = $$('h1,h2,h3,h4', doc).filter(h => h.id).map(h => {
+      const a = document.createElement('a');
+      a.setAttribute('href', '#' + h.id);
+      a.dataset.level = h.tagName[1];
+      a.textContent = h.textContent.replace(/#$/, '').trim();
+      tocTarget.set(a, h);
+      return a;
+    });
+    if (!items.length) { const empty = document.createElement('div'); empty.className = 'empty'; empty.textContent = 'No headings yet.'; items.push(empty); }
+    $('#toc').replaceChildren(head, ...items);
   }
   $('#toc').addEventListener('click', e => {
     const a = e.target.closest('a[href^="#"]'); if (!a) return;
-    e.preventDefault(); const t = doc.querySelector(a.getAttribute('href')); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // scroll to the heading element itself: no id lookup, so any id works (digits first, spaces, duplicates)
+    e.preventDefault(); const t = tocTarget.get(a); if (t && t.isConnected) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
     if (matchMedia('(max-width:760px)').matches) { state.settings.toc = false; applySettings(); } // the drawer closes on selection
   });
   // the drawer and popovers anchor below the (possibly wrapped) bar; the bar grows when
@@ -762,6 +786,27 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
       lum(accent) > .4 ? '#0f1420' : '#ffffff', ...(dark ? SYN.dark : SYN.light)];
   }
   const tokensOk = a => Array.isArray(a) && a.length === TOKENS.length && a.every(x => /^#[0-9a-f]{6}$/.test(String(x)));
+  /* Saved settings come back from storage, which every page on this origin can write. Each value is
+     rebuilt as one this app could have saved: colors are six-digit hex, numbers stay inside their
+     sliders, choices come from their lists. Anything else falls back to the default. */
+  const HEX6 = /^#[0-9a-f]{6}$/i;
+  const cleanNum = (v, lo, hi, d) => { const n = typeof v === 'number' ? v : NaN; return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : d; };
+  function cleanSettings(raw) {
+    const r = raw && typeof raw === 'object' ? raw : {}, s = SETTINGS_DEFAULT(), d = SETTINGS_DEFAULT();
+    if (r.skin === 'custom' || Object.prototype.hasOwnProperty.call(SKINS, r.skin)) s.skin = r.skin;
+    if (['skin', 'sans', 'serif', 'mono'].includes(r.font)) s.font = r.font;
+    if (['auto', 'light', 'dark'].includes(r.theme)) s.theme = r.theme;
+    s.size = cleanNum(r.size, 14, 26, d.size); s.lh = cleanNum(r.lh, 1.3, 2, d.lh); s.measure = cleanNum(r.measure, 50, 110, d.measure);
+    for (const k of ['cleanLLM', 'rawHtml', 'toc', 'edit']) if (typeof r[k] === 'boolean') s[k] = r[k];
+    const c = r.custom && typeof r.custom === 'object' ? r.custom : {};
+    for (const k of ['paper', 'sheet', 'ink', 'accent']) if (typeof c[k] === 'string' && HEX6.test(c[k])) s.custom[k] = c[k].toLowerCase();
+    for (const k of ['doc', 'ui', 'mono']) if (FONT_CHOICES[k].includes(c[k])) s.custom[k] = c[k];
+    s.custom.radius = cleanNum(c.radius, 0, 16, d.custom.radius);
+    const b = c.brand;                 // an imported brand keeps both palettes only if every token is a color
+    if (b && typeof b === 'object' && tokensOk(b.light) && tokensOk(b.dark)) s.custom.brand = { name: String(b.name || 'Custom').slice(0, 48), light: b.light.map(String), dark: b.dark.map(String) };
+    return s;
+  }
+  state.settings = cleanSettings(store.get('settings', {}));
   function customSkin() {
     const c = state.settings.custom, isDark = lum(c.paper) < .35;
     const fonts = [F[c.doc] || F.geist, F[c.ui] || F.geist, F[c.mono] || F.geistMono];
@@ -789,7 +834,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     root.style.setProperty('--ui-font', sk.fonts[1]); root.style.setProperty('--mono', sk.fonts[2]); root.style.setProperty('--radius', sk.radius);
     $$('#skins .skin').forEach(b => b.setAttribute('aria-pressed', b.dataset.skin === state.settings.skin));
     $('#custom').dataset.open = state.settings.skin === 'custom';
-    if (has.mermaid) { try { mermaid.initialize({ startOnLoad: false, theme: currentTheme() === 'dark' ? 'dark' : 'neutral', securityLevel: 'loose' }); } catch {} }
+    if (has.mermaid) initMermaid();
   }
   function syncCustomPanel() {
     const c = state.settings.custom;
@@ -857,11 +902,17 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     if (!file) return;
     try { importZestBrand(JSON.parse(await file.text())); } catch { toast('That file would not read as a zest-brand.json.'); }
   });
-  function renderSkins() {
-    $('#skins').innerHTML = [...Object.entries(SKINS), ['custom', customSkin()]].map(([k, sk]) => {
-      const v = sk[currentTheme()];
-      return `<button class="skin" data-skin="${k}" aria-pressed="${k === state.settings.skin}"><b style="font-family:${sk.fonts[0]}">${escapeHtml(sk.name)}</b><span class="chips"><i style="background:${v[0]}"></i><i style="background:${v[2]}"></i><i style="background:${v[6]}"></i><i style="background:${v[8]}"></i></span><small>${sk.desc}</small></button>`;
-    }).join('');
+  function renderSkins() {            // built with DOM APIs: a skin's name, font and colors are set as text and style properties, never parsed as markup
+    const el = (tag, cls) => { const n = document.createElement(tag); if (cls) n.className = cls; return n; };
+    $('#skins').replaceChildren(...[...Object.entries(SKINS), ['custom', customSkin()]].map(([k, sk]) => {
+      const v = sk[currentTheme()], b = el('button', 'skin'), name = el('b'), chips = el('span', 'chips'), desc = el('small');
+      b.dataset.skin = k; b.setAttribute('aria-pressed', k === state.settings.skin);
+      name.style.fontFamily = sk.fonts[0]; name.textContent = sk.name;
+      for (const i of [0, 2, 6, 8]) { const chip = el('i'); chip.style.background = v[i]; chips.appendChild(chip); }
+      desc.textContent = sk.desc;
+      b.append(name, chips, desc);
+      return b;
+    }));
   }
   $('#skins').addEventListener('click', e => { const b = e.target.closest('.skin'); if (!b) return; state.settings.skin = b.dataset.skin; if (b.dataset.skin === 'custom') syncCustomPanel(); applySettings(); render(); });
   function applySettings() {
@@ -937,7 +988,7 @@ var tt=document.getElementById('toTop');addEventListener('scroll',function(){tt.
 <title>${escapeHtml(title)}</title>
 <meta name="generator" content="${PRODUCT}">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500;700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Manrope:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&display=swap" rel="stylesheet">
-${body.querySelector('.katex') ? '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">' : ''}
+${body.querySelector('.katex') ? `<link rel="stylesheet" href="${VENDOR.katex.css[0]}" integrity="${VENDOR.katex.css[1]}" crossorigin="anonymous">` : ''}
 <style>
 ${css}
 html[data-theme="light"],html[data-theme="dark"]{${tokens};--ui-font:${sk.fonts[1]};--mono:${sk.fonts[2]};--radius:${sk.radius};--doc-font:${s.font === 'skin' ? sk.fonts[0] : fontMap[s.font]};--doc-size:${s.size}px;--doc-lh:${s.lh};--measure:${s.measure}ch}
@@ -1061,7 +1112,7 @@ flowchart LR
 
   /* ---------- boot ---------- */
   buildEngine();
-  if (has.mermaid) { try { mermaid.initialize({ startOnLoad: false, theme: currentTheme() === 'dark' ? 'dark' : 'neutral', securityLevel: 'loose' }); } catch {} }
+  if (has.mermaid) initMermaid();
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applySettings(); renderSkins(); render(); });
   syncCustomPanel(); applySettings(); renderSkins();
   renderEmpty(); buildToc();
