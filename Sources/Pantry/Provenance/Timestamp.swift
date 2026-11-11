@@ -118,6 +118,17 @@ public struct Timestamp: Sendable, Equatable {
         }
     }
 
+    /// The bytes the authority signed (the TSTInfo inside the token), as this parser finds
+    /// them. Whoever checks the signature compares these with what the signature covers, so
+    /// the timestamp that was read and the timestamp that was verified are the same one.
+    public static func signedContent(in token: Data) throws -> Data {
+        do {
+            return Data(try TSTInfo.content(of: Array(token)))
+        } catch {
+            throw TimestampError.malformed
+        }
+    }
+
     /// Two INTEGER values compared as numbers (a leading zero byte doesn't change one).
     static func sameInteger(_ a: [UInt8], _ b: [UInt8]) -> Bool {
         Array(a.drop { $0 == 0 }) == Array(b.drop { $0 == 0 })
@@ -138,6 +149,25 @@ struct TSTInfo {
     static let tstInfoOID: [UInt8] = [0x06, 0x0B, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x10, 0x01, 0x04]
 
     init(token: [UInt8]) throws {
+        let fields = try DER.parseOne(try TSTInfo.content(of: token)).expect(DER.sequence).children()
+        // TSTInfo ::= SEQUENCE { version, policy, messageImprint, serialNumber, genTime,
+        //                        accuracy OPTIONAL, ordering DEFAULT FALSE, nonce OPTIONAL, ... }
+        guard fields.count >= 5 else { throw DER.Failure.unexpected("TSTInfo") }
+        let imprint = try fields[2].expect(DER.sequence).children()
+        guard imprint.count == 2, let algorithm = try imprint[0].expect(DER.sequence).children().first else {
+            throw DER.Failure.unexpected("imprint")
+        }
+        self.algorithm = algorithm.raw
+        self.digest = try imprint[1].expect(DER.octetString).value
+        self.serial = try fields[3].expect(DER.integer).value
+        self.time = try DER.generalizedTime(fields[4])
+        // The nonce is the only bare INTEGER after genTime (accuracy is a SEQUENCE, ordering
+        // a BOOLEAN, tsa and extensions are tagged).
+        self.nonce = fields.dropFirst(5).first { $0.tag == DER.integer }?.value
+    }
+
+    /// The signed bytes inside a token: the OCTET STRING that holds the TSTInfo.
+    static func content(of token: [UInt8]) throws -> [UInt8] {
         // ContentInfo ::= SEQUENCE { contentType, [0] EXPLICIT SignedData }
         let contentInfo = try DER.parseOne(token).expect(DER.sequence).children()
         guard contentInfo.count == 2, contentInfo[0].raw == TSTInfo.signedDataOID else {
@@ -154,20 +184,6 @@ struct TSTInfo {
               let content = try encapsulated[1].expect(DER.context0).children().first else {
             throw DER.Failure.unexpected("not TSTInfo")
         }
-        let fields = try DER.parseOne(try content.expect(DER.octetString).value).expect(DER.sequence).children()
-        // TSTInfo ::= SEQUENCE { version, policy, messageImprint, serialNumber, genTime,
-        //                        accuracy OPTIONAL, ordering DEFAULT FALSE, nonce OPTIONAL, ... }
-        guard fields.count >= 5 else { throw DER.Failure.unexpected("TSTInfo") }
-        let imprint = try fields[2].expect(DER.sequence).children()
-        guard imprint.count == 2, let algorithm = try imprint[0].expect(DER.sequence).children().first else {
-            throw DER.Failure.unexpected("imprint")
-        }
-        self.algorithm = algorithm.raw
-        self.digest = try imprint[1].expect(DER.octetString).value
-        self.serial = try fields[3].expect(DER.integer).value
-        self.time = try DER.generalizedTime(fields[4])
-        // The nonce is the only bare INTEGER after genTime (accuracy is a SEQUENCE, ordering
-        // a BOOLEAN, tsa and extensions are tagged).
-        self.nonce = fields.dropFirst(5).first { $0.tag == DER.integer }?.value
+        return try content.expect(DER.octetString).value
     }
 }
