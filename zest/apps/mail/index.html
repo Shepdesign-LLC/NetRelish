@@ -927,12 +927,24 @@ ${preheader}${content}
   function designJSON() { return { name: state.designName, brand: brand(), blocks: state.blocks, subject: $('#subject').value, preheader: $('#preheader').value, width: $('#width').value, bg: $('#bg').value, saved: new Date().toISOString() }; }
   const setWidth = v => { if ([...$('#width').options].some(o => o.value === String(v))) $('#width').value = String(v); };
   const setBg = v => { if (BRAND_HEX.test(String(v))) $('#bg').value = v; };
+  // The brand inside a design is never written into a brand that is already here, whatever id it carries.
+  // A brand whose every field matches is reused, so opening an exported or saved design again adds nothing;
+  // anything else arrives as a separate brand with an id of its own. Returns the id, and the name if one was added.
+  const sameBrand = (a, b) => Object.keys(b).every(k => k === 'id' || k === 'name' || a[k] === b[k]);
+  function adoptBrand(raw) {
+    const nb = sanitizeBrand(raw), alt = nb.name.slice(0, 66) + ' (from design)';
+    const ex = brands.find(x => { const s = sanitizeBrand(x); return (s.name === nb.name || s.name === alt) && sameBrand(s, nb); });
+    if (ex) return { id: ex.id, added: null };
+    nb.id = uid();
+    if (brands.some(x => x.name === nb.name)) nb.name = alt;
+    brands.push(nb); store.set('brands', brands);
+    return { id: nb.id, added: nb.name };
+  }
   // a design is untrusted wherever it comes from (a file, a drop, or storage): blocks and brand are rebuilt, never taken as-is
-  function loadDesign(d) { snapshot(); state.blocks = sanitizeBlocks(d.blocks); state.designName = cleanLine(d.name, 120).trim() || 'Untitled'; state.designId = cleanId(d.id); $('#subject').value = cleanLine(d.subject, 500); $('#preheader').value = cleanLine(d.preheader, 500); setWidth(d.width); setBg(d.bg);
-    if (d.brand && typeof d.brand === 'object') { const nb = sanitizeBrand(d.brand), ex = brands.find(b => b.id === nb.id);
-      if (ex) { for (const k of Object.keys(nb)) if (Object.prototype.hasOwnProperty.call(d.brand, k)) ex[k] = nb[k]; } else brands.push(nb);   // an existing brand only takes the fields the file carries
-      state.brandId = nb.id; store.set('brands', brands); }
-    state.selected = null; setMode('build'); renderCanvas(); renderInspector(); renderBrandPanel(); renderSaved(); run(); }   // the Brand tab is redrawn too: with no block selected the inspector leaves it alone
+  function loadDesign(d) { let added = null; snapshot(); state.blocks = sanitizeBlocks(d.blocks); state.designName = cleanLine(d.name, 120).trim() || 'Untitled'; state.designId = cleanId(d.id); $('#subject').value = cleanLine(d.subject, 500); $('#preheader').value = cleanLine(d.preheader, 500); setWidth(d.width); setBg(d.bg);
+    if (d.brand && typeof d.brand === 'object') { const a = adoptBrand(d.brand); state.brandId = a.id; added = a.added; }
+    state.selected = null; setMode('build'); renderCanvas(); renderInspector(); renderBrandPanel(); renderSaved(); run(); return added; }   // the Brand tab is redrawn too: with no block selected the inspector leaves it alone
+  function importedDesign(d) { const added = loadDesign(d); toast(`Imported “${state.designName}”` + (added ? ` — its brand was added as “${added}”` : '')); }
   $('#btnSave').addEventListener('click', () => {
     const name = prompt('Design name', state.designName); if (name == null) return;
     const list = designs(), d = Object.assign(designJSON(), { name, id: state.designId || uid() }); state.designName = name; state.designId = d.id;
@@ -941,7 +953,7 @@ ${preheader}${content}
   });
   $('#btnNew').addEventListener('click', () => { if (state.blocks.length && !confirm('Start a new design? The canvas will be cleared (Undo works).')) return; snapshot(); state.blocks = []; state.selected = null; state.designId = null; state.designName = 'Untitled'; $('#subject').value = ''; $('#preheader').value = ''; renderCanvas(); renderInspector(); run(); });
   function renderSaved() { const list = designs(); $('#savedList').innerHTML = list.length ? list.map(d => `<div><span title="${esc(d.name)}">${esc(d.name)}</span><small>${new Date(d.saved).toLocaleDateString()}</small><button data-load="${esc(d.id)}" title="Open">↗</button><button data-rm="${esc(d.id)}" title="Delete">×</button></div>`).join('') : '<div><span style="color:var(--ink-3)">Nothing saved yet</span></div>'; }
-  $('#savedList').addEventListener('click', e => { const l = e.target.closest('[data-load]'), r = e.target.closest('[data-rm]'); if (l) { const d = designs().find(x => x.id === l.dataset.load); if (d) loadDesign(d); } if (r) { if (!confirm('Delete this saved design?')) return; store.set('designs', designs().filter(x => x.id !== r.dataset.rm)); renderSaved(); } });
+  $('#savedList').addEventListener('click', e => { const l = e.target.closest('[data-load]'), r = e.target.closest('[data-rm]'); if (l) { const d = designs().find(x => x.id === l.dataset.load); if (d) { const added = loadDesign(d); if (added) toast(`The brand saved with this design was added as “${added}”`); } } if (r) { if (!confirm('Delete this saved design?')) return; store.set('designs', designs().filter(x => x.id !== r.dataset.rm)); renderSaved(); } });
 
   /* ---------- export ---------- */
   $('#btnExport').addEventListener('click', e => { e.stopPropagation(); const p = $('#popExport'); p.dataset.open = p.dataset.open !== 'true'; if (p.dataset.open === 'true' && narrow()) $('#inspector').dataset.open = 'false'; });
@@ -959,7 +971,7 @@ ${preheader}${content}
   });
   $('#jsonFile').addEventListener('change', async () => { const f = $('#jsonFile').files[0]; if (!f) return; try { const d = JSON.parse(await f.text());
     if (d && d.zest === 1) importZestBrand(d);                       // a zest-brand.json is a brand, never an empty design
-    else if (d && Array.isArray(d.blocks)) { loadDesign(d); toast(`Imported “${state.designName}”`); }
+    else if (d && Array.isArray(d.blocks)) importedDesign(d);
     else toast(`That file isn’t a ${PRODUCT} design`);
   } catch { toast(`That file isn’t a ${PRODUCT} design`); } $('#jsonFile').value = ''; });
 
@@ -1000,7 +1012,7 @@ ${preheader}${content}
   async function routeDroppedJson(f) {
     try { const d = JSON.parse(await f.text());
       if (d && d.zest === 1) importZestBrand(d);
-      else if (d && Array.isArray(d.blocks)) { loadDesign(d); toast(`Imported “${state.designName}”`); }
+      else if (d && Array.isArray(d.blocks)) importedDesign(d);
       else toast('Not a zest-brand.json.');
     } catch { toast('That file would not read as JSON.'); }
   }
