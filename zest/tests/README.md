@@ -19,7 +19,7 @@ CI runs the same thing on every PR that touches `zest/**`
 | Stage | Covers |
 |---|---|
 | `test.js` (66) | Studio: roles, OKLCH harmony, locks, shuffle, type palettes, font upload/replacement, brand export/import round-trips, logo handling, share links, ZestImage brand import, no uncaught exceptions |
-| `handoff2.js` (70) | Brand handoff studio → Mail and MD: token import, font mapping, serif stacks, name whitelisting, JSON routing, persistence, the DOMPurify XSS fix in MD (sanitized path *and* fail-closed path with the CDN blocked). Untrusted input: Mail's design import, reload and tampered storage (nothing runs, an honest design re-imports byte-identical); MD's Contents list built from hostile heading ids (dropped file and `?text=` link), the sanitizer tag's integrity hash, and Mermaid always configured `strict` |
+| `handoff2.js` (89) | Brand handoff studio → Mail and MD: token import, font mapping, serif stacks, name whitelisting, JSON routing, persistence, the DOMPurify XSS fix in MD (sanitized path *and* fail-closed path with the CDN blocked). Untrusted input: Mail's design import, reload and tampered storage (nothing runs, an honest design re-imports byte-identical, a design never changes a brand that is already there, link-valued merge tags are checked as links); MD's Contents list built from hostile heading ids (dropped file and `?text=` link), its saved reader settings, the integrity hashes on the sanitizer tag and on every on-demand file, and Mermaid always configured `strict` |
 | `topology.js` (38) | The assembled `dist/`: studio at `/`, tools at `/mail` `/md` `/image`, store at `/pricing`, scope-relative service workers and manifests, tools-row links, cross-app brand download |
 | `mobile.js` (38) | Every surface at 390×844 with touch (plus a landscape-phone case): no layout-viewport blowout, panels reachable, and each core flow works by tap — Mail's drawer/bottom-sheet/scaled canvas, MD's wrapped bar + Contents drawer + clamped popovers, the studio's capped preview + jump nav, Image's docked preview, the store's menu and stacked comparison table |
 | `contrast-audit.js` | Full-page WCAG text-contrast sweep (alpha compositing, gradient detection) on Mail, MD (dark **and** light scheme — its reader skins react to `prefers-color-scheme`), and the studio — any failure fails the run. Mail and the studio ship one fixed dark chrome, so a single sweep covers them |
@@ -44,12 +44,27 @@ CI runs the same thing on every PR that touches `zest/**`
   `openssl dgst -sha384 -binary node_modules/dompurify/dist/purify.min.js | openssl base64 -A`,
   prefixed with `sha384-`. `handoff2.js` serves that same file for the cdnjs
   URL, so a hash that does not match the pinned release fails the suite.
-  KaTeX and Mermaid load on demand and are not hashed yet.
-- **Mermaid is tested with a stand-in.** `handoff2.js` answers the app's
-  Mermaid URL with a few lines that record how the app configures the
-  library; the real one (2.6 MB) is not a test dependency. The test proves
-  every `initialize` call asks for `securityLevel: 'strict'`; it does not
-  render a diagram.
+- **KaTeX and Mermaid load on demand and are hashed too.** Each file in the
+  `VENDOR` table in `apps/md/index.html` is listed with its `sha384`, and the
+  loader sets it on the tag. A version bump is two edits per file: the version
+  in the URL and the hash. Take the hash from the published npm package, not
+  from the CDN: `npm pack katex@<version>` (or `mermaid@<version>`), unpack it,
+  then `openssl dgst -sha384 -binary package/dist/<file> | openssl base64 -A`,
+  prefixed with `sha384-`. cdnjs does not carry the script for every Mermaid
+  release (11.4.1 has none), so check the address answers before pinning it.
+  `handoff2.js` checks that every on-demand file has a hash and that the
+  loader puts it on the tag; it does not download the real files.
+- **Mermaid is tested with a stand-in.** The real library (3.5 MB) is not a
+  test dependency. `handoff2.js` proves two things with a few lines that
+  record how the app configures the library. Served at the app's Mermaid
+  address, the stand-in is refused because it is not the pinned release, and
+  the diagram stays a code block. Defined before the page loads, it shows that
+  every `initialize` call asks for `securityLevel: 'strict'`. The suite does
+  not render a diagram. Rendering under `strict` was checked by hand against
+  Mermaid 11.17.2 on 2026-11-11: a flowchart renders, a `click … href` with a
+  script URL becomes a link with no address, `click … call` runs nothing, and
+  handler attributes in label markup are removed. Repeat that check when the
+  version changes, until the real library is a test dependency.
 - `fixtures/` holds two Caladea TTFs (SIL OFL 1.1, license included) for the
   studio's font-upload round-trip — no system font paths, so the suite runs
   on any OS.

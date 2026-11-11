@@ -104,7 +104,7 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   // block types, link schemes) carries markup. None of it may reach the page as markup, now or after a reload.
   const X = '"><img src=x onerror="window.__pwned=1">';
   const evil = { name: 'Evil' + X, id: 'd' + X, subject: 's', width: '600' + X, bg: '#ffffff' + X,
-    brand: { id: 'evil' + X, name: 'Evil brand', esp: 'custom', tagBrowser: 'x' + X, tagUnsub: 'u' + X, font: 'x' + X, primary: '#000000' + X, ink: X, muted: X, sheet: X, line: X,
+    brand: { id: 'evil' + X, name: 'Evil brand', esp: 'custom', tagBrowser: 'x' + X, tagUnsub: 'javascript:window.__pwned=1', font: 'x' + X, primary: '#000000' + X, ink: X, muted: X, sheet: X, line: X,
       logo: 'icons/icon-112.png', logoWidth: '140' + X, radius: '8' + X, website: 'javascript:window.__pwned=1', unsubscribe: 'javascript:window.__pwned=1' },
     blocks: [
       { id: 'b' + X, type: 'spacer', props: { height: '24' + X, bg: 'x' + X } },
@@ -123,6 +123,7 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   ok(await ml.$eval('#brandSel', s => s.selectedOptions[0].textContent) === 'Evil brand', 'the imported brand is selected');
   ok(await ml.$eval('[data-bk="primary"]', e => e.value) === '#1f4ed8', 'a color that is not a six-digit hex falls back to the default');
   ok(!/[<>"=;:(){}]/.test(await ml.$eval('[data-bk="font"]', e => e.value)), 'an imported font stack is reduced to font-name characters');
+  ok(await ml.$eval('[data-bk="tagUnsub"]', e => e.value) === '', 'a custom merge tag that is used as a link cannot be a script URL');
   await ml.$eval('.cv-block', b => b.click()); await ml.waitForTimeout(300);      // inspector renders the block's fields
   await ml.click('#viewSeg [data-w="600"]'); await ml.waitForTimeout(500);       // and the compiled preview
   ok(await ml.$eval('#frame', f => new DOMParser().parseFromString(f.srcdoc, 'text/html').querySelectorAll('[onerror], script, a[href^="javascript:" i]').length) === 0, 'the compiled preview carries no handlers or script URLs');
@@ -130,16 +131,32 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   await ml.reload({ waitUntil: 'domcontentloaded' }); await ml.waitForTimeout(700);
   ok(await ml.evaluate(() => window.__pwned === undefined), 'nothing runs when the imported design comes back from storage');
   ok(await ml.$$eval(HOSTILE, n => n.length) === 0 && await ml.$$eval('.cv-block', b => b.length) === 4, 'the reloaded canvas is the same four clean blocks');
+  // a design never changes a brand that is already here, even when it carries that brand's id (the first brand's id is the same on every install)
+  const storedBrand = id => ml.evaluate(i => JSON.stringify((JSON.parse(localStorage.getItem('mailpress:brands')) || []).find(b => b.id === i) || null), id);
+  const brandTotal = () => ml.evaluate(() => JSON.parse(localStorage.getItem('mailpress:brands')).length);
+  const ownBrand = await storedBrand('shepdesign'), total0 = await brandTotal();
+  const otherBuf = Buffer.from(JSON.stringify({ name: 'Free template', blocks: [{ type: 'footer', props: {} }],
+    brand: { id: 'shepdesign', unsubscribe: 'https://other.example/u', website: 'https://other.example', company: 'Other Co', logo: 'https://other.example/pixel.png' } }));
+  await ml.setInputFiles('#jsonFile', { name: 'template.mailpress.json', mimeType: 'application/json', buffer: otherBuf });
+  await ml.waitForTimeout(600);
+  ok(ownBrand !== 'null' && await storedBrand('shepdesign') === ownBrand, 'a design that carries an existing brand id leaves that brand as it was');
+  ok(await brandTotal() === total0 + 1, 'the brand in the file arrives as a separate brand');
+  ok(await ml.$eval('[data-bk="company"]', e => e.value) === 'Other Co', 'the Brand tab shows the brand that came with the design, with no block selected');
+  ok((await ml.$eval('#toast', e => e.textContent)).includes('its brand was added as'), 'the import says a brand was added');
+  await ml.setInputFiles('#jsonFile', { name: 'template.mailpress.json', mimeType: 'application/json', buffer: otherBuf });
+  await ml.waitForTimeout(600);
+  ok(await brandTotal() === total0 + 1, 'opening the same design again adds no second copy');
   // storage itself is untrusted too: brands, the draft, modules and saved designs are checked on the way in
   await ml.evaluate(x => {
     const put = (k, v) => localStorage.setItem('mailpress:' + k, JSON.stringify(v));
-    put('brands', [{ id: 'b' + x, name: 'Tampered', font: 'f' + x, ink: x, sheet: x, radius: x, logoWidth: x }]);
-    put('draft', { blocks: [{ id: x, type: 'spacer', props: { height: x, bg: x } }, { id: 'k', type: x, props: {} }], brandId: 'b' + x, designId: x, designName: 'n' + x, width: x, bg: x });
+    put('brands', [{ id: 'b' + x, name: 'Tampered', font: 'f' + x, ink: x, sheet: x, radius: x, logoWidth: x, esp: 'custom', tagUnsub: 'JaVaScRiPt:window.__pwned=1', tagBrowser: ' java\tscript:window.__pwned=1' }]);
+    put('draft', { blocks: [{ id: x, type: 'spacer', props: { height: x, bg: x } }, { id: 'k', type: x, props: {} }, { type: 'header', props: { browser: true } }, { type: 'footer', props: { browser: true } }], brandId: 'b' + x, designId: x, designName: 'n' + x, width: x, bg: x });
     put('modules', [{ id: 'm' + x, name: 'M', type: 'spacer', props: { height: x, bg: x } }, { id: 'm2', name: 'N', type: 't' + x, props: {} }]);
     put('designs', [{ id: 'd' + x, name: 'D', saved: x, blocks: [{ id: x, type: 'divider', props: { color: x } }] }]);
   }, X);
   await ml.reload({ waitUntil: 'domcontentloaded' }); await ml.waitForTimeout(700);
   ok(await ml.evaluate(() => window.__pwned === undefined) && await ml.$$eval('[onerror]', n => n.length) === 0, 'tampered storage runs nothing at boot');
+  ok(await ml.$$eval('#canvas a', a => a.length) > 0 && await ml.$$eval('#canvas a[href^="javascript:" i]', a => a.length) === 0, 'script URLs in stored merge tags never become link addresses');
   await ml.$eval('#mods [data-mod]', e => e.click()); await ml.waitForTimeout(300);            // a stored module onto the canvas
   await ml.$eval('#savedList [data-load]', e => e.click()); await ml.waitForTimeout(400);      // a stored design opened
   ok(await ml.evaluate(() => window.__pwned === undefined) && await ml.$$eval('[onerror]', n => n.length) === 0, 'stored modules and saved designs are checked before they reach the canvas');
@@ -152,7 +169,8 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   // sanitized-raw-HTML path is under test and the suite works offline; registered after block(),
   // so this more specific route wins while the rest of cdnjs stays aborted
   const PURIFY = fs.readFileSync(require.resolve('dompurify/dist/purify.min.js'));   // raw bytes: the script tag checks them against its integrity hash
-  await md.route(/cdnjs\.cloudflare\.com.*dompurify/i, r => r.fulfill({ contentType: 'text/javascript', body: PURIFY }));
+  const CORS = { 'access-control-allow-origin': '*' };                                // the tag is crossorigin="anonymous", as cdnjs itself answers
+  await md.route(/cdnjs\.cloudflare\.com.*dompurify/i, r => r.fulfill({ contentType: 'text/javascript', headers: CORS, body: PURIFY }));
   const mdErrs = []; md.on('pageerror', e => mdErrs.push(e.message));
   await md.goto('http://localhost:8774', { waitUntil: 'domcontentloaded' }); await md.waitForTimeout(700);
   // the sanitizer tag is pinned by hash. The copy served here is the npm package at the version in package.json,
@@ -219,6 +237,25 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   ok(await md.$$eval(TOC_HOSTILE, n => n.length) === 0, 'Contents holds no injected elements or handlers (?text= deep link)');
   shape = await tocShape(md);
   ok(shape.headings === 4 && shape.links === 4 && shape.other === 0, 'the deep link renders the same four plain links');
+  // reader settings come back from storage, which every tool on this origin can write: they are checked on the way in
+  await md.evaluate(x => {
+    const s = JSON.parse(localStorage.getItem('mdpress:settings'));
+    Object.assign(s, { skin: 'custom', font: x, size: '17' + x, lh: x, measure: x });
+    s.custom = { paper: '#f2f3f5' + x, sheet: x, ink: x, accent: x, doc: x, ui: x, mono: x, radius: '8' + x, brand: { name: 'n' + x, light: [x], dark: [x] } };
+    localStorage.setItem('mdpress:settings', JSON.stringify(s));
+  }, X);
+  await md.goto('http://localhost:8774', { waitUntil: 'domcontentloaded' }); await md.waitForTimeout(700);
+  ok(await md.evaluate(() => window.__pwned === undefined), 'tampered reader settings run nothing at boot');
+  ok(await md.$$eval('#popRead img, #popRead script, #popRead [onerror]', n => n.length) === 0 && await md.$$eval('#skins > .skin', n => n.length) === 8, 'the skin list is eight plain buttons');
+  ok(await cssVar(md, '--paper') === '#f2f3f5' && await cssVar(md, '--doc-size') === '17px' && await cssVar(md, '--measure') === '70ch' && await cssVar(md, '--radius') === '8px', 'settings the app could not have saved fall back to the defaults');
+  await md.evaluate(() => { const dt = new DataTransfer(); dt.items.add(new File(['# Export\n\ntext\n'], 'export.md', { type: 'text/markdown' })); document.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true })); });
+  await md.waitForTimeout(500);
+  const htmlDl = md.waitForEvent('download'); await md.$eval('#popExport [data-do="html"]', b => b.click());
+  const exportedHead = fs.readFileSync(await (await htmlDl).path(), 'utf8').split('<article')[0];
+  ok(exportedHead.includes('--doc-size:17px;--doc-lh:1.65;--measure:70ch') && !/onerror|<img/i.test(exportedHead), 'the exported file is styled with the checked values only');
+  await md.evaluate(x => { const s = JSON.parse(localStorage.getItem('mdpress:settings')); s.theme = 'light' + x; s.skin = 'constructor'; localStorage.setItem('mdpress:settings', JSON.stringify(s)); }, X);
+  await md.goto('http://localhost:8774', { waitUntil: 'domcontentloaded' }); await md.waitForTimeout(700);
+  ok(await md.evaluate(() => document.documentElement.dataset.theme) === 'auto' && await md.$eval('.skin[data-skin="press"]', e => e.getAttribute('aria-pressed')) === 'true', 'a mode or skin the app does not offer falls back to the default');
   ok(mdErrs.length === 0, 'Zest MD: no exceptions (' + mdErrs.slice(0, 1).join('').slice(0, 80) + ')');
   await md.close();
 
@@ -235,25 +272,47 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   ok(await mdOff.evaluate(() => window.__pwned === undefined) && await mdOff.$$eval(TOC_HOSTILE, n => n.length) === 0, 'no sanitizer → the Contents list is still plain links');
   await mdOff.close();
 
-  console.log('== Zest MD: Mermaid is always configured strict ==');
-  // A stand-in for the library records how the app configures it (the real one is 2.6 MB and not a test dependency).
-  // It is served for the app's own Mermaid URL, so the on-demand loader and every initialize call are the real ones.
+  console.log('== Zest MD: on-demand libraries are pinned by hash, and Mermaid is always configured strict ==');
+  const MD_SRC = fs.readFileSync(require('path').join(__dirname, '..', 'apps', 'md', 'index.html'), 'utf8');
+  const vendorUrls = MD_SRC.match(/'https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/(?:KaTeX|mermaid)\/[^']+'/g) || [];
+  const vendorHashed = MD_SRC.match(/'https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/(?:KaTeX|mermaid)\/[^']+', 'sha384-[A-Za-z0-9+/]{64}'/g) || [];
+  ok(vendorUrls.length === 4 && vendorHashed.length === 4, `every on-demand file is listed with a sha384 (${vendorHashed.length} of ${vendorUrls.length})`);
+  // A stand-in for the library (the real one is 3.5 MB and not a test dependency). If it runs, it records how the app configures it.
+  const STANDIN = 'window.__mermaidLevels=[];window.mermaid={initialize:function(c){window.__mermaidLevels.push(c&&c.securityLevel)},run:async function(){}};';
+  const SRI = e => /^sha384-[A-Za-z0-9+/]{64}$/.test(e.integrity) && e.crossOrigin === 'anonymous';
+  const dropMd = (p, name, text) => p.evaluate(([n, t]) => { const dt = new DataTransfer(); dt.items.add(new File([t], n, { type: 'text/markdown' })); document.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true })); }, [name, text]);
+  const DIAGRAM = '# Diagram\n\n```mermaid\nflowchart LR\n  A[Start] --> B[End]\n```\n';
+
+  // First the loader. The stand-in is served at the app's own Mermaid address: it is not the pinned release, so it must be refused.
   const mdM = await ctx.newPage(); await block(mdM);
-  await mdM.route(/cdnjs\.cloudflare\.com.*dompurify/i, r => r.fulfill({ contentType: 'text/javascript', body: PURIFY }));
-  await mdM.route(/cdnjs\.cloudflare\.com.*mermaid/i, r => r.fulfill({ contentType: 'text/javascript', body: 'window.__mermaidLevels=[];window.mermaid={initialize:function(c){window.__mermaidLevels.push(c&&c.securityLevel)},run:async function(){}};' }));
+  await mdM.route(/cdnjs\.cloudflare\.com.*dompurify/i, r => r.fulfill({ contentType: 'text/javascript', headers: CORS, body: PURIFY }));
+  await mdM.route(/cdnjs\.cloudflare\.com.*mermaid/i, r => r.fulfill({ contentType: 'text/javascript', headers: CORS, body: STANDIN }));
   const mdMErrs = []; mdM.on('pageerror', e => mdMErrs.push(e.message));
   await mdM.goto('http://localhost:8774', { waitUntil: 'domcontentloaded' }); await mdM.waitForTimeout(600);
-  const DIAGRAM = '# Diagram\n\n```mermaid\nflowchart LR\n  A[Start] --> B[End]\n```\n';
-  await mdM.evaluate(t => { const dt = new DataTransfer(); dt.items.add(new File([t], 'diagram.md', { type: 'text/markdown' })); document.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true })); }, DIAGRAM);
-  await mdM.waitForTimeout(800);                                                                           // the fence triggers the on-demand load
-  await mdM.$eval('#popRead [data-set="theme"] [data-v="dark"]', b => b.click()); await mdM.waitForTimeout(300);   // a theme change configures it again
-  const levels = await mdM.evaluate(() => window.__mermaidLevels || []);
+  await dropMd(mdM, 'diagram.md', DIAGRAM); await mdM.waitForTimeout(800);                                  // the fence triggers the on-demand load
+  ok(await mdM.$eval('script[src*="mermaid"]', SRI), 'the loader gives the Mermaid tag its integrity hash');
+  ok(await mdM.evaluate(() => window.mermaid === undefined && window.__mermaidLevels === undefined), 'a file at the Mermaid address that is not the pinned release does not run');
+  ok(await mdM.$$eval('#doc .mermaid', n => n.length) === 0 && await mdM.$$eval('#doc pre[data-lang^="mermaid"]', n => n.length) === 1, 'the diagram stays a plain code block when the library is refused');
+  await dropMd(mdM, 'math.md', '# Math\n\n$$x^2$$\n'); await mdM.waitForTimeout(600);                        // same loader, KaTeX (its address is blocked like the rest of the CDN)
+  ok(await mdM.$eval('link[href*="katex.min.css"]', SRI) && await mdM.$eval('script[src*="katex.min.js"]', SRI), 'the loader gives the KaTeX stylesheet and script their integrity hashes');
+  ok(mdMErrs.length === 0, 'Zest MD with a refused library: no exceptions (' + mdMErrs.slice(0, 1).join('').slice(0, 80) + ')');
+  await mdM.close();
+
+  // Then the configuration. The stand-in is defined before the page's own scripts run, as the loaded library would be.
+  const mdS = await ctx.newPage(); await block(mdS);
+  await mdS.route(/cdnjs\.cloudflare\.com.*dompurify/i, r => r.fulfill({ contentType: 'text/javascript', headers: CORS, body: PURIFY }));
+  await mdS.addInitScript(STANDIN);
+  const mdSErrs = []; mdS.on('pageerror', e => mdSErrs.push(e.message));
+  await mdS.goto('http://localhost:8774', { waitUntil: 'domcontentloaded' }); await mdS.waitForTimeout(600);
+  await dropMd(mdS, 'diagram.md', DIAGRAM); await mdS.waitForTimeout(600);
+  ok(await mdS.$$eval('#doc pre.mermaid', n => n.length) === 1, 'with the library present the fence is handed to it');
+  await mdS.$eval('#popRead [data-set="theme"] [data-v="dark"]', b => b.click()); await mdS.waitForTimeout(300);   // a theme change configures it again
+  const levels = await mdS.evaluate(() => window.__mermaidLevels || []);
   ok(levels.length >= 2 && levels.every(l => l === 'strict'), `every Mermaid initialize call asks for securityLevel strict (${levels.join(', ') || 'none recorded'})`);
-  const MD_SRC = fs.readFileSync(require('path').join(__dirname, '..', 'apps', 'md', 'index.html'), 'utf8');
   ok((MD_SRC.match(/mermaid\.initialize\(/g) || []).length === 1, 'Mermaid is configured in exactly one place');
   ok(!/securityLevel\s*:\s*['"](loose|antiscript)['"]/.test(MD_SRC), 'no code path asks Mermaid for a looser mode');
-  ok(mdMErrs.length === 0, 'Zest MD with diagrams: no exceptions (' + mdMErrs.slice(0, 1).join('').slice(0, 80) + ')');
-  await mdM.close();
+  ok(mdSErrs.length === 0, 'Zest MD with diagrams: no exceptions (' + mdSErrs.slice(0, 1).join('').slice(0, 80) + ')');
+  await mdS.close();
 
   await browser.close();
   console.log(`\nTALLY: ${pass} passed, ${fail} failed`);
