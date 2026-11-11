@@ -93,10 +93,14 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   // serve the pinned DOMPurify from node_modules (package.json pins the same version the app's cdnjs tag loads) so the
   // sanitized-raw-HTML path is under test and the suite works offline; registered after block(),
   // so this more specific route wins while the rest of cdnjs stays aborted
-  const PURIFY = fs.readFileSync(require.resolve('dompurify/dist/purify.min.js'), 'utf8');
+  const PURIFY = fs.readFileSync(require.resolve('dompurify/dist/purify.min.js'));   // raw bytes: the script tag checks them against its integrity hash
   await md.route(/cdnjs\.cloudflare\.com.*dompurify/i, r => r.fulfill({ contentType: 'text/javascript', body: PURIFY }));
   const mdErrs = []; md.on('pageerror', e => mdErrs.push(e.message));
   await md.goto('http://localhost:8774', { waitUntil: 'domcontentloaded' }); await md.waitForTimeout(700);
+  // the sanitizer tag is pinned by hash. The copy served here is the npm package at the version in package.json,
+  // so if it loads, the hash in the page matches that release; a mismatch would block it and fail the checks below.
+  ok(await md.$eval('script[src*="dompurify"]', s => /^sha384-[A-Za-z0-9+/]{64}$/.test(s.getAttribute('integrity') || '') && s.getAttribute('crossorigin') === 'anonymous'), 'the sanitizer script tag carries an integrity hash');
+  ok(await md.evaluate(() => !!window.DOMPurify && (window.__mdpressMissing || []).length === 0), 'the pinned sanitizer release matches that hash and loads');
   await md.click('[data-act="sample"]'); await md.waitForTimeout(500);
   await md.setInputFiles('#brandFile', { name: 'pantry-zest-brand.json', mimeType: 'application/json', buffer: brandBuf });
   await md.waitForTimeout(500);
