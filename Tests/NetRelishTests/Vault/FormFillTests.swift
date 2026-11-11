@@ -297,6 +297,22 @@ import WebKit
         #expect(try await value(web, "right") == (rootDirection == "ltr" ? "Shepherd" : ""))
     }
 
+    @Test("Vertical and sideways writing modes cannot expand reachability along the wrong physical axis",
+          arguments: ["vertical-lr", "vertical-rl", "sideways-lr", "sideways-rl"], ["ltr", "rtl"])
+    @MainActor func leavesUnsupportedWritingModesAlone(writingMode: String, direction: String) async throws {
+        let web = try await loaded("""
+        <!doctype html>
+        <html dir="\(direction)" style="writing-mode:\(writingMode)"><body style="margin:0">
+          <input id="em" type="email">
+          <div style="position:absolute; left:0; top:80px; width:2000px; height:10px"></div>
+          <input id="off" autocomplete="given-name" style="position:absolute; right:1500px; top:40px; width:150px">
+        </body></html>
+        """)
+        #expect(try await FormFill.fill(me, in: web.webView) == 0)
+        #expect(try await value(web, "em") == "")
+        #expect(try await value(web, "off") == "")
+    }
+
     @Test("On a page that can't scroll, a field outside the window is left alone",
           arguments: ["html, body { height: 100%; overflow: hidden }", "body { overflow: hidden }", "html { overflow: hidden }"])
     @MainActor func leavesFieldsOutsideALockedPageAlone(lock: String) async throws {
