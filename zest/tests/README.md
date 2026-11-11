@@ -19,7 +19,7 @@ CI runs the same thing on every PR that touches `zest/**`
 | Stage | Covers |
 |---|---|
 | `test.js` (66) | Studio: roles, OKLCH harmony, locks, shuffle, type palettes, font upload/replacement, brand export/import round-trips, logo handling, share links, ZestImage brand import, no uncaught exceptions |
-| `handoff2.js` (41) | Brand handoff studio → Mail and MD: token import, font mapping, serif stacks, name whitelisting, JSON routing, persistence, the DOMPurify XSS fix in MD (sanitized path *and* fail-closed path with the CDN blocked) |
+| `handoff2.js` (70) | Brand handoff studio → Mail and MD: token import, font mapping, serif stacks, name whitelisting, JSON routing, persistence, the DOMPurify XSS fix in MD (sanitized path *and* fail-closed path with the CDN blocked). Untrusted input: Mail's design import, reload and tampered storage (nothing runs, an honest design re-imports byte-identical); MD's Contents list built from hostile heading ids (dropped file and `?text=` link), the sanitizer tag's integrity hash, and Mermaid always configured `strict` |
 | `topology.js` (38) | The assembled `dist/`: studio at `/`, tools at `/mail` `/md` `/image`, store at `/pricing`, scope-relative service workers and manifests, tools-row links, cross-app brand download |
 | `mobile.js` (38) | Every surface at 390×844 with touch (plus a landscape-phone case): no layout-viewport blowout, panels reachable, and each core flow works by tap — Mail's drawer/bottom-sheet/scaled canvas, MD's wrapped bar + Contents drawer + clamped popovers, the studio's capped preview + jump nav, Image's docked preview, the store's menu and stacked comparison table |
 | `contrast-audit.js` | Full-page WCAG text-contrast sweep (alpha compositing, gradient detection) on Mail, MD (dark **and** light scheme — its reader skins react to `prefers-color-scheme`), and the studio — any failure fails the run. Mail and the studio ship one fixed dark chrome, so a single sweep covers them |
@@ -38,6 +38,18 @@ CI runs the same thing on every PR that touches `zest/**`
   exercise the sanitizer the app ships (and the fail-closed path is tested
   with it absent). **When one moves, move the other**: a Dependabot bump
   here must be mirrored in `apps/md/index.html`, and vice versa.
+- **The sanitizer tag carries an `integrity` hash**, so a version bump is
+  three edits: `package.json` here, the version in the cdnjs URL, and the
+  hash. Compute the hash from the installed package, never by hand:
+  `openssl dgst -sha384 -binary node_modules/dompurify/dist/purify.min.js | openssl base64 -A`,
+  prefixed with `sha384-`. `handoff2.js` serves that same file for the cdnjs
+  URL, so a hash that does not match the pinned release fails the suite.
+  KaTeX and Mermaid load on demand and are not hashed yet.
+- **Mermaid is tested with a stand-in.** `handoff2.js` answers the app's
+  Mermaid URL with a few lines that record how the app configures the
+  library; the real one (2.6 MB) is not a test dependency. The test proves
+  every `initialize` call asks for `securityLevel: 'strict'`; it does not
+  render a diagram.
 - `fixtures/` holds two Caladea TTFs (SIL OFL 1.1, license included) for the
   studio's font-upload round-trip — no system font paths, so the suite runs
   on any OS.
