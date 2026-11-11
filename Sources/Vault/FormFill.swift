@@ -23,6 +23,8 @@
 // is a best effort, not a proof: a page that sets out to can still hide a field this
 // passes, under another element, in the page's own color, cut away with clip or clip-path,
 // or parked far to the right or far down a page that scrolls there.
+// Fields in rotated, skewed, reflected or 3D-transformed boxes are left alone: their
+// bounding rectangles aren't a safe measure of what shows. These must be filled by hand.
 // One more cost: while a site has the page locked from scrolling (a dialog is open), only
 // the fields in the window or in the dialog are filled.
 // One cost: a site that hides its real <select> and draws its own dropdown doesn't get
@@ -123,6 +125,18 @@ enum FormFill {
       return size > 0 ? (axis === 'x' ? r.width : r.height) / size : 1;
     }
 
+    // The reachability calculation uses axis-aligned rectangles and positive scales. A
+    // rotated, skewed, reflected or 3D box's bounding rectangle includes space it doesn't
+    // show, and its scrolling needn't follow the window's axes. Leave its fields alone
+    // rather than treating that extra space as visible. Plain translation/scale still work.
+    function axisAligned(s) {
+      if (s.perspective !== 'none' || s.rotate !== 'none') return false;
+      if (s.scale !== 'none' && s.scale.split(/\\s+/).some(v => !(parseFloat(v) > 0))) return false;
+      if (s.transform === 'none') return true;
+      const m = new DOMMatrixReadOnly(s.transform);
+      return m.is2D && m.b === 0 && m.c === 0 && m.a > 0 && m.d > 0;
+    }
+
     // How far a box's contents can still move each way if it is scrolled, as [back, forward].
     function room(position, most, rightToLeft) {
       const least = rightToLeft ? -most : 0, greatest = rightToLeft ? 0 : most;
@@ -156,6 +170,7 @@ enum FormFill {
       let free = 'no';   // 'no', or what the box in hand is free of: 'plain' boxes, or 'all' but transformed ones
       for (let p = el; p; p = get(p, 'parentElement')) {
         const s = getComputedStyle(p);
+        if (!axisAligned(s)) return false;
         if (p !== el) {
           if (p === root || (p === body && !bodyIsABox)) continue;
           if (free === 'plain' && s.position === 'static' && !holdsPositioned(s)) continue;
@@ -193,7 +208,9 @@ enum FormFill {
       if (free !== 'all') {
         if (!/hidden|clip/.test(windowStyle.overflowX)) {
           const most = Math.max(root.scrollWidth, get(scrolling, 'scrollWidth')) - window.innerWidth;
-          const [back, forward] = room(window.scrollX, Math.max(most, 0), false);
+          // The viewport's horizontal scroll origin follows <html>, not <body>'s text
+          // direction (even when body supplies the viewport's overflow style).
+          const [back, forward] = room(window.scrollX, Math.max(most, 0), rootStyle.direction === 'rtl');
           x0 += back; x1 += forward;
         }
         if (!/hidden|clip/.test(windowStyle.overflowY)) {
