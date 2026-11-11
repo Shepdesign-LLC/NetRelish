@@ -12,10 +12,10 @@
 // already has a value. And it fills only what you could have seen, where you are:
 //   - a field is left alone if it's display:none, hidden, transparent or nearly so, a pixel
 //     wide, marked aria-hidden, or out of reach: inside a box collapsed to nothing, cut off
-//     by a box it sits in, or parked where no scrolling gets to (above or to the left of
-//     the page, or of a panel that scrolls; anywhere outside the window on a page that
-//     doesn't scroll). Further down a page that scrolls, or down a panel that scrolls,
-//     counts as seen;
+//     by a box it sits in or by one further out, or parked where no scrolling gets to
+//     (above or to the left of the page, or of a panel that scrolls; anywhere outside the
+//     window on a page that doesn't scroll). Further down a page that scrolls, or down a
+//     panel that scrolls, counts as seen;
 //   - with the cursor in a form, only that form is filled;
 //   - what to fill is decided before anything is written, so a page can't reveal more
 //     fields, or move them into the form, as the first one fills.
@@ -115,33 +115,18 @@ enum FormFill {
       return null;
     }
 
-    // One direction of the window. A page that scrolls that way can bring anything on it into
-    // view. One that doesn't (overflow hidden on the page, as a site does while a dialog is
-    // open) shows what's in the window now and nothing else, and so does anything fixed to it.
-    function inWindow(overflow, at, size, shown, scrolled, extent, fixed) {
-      if (fixed || /hidden|clip/.test(overflow)) return Math.min(at + size, shown) - Math.max(at, 0) >= 8;
-      return at + scrolled + size > 0 && at + scrolled < Math.max(extent, shown);
+    // How big a box is drawn, against how big it is laid out: a transformed box is drawn at
+    // another size, and everything below is measured as drawn, in the window.
+    const laidOut = { x: getter(HTMLElement.prototype, 'offsetWidth'), y: getter(HTMLElement.prototype, 'offsetHeight') };
+    function drawnPer(p, r, axis) {
+      const size = p instanceof HTMLElement && laidOut[axis] ? laidOut[axis].call(p) : 0;
+      return size > 0 ? (axis === 'x' ? r.width : r.height) / size : 1;
     }
 
-    // On the page, somewhere the window can show.
-    function onPage(box, fixed) {
-      return inWindow(windowStyle.overflowX, box.left, box.width, window.innerWidth, window.scrollX,
-                      Math.max(root.scrollWidth, get(scrolling, 'scrollWidth')), fixed)
-          && inWindow(windowStyle.overflowY, box.top, box.height, window.innerHeight, window.scrollY,
-                      Math.max(root.scrollHeight, get(scrolling, 'scrollHeight')), fixed);
-    }
-
-    // One direction of one box the field sits in. `at` is where the field starts inside the
-    // box as it is scrolled now. A box that scrolls can bring into view anything within what
-    // it scrolls over; a box that only cuts off shows what is inside it now and nothing else.
-    function within(overflow, at, size, client, scroll, scrolled, rightToLeft) {
-      if (overflow === 'visible') return true;
-      if (/auto|scroll/.test(overflow)) {
-        const start = at + scrolled;
-        return rightToLeft ? (start < client && start + size > client - scroll)
-                           : (start + size > 0 && start < scroll);
-      }
-      return Math.min(at + size, client) - Math.max(at, 0) >= 8;
+    // How far a box's contents can still move each way if it is scrolled, as [back, forward].
+    function room(position, most, rightToLeft) {
+      const least = rightToLeft ? -most : 0, greatest = rightToLeft ? 0 : most;
+      return [position - Math.max(greatest, position), position - Math.min(least, position)];
     }
 
     // A box that holds the positioned boxes inside it even when it isn't positioned itself:
@@ -154,14 +139,20 @@ enum FormFill {
           || /transform|perspective|filter|translate|rotate|scale/.test(s.willChange);
     }
 
-    // Somewhere a person could bring into view: not cut off by any box it sits in, and on
-    // the page or inside a scrolling box that is (an app's main panel, a long dialog).
+    // Somewhere a person could bring into view.
     //
-    // A box cuts off or scrolls only what it holds, and what holds a positioned field isn't
-    // always its parent. position:absolute is held by the nearest box above that is itself
-    // positioned (or transformed), and the plain boxes in between don't touch it.
-    // position:fixed is held by the window, unless a transformed box is above it.
+    // It follows one thing outward from the field: the strip of the window, across and down,
+    // where some of the field could ever be shown. Each box the field sits in changes it. A
+    // box that scrolls slides it, by as far as that box can scroll each way, and then, like a
+    // box that only cuts off, trims it to what the box itself shows. The window does the same
+    // last. If the strip is ever thinner than a field, nobody could have seen it.
+    //
+    // A box changes only what it holds, and what holds a positioned field isn't always its
+    // parent. position:absolute is held by the nearest box above that is itself positioned
+    // (or transformed), and the plain boxes in between don't touch it. position:fixed is
+    // held by the window, unless a transformed box is above it.
     function reachable(el, box) {
+      let x0 = box.left, x1 = box.left + box.width, y0 = box.top, y1 = box.top + box.height;
       let free = 'no';   // 'no', or what the box in hand is free of: 'plain' boxes, or 'all' but transformed ones
       for (let p = el; p; p = get(p, 'parentElement')) {
         const s = getComputedStyle(p);
@@ -173,20 +164,46 @@ enum FormFill {
           const ox = s.overflowX, oy = s.overflowY;
           if ((ox !== 'visible' || oy !== 'visible') && !/^(inline|contents)$/.test(s.display)) {
             const r = rectOf(p);
-            // Collapsed to nothing in a direction it cuts off or scrolls.
-            if (ox !== 'visible' && r.width < 8) return false;
-            if (oy !== 'visible' && r.height < 8) return false;
-            const x = box.left - r.left - get(p, 'clientLeft'), y = box.top - r.top - get(p, 'clientTop');
-            if (!within(ox, x, box.width, get(p, 'clientWidth'), get(p, 'scrollWidth'), get(p, 'scrollLeft'), s.direction === 'rtl')) return false;
-            if (!within(oy, y, box.height, get(p, 'clientHeight'), get(p, 'scrollHeight'), get(p, 'scrollTop'), false)) return false;
-            // Inside a box that scrolls, it's the box that has to be reachable from here up.
-            if (/auto|scroll/.test(ox + ' ' + oy)) return reachable(p, r);
+            if (ox !== 'visible') {
+              const k = drawnPer(p, r, 'x'), shown = r.left + get(p, 'clientLeft') * k;
+              if (/auto|scroll/.test(ox)) {
+                const [back, forward] = room(get(p, 'scrollLeft'), get(p, 'scrollWidth') - get(p, 'clientWidth'), s.direction === 'rtl');
+                x0 += back * k; x1 += forward * k;
+              }
+              x0 = Math.max(x0, shown); x1 = Math.min(x1, shown + get(p, 'clientWidth') * k);
+              if (x1 - x0 < 8) return false;
+            }
+            if (oy !== 'visible') {
+              const k = drawnPer(p, r, 'y'), shown = r.top + get(p, 'clientTop') * k;
+              if (/auto|scroll/.test(oy)) {
+                const [back, forward] = room(get(p, 'scrollTop'), get(p, 'scrollHeight') - get(p, 'clientHeight'), false);
+                y0 += back * k; y1 += forward * k;
+              }
+              y0 = Math.max(y0, shown); y1 = Math.min(y1, shown + get(p, 'clientHeight') * k);
+              if (y1 - y0 < 8) return false;
+            }
           }
         }
         if (s.position === 'fixed') free = 'all';
         else if (s.position === 'absolute') free = 'plain';
       }
-      return onPage(box, free === 'all');
+      // The window, last. A page that scrolls slides the strip as any scrolling box does. One
+      // that doesn't (overflow hidden on the page, as a site sets while a dialog is open)
+      // shows what's in the window now, and so does anything fixed to the window.
+      if (free !== 'all') {
+        if (!/hidden|clip/.test(windowStyle.overflowX)) {
+          const most = Math.max(root.scrollWidth, get(scrolling, 'scrollWidth')) - window.innerWidth;
+          const [back, forward] = room(window.scrollX, Math.max(most, 0), false);
+          x0 += back; x1 += forward;
+        }
+        if (!/hidden|clip/.test(windowStyle.overflowY)) {
+          const most = Math.max(root.scrollHeight, get(scrolling, 'scrollHeight')) - window.innerHeight;
+          const [back, forward] = room(window.scrollY, Math.max(most, 0), false);
+          y0 += back; y1 += forward;
+        }
+      }
+      return Math.min(x1, window.innerWidth) - Math.max(x0, 0) >= 8
+          && Math.min(y1, window.innerHeight) - Math.max(y0, 0) >= 8;
     }
 
     // Too faint to notice: its own opacity times that of every box it sits in.

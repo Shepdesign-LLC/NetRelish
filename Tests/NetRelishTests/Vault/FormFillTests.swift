@@ -206,11 +206,14 @@ import WebKit
       <div style="position:relative; height:40px; overflow:hidden"><div><input id="below" autocomplete="address-line1" style="position:absolute; top:60px"></div></div>
       <div style="transform:translateZ(0); height:0; overflow:hidden"><input id="turned" autocomplete="address-level2" style="position:absolute; top:0; left:0"></div>
       <div style="filter:blur(0); height:0; overflow:hidden"><input id="pinned" autocomplete="country-name" style="position:fixed; top:10px; left:10px"></div>
+      <div style="position:relative; height:40px; overflow:hidden; transform:scale(.5); transform-origin:0 0"><input id="shrunk" autocomplete="family-name" style="position:absolute; top:60px; height:20px"></div>
+      <div style="height:40px; overflow:hidden"><div style="height:300px; overflow:auto"><div style="height:200px"></div><input id="nested" autocomplete="given-name"></div></div>
+      <div style="height:40px; overflow:auto"><div style="height:40px; overflow:hidden"><div style="height:200px"></div><input id="walled" autocomplete="tel"></div></div>
     </form>
     """
 
-    @Test("A field cut off by the box it sits in is left alone, however it's positioned",
-          arguments: ["held", "shut", "over", "beside", "below", "turned", "pinned"])
+    @Test("A field cut off by the box it sits in, or by one further out, is left alone, however it's positioned",
+          arguments: ["held", "shut", "over", "beside", "below", "turned", "pinned", "shrunk", "nested", "walled"])
     @MainActor func leavesFieldsCutOffByTheirBoxAlone(id: String) async throws {
         let web = try await loaded(Self.cutOff)
         #expect(try await FormFill.fill(me, in: web.webView) == 1)
@@ -228,6 +231,29 @@ import WebKit
         """)
         #expect(try await FormFill.fill(me, in: web.webView) == 1)
         #expect(try await value(web, "em") == "ryan@example.com")
+    }
+
+    @Test("A field down a small panel that scrolls, inside a box that cuts off, is filled: scrolling the panel gets to it")
+    @MainActor func fillsAScrollingPanelInsideABoxThatCutsOff() async throws {
+        let web = try await loaded("""
+        <!doctype html>
+        <form><div style="height:60px; overflow:hidden">
+          <div style="height:60px; overflow:auto"><div style="height:200px"></div><input id="em" type="email"></div>
+        </div></form>
+        """)
+        #expect(try await FormFill.fill(me, in: web.webView) == 1)
+        #expect(try await value(web, "em") == "ryan@example.com")
+    }
+
+    @Test("A field in a box drawn at half size is filled when it shows, measured as it's drawn")
+    @MainActor func fillsInsideAScaledBox() async throws {
+        let web = try await loaded("""
+        <!doctype html>
+        <form><div style="position:relative; height:80px; overflow:hidden; transform:scale(.5); transform-origin:0 0">
+          <input id="em" type="email" style="position:absolute; top:20px; height:30px; width:300px">
+        </div></form>
+        """)
+        #expect(try await FormFill.fill(me, in: web.webView) == 1)
     }
 
     @Test("On a page that can't scroll, a field outside the window is left alone",
