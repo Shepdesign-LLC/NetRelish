@@ -43,11 +43,12 @@ enum Extraction {
     /// Fewer words than this and it isn't an article: a home page, a search, a login.
     static let articleMinimumWords = 60
 
-    /// The vendored bundle, read once.
+    /// The vendored bundle, read once. Read by file path, never by URL: `String(contentsOf:)`
+    /// reads whatever a URL points at, and given an https address that is a network request
+    /// (non-negotiable 5). A path can only ever be a file, and this one is in the app bundle.
     private static let library: String? = {
-        guard let url = Bundle.main.url(forResource: "defuddle", withExtension: "js"),
-              let source = try? String(contentsOf: url, encoding: .utf8) else { return nil }
-        return source
+        guard let path = Bundle.main.path(forResource: "defuddle", ofType: "js") else { return nil }
+        return try? String(contentsOfFile: path, encoding: .utf8)
     }()
 
     @MainActor

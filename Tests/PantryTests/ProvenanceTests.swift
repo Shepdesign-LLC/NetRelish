@@ -192,6 +192,39 @@ private struct AuthorityDown: Error {}
         #expect(provenance.attempts == 1)
     }
 
+    @Test("Pages an earlier build marked failed go back to waiting, and nothing else about them changes")
+    func failedPagesGetAnotherTry() async throws {
+        let store = try PantryStore(inMemory: ())
+        let failed = try seal(store)
+        let stamped = try seal(store, archive: Data("another page".utf8))
+        let request = TimestampRequest(digest: Provenance(fingerprint: Fixture.fingerprint).digest, nonce: Fixture.nonce)
+        try store.write { db in
+            var item = try #require(try Item.fetchOne(db, key: failed.id))
+            item.setStoredSummary(.done("A short summary."))
+            item.setProvenance(Provenance(fingerprint: Fixture.fingerprint, status: .failed, attempts: Provenance.maxAttempts))
+            try item.update(db)
+            try store.recordProvenance(db, Provenance(fingerprint: Fixture.fingerprint, status: .stamped,
+                                                      timestamp: try Timestamp(response: Fixture.reply, for: request),
+                                                      authority: "timestamp.example"), for: stamped.id)
+        }
+        let before = try reread(failed, in: store)
+        #expect(try store.read { db in try store.awaitingProvenance(db, stamping: true) }.isEmpty)
+
+        try store.write { db in try PantryMigrations.retryFailedTimestamps(db) }
+
+        let after = try reread(failed, in: store)
+        #expect(after.provenance == Provenance(fingerprint: Fixture.fingerprint))
+        #expect(after.storedSummary == .done("A short summary."))
+        #expect(after.sealedAt == before.sealedAt && after.body == before.body && after.snapshotPath == before.snapshotPath)
+        #expect(try reread(stamped, in: store).provenance?.status == .stamped)
+        #expect(try store.read { db in try store.awaitingProvenance(db, stamping: true) }.map(\.id) == [failed.id])
+
+        // And the next sweep stamps it.
+        let worker = ProvenanceWorker(store: store, authority: StandInAuthority(), nonce: { Fixture.nonce })
+        #expect(await worker.sweep() == [failed.id])
+        #expect(try reread(failed, in: store).provenance?.status == .stamped)
+    }
+
     @Test("Provenance sits beside a summary in meta without disturbing it")
     func besideSummary() throws {
         var item = Item(kind: .page, state: .sealed, title: "Pricing")

@@ -84,6 +84,12 @@ final class ShareViewController: NSViewController {
             urlField.stringValue = "NetRelish captures web pages only."
             return
         }
+        // The app skips an address over the inbox's limit. Say so here, where it can be seen,
+        // rather than close as if the page had been captured.
+        guard ShareInbox.accepts(SharedPage(url: url.absoluteString, title: pageTitle)) else {
+            urlField.stringValue = "This address is too long to capture."
+            return
+        }
         pageURL = url
         urlField.stringValue = url.absoluteString
         captureButton.isEnabled = true

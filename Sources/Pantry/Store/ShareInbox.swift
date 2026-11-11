@@ -41,21 +41,55 @@ public struct ShareInbox: @unchecked Sendable {   // UserDefaults is thread-safe
         defaults.set(data, forKey: Self.keyPrefix + UUID().uuidString)
     }
 
-    /// Hands everything waiting, oldest first, to `receive`, then removes exactly those
-    /// entries. If `receive` throws, they stay for next time, so a failed write loses nothing.
-    /// An entry that can't be read is removed either way: it would never read.
+    /// The longest address the inbox carries, in bytes. The extension refuses a longer one
+    /// where the person can see it, so the app never drops a real share unseen.
+    public static let addressLimit = 8_192
+    /// The most one entry can weigh. The extension writes an address within `addressLimit`
+    /// and a title of at most 300 characters, and offers Capture only when the entry fits
+    /// (`accepts`); anything heavier didn't come from it.
+    static let entryLimit = 16_384
+
+    /// Whether the app will take this page in: the address within `addressLimit`, and the
+    /// entry as written within `entryLimit`.
+    public static func accepts(_ page: SharedPage) -> Bool {
+        guard page.url.utf8.count <= addressLimit, let data = try? JSONEncoder().encode(page) else { return false }
+        return data.count <= entryLimit
+    }
+
+    /// The most pages taken in one go. More than this stay for the next look.
+    static let batchLimit = 200
+    /// The most entries read in one look. Nobody shares this many pages between two looks, so
+    /// past it the inbox is a flood, and each look does a fixed amount of work on it rather
+    /// than reading all of it again every time.
+    static let lookLimit = 1_000
+
+    /// Hands what's waiting, oldest first, to `receive`, then removes exactly those entries.
+    /// If `receive` throws, they stay for next time, so a failed write loses nothing.
+    ///
+    /// The inbox is a file other software on this Mac could write to, so what's in it is
+    /// checked before it's believed. Only entries named the way the extension names them
+    /// (`share.` and a UUID) are looked at. One that is too big to be a shared page, or
+    /// can't be read, is removed: it would never read. At most `lookLimit` are read in one
+    /// look and at most `batchLimit` of those are taken, oldest of them first; within a flood
+    /// the order across looks is by name, not by date.
     public func take(_ receive: ([SharedPage]) throws -> Void) rethrows {
-        let keys = defaults.dictionaryRepresentation().keys.filter { $0.hasPrefix(Self.keyPrefix) }
+        let waiting = defaults.dictionaryRepresentation().keys.filter { key in
+            key.hasPrefix(Self.keyPrefix) && UUID(uuidString: String(key.dropFirst(Self.keyPrefix.count))) != nil
+        }
+        // By name when there are too many, so each look reads the same ones until they're gone.
+        let keys = waiting.count > Self.lookLimit ? Array(waiting.sorted().prefix(Self.lookLimit)) : waiting
         var pages: [(key: String, page: SharedPage)] = []
         for key in keys {
-            if let data = defaults.data(forKey: key), let page = try? JSONDecoder().decode(SharedPage.self, from: data) {
+            if let data = defaults.data(forKey: key), data.count <= Self.entryLimit,
+               let page = try? JSONDecoder().decode(SharedPage.self, from: data) {
                 pages.append((key, page))
             } else {
                 defaults.removeObject(forKey: key)
             }
         }
         guard !pages.isEmpty else { return }
-        try receive(pages.sorted { $0.page.sharedAt < $1.page.sharedAt }.map(\.page))
-        for entry in pages { defaults.removeObject(forKey: entry.key) }
+        let batch = pages.sorted { $0.page.sharedAt < $1.page.sharedAt }.prefix(Self.batchLimit)
+        try receive(batch.map(\.page))
+        for entry in batch { defaults.removeObject(forKey: entry.key) }
     }
 }

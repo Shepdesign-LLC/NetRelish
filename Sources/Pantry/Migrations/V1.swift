@@ -27,5 +27,6 @@ public enum PantryMigrations {
             try PantrySeed.apply(db)
         }
         registerV2(in: &migrator)
+        registerV3(in: &migrator)
     }
 }

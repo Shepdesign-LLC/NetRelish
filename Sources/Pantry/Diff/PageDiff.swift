@@ -91,10 +91,20 @@ public struct PageDiff: Sendable, Equatable {
 
     // MARK: Lining up
 
-    /// Above this many sentence pairs left after the common start and end are set aside, the
-    /// middle is shown as removed, then added, without lining it up. The diff's memory grows
-    /// with the square of the changes, so a rewritten page must never stall the comparison.
-    static let maxSentencePairs = 50_000_000
+    /// Above this many sentences left, both sides together, after the common start and end
+    /// are set aside, the middle is shown as removed, then added, without lining it up.
+    ///
+    /// The limit is on the two sides ADDED, not multiplied. Lining up costs time and memory
+    /// that grow with the square of the sentences that differ, and those can be as many as
+    /// both sides together, so a product lets a lopsided pair through (a hundred sentences
+    /// against four hundred thousand is a small product and at least 399,900 differences),
+    /// and both seals are text a page chose. At this size the worst case is tens of megabytes
+    /// and a moment, whatever the page does.
+    ///
+    /// What it costs (ADR 0025): the limit is on size, not on how much changed. A page of
+    /// more than about 2,000 sentences a side with an edit near the top and another near the
+    /// bottom is shown removed, then added, though lining it up would have been cheap.
+    static let maxMiddleSentences = 4_000
 
     /// One row before it gets its id.
     private typealias Cell = (old: [Span]?, new: [Span]?, change: Bool)
@@ -114,7 +124,7 @@ public struct PageDiff: Sendable, Equatable {
         var cells: [Cell] = []
         cells.reserveCapacity(a.count + b.count)
         for k in 0..<head { cells.append(([Span(a[k], .same)], [Span(b[k], .same)], false)) }
-        if midA.count * midB.count > maxSentencePairs {
+        if midA.count + midB.count > maxMiddleSentences {
             for s in midA { cells.append(([Span(s, .removed)], nil, true)) }
             for s in midB { cells.append((nil, [Span(s, .added)], true)) }
         } else {

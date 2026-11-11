@@ -96,6 +96,45 @@ import Testing
         #expect(elapsed < .seconds(10))
     }
 
+    @Test("A short seal against an enormous one is shown removed, then added, without lining up",
+          arguments: [(100, 400_000), (400_000, 100), (2_100, 2_100)])
+    func lopsidedPage(oldCount: Int, newCount: Int) {
+        // The sizes a limit on old × new lets through: a small product, a huge sum.
+        let old = (0..<oldCount).map { "Old sentence \($0) here." }.joined(separator: " ")
+        let new = (0..<newCount).map { "New sentence \($0) there." }.joined(separator: " ")
+        let clock = ContinuousClock()
+        var diff: PageDiff?
+        let elapsed = clock.measure { diff = PageDiff(old: old, new: new) }
+        #expect(diff?.changeCount == oldCount + newCount)
+        #expect(diff?.rows.first?.new == nil && diff?.rows.last?.old == nil, "removed first, then added")
+        #expect(elapsed < .seconds(10))
+    }
+
+    @Test("A changed middle under the limit is still lined up sentence by sentence")
+    func middleUnderTheLimitLinesUp() {
+        let shared = (0..<1_500).map { "Sentence \($0) stays." }
+        var changed = shared
+        changed[700] = "Sentence 700 changed."
+        // Different first and last sentences, so nothing is trimmed and the middle is all of it.
+        let old = (["Old opening."] + shared + ["Old ending."]).joined(separator: " ")
+        let new = (["New opening."] + changed + ["New ending."]).joined(separator: " ")
+        let diff = PageDiff(old: old, new: new)
+        #expect(diff.changeCount == 3)
+        #expect(diff.rows.count == 1_502)
+    }
+
+    @Test("A long page edited near its top and its bottom is past the limit: removed, then added (ADR 0025)")
+    func longPageEditedAtBothEndsIsNotLinedUp() {
+        let shared = (0..<2_500).map { "Sentence \($0) stays." }
+        let old = (["Updated in 2025."] + shared + ["Copyright 2025."]).joined(separator: " ")
+        let new = (["Updated in 2026."] + shared + ["Copyright 2026."]).joined(separator: " ")
+        let diff = PageDiff(old: old, new: new)
+        // 2,502 sentences a side, nothing trimmed: 5,004 in the middle, over the limit.
+        #expect(diff.rows.count == 5_004)
+        #expect(diff.changeCount == 5_004)
+        #expect(diff.rows.first?.new == nil && diff.rows.last?.old == nil, "removed first, then added")
+    }
+
     @Test("The same start and end stay lined up around a changed middle")
     func trimmedEnds() {
         let diff = PageDiff(old: "Intro here. Price is 29. Outro here.", new: "Intro here. Price is 39. Outro here.")

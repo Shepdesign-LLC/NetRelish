@@ -112,6 +112,112 @@ import Testing
         }.first
         #expect(item?.createdAt == now)
     }
+
+    // MARK: The inbox isn't trusted to hold only what the extension wrote
+
+    @Test("A share dated in another era is dated a year back at most, and Brine still opens")
+    func ancientShareIsClamped() throws {
+        let store = try PantryStore(inMemory: ())
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let ancient = Date(timeIntervalSinceReferenceDate: -1e12)   // tens of thousands of years ago
+        let item = try store.write { db in
+            try store.receive(db, [SharedPage(url: "https://example.com/", title: "E", sharedAt: ancient)], now: now)
+        }.first
+        #expect(item?.createdAt == now.addingTimeInterval(-365 * 86_400))
+        // The row reads back: one bad date must not stop Brine from loading.
+        let brine = try store.read { db in try store.root(db).brine(db) }
+        #expect(brine.map(\.title) == ["E"])
+    }
+
+    @Test("A title longer than the extension allows is cut, and an address longer than any real one is skipped")
+    func oversizeFieldsAreBounded() throws {
+        let store = try PantryStore(inMemory: ())
+        let received = try store.write { db in
+            try store.receive(db, [
+                SharedPage(url: "https://example.com/long-title", title: String(repeating: "t", count: 5_000)),
+                SharedPage(url: "https://example.com/" + String(repeating: "a", count: 9_000), title: "Too long to be an address"),
+            ])
+        }
+        #expect(received.count == 1)
+        #expect(received.first?.title.count == 300)
+    }
+
+    @Test("The extension is told beforehand what the app would skip")
+    func acceptsMatchesWhatIsTakenIn() throws {
+        let long = SharedPage(url: "https://example.com/" + String(repeating: "a", count: 9_000), title: "Long")
+        let fine = SharedPage(url: "https://example.com/" + String(repeating: "a", count: 8_000),
+                              title: String(repeating: "t", count: 300))
+        #expect(!ShareInbox.accepts(long))
+        #expect(ShareInbox.accepts(fine))
+        let store = try PantryStore(inMemory: ())
+        let received = try store.write { db in try store.receive(db, [long, fine]) }
+        #expect(received.count == 1)
+    }
+
+    @Test("An entry too big to be a shared page is dropped, not taken in")
+    func oversizeEntryIsDropped() throws {
+        try withInbox { inbox in
+            inbox.add(SharedPage(url: "https://example.com/", title: String(repeating: "x", count: 20_000)))
+            inbox.add(SharedPage(url: "https://ok.example/", title: "Fine"))
+            var taken: [SharedPage] = []
+            inbox.take { taken = $0 }
+            #expect(taken.map(\.title) == ["Fine"])
+            var again: [SharedPage] = []
+            inbox.take { again = $0 }
+            #expect(again.isEmpty)   // the oversize one is gone, not waiting
+        }
+    }
+
+    @Test("Only entries named the way the extension names them are looked at")
+    func foreignKeysAreIgnored() throws {
+        let suite = "com.shepdesign.netrelish.tests.share.\(UUID().uuidString)"
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        let page = try JSONEncoder().encode(SharedPage(url: "https://planted.example/", title: "Planted"))
+        defaults.set(page, forKey: "share.not-a-uuid")
+        defaults.set(page, forKey: "share.")
+        let inbox = try #require(ShareInbox(suiteName: suite))
+        var taken: [SharedPage] = []
+        inbox.take { taken = $0 }
+        #expect(taken.isEmpty)
+    }
+
+    @Test("A flood is taken a batch at a time, oldest first, and the rest wait")
+    func floodIsTakenInBatches() throws {
+        try withInbox { inbox in
+            let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+            for i in 0..<(ShareInbox.batchLimit + 5) {
+                inbox.add(SharedPage(url: "https://example.com/\(i)", title: "\(i)", sharedAt: t0.addingTimeInterval(Double(i))))
+            }
+            var first: [SharedPage] = []
+            inbox.take { first = $0 }
+            #expect(first.count == ShareInbox.batchLimit)
+            #expect(first.first?.title == "0")
+            var rest: [SharedPage] = []
+            inbox.take { rest = $0 }
+            #expect(rest.map(\.title) == (ShareInbox.batchLimit..<(ShareInbox.batchLimit + 5)).map(String.init))
+        }
+    }
+
+    @Test("A flood far past one look is still taken in full, a batch at a time, with nothing lost or taken twice")
+    func floodPastOneLookDrains() throws {
+        try withInbox { inbox in
+            let total = ShareInbox.lookLimit + 150
+            for i in 0..<total { inbox.add(SharedPage(url: "https://example.com/\(i)", title: "\(i)")) }
+            var seen: [String] = []
+            var looks = 0
+            while looks < 20 {
+                var batch: [SharedPage] = []
+                inbox.take { batch = $0 }
+                if batch.isEmpty { break }
+                #expect(batch.count <= ShareInbox.batchLimit)
+                seen += batch.map(\.title)
+                looks += 1
+            }
+            #expect(seen.count == total)
+            #expect(Set(seen).count == total)
+        }
+    }
 }
 
 /// Counts notifications, from whatever thread posts them.

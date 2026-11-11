@@ -18,18 +18,20 @@
 // Why this is a separate, lower-severity query rather than part of
 // OutboundNetworkCall.ql:
 //
-// These APIs are genuinely ambiguous, and this repo has two legitimate uses —
-// reading the vendored defuddle.js out of the app bundle, and reading a sealed
-// .webarchive out of Application Support. Neither can be proved local by the
-// query: SnapshotStore's directory arrives as an init parameter, so its
-// provenance is not visible from the call site at all.
+// These APIs are genuinely ambiguous. Whether a call is a file read or a network
+// request cannot be proved by the query: SnapshotStore's directory, for one,
+// arrives as an init parameter, so its provenance is not visible from the call
+// site at all. Folding them into the gate would park maybes on the rule that is
+// meant to mean something when it fires, and a rule that always has hits is a
+// rule everyone learns to scroll past.
 //
-// Folding them into the gate would therefore have parked two permanent false
-// positives on the rule that is meant to mean something when it fires, and a
-// rule that always has hits is a rule everyone learns to scroll past. So the
-// two known-good reads get dismissed once, with a note saying which file each
-// one reads, and from then on any NEW hit is a new alert on a pull request —
-// which is exactly the signal wanted.
+// The baseline is ZERO. This repo had two such reads — the vendored defuddle.js
+// out of the app bundle, and a sealed .webarchive out of Application Support —
+// and both now read by file PATH (`String(contentsOfFile:)`,
+// `NSData(contentsOfFile:)`), which cannot be remote whatever the value is. So
+// any hit is new, shows up as an alert on the pull request that adds it, and
+// has the same fix: read by path. Dismissing is for the rare read that really
+// must take a URL, with a note saying which file it reads.
 import swift
 
 /** Holds if `f` is a file in this repository rather than an SDK or package source. */
@@ -67,5 +69,6 @@ where
 select read,
   "`" + api + "` reads whatever this URL points at, and an https URL here would be an " +
     "outbound request — which CLAUDE.md non-negotiable #5 permits only for page loads, " +
-    "StoreKit, RFC 3161 timestamping and direct-build licence activation. If the URL is a " +
-    "file URL, dismiss this alert saying which file it reads."
+    "StoreKit, RFC 3161 timestamping and direct-build licence activation. If this reads a " +
+    "file, read it by path instead (`String(contentsOfFile:)`, `NSData(contentsOfFile:)`), " +
+    "which cannot be remote. Dismiss only a read that must take a URL, saying which file it reads."

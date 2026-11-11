@@ -200,6 +200,11 @@ public final class PantryStore: Sendable {
 
     // MARK: The Share extension
 
+    /// The longest address taken from the Share inbox, in bytes: the extension's own limit.
+    static let sharedAddressLimit = ShareInbox.addressLimit
+    /// The longest title taken from the Share inbox: what the extension itself cuts to.
+    static let sharedTitleLimit = 300
+
     /// Pages shared from another app's Share menu, into Brine: page Items with "The Share menu"
     /// as their source, each announced like a ⌘D capture once the write commits. Only web pages come in. A page
     /// already waiting in Brine isn't added a second time, so sharing twice is harmless.
@@ -207,13 +212,20 @@ public final class PantryStore: Sendable {
     public func receive(_ db: Database, _ pages: [SharedPage], now: Date = Date()) throws -> [Item] {
         var received: [Item] = []
         for page in pages {
-            guard let url = URL(string: page.url), let scheme = url.scheme?.lowercased(),
+            // What's in the inbox isn't trusted to be what the extension wrote: an address
+            // longer than any real one is skipped, the title is cut to what the extension
+            // itself allows, and the date is kept between a year ago and now.
+            guard page.url.utf8.count <= PantryStore.sharedAddressLimit,
+                  let url = URL(string: page.url), let scheme = url.scheme?.lowercased(),
                   scheme == "http" || scheme == "https" else { continue }
             let inBrine = try Item.filter(Item.Columns.url == page.url && Item.Columns.jarId == nil
                                           && Item.Columns.state == ItemState.brined).fetchCount(db) > 0
             if inBrine { continue }
-            let title = page.title.trimmingCharacters(in: .whitespacesAndNewlines)
-            let at = min(page.sharedAt, now)   // never in the future, whatever the other clock said
+            let title = String(page.title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(PantryStore.sharedTitleLimit))
+            // Never in the future, whatever the other clock said. And never further back than
+            // a year: a real share doesn't wait that long, and a date from another era is one
+            // the Pantry couldn't read back.
+            let at = min(max(page.sharedAt, now.addingTimeInterval(-365 * 86_400)), now)
             var item = Item(
                 createdAt: at,
                 domain: url.host,

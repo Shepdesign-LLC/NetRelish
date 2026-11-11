@@ -115,8 +115,8 @@ final class JarWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { sync(); log.info("start \(webView.url?.absoluteString ?? "-", privacy: .private)") }
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) { sync() }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { sync(); log.info("finish \(webView.url?.absoluteString ?? "-", privacy: .private) size=\(webView.bounds.width)x\(webView.bounds.height)") }
-    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) { sync(); log.error("fail \(error.localizedDescription, privacy: .public)") }
-    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: any Error) { sync(); log.error("provisional fail \(error.localizedDescription, privacy: .public)") }
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) { sync(); log.error("fail \(errorKind(error), privacy: .public) \(error.localizedDescription, privacy: .private)") }
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: any Error) { sync(); log.error("provisional fail \(errorKind(error), privacy: .public) \(error.localizedDescription, privacy: .private)") }
 
     /// Download links stay downloads, never page loads. A link WebKit can't show goes to
     /// another app: mail, phone, Messages and FaceTime links straight away on a click;

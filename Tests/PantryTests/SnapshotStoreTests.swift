@@ -40,6 +40,45 @@ import Testing
         #expect(throws: (any Error).self) { try snapshots.read("nope.webarchive") }
     }
 
+    @Test("A name that would step outside the snapshot folder is refused, and nothing is touched",
+          arguments: ["../pantry.sqlite", "../../Library/Keychains/login.keychain-db", "/etc/hosts",
+                      "sub/item.webarchive", "..", ".", ""])
+    func refusesNamesOutsideTheFolder(name: String) throws {
+        let snapshots = store()
+        // Something beside the folder that a `../` name would reach.
+        let parent = snapshots.directory.deletingLastPathComponent()
+        let neighbor = parent.appendingPathComponent("nr-neighbor-\(UUID().uuidString)")
+        try Data("keep".utf8).write(to: neighbor)
+        defer { try? FileManager.default.removeItem(at: neighbor) }
+        _ = try snapshots.write(Data("a".utf8), for: "item-5")
+
+        #expect(throws: SnapshotStore.Failure.outsideTheStore(name)) { try snapshots.read(name) }
+        #expect(throws: SnapshotStore.Failure.outsideTheStore(name)) { try snapshots.remove(name) }
+        #expect(FileManager.default.contents(atPath: neighbor.path) == Data("keep".utf8))
+        #expect(try FileManager.default.contentsOfDirectory(atPath: snapshots.directory.path) == ["item-5.webarchive"])
+    }
+
+    @Test("An item id can't steer a seal into another folder")
+    func refusesIdsOutsideTheFolder() throws {
+        let snapshots = store()
+        let parent = snapshots.directory.deletingLastPathComponent()
+        let escaped = "nr-escaped-\(UUID().uuidString)"
+        #expect(throws: SnapshotStore.Failure.outsideTheStore("../\(escaped).webarchive")) {
+            try snapshots.write(Data("a".utf8), for: "../\(escaped)")
+        }
+        #expect(!FileManager.default.fileExists(atPath: parent.appendingPathComponent("\(escaped).webarchive").path))
+        // Refused before the folder was even made.
+        #expect(!FileManager.default.fileExists(atPath: snapshots.directory.path))
+    }
+
+    @Test("A snapshot store pointed at a web address reads nothing, rather than fetching it")
+    func refusesARemoteDirectory() throws {
+        let snapshots = SnapshotStore(directory: try #require(URL(string: "https://example.com/snapshots/")))
+        #expect(throws: SnapshotStore.Failure.notAFolderOnThisMac) { try snapshots.read("item-6.webarchive") }
+        #expect(throws: SnapshotStore.Failure.notAFolderOnThisMac) { try snapshots.write(Data("a".utf8), for: "item-6") }
+        #expect(throws: SnapshotStore.Failure.notAFolderOnThisMac) { try snapshots.remove("item-6.webarchive") }
+    }
+
     @Test("Removing a snapshot leaves nothing behind, and removing twice is fine")
     func remove() throws {
         let snapshots = store()
