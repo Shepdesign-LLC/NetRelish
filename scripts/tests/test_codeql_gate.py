@@ -908,8 +908,273 @@ class ExitCodeTests(unittest.TestCase):
         self.assertEqual(self.run_main(), 0)
 
 
+API = "URLSession.data(from:)"
+
+
+def call(uri, line, api=API, **kwargs):
+    """A gate result worded as the query words it, naming the API it matched."""
+    return result(uri, line, message="Call to [" + api + "](1) opens a network connection. "
+                  "CLAUDE.md non-negotiable #5 allows only ...", **kwargs)
+
+
+class UploadableTests(unittest.TestCase):
+    """What reaches the Security tab: everything but approved AND listed calls (ADR 0026)."""
+
+    def setUp(self):
+        import contextlib
+        self.stack = contextlib.ExitStack()
+        self.addCleanup(self.stack.close)
+        self.checkout = Checkout(self.stack)
+        self.out = self.checkout.root / ".codeql-upload"
+
+    def register(self, *lines):
+        path = self.checkout.root / codeql_gate.REGISTRY
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# listed endpoints\n" + "".join(line + "\n" for line in lines))
+
+    def run_main(self):
+        return codeql_gate.main([
+            str(self.checkout.root / ".codeql-results"),
+            "--repo-root", str(self.checkout.root),
+            "--uploadable", str(self.out),
+        ])
+
+    def upload(self, name="swift.sarif"):
+        """Run main() as CI does, and read back what it would upload."""
+        code = self.run_main()
+        uploaded = json.loads((self.out / name).read_text())
+        return code, [(r["ruleId"], r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"],
+                       r["locations"][0]["physicalLocation"]["region"]["startLine"])
+                      for run in uploaded["runs"] for r in run["results"]]
+
+    def approved_call(self, name="Sources/A.swift", adr="adr-0007"):
+        self.checkout.swift(name, "// NETRELISH-ALLOW-ENDPOINT: " + adr + "\n" + CALL)
+
+    # Left out: approved, and listed with the same ADR and API.
+
+    def test_an_approved_and_listed_call_is_left_out(self):
+        self.approved_call()
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(call("Sources/A.swift", 2)))
+        self.assertEqual(self.upload(), (0, []))
+
+    def test_another_spelling_of_a_listed_path_is_left_out_too(self):
+        # One call reported twice under two spellings is one approved call.
+        self.approved_call()
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(
+            call("Sources/A.swift", 2, start_column=5, end_column=40),
+            call("Sources/../Sources/A.swift", 2, start_column=5, end_column=40)))
+        self.assertEqual(self.upload(), (0, []))
+
+    # Kept: anything the gate passes that the registry doesn't list exactly.
+
+    def test_an_approved_but_unlisted_call_stays(self):
+        # The review finding: any existing ADR satisfies the gate, so a marker
+        # alone must not also hide the call. It passes, and it stays an alert.
+        self.checkout.adr("0001-token-values.md")
+        self.approved_call("Sources/App/Telemetry.swift", adr="adr-0001")
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(call("Sources/App/Telemetry.swift", 2)))
+        self.assertEqual(self.upload(), (0, [(codeql_gate.GATE, "Sources/App/Telemetry.swift", 2)]))
+
+    def test_no_registry_hides_nothing(self):
+        self.approved_call()
+        self.checkout.results(sarif(call("Sources/A.swift", 2)))
+        self.assertEqual(self.upload(), (0, [(codeql_gate.GATE, "Sources/A.swift", 2)]))
+
+    def test_a_listed_file_with_another_api_stays(self):
+        # A different call put under an approved marker is not the approved call.
+        self.approved_call()
+        self.register("Sources/A.swift  URLSession.bytes(for:delegate:)  adr-0007")
+        self.checkout.results(sarif(call("Sources/A.swift", 2)))
+        self.assertEqual(self.upload(), (0, [(codeql_gate.GATE, "Sources/A.swift", 2)]))
+
+    def test_a_listed_call_whose_marker_cites_another_adr_stays(self):
+        self.checkout.adr("0022-provenance.md")
+        self.approved_call(adr="adr-0022")
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(call("Sources/A.swift", 2)))
+        self.assertEqual(self.upload(), (0, [(codeql_gate.GATE, "Sources/A.swift", 2)]))
+
+    def test_more_approved_calls_than_listed_lines_all_stay(self):
+        # A second call of the same API, approved too, is a second endpoint:
+        # with one listed line for two calls, neither is hidden.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL + "\n\n// " + MARKER + "\n" + CALL)
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(call("Sources/A.swift", 2), call("Sources/A.swift", 5)))
+        self.assertEqual(self.upload(), (0, [(codeql_gate.GATE, "Sources/A.swift", 2),
+                                             (codeql_gate.GATE, "Sources/A.swift", 5)]))
+
+    def test_a_new_call_above_the_listed_one_cannot_take_its_place(self):
+        # The new call comes first in the file. Choosing by source order would
+        # hide it and upload the approved one; instead both stay.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL + "\n// " + MARKER + "\n" + CALL)
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(call("Sources/A.swift", 4), call("Sources/A.swift", 2)))
+        code, uploaded = self.upload()
+        self.assertEqual(sorted(uploaded), [(codeql_gate.GATE, "Sources/A.swift", 2),
+                                            (codeql_gate.GATE, "Sources/A.swift", 4)])
+
+    def test_two_listed_lines_cover_two_calls(self):
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL + "\n\n// " + MARKER + "\n" + CALL)
+        self.register("Sources/A.swift  " + API + "  adr-0007", "Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(call("Sources/A.swift", 2), call("Sources/A.swift", 5)))
+        self.assertEqual(self.upload(), (0, []))
+
+    def test_an_unlisted_api_at_the_same_span_stays(self):
+        # The gate merges two results at one position into one finding and keeps
+        # the last message. If that one names the listed API, the other result
+        # must still be uploaded, whichever order they arrive in.
+        self.approved_call()
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        other = "URLSession.webSocketTask(with:)"
+        for order in [(other, API), (API, other)]:
+            with self.subTest(order=order):
+                self.checkout.results(sarif(*[call("Sources/A.swift", 2, api=a, start_column=5, end_column=40)
+                                              for a in order]))
+                self.upload()
+                kept = json.loads((self.out / "swift.sarif").read_text())["runs"][0]["results"]
+                self.assertIn(other, [codeql_gate.called_api(r["message"]["text"]) for r in kept])
+
+    def test_a_message_naming_no_api_stays(self):
+        self.approved_call()
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(result("Sources/A.swift", 2)))
+        self.assertEqual(self.upload(), (0, [(codeql_gate.GATE, "Sources/A.swift", 2)]))
+
+    def test_an_unapproved_call_on_the_same_line_number_in_another_file_stays(self):
+        self.approved_call()
+        self.checkout.swift("Sources/B.swift", "\n" + CALL)
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(call("Sources/A.swift", 2), call("Sources/B.swift", 2)))
+        self.assertEqual(self.upload(), (1, [(codeql_gate.GATE, "Sources/B.swift", 2)]))
+
+    def test_an_unapproved_call_is_uploaded_and_still_fails(self):
+        self.checkout.swift("Sources/A.swift", CALL)
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(call("Sources/A.swift", 1)))
+        self.assertEqual(self.upload(), (1, [(codeql_gate.GATE, "Sources/A.swift", 1)]))
+
+    def test_two_calls_sharing_a_listed_line_both_stay(self):
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL + "; " + CALL)
+        self.register("Sources/A.swift  " + API + "  adr-0007", "Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(
+            call("Sources/A.swift", 2, start_column=1, end_column=10),
+            call("Sources/A.swift", 2, start_column=20, end_column=30)))
+        self.assertEqual(self.upload(), (1, [(codeql_gate.GATE, "Sources/A.swift", 2)] * 2))
+
+    def test_a_marker_in_a_string_hides_nothing(self):
+        self.checkout.swift("Sources/A.swift", 'let s = "// ' + MARKER + '"\n' + CALL)
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(call("Sources/A.swift", 2)))
+        self.assertEqual(self.upload(), (1, [(codeql_gate.GATE, "Sources/A.swift", 2)]))
+
+    def test_a_finding_outside_the_checkout_stays_beside_a_listed_twin(self):
+        # Same file name and line, one level up: outside the checkout, so kept,
+        # while the listed call inside it is left out.
+        self.approved_call()
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(call("Sources/A.swift", 2), call("../Sources/A.swift", 2)))
+        self.assertEqual(self.upload(), (1, [(codeql_gate.GATE, "../Sources/A.swift", 2)]))
+
+    def test_other_queries_are_untouched(self):
+        self.approved_call()
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(
+            call("Sources/A.swift", 2),
+            result("Sources/A.swift", 2, rule="netrelish/remote-capable-url-read"),
+            result("Sources/A.swift", 2, rule="swift/cleartext-transmission")))
+        self.assertEqual(self.upload(), (0, [
+            ("netrelish/remote-capable-url-read", "Sources/A.swift", 2),
+            ("swift/cleartext-transmission", "Sources/A.swift", 2)]))
+
+    # The registry itself fails closed: a flaw in it fails the gate.
+
+    def assertRegistryRefused(self, *lines, fragment):
+        self.approved_call()
+        self.register(*lines)
+        self.checkout.results(sarif(call("Sources/A.swift", 2)))
+        report = self.checkout.evaluate()
+        codeql_gate.load_registry(self.checkout.root, report)
+        self.assertTrue(any(fragment in e for e in report.errors), report.errors)
+        self.assertEqual(self.run_main(), 1)
+
+    def test_a_malformed_registry_line_fails(self):
+        self.assertRegistryRefused("Sources/A.swift  " + API, fragment="is not `path  API  adr-NNNN`")
+
+    def test_a_registry_line_citing_a_missing_adr_fails(self):
+        self.assertRegistryRefused("Sources/A.swift  " + API + "  adr-0099", fragment="adr-0099")
+
+    def test_a_registry_path_that_leaves_the_checkout_fails(self):
+        self.assertRegistryRefused("../Sources/A.swift  " + API + "  adr-0007", fragment="not a path")
+
+    def test_a_registry_path_spelled_another_way_fails(self):
+        self.assertRegistryRefused("Sources/../Sources/A.swift  " + API + "  adr-0007", fragment="not a path")
+
+    def test_a_symlinked_registry_fails(self):
+        import os
+        elsewhere = self.checkout.root / "elsewhere.txt"
+        elsewhere.write_text("Sources/A.swift  " + API + "  adr-0007\n")
+        target = self.checkout.root / codeql_gate.REGISTRY
+        target.parent.mkdir(parents=True, exist_ok=True)
+        os.symlink(elsewhere, target)
+        self.approved_call()
+        self.checkout.results(sarif(call("Sources/A.swift", 2)))
+        self.assertEqual(self.run_main(), 1)
+
+    # The rest of the file, and the original, are left alone.
+
+    def test_the_rest_of_the_sarif_is_kept(self):
+        self.approved_call()
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        document = sarif(call("Sources/A.swift", 2))
+        document["runs"][0]["automationDetails"] = {"id": "/language:swift/"}
+        self.checkout.results(document)
+        self.upload()
+        uploaded = json.loads((self.out / "swift.sarif").read_text())
+        document["runs"][0]["results"] = []
+        self.assertEqual(uploaded, document)
+
+    def test_the_original_sarif_is_not_changed(self):
+        self.approved_call()
+        self.register("Sources/A.swift  " + API + "  adr-0007")
+        self.checkout.results(sarif(call("Sources/A.swift", 2)))
+        before = (self.checkout.root / ".codeql-results" / "swift.sarif").read_text()
+        self.upload()
+        self.assertEqual(before, (self.checkout.root / ".codeql-results" / "swift.sarif").read_text())
+
+    def test_no_sarif_writes_nothing_and_fails(self):
+        self.assertEqual(self.run_main(), 1)
+        self.assertFalse(self.out.exists())
+
+    def test_the_api_is_read_from_the_query_message(self):
+        self.assertEqual(codeql_gate.called_api(
+            "Call to [URLSession.bytes(for:delegate:)](1) opens a network connection."),
+            "URLSession.bytes(for:delegate:)")
+        for message in ["outbound network call", "Call to URLSession.data(from:) opens",
+                        "x Call to [URLSession.data(from:)](1) opens", "", None]:
+            with self.subTest(message=message):
+                self.assertIsNone(codeql_gate.called_api(message))
+
+
 class RepositoryTests(unittest.TestCase):
     """Invariants of this repo that the gate depends on."""
+
+    def test_the_endpoint_registry_is_sound_and_every_entry_has_its_marker(self):
+        # A listed call with no marker citing its ADR would never be approved,
+        # so its line in the registry would be dead weight that reads as a rule.
+        report = codeql_gate.Report()
+        entries = codeql_gate.load_registry(REPO, report)
+        self.assertEqual(report.errors, [])
+        self.assertTrue(entries, "the registry lists the timestamp request at least")
+        for path, api, adr in entries:
+            with self.subTest(path=path, api=api):
+                comments = codeql_gate.line_comments((REPO / path).read_text())
+                cited = [codeql_gate.MARKER.search(text) for text in comments.values()]
+                self.assertIn(adr, [m.group(1) for m in cited if m])
+                # The method named is called in that file.
+                self.assertIn(api.split(".", 1)[1].split("(", 1)[0], (REPO / path).read_text())
 
     def test_adr_numbers_are_unique(self):
         seen = {}

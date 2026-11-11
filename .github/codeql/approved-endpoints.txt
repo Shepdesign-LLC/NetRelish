@@ -1,0 +1,16 @@
+# The network calls CLAUDE.md rule 5 allows, as code scanning should NOT list them (ADR 0026).
+#
+#   path  API  adr-NNNN
+#
+# One line per call. A call is left out of the upload to code scanning only when
+# the gate approved it (a NETRELISH-ALLOW-ENDPOINT marker on its line or the one
+# above, citing an ADR that exists) AND it is listed here with that same ADR.
+# The API is the name the query reports, as in "Call to URLSession.bytes(for:delegate:)".
+#
+# A marker without a line here still passes the gate, but the call stays an
+# alert in GitHub's Security tab. Adding a line here is how an endpoint stops
+# being one, so it belongs in the same pull request as the ADR that approves it.
+
+# RFC 3161 timestamping for Pro provenance (ADR 0022)
+Sources/App/TimestampService.swift  URLSession.init(configuration:)  adr-0022
+Sources/App/TimestampService.swift  URLSession.bytes(for:delegate:)  adr-0022
