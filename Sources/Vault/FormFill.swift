@@ -24,7 +24,8 @@
 // passes, under another element, in the page's own color, cut away with clip or clip-path,
 // or parked far to the right or far down a page that scrolls there.
 // Fields in rotated, skewed, reflected or 3D-transformed boxes are left alone: their
-// bounding rectangles aren't a safe measure of what shows. These must be filled by hand.
+// bounding rectangles aren't a safe measure of what shows. Vertical/sideways writing modes
+// are also left alone because their physical scroll axes differ. These must be filled by hand.
 // One more cost: while a site has the page locked from scrolling (a dialog is open), only
 // the fields in the window or in the dialog are filled.
 // One cost: a site that hides its real <select> and draws its own dropdown doesn't get
@@ -129,7 +130,9 @@ enum FormFill {
     // rotated, skewed, reflected or 3D box's bounding rectangle includes space it doesn't
     // show, and its scrolling needn't follow the window's axes. Leave its fields alone
     // rather than treating that extra space as visible. Plain translation/scale still work.
-    function axisAligned(s) {
+    function supportedGeometry(s) {
+      // The scroll ranges below model horizontal writing only, including on ancestors.
+      if (s.writingMode !== 'horizontal-tb') return false;
       if (s.perspective !== 'none' || s.rotate !== 'none') return false;
       if (s.scale !== 'none' && s.scale.split(/\\s+/).some(v => !(parseFloat(v) > 0))) return false;
       if (s.transform === 'none') return true;
@@ -170,7 +173,7 @@ enum FormFill {
       let free = 'no';   // 'no', or what the box in hand is free of: 'plain' boxes, or 'all' but transformed ones
       for (let p = el; p; p = get(p, 'parentElement')) {
         const s = getComputedStyle(p);
-        if (!axisAligned(s)) return false;
+        if (!supportedGeometry(s)) return false;
         if (p !== el) {
           if (p === root || (p === body && !bodyIsABox)) continue;
           if (free === 'plain' && s.position === 'static' && !holdsPositioned(s)) continue;
