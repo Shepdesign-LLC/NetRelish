@@ -242,7 +242,7 @@ enum FormFill {
     // other fields outside any form). On anything else inside a form, a button say, that
     // form. With the cursor nowhere, the whole page.
     const formAround = active && active !== body && active !== root ? Element.prototype.closest.call(active, 'form') : null;
-    const here = fields.includes(active) ? active.form : (formAround || undefined);
+    const here = fields.includes(active) ? active.form : ((active instanceof HTMLButtonElement && active.form) || formAround || undefined);
 
     // Decide first, write second. Writing a field runs the page's own input and change
     // listeners, and one of those could un-hide the rest of its fields, or move them into
