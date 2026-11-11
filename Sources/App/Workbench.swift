@@ -305,7 +305,7 @@ final class Workbench {
             try ProofExport.write(item: item, provenance: provenance, archive: archive, jarName: jarName, to: target)
             report("Proof exported")
         } catch {
-            log.error("export proof: \(String(describing: error), privacy: .public)")
+            log.error("export proof: \(errorKind(error), privacy: .public) \(String(describing: error), privacy: .private)")
             report("Couldn’t export the proof")
         }
     }
@@ -342,7 +342,7 @@ final class Workbench {
             refreshSmartJars()
             report(received.count == 1 ? "Shared into Brine" : "\(received.count) pages shared into Brine")
         } catch {
-            log.error("share: \(String(describing: error), privacy: .public)")
+            log.error("share: \(errorKind(error), privacy: .public) \(String(describing: error), privacy: .private)")
             report("Couldn’t take in a shared page. It will be tried again.")
         }
     }
@@ -364,7 +364,7 @@ final class Workbench {
                 let source = try tab.jarId.map { try vault.hasOverride(for: $0) } == true ? "\(activeJar?.name ?? "this jar")’s card" : "Me"
                 report(count == 0 ? "Nothing to fill on this page" : "Filled \(count) \(count == 1 ? "field" : "fields") from \(source)")
             } catch {
-                log.error("fill: \(String(describing: error), privacy: .public)")
+                log.error("fill: \(errorKind(error), privacy: .public) \(String(describing: error), privacy: .private)")
                 report("Couldn’t fill this form")
             }
         }
@@ -687,7 +687,7 @@ final class Workbench {
         } catch is CancellationError {
             return false
         } catch {
-            log.error("seal: \(String(describing: error), privacy: .public)")
+            log.error("seal: \(errorKind(error), privacy: .public) \(String(describing: error), privacy: .private)")
             report("Couldn’t seal this page")
             return false
         }
@@ -741,14 +741,14 @@ final class Workbench {
         do {
             page = try await offscreenLoader(url, profileJarId ?? target.id)
         } catch let failure as HeadlessPage.Failure {
-            log.error("offscreen seal: \(failure.description, privacy: .public)")
+            log.error("offscreen seal: the page didn't load (\(failure.description, privacy: .private))")
             throw ShortcutError.pageDidNotLoad(failure.description)
         } catch is CancellationError {
             throw CancellationError()
         } catch {
             // Freezing or reading the page went wrong, not loading it. The details are for
             // the log; the person gets a plain sentence.
-            log.error("offscreen seal: \(String(describing: error), privacy: .public)")
+            log.error("offscreen seal: \(errorKind(error), privacy: .public) \(String(describing: error), privacy: .private)")
             throw ShortcutError.couldNotSeal
         }
         // A Shortcut cancelled while the page loaded keeps nothing: no item, no Recipe.
@@ -848,7 +848,7 @@ final class Workbench {
         } catch is CancellationError {
             return
         } catch {
-            log.error("reseal: \(String(describing: error), privacy: .public)")
+            log.error("reseal: \(errorKind(error), privacy: .public) \(String(describing: error), privacy: .private)")
             report("Couldn’t seal this page again")
         }
     }
@@ -921,7 +921,7 @@ final class Workbench {
             try store.write { db in _ = try store.addLabel(db, named: name, to: item) }
             labelRevision += 1
         } catch {
-            log.error("label: \(String(describing: error), privacy: .public)")
+            log.error("label: \(errorKind(error), privacy: .public) \(String(describing: error), privacy: .private)")
             report("Couldn’t add that label")
         }
     }
@@ -931,7 +931,7 @@ final class Workbench {
             try store.write { db in try store.removeLabel(db, label, from: item) }
             labelRevision += 1
         } catch {
-            log.error("label: \(String(describing: error), privacy: .public)")
+            log.error("label: \(errorKind(error), privacy: .public) \(String(describing: error), privacy: .private)")
             report("Couldn’t remove that label")
         }
     }
@@ -975,7 +975,7 @@ final class Workbench {
             // a heavy page is still loading.
             reader = ReaderState(tabId: tab.id, url: article.url ?? tab.url, article: article)
         } catch {
-            log.error("reader: \(String(describing: error), privacy: .public)")
+            log.error("reader: \(errorKind(error), privacy: .public) \(String(describing: error), privacy: .private)")
             report("Reader view couldn’t read this page")
         }
     }
@@ -1008,7 +1008,7 @@ final class Workbench {
             refreshSmartJars()
             report("Captured into Brine")   // the ValueObservation refreshes Brine on its own
         } catch {
-            log.error("capture: \(String(describing: error), privacy: .public)")
+            log.error("capture: \(errorKind(error), privacy: .public) \(String(describing: error), privacy: .private)")
             report("Couldn’t capture this page")
         }
     }

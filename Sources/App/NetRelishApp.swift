@@ -39,8 +39,14 @@ struct NetRelishApp: App {
         #endif
     }
 
+    /// Only a debug build can be told it's hosting the tests. In a build that ships, an
+    /// environment variable must not be able to unlock Pro or switch anything off.
     private static var isHostingTests: Bool {
-        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        #else
+        return false
+        #endif
     }
 
     init() {
