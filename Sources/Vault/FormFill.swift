@@ -193,7 +193,7 @@ enum FormFill {
       if (free !== 'all') {
         if (!/hidden|clip/.test(windowStyle.overflowX)) {
           const most = Math.max(root.scrollWidth, get(scrolling, 'scrollWidth')) - window.innerWidth;
-          const [back, forward] = room(window.scrollX, Math.max(most, 0), false);
+          const [back, forward] = room(window.scrollX, Math.max(most, 0), rootStyle.direction === 'rtl' || windowStyle.direction === 'rtl');
           x0 += back; x1 += forward;
         }
         if (!/hidden|clip/.test(windowStyle.overflowY)) {
@@ -239,8 +239,10 @@ enum FormFill {
     }
 
     // With the cursor in a field, only that field's form (or, outside any form, only the
-    // other fields outside any form). With the cursor nowhere, the whole page.
-    const here = fields.includes(active) ? active.form : undefined;
+    // other fields outside any form). On anything else inside a form, a button say, that
+    // form. With the cursor nowhere, the whole page.
+    const formAround = active && active !== body && active !== root ? Element.prototype.closest.call(active, 'form') : null;
+    const here = fields.includes(active) ? active.form : (formAround || undefined);
 
     // Decide first, write second. Writing a field runs the page's own input and change
     // listeners, and one of those could un-hide the rest of its fields, or move them into
