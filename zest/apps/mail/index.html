@@ -573,6 +573,20 @@ ${preheader}${content}
     .filter(bl => bl && typeof bl === 'object' && typeof bl.type === 'string' && Object.prototype.hasOwnProperty.call(BLOCKS, bl.type))
     .map(bl => ({ id: uid(), type: bl.type, props: sanitizeProps(bl.type, bl.props) }));
 
+  /* An imported design is checked against this budget before anything in the editor changes. A design over it is refused with a
+     message, never cut down: 5 MB of file, 2,000 blocks, 200,000 characters in any one text field. The designs
+     the editor makes in normal use are a small fraction of each. Designs already in storage are not imports and are not held to it. */
+  const IMPORT_BUDGET = { chars: 5000000 /* bytes */, blocks: 2000, field: 200000 };
+  function overBudget(d, size) {
+    if (size > IMPORT_BUDGET.chars) return 'The file is larger than 5 MB';
+    const bl = Array.isArray(d && d.blocks) ? d.blocks : [];
+    if (bl.length > IMPORT_BUDGET.blocks) return 'The design has more than 2,000 blocks';
+    for (const b of bl) {
+      const def = b && typeof b === 'object' && typeof b.type === 'string' && Object.prototype.hasOwnProperty.call(BLOCKS, b.type) ? BLOCKS[b.type] : null, pr = def && b.props && typeof b.props === 'object' ? b.props : {};
+      if (def && def.fields.some(f => (f.t === 'text' || f.t === 'textarea') && typeof pr[f.k] === 'string' && pr[f.k].length > IMPORT_BUDGET.field)) return 'A text field is longer than 200,000 characters';
+    }
+    return '';
+  }
   let brands = store.get('brands', null);
   brands = Array.isArray(brands) ? brands.map(sanitizeBrand) : [];
   if (!brands.length) brands = [Object.assign(BRAND_DEFAULT(), { id: 'shepdesign', name: 'Shepdesign', company: 'Shepdesign LLC', address: 'Phoenix, AZ', website: 'https://shepdesign.com' })];
@@ -608,7 +622,27 @@ ${preheader}${content}
   let CANVAS = false; // true while rendering for the canvas → text becomes click-to-edit
   const ed = (k, html, rich = false) => CANVAS ? `<span data-edit="${k}" data-rich="${rich ? 1 : 0}" contenteditable="true" spellcheck="false">${html}</span>` : html;
   const edb = (k, html) => CANVAS ? `<div data-edit="${k}" data-rich="1" contenteditable="true" spellcheck="false">${html}</div>` : html;
-  const md = (s, link) => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>').replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, t, u) => `<a href="${cleanUrl(u)}" style="color:${link};text-decoration:underline">${t}</a>`).split(/\n{2,}/).map(p => `<p style="margin:0 0 14px">${p.replace(/\n/g, '<br>')}</p>`).join('').replace(/<p style="margin:0 0 14px">([\s\S]*)<\/p>$/, '<p style="margin:0">$1</p>');
+  // [text](address), found in one left-to-right pass: every character is looked at a bounded number of times, so a long run of
+  // "[" or "(" that never closes costs no more than any other text. Same reading as before: text is one or more characters up to
+  // the next "]", the address one or more up to the next ")", and a "[" that doesn't start a link is left as it was.
+  function mdLinks(s, link) {
+    let out = '', at = 0, i = s.indexOf('[');
+    while (i !== -1) {
+      const j = s.indexOf(']', i + 1);
+      if (j === -1) break;                                              // no "]" anywhere after: nothing further can be a link
+      let end = -1;
+      if (j > i + 1 && s[j + 1] === '(') {
+        const k = s.indexOf(')', j + 2);
+        if (k === -1) break;                                            // no ")" anywhere after: nothing further can be a link
+        if (k > j + 2) end = k;
+      }
+      if (end === -1) { i = s.indexOf('[', j + 1); continue; }          // a "[" before this "]" would stop at the same "]"
+      out += s.slice(at, i) + `<a href="${cleanUrl(s.slice(j + 2, end))}" style="color:${link};text-decoration:underline">${s.slice(i + 1, j)}</a>`;
+      at = end + 1; i = s.indexOf('[', at);
+    }
+    return out + s.slice(at);
+  }
+  const md = (s, link) => mdLinks(esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>'), link).split(/\n{2,}/).map(p => `<p style="margin:0 0 14px">${p.replace(/\n/g, '<br>')}</p>`).join('').replace(/<p style="margin:0 0 14px">([\s\S]*)<\/p>$/, '<p style="margin:0">$1</p>');
   const img = (src, alt, w, extra = '') => src ? `<img src="${esc(src)}" alt="${esc(alt)}" width="${w}" style="display:block;width:${w}px;max-width:100%;height:auto;border:0${extra}">` : `<!--ph:${w}--><div class="ph" style="width:${w}px;max-width:100%;height:${Math.round(w * .5)}px;border-radius:6px">Image ${w}px wide<br>set a URL in the inspector</div>`;
   const btn = (text, url, bg, color, r, full, font, k = 'cta') => `<table role="presentation" cellpadding="0" cellspacing="0" border="0" ${full ? 'width="100%"' : ''}><tr><td align="center" bgcolor="${bg}" style="background-color:${bg};border-radius:${r}px;mso-padding-alt:14px 26px"><a href="${esc(url)}" style="display:inline-block;padding:14px 26px;font-family:${font};font-size:16px;font-weight:600;line-height:1;color:${color};text-decoration:none;border-radius:${r}px;${full ? 'width:100%;box-sizing:border-box;' : ''}">${ed(k, esc(text))}</a></td></tr></table>`;
   const cell = (p, b, inner, extra = '') => `<tr><td align="${p.align || 'left'}" bgcolor="${col(p.bg || 'brand.sheet')}" style="background-color:${col(p.bg || 'brand.sheet')};padding:${p.pad ?? 24}px ${p.padX ?? 36}px;font-family:${b.font};${extra}">${inner}</td></tr>`;
@@ -948,7 +982,7 @@ ${preheader}${content}
   function loadDesign(d) { let added = null; snapshot(); state.blocks = sanitizeBlocks(d.blocks); state.designName = cleanLine(d.name, 120).trim() || 'Untitled'; state.designId = cleanId(d.id); $('#subject').value = cleanLine(d.subject, 500); $('#preheader').value = cleanLine(d.preheader, 500); setWidth(d.width); setBg(d.bg);
     if (d.brand && typeof d.brand === 'object') { const a = adoptBrand(d.brand); state.brandId = a.id; added = a.added; }
     state.selected = null; setMode('build'); renderCanvas(); renderInspector(); renderBrandPanel(); renderSaved(); run(); return added; }   // the Brand tab is redrawn too: with no block selected the inspector leaves it alone
-  function importedDesign(d) { const added = loadDesign(d); toast(`Imported “${state.designName}”` + (added ? ` — its brand was added as “${added}”` : '')); }
+  function importedDesign(d, size = 0) { const over = overBudget(d, size); if (over) return toast(`${over}, so it was not imported. Nothing changed.`); const added = loadDesign(d); toast(`Imported “${state.designName}”` + (added ? ` — its brand was added as “${added}”` : '')); }
   $('#btnSave').addEventListener('click', () => {
     const name = prompt('Design name', state.designName); if (name == null) return;
     const list = designs(), d = Object.assign(designJSON(), { name, id: state.designId || uid() }); state.designName = name; state.designId = d.id;
@@ -975,7 +1009,7 @@ ${preheader}${content}
   });
   $('#jsonFile').addEventListener('change', async () => { const f = $('#jsonFile').files[0]; if (!f) return; try { const d = JSON.parse(await f.text());
     if (d && d.zest === 1) importZestBrand(d);                       // a zest-brand.json is a brand, never an empty design
-    else if (d && Array.isArray(d.blocks)) importedDesign(d);
+    else if (d && Array.isArray(d.blocks)) importedDesign(d, f.size);
     else toast(`That file isn’t a ${PRODUCT} design`);
   } catch { toast(`That file isn’t a ${PRODUCT} design`); } $('#jsonFile').value = ''; });
 
@@ -1016,7 +1050,7 @@ ${preheader}${content}
   async function routeDroppedJson(f) {
     try { const d = JSON.parse(await f.text());
       if (d && d.zest === 1) importZestBrand(d);
-      else if (d && Array.isArray(d.blocks)) importedDesign(d);
+      else if (d && Array.isArray(d.blocks)) importedDesign(d, f.size);
       else toast('Not a zest-brand.json.');
     } catch { toast('That file would not read as JSON.'); }
   }

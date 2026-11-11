@@ -164,6 +164,21 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   await wholeDesign('on import');
   await ml.reload({ waitUntil: 'domcontentloaded' }); await ml.waitForTimeout(900);
   await wholeDesign('after a reload');
+  // an import over the documented budget is refused whole, with a message, and the editor is left as it was
+  const before = await ml.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('mailpress:brands'))) + document.querySelectorAll('.cv-block').length);
+  const tooMany = { name: 'Too many', blocks: Array.from({ length: 2001 }, () => ({ type: 'spacer', props: {} })) };
+  const tooLong = { name: 'Too long', blocks: [{ type: 'text', props: { body: 'a'.repeat(200001) } }] };
+  for (const [what, d] of [['blocks', tooMany], ['text', tooLong]]) {
+    await ml.setInputFiles('#jsonFile', { name: 'big.mailpress.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(d)) });
+    await ml.waitForTimeout(500);
+    ok((await ml.$eval('#toast', e => e.textContent)).includes('not imported'), `a design over the ${what} budget is refused with a message`);
+    ok(await ml.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('mailpress:brands'))) + document.querySelectorAll('.cv-block').length) === before, `a refused design (${what}) changes nothing`);
+  }
+  const brackets = { name: 'Brackets', blocks: [{ type: 'text', props: { body: '['.repeat(150000) + '[a]('.repeat(30000) } }] };
+  const t0 = Date.now();
+  await ml.setInputFiles('#jsonFile', { name: 'brackets.mailpress.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(brackets)) });
+  await ml.waitForFunction(() => document.querySelector('#toast')?.textContent.includes('Imported'), null, { timeout: 15000 });
+  ok(Date.now() - t0 < 10000, 'a long run of unclosed link brackets is read in linear time');
   // storage itself is untrusted too: brands, the draft, modules and saved designs are checked on the way in
   await ml.evaluate(x => {
     const put = (k, v) => localStorage.setItem('mailpress:' + k, JSON.stringify(v));
