@@ -927,7 +927,7 @@ ${preheader}${content}
     if (d.brand && typeof d.brand === 'object') { const nb = sanitizeBrand(d.brand), ex = brands.find(b => b.id === nb.id);
       if (ex) { for (const k of Object.keys(nb)) if (Object.prototype.hasOwnProperty.call(d.brand, k)) ex[k] = nb[k]; } else brands.push(nb);   // an existing brand only takes the fields the file carries
       state.brandId = nb.id; store.set('brands', brands); }
-    state.selected = null; setMode('build'); renderCanvas(); renderInspector(); renderSaved(); run(); }
+    state.selected = null; setMode('build'); renderCanvas(); renderInspector(); renderBrandPanel(); renderSaved(); run(); }   // the Brand tab is redrawn too: with no block selected the inspector leaves it alone
   $('#btnSave').addEventListener('click', () => {
     const name = prompt('Design name', state.designName); if (name == null) return;
     const list = designs(), d = Object.assign(designJSON(), { name, id: state.designId || uid() }); state.designName = name; state.designId = d.id;
