@@ -524,7 +524,8 @@ ${preheader}${content}
      default. Free text and URLs are kept as text and escaped where they render. */
   const BRAND_HEX = /^#[0-9a-fA-F]{6}$/;
   const BRAND_ROLES = ['primary', 'ink', 'muted', 'paper', 'sheet', 'line', 'dark'];
-  const BRAND_TEXT = ['name', 'bentoSite', 'company', 'address', 'tagFirst', 'tagUnsub', 'tagBrowser'];
+  const BRAND_TEXT = ['name', 'bentoSite', 'company', 'address', 'tagFirst'];
+  const BRAND_TAG_URLS = ['tagUnsub', 'tagBrowser'];   // custom merge tags that become link addresses
   const BRAND_URLS = ['logo', 'website', 'unsubscribe', 'preferences', 'instagram', 'linkedin', 'x', 'facebook', 'youtube'];
   const CTRL_RE = new RegExp('[\\x00-\\x1f\\u2028\\u2029]', 'g');
   const SAFE_ID = /^[A-Za-z0-9_-]{1,40}$/;
@@ -542,6 +543,7 @@ ${preheader}${content}
     for (const k of BRAND_TEXT) if (r[k] != null) b[k] = cleanLine(r[k]);
     b.name = b.name.trim().slice(0, 80) || 'Brand';
     for (const k of BRAND_URLS) if (r[k] != null) b[k] = cleanUrl(r[k]);
+    for (const k of BRAND_TAG_URLS) if (r[k] != null) b[k] = cleanUrl(r[k]).slice(0, 300);
     for (const k of BRAND_ROLES) if (BRAND_HEX.test(String(r[k] ?? ''))) b[k] = String(r[k]).toLowerCase();
     if (['bento', 'generic', 'custom'].includes(r.esp)) b.esp = r.esp;
     b.font = cleanFont(r.font) || b.font;
@@ -581,7 +583,10 @@ ${preheader}${content}
   };
   function tag(k) {
     const b = brand(), e = b.esp || 'bento';
-    if (e === 'custom') return { first: b.tagFirst, unsubscribe: b.tagUnsub, browser: b.tagBrowser }[k] || '';
+    if (e === 'custom') {             // the unsubscribe and view-in-browser tags become link addresses, so they get the link check wherever they were typed
+      const v = { first: b.tagFirst, unsubscribe: b.tagUnsub, browser: b.tagBrowser }[k] || '';
+      return k === 'first' ? v : cleanUrl(v);
+    }
     return (ESP[e] && ESP[e][k]) || '';
   }
   const TAG_MENU = [['first', 'First name'], ['last', 'Last name'], ['email', 'Email'], ['subject', 'Subject line'], ['browser', 'View-in-browser URL'], ['unsubscribe', 'Unsubscribe URL'], ['snooze', 'Snooze URL']];
