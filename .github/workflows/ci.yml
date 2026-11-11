@@ -1,7 +1,8 @@
 name: CI
 
 # Runs on every push and PR. Five things must hold:
-#   1. generated files match their sources (Tokens.swift, Symbols.swift, Sources/Pantry/Models, NetRelish.xcodeproj and its plists)
+#   1. generated files match their sources (Tokens.swift, Symbols.swift, Sources/Pantry/Models, NetRelish.xcodeproj and its plists),
+#      and the vendored defuddle.js matches its recorded checksum
 #   2. both product flavors build — AppStore and Direct (DIRECT_BUILD)
 #   3. the tests pass (hosted NetRelishTests + unhosted GeneratorTests)
 #   4. the non-negotiable-5 gate still enforces what it claims to
@@ -55,6 +56,11 @@ jobs:
           [ -z "$STALE" ] || { echo "$STALE"; git diff -- '*.entitlements' '*Info.plist'; echo "::error file=project.yml::an Info.plist or entitlements file is stale — run scripts/gen-project.sh"; exit 1; }
       - name: Logos are untouched
         run: shasum -a 256 design/logo.svg design/logo-cog.svg
+      - name: Vendored defuddle.js matches its recorded checksum
+        # The record lives in scripts/checksums/, not next to the file: all of Resources/ is
+        # copied into the app bundle. A new defuddle.js needs a new checksum and a named
+        # upstream version in the same pull request (scripts/checksums/README.md).
+        run: shasum -a 256 -c scripts/checksums/defuddle.js.sha256
 
   build:
     name: Build ${{ matrix.flavor }}
@@ -77,10 +83,14 @@ jobs:
       - name: Toolchain
         run: xcodebuild -version
       - name: Build (unsigned — CI has no certificate)
+        # -onlyUsePackageVersionsFromResolvedFile: build with exactly the package revisions in the
+        # committed Package.resolved, as the release does. Changing a package in project.yml
+        # without committing the updated lockfile fails here.
         run: |
           xcodebuild -project NetRelish.xcodeproj -scheme "${{ matrix.scheme }}" \
             -configuration "${{ matrix.configuration }}" -derivedDataPath "$DERIVED" \
-            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet build
+            -destination 'platform=macOS' -onlyUsePackageVersionsFromResolvedFile \
+            CODE_SIGNING_ALLOWED=NO -quiet build
 
   test:
     name: Test
@@ -96,7 +106,8 @@ jobs:
         run: |
           xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
             -configuration Debug-AppStore -derivedDataPath "$DERIVED" \
-            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- \
+            -destination 'platform=macOS' -onlyUsePackageVersionsFromResolvedFile \
+            CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- \
             CODE_SIGNING_REQUIRED=NO CODE_SIGN_ENTITLEMENTS= ENABLE_APP_SANDBOX=NO \
             -resultBundlePath TestResults.xcresult -quiet test
       - name: Keep the test results when they fail, so the errors can be read

@@ -256,6 +256,63 @@ import WebKit
         #expect(try await FormFill.fill(me, in: web.webView) == 1)
     }
 
+    @Test("Non-axis-aligned clipping never admits a hidden field through its bounding rectangle",
+          arguments: ["transform:rotate(45deg)", "rotate:45deg", "transform:skewX(45deg)",
+                      "transform:scaleX(-1)", "scale:-1 1", "transform:rotateY(45deg)"])
+    @MainActor func leavesFieldsInUnsupportedTransformsAlone(transform: String) async throws {
+        let web = try await loaded("""
+        <!doctype html>
+        <input id="em" type="email">
+        <div style="position:absolute; left:100px; top:100px; width:100px; height:100px;
+                    overflow:hidden; transform-origin:0 0; \(transform)">
+          <input id="off" autocomplete="given-name" style="position:absolute; left:-35px; top:40px;
+                      width:20px; height:20px; padding:0; border:0">
+        </div>
+        """)
+        #expect(try await FormFill.fill(me, in: web.webView) == 1)
+        #expect(try await value(web, "em") == "ryan@example.com")
+        #expect(try await value(web, "off") == "")
+    }
+
+    @Test("Only the document direction decides which side of the page can be reached, not body text direction",
+          arguments: ["ltr/ltr", "ltr/rtl", "rtl/ltr", "rtl/rtl"], [0, 99_999])
+    @MainActor func followsDocumentScrollDirection(directions: String, scroll: Int) async throws {
+        let parts = directions.split(separator: "/").map(String.init)
+        let rootDirection = parts[0], bodyDirection = parts[1]
+        let origin = rootDirection == "rtl" ? "right" : "left"
+        let web = try await loaded("""
+        <!doctype html>
+        <html dir="\(rootDirection)"><body style="margin:0; direction:\(bodyDirection)">
+          <input id="em" type="email">
+          <div style="position:absolute; \(origin):0; top:80px; width:2000px; height:10px"></div>
+          <input id="left" autocomplete="given-name" style="position:absolute; right:1500px; top:40px; width:150px">
+          <input id="right" autocomplete="family-name" style="position:absolute; left:1500px; top:40px; width:150px">
+        </body></html>
+        """)
+        let offset = rootDirection == "rtl" ? -scroll : scroll
+        _ = try await web.webView.evaluateJavaScript("window.scrollTo(\(offset), 0); 0")
+        #expect(try await FormFill.fill(me, in: web.webView) == 2)
+        #expect(try await value(web, "em") == "ryan@example.com")
+        #expect(try await value(web, "left") == (rootDirection == "rtl" ? "Ryan" : ""))
+        #expect(try await value(web, "right") == (rootDirection == "ltr" ? "Shepherd" : ""))
+    }
+
+    @Test("Vertical and sideways writing modes cannot expand reachability along the wrong physical axis",
+          arguments: ["vertical-lr", "vertical-rl", "sideways-lr", "sideways-rl"], ["ltr", "rtl"])
+    @MainActor func leavesUnsupportedWritingModesAlone(writingMode: String, direction: String) async throws {
+        let web = try await loaded("""
+        <!doctype html>
+        <html dir="\(direction)" style="writing-mode:\(writingMode)"><body style="margin:0">
+          <input id="em" type="email">
+          <div style="position:absolute; left:0; top:80px; width:2000px; height:10px"></div>
+          <input id="off" autocomplete="given-name" style="position:absolute; right:1500px; top:40px; width:150px">
+        </body></html>
+        """)
+        #expect(try await FormFill.fill(me, in: web.webView) == 0)
+        #expect(try await value(web, "em") == "")
+        #expect(try await value(web, "off") == "")
+    }
+
     @Test("On a page that can't scroll, a field outside the window is left alone",
           arguments: ["html, body { height: 100%; overflow: hidden }", "body { overflow: hidden }", "html { overflow: hidden }"])
     @MainActor func leavesFieldsOutsideALockedPageAlone(lock: String) async throws {

@@ -321,12 +321,18 @@ jobs:
             -destination 'platform=macOS' MACOSX_DEPLOYMENT_TARGET=26.0 \
             CODE_SIGNING_ALLOWED=NO -quiet build
 
+      # Analyze writes SARIF and uploads no results: the gate decides first what goes
+      # to the Security tab (ADR 0026). Code scanning can't read the
+      # NETRELISH-ALLOW-ENDPOINT comment, so an approved endpoint uploaded as-is
+      # sat in the Security tab as an open High alert, and came back as a new one
+      # every time an edit moved it.
       - uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           category: "/language:swift"
           output: .codeql-results
+          upload: failure-only   # results go up below, after the gate; only a crash report goes from here
 
-      # analyze uploads findings; it never fails the job on them, and there is
+      # analyze never fails the job on findings, and there is
       # no `fail-on` input. Without this step the gate is a report, not a gate —
       # the CodeQL check can sit green with an alert on it, so requiring it in
       # branch protection would still let a fifth endpoint merge. Gating
@@ -351,4 +357,7 @@ jobs:
       # matches is ambiguous by nature, and a red CodeQL job has to mean a
       # network call every time.
       - name: Fail if the gate fired
-        run: python3 scripts/codeql_gate.py .codeql-results
+        if: ${{ !cancelled() && steps.gate.outcome == 'failure' }}
+        run: |
+          echo "::error::netrelish/outbound-network-call fired with no approved exception; the gate step above says where"
+          exit 1
