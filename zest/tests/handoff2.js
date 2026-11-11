@@ -173,6 +173,26 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   ok(await mdOff.evaluate(() => window.__pwned === undefined) && await mdOff.$$eval(TOC_HOSTILE, n => n.length) === 0, 'no sanitizer → the Contents list is still plain links');
   await mdOff.close();
 
+  console.log('== Zest MD: Mermaid is always configured strict ==');
+  // A stand-in for the library records how the app configures it (the real one is 2.6 MB and not a test dependency).
+  // It is served for the app's own Mermaid URL, so the on-demand loader and every initialize call are the real ones.
+  const mdM = await ctx.newPage(); await block(mdM);
+  await mdM.route(/cdnjs\.cloudflare\.com.*dompurify/i, r => r.fulfill({ contentType: 'text/javascript', body: PURIFY }));
+  await mdM.route(/cdnjs\.cloudflare\.com.*mermaid/i, r => r.fulfill({ contentType: 'text/javascript', body: 'window.__mermaidLevels=[];window.mermaid={initialize:function(c){window.__mermaidLevels.push(c&&c.securityLevel)},run:async function(){}};' }));
+  const mdMErrs = []; mdM.on('pageerror', e => mdMErrs.push(e.message));
+  await mdM.goto('http://localhost:8774', { waitUntil: 'domcontentloaded' }); await mdM.waitForTimeout(600);
+  const DIAGRAM = '# Diagram\n\n```mermaid\nflowchart LR\n  A[Start] --> B[End]\n```\n';
+  await mdM.evaluate(t => { const dt = new DataTransfer(); dt.items.add(new File([t], 'diagram.md', { type: 'text/markdown' })); document.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true })); }, DIAGRAM);
+  await mdM.waitForTimeout(800);                                                                           // the fence triggers the on-demand load
+  await mdM.$eval('#popRead [data-set="theme"] [data-v="dark"]', b => b.click()); await mdM.waitForTimeout(300);   // a theme change configures it again
+  const levels = await mdM.evaluate(() => window.__mermaidLevels || []);
+  ok(levels.length >= 2 && levels.every(l => l === 'strict'), `every Mermaid initialize call asks for securityLevel strict (${levels.join(', ') || 'none recorded'})`);
+  const MD_SRC = fs.readFileSync(require('path').join(__dirname, '..', 'apps', 'md', 'index.html'), 'utf8');
+  ok((MD_SRC.match(/mermaid\.initialize\(/g) || []).length === 1, 'Mermaid is configured in exactly one place');
+  ok(!/securityLevel\s*:\s*['"](loose|antiscript)['"]/.test(MD_SRC), 'no code path asks Mermaid for a looser mode');
+  ok(mdMErrs.length === 0, 'Zest MD with diagrams: no exceptions (' + mdMErrs.slice(0, 1).join('').slice(0, 80) + ')');
+  await mdM.close();
+
   await browser.close();
   console.log(`\nTALLY: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
