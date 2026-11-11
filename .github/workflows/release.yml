@@ -165,10 +165,8 @@ jobs:
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
           security set-keychain-settings -lut 3600 "$KEYCHAIN"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          # -x: once imported, the private key cannot be exported from the keychain again.
-          # codesign is the only tool on the key's access list.
           security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$APPLE_CERTIFICATE_PASSWORD" \
-            -x -T /usr/bin/codesign
+            -T /usr/bin/codesign -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
           rm -f "$RUNNER_TEMP/cert.p12"
@@ -241,8 +239,7 @@ jobs:
         # Its own step: making the image runs a Swift script, pip and dmgbuild, and this keeps the
         # Apple ID, its password and the signing identity's name out of their environment. Those
         # are given only to the next step, which signs and notarizes. It does not put the signing
-        # key out of reach: the keychain stays usable until the image is signed, when it is
-        # locked, and it is removed at the end of the job.
+        # key out of reach: the keychain stays usable until it is removed at the end of the job.
         env:
           DMG: ${{ steps.version.outputs.dmg }}
         run: |
@@ -258,8 +255,6 @@ jobs:
           DMG: ${{ steps.version.outputs.dmg }}
         run: |
           codesign --sign "$APPLE_SIGNING_IDENTITY" --timestamp --keychain "$KEYCHAIN" "$DMG"
-          # Nothing after this line signs, so the key is locked away before the notary round.
-          security lock-keychain "$KEYCHAIN"
           xcrun notarytool submit "$DMG" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
             --password "$APPLE_PASSWORD" --wait --timeout 30m --output-format json > "$RUNNER_TEMP/notary-dmg.json" || true
           cat "$RUNNER_TEMP/notary-dmg.json"
