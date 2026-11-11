@@ -517,10 +517,62 @@ ${preheader}${content}
     ['Links'], ['unsubscribe', 'Unsubscribe URL', 'url'], ['preferences', 'Preferences URL', 'url'],
     ['Custom platform tags (only when Platform is custom)'], ['tagFirst', 'First name tag', 'text'], ['tagUnsub', 'Unsubscribe tag', 'text'], ['tagBrowser', 'View-in-browser tag', 'text'], ['instagram', 'Instagram', 'url'], ['linkedin', 'LinkedIn', 'url'], ['x', 'X', 'url'], ['facebook', 'Facebook', 'url'], ['youtube', 'YouTube', 'url']
   ];
+  /* ---------- untrusted data ----------
+     Imported designs and everything restored from storage pass through these before they reach
+     state. A value that lands in markup as structure (an id, color, font stack, number or select
+     option) must be one the app itself could have produced; anything else falls back to the
+     default. Free text and URLs are kept as text and escaped where they render. */
+  const BRAND_HEX = /^#[0-9a-fA-F]{6}$/;
+  const BRAND_ROLES = ['primary', 'ink', 'muted', 'paper', 'sheet', 'line', 'dark'];
+  const BRAND_TEXT = ['name', 'bentoSite', 'company', 'address', 'tagFirst', 'tagUnsub', 'tagBrowser'];
+  const BRAND_URLS = ['logo', 'website', 'unsubscribe', 'preferences', 'instagram', 'linkedin', 'x', 'facebook', 'youtube'];
+  const CTRL_RE = new RegExp('[\\x00-\\x1f\\u2028\\u2029]', 'g');
+  const SAFE_ID = /^[A-Za-z0-9_-]{1,40}$/;
+  const cleanId = v => (typeof v === 'string' && SAFE_ID.test(v)) ? v : null;
+  const cleanLine = (v, max = 300) => String(v ?? '').replace(CTRL_RE, ' ').slice(0, max);
+  const cleanNum = (v, lo, hi, d) => { const n = Number(v); return (v == null || v === '' || typeof v === 'boolean' || !Number.isFinite(n)) ? d : Math.max(lo, Math.min(hi, n)); };
+  // links and image sources keep whatever the author wrote (https, mailto, tel, app links, merge tags) except
+  // URLs a browser would run as script or open as a document; those are dropped. Raster data: images stay.
+  const cleanUrl = v => { const s = String(v ?? '').replace(CTRL_RE, '').trim().slice(0, 200000); return /^(javascript|vbscript|data):/i.test(s) && !/^data:image\/(png|jpe?g|gif|webp)[;,]/i.test(s) ? '' : s; };
+  // the font stack lands in style="" attributes unescaped (escaping would change the exported email), so it is a whitelist of characters
+  const cleanFont = v => String(v ?? '').replace(/[^A-Za-z0-9 ,'_-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  function sanitizeBrand(raw) {
+    const r = raw && typeof raw === 'object' ? raw : {}, b = BRAND_DEFAULT();
+    b.id = cleanId(r.id) || b.id;
+    for (const k of BRAND_TEXT) if (r[k] != null) b[k] = cleanLine(r[k]);
+    b.name = b.name.trim().slice(0, 80) || 'Brand';
+    for (const k of BRAND_URLS) if (r[k] != null) b[k] = cleanUrl(r[k]);
+    for (const k of BRAND_ROLES) if (BRAND_HEX.test(String(r[k] ?? ''))) b[k] = String(r[k]).toLowerCase();
+    if (['bento', 'generic', 'custom'].includes(r.esp)) b.esp = r.esp;
+    b.font = cleanFont(r.font) || b.font;
+    b.radius = cleanNum(r.radius, 0, 48, b.radius);
+    b.logoWidth = cleanNum(r.logoWidth, 16, 600, b.logoWidth);
+    return b;
+  }
+  function sanitizeProps(type, raw) {
+    const def = BLOCKS[type], r = raw && typeof raw === 'object' ? raw : {}, p = Object.assign({}, def.defaults);
+    for (const f of def.fields) {             // only declared fields are copied, each by its declared type
+      const v = r[f.k]; if (v == null) continue;
+      if (f.t === 'select') { if (f.o.includes(String(v))) p[f.k] = String(v); }
+      else if (f.t === 'range') p[f.k] = cleanNum(v, f.o[0], f.o[1], p[f.k]);
+      else if (f.t === 'toggle') p[f.k] = v === true;
+      else if (f.t === 'color') { if (COLOR_TOKENS.some(([t]) => t === v) || BRAND_HEX.test(String(v))) p[f.k] = String(v); }
+      else if (f.t === 'url') p[f.k] = cleanUrl(v);
+      else p[f.k] = String(v).slice(0, 20000);   // text and textarea
+    }
+    return p;
+  }
+  // unknown block types are dropped; ids are always regenerated (they are only used for selection)
+  const sanitizeBlocks = raw => (Array.isArray(raw) ? raw : []).slice(0, 400)
+    .filter(bl => bl && typeof bl === 'object' && typeof bl.type === 'string' && Object.prototype.hasOwnProperty.call(BLOCKS, bl.type))
+    .map(bl => ({ id: uid(), type: bl.type, props: sanitizeProps(bl.type, bl.props) }));
+
   let brands = store.get('brands', null);
-  if (!brands || !brands.length) brands = [Object.assign(BRAND_DEFAULT(), { id: 'shepdesign', name: 'Shepdesign', company: 'Shepdesign LLC', address: 'Phoenix, AZ', website: 'https://shepdesign.com' })];
+  brands = Array.isArray(brands) ? brands.map(sanitizeBrand) : [];
+  if (!brands.length) brands = [Object.assign(BRAND_DEFAULT(), { id: 'shepdesign', name: 'Shepdesign', company: 'Shepdesign LLC', address: 'Phoenix, AZ', website: 'https://shepdesign.com' })];
   const brand = () => brands.find(b => b.id === state.brandId) || brands[0];
-  const col = v => (typeof v === 'string' && v.startsWith('brand.')) ? (brand()[v.slice(6)] || '#000000') : v;
+  // a color is a brand role, a six-digit hex or 'transparent'; nothing else reaches markup
+  const col = v => { if (typeof v === 'string' && v.startsWith('brand.')) { const k = v.slice(6); v = BRAND_ROLES.includes(k) ? brand()[k] : ''; } return v === 'transparent' || BRAND_HEX.test(String(v)) ? v : '#000000'; };
   /* ---------- merge tags per platform ---------- */
   const ESP = {
     bento:   { name: 'Bento (Liquid)', first: '{{ visitor.first_name | default: "there" }}', last: '{{ visitor.last_name }}', email: '{{ visitor.email }}', unsubscribe: '{{ visitor.unsubscribe_url }}', browser: '{{ browser_url }}', snooze: '{{ visitor.snooze_url }}', subject: '{{ subject }}' },
@@ -547,7 +599,7 @@ ${preheader}${content}
   let CANVAS = false; // true while rendering for the canvas → text becomes click-to-edit
   const ed = (k, html, rich = false) => CANVAS ? `<span data-edit="${k}" data-rich="${rich ? 1 : 0}" contenteditable="true" spellcheck="false">${html}</span>` : html;
   const edb = (k, html) => CANVAS ? `<div data-edit="${k}" data-rich="1" contenteditable="true" spellcheck="false">${html}</div>` : html;
-  const md = (s, link) => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>').replace(/\[([^\]]+)\]\(([^)]+)\)/g, `<a href="$2" style="color:${link};text-decoration:underline">$1</a>`).split(/\n{2,}/).map(p => `<p style="margin:0 0 14px">${p.replace(/\n/g, '<br>')}</p>`).join('').replace(/<p style="margin:0 0 14px">([\s\S]*)<\/p>$/, '<p style="margin:0">$1</p>');
+  const md = (s, link) => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>').replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, t, u) => `<a href="${cleanUrl(u)}" style="color:${link};text-decoration:underline">${t}</a>`).split(/\n{2,}/).map(p => `<p style="margin:0 0 14px">${p.replace(/\n/g, '<br>')}</p>`).join('').replace(/<p style="margin:0 0 14px">([\s\S]*)<\/p>$/, '<p style="margin:0">$1</p>');
   const img = (src, alt, w, extra = '') => src ? `<img src="${esc(src)}" alt="${esc(alt)}" width="${w}" style="display:block;width:${w}px;max-width:100%;height:auto;border:0${extra}">` : `<!--ph:${w}--><div class="ph" style="width:${w}px;max-width:100%;height:${Math.round(w * .5)}px;border-radius:6px">Image ${w}px wide<br>set a URL in the inspector</div>`;
   const btn = (text, url, bg, color, r, full, font, k = 'cta') => `<table role="presentation" cellpadding="0" cellspacing="0" border="0" ${full ? 'width="100%"' : ''}><tr><td align="center" bgcolor="${bg}" style="background-color:${bg};border-radius:${r}px;mso-padding-alt:14px 26px"><a href="${esc(url)}" style="display:inline-block;padding:14px 26px;font-family:${font};font-size:16px;font-weight:600;line-height:1;color:${color};text-decoration:none;border-radius:${r}px;${full ? 'width:100%;box-sizing:border-box;' : ''}">${ed(k, esc(text))}</a></td></tr></table>`;
   const cell = (p, b, inner, extra = '') => `<tr><td align="${p.align || 'left'}" bgcolor="${col(p.bg || 'brand.sheet')}" style="background-color:${col(p.bg || 'brand.sheet')};padding:${p.pad ?? 24}px ${p.padX ?? 36}px;font-family:${b.font};${extra}">${inner}</td></tr>`;
@@ -555,7 +607,7 @@ ${preheader}${content}
   const BLOCKS = {
     header: { name: 'Logo header', desc: 'Brand logo, view-in-browser line', fields: [F('align', 'Align', 'select', ['left', 'center']), F('tagline', 'Tagline', 'text'), F('browser', 'View in browser link', 'toggle'), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [8, 60])],
       defaults: { align: 'left', tagline: '', browser: true, bg: 'brand.sheet', pad: 24 },
-      render(p, b) { const logo = b.logo ? `<a href="${esc(b.website)}"><img src="${esc(b.logo)}" alt="${esc(b.company)}" width="${b.logoWidth}" style="display:${p.align === 'center' ? 'inline-block' : 'block'};width:${b.logoWidth}px;height:auto;border:0"></a>` : `<a href="${esc(b.website)}" style="font-size:20px;font-weight:700;color:${b.ink};text-decoration:none;letter-spacing:-.01em">${esc(b.company)}</a>`; const vb = tag('browser'); const line = p.browser && vb ? `<div style="font-size:11px;color:${b.muted};margin:0 0 14px"><a href="${vb}" style="color:${b.muted};text-decoration:underline">View in browser</a></div>` : ''; return cell(p, b, line + logo + (p.tagline ? `<div style="font-size:12px;color:${b.muted};margin-top:6px">${ed('tagline', esc(p.tagline))}</div>` : '')); } },
+      render(p, b) { const lw = Number(b.logoWidth) || 140; const logo = b.logo ? `<a href="${esc(b.website)}"><img src="${esc(b.logo)}" alt="${esc(b.company)}" width="${lw}" style="display:${p.align === 'center' ? 'inline-block' : 'block'};width:${lw}px;height:auto;border:0"></a>` : `<a href="${esc(b.website)}" style="font-size:20px;font-weight:700;color:${b.ink};text-decoration:none;letter-spacing:-.01em">${esc(b.company)}</a>`; const vb = esc(tag('browser')); const line = p.browser && vb ? `<div style="font-size:11px;color:${b.muted};margin:0 0 14px"><a href="${vb}" style="color:${b.muted};text-decoration:underline">View in browser</a></div>` : ''; return cell(p, b, line + logo + (p.tagline ? `<div style="font-size:12px;color:${b.muted};margin-top:6px">${ed('tagline', esc(p.tagline))}</div>` : '')); } },
     hero: { name: 'Hero', desc: 'Eyebrow, headline, lede, CTA', fields: [F('eyebrow', 'Eyebrow', 'text'), F('headline', 'Headline', 'textarea'), F('lede', 'Lede', 'textarea'), F('image', 'Image URL', 'url'), F('imageAlt', 'Image alt', 'text'), F('cta', 'Button text', 'text'), F('url', 'Button URL', 'url'), F('bg', 'Background', 'color'), F('color', 'Text color', 'color'), F('align', 'Align', 'select', ['left', 'center']), F('pad', 'Padding', 'range', [16, 80])],
       defaults: { eyebrow: 'Announcement', headline: 'A headline that earns the open', lede: 'One or two sentences that say why this matters to the reader, not to you.', image: '', imageAlt: '', cta: 'Read more', url: 'https://example.com', bg: 'brand.dark', color: '#ffffff', align: 'left', pad: 44 },
       render(p, b) { const c = col(p.color); return cell(p, b, `${p.image ? `<div style="margin:0 0 24px">${img(p.image, p.imageAlt, 528)}</div>` : ''}${p.eyebrow ? `<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:${b.primary === col(p.bg) ? c : b.primary};margin:0 0 12px;opacity:.95">${ed('eyebrow', esc(p.eyebrow))}</div>` : ''}<h1 style="margin:0 0 12px;font-size:30px;line-height:1.15;letter-spacing:-.02em;color:${c};font-weight:700">${ed('headline', esc(p.headline))}</h1>${p.lede ? `<p style="margin:0 0 ${p.cta ? 26 : 0}px;font-size:17px;line-height:1.5;color:${c};opacity:.85">${ed('lede', esc(p.lede))}</p>` : ''}${p.cta ? btn(p.cta, p.url, col(p.bg) === b.primary ? '#ffffff' : b.primary, col(p.bg) === b.primary ? b.primary : '#ffffff', b.radius, false, b.font) : ''}`); } },
@@ -594,10 +646,10 @@ ${preheader}${content}
       render(p, b) {
         const note = md(p.note.replace('{website}', b.website.replace(/^https?:\/\//, '')), b.muted);
         const L = (href, label) => `<a href="${href}" style="color:${b.muted};text-decoration:underline">${label}</a>`;
-        const links = [L(tag('unsubscribe') || esc(b.unsubscribe), 'Unsubscribe')];
+        const links = [L(esc(tag('unsubscribe')) || esc(b.unsubscribe), 'Unsubscribe')];   // every href is escaped; the built-in tags have nothing to escape, so exports are unchanged
         if (p.prefs && b.preferences) links.push(L(esc(b.preferences), 'Manage preferences'));
-        if (p.snooze && tag('snooze')) links.push(L(tag('snooze'), 'Snooze for a while'));
-        if (p.browser && tag('browser')) links.push(L(tag('browser'), 'View in browser'));
+        if (p.snooze && tag('snooze')) links.push(L(esc(tag('snooze')), 'Snooze for a while'));
+        if (p.browser && tag('browser')) links.push(L(esc(tag('browser')), 'View in browser'));
         return cell(p, b, `<div style="font-size:12px;line-height:1.6;color:${b.muted}">${esc(b.company)}${b.address ? ' · ' + esc(b.address) : ''}<br>${edb('note', note)}<br>${links.join(' · ')}</div>`);
       } }
   };
@@ -652,7 +704,7 @@ ${preheader}${content}
     $('#canvasWrap').style.setProperty('--fit', fit < 1 ? fit : 1); // block tools counter-zoom reads this
     if (!state.blocks.length) { canvas.innerHTML = `<div class="empty"><img src="icons/icon-112.png" alt=""><b>Empty canvas</b>Drag a block from the left, or pick a template.</div>`; return; }
     const rows = buildHTML(true);
-    canvas.innerHTML = state.blocks.map((bl, i) => `<div class="cv-block" data-id="${bl.id}" draggable="true" aria-selected="${bl.id === state.selected}"><span class="tag">${BLOCKS[bl.type].name}</span><div class="tools"><button data-act="up" title="Move up">${ICON.up}</button><button data-act="down" title="Move down">${ICON.down}</button><button data-act="dup" title="Duplicate">${ICON.dup}</button><button data-act="del" title="Delete">${ICON.del}</button></div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:${b.font}"><tbody>${rows[i]}</tbody></table></div>`).join('');
+    canvas.innerHTML = state.blocks.map((bl, i) => `<div class="cv-block" data-id="${esc(bl.id)}" draggable="true" aria-selected="${bl.id === state.selected}"><span class="tag">${BLOCKS[bl.type].name}</span><div class="tools"><button data-act="up" title="Move up">${ICON.up}</button><button data-act="down" title="Move down">${ICON.down}</button><button data-act="dup" title="Duplicate">${ICON.dup}</button><button data-act="del" title="Delete">${ICON.del}</button></div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:${b.font}"><tbody>${rows[i]}</tbody></table></div>`).join('');
     canvas.style.background = b.sheet; canvas.style.borderRadius = b.radius + 'px';
   }
   canvas.addEventListener('click', e => {
@@ -697,7 +749,7 @@ ${preheader}${content}
   let dragType = null;
   $('#lib').addEventListener('dragstart', e => { const it = e.target.closest('.lib-item'); if (!it) return; dragType = 'lib:' + it.dataset.type; e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', dragType); });
   $('#mods').addEventListener('dragstart', e => { const it = e.target.closest('[data-mod]'); if (!it) return; dragType = 'mod:' + it.dataset.mod; e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', dragType); });
-  const fromModule = id => { const m = store.get('modules', []).find(x => x.id === id); return m && BLOCKS[m.type] ? { id: uid(), type: m.type, props: Object.assign({}, BLOCKS[m.type].defaults, m.props) } : null; };
+  const fromModule = id => { const m = store.get('modules', []).find(x => x.id === id); return (m && sanitizeBlocks([m])[0]) || null; };   // modules come back from storage: same checks as an import
   $('#mods').addEventListener('click', e => { const rm = e.target.closest('[data-rmmod]'); if (rm) { e.preventDefault(); store.set('modules', store.get('modules', []).filter(x => x.id !== rm.dataset.rmmod)); renderModules(); return; } const it = e.target.closest('[data-mod]'); if (!it) return; const nb = fromModule(it.dataset.mod); if (!nb) return; snapshot(); state.blocks.push(nb); state.selected = nb.id; renderCanvas(); renderInspector(); run(); showTab('block'); closeLibOnAdd(); });
   canvas.addEventListener('dragstart', e => { const blk = e.target.closest('.cv-block'); if (!blk) return; dragType = 'block:' + blk.dataset.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dragType); });
   const clearDrop = () => { $$('.cv-block', canvas).forEach(x => x.classList.remove('drop-before', 'drop-after')); canvas.classList.remove('drag-over'); };
@@ -728,7 +780,7 @@ ${preheader}${content}
     if (f.t === 'textarea') return `<div class="field stack"><label for="${id}">${f.label}</label><textarea id="${id}" data-k="${f.k}">${esc(v)}</textarea></div>`;
     if (f.t === 'select') return `<div class="field"><label for="${id}">${f.label}</label><select id="${id}" data-k="${f.k}">${f.o.map(o => `<option ${String(o) === String(v) ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
     if (f.t === 'toggle') return `<div class="field"><label for="${id}">${f.label}</label><input type="checkbox" id="${id}" data-k="${f.k}" ${v ? 'checked' : ''}></div>`;
-    if (f.t === 'range') return `<div class="field"><label for="${id}">${f.label}</label><input type="range" id="${id}" data-k="${f.k}" min="${f.o[0]}" max="${f.o[1]}" value="${v}"><span class="val">${v}px</span></div>`;
+    if (f.t === 'range') return `<div class="field"><label for="${id}">${f.label}</label><input type="range" id="${id}" data-k="${f.k}" min="${f.o[0]}" max="${f.o[1]}" value="${esc(v)}"><span class="val">${esc(v)}px</span></div>`;
     if (f.t === 'color') { const isTok = COLOR_TOKENS.some(([t]) => t === v); return `<div class="field"><label>${f.label}</label><div class="colorbox"><select data-k="${f.k}" data-colorsel>${COLOR_TOKENS.map(([t, l]) => `<option value="${t}" ${t === v ? 'selected' : ''}>${l}</option>`).join('')}<option value="custom" ${isTok ? '' : 'selected'}>Custom…</option></select><input type="color" data-k="${f.k}" data-colorpick value="${/^#[0-9a-f]{6}$/i.test(col(v)) ? col(v) : '#000000'}" ${isTok ? 'style="opacity:.4"' : ''}></div></div>`; }
     if (f.t === 'number') return `<div class="field"><label for="${id}">${f.label}</label><input type="number" id="${id}" data-k="${f.k}" value="${esc(v)}"></div>`;
     return `<div class="field"><label for="${id}">${f.label}</label><input type="text" id="${id}" data-k="${f.k}" value="${esc(v)}" ${f.t === 'url' ? 'placeholder="https://… or a {{ tag }}"' : ''}></div>`;
@@ -758,14 +810,14 @@ ${preheader}${content}
   });
   function renderModules() {
     const mods = store.get('modules', []); const el = $('#mods'); if (!el) return;
-    el.innerHTML = mods.length ? mods.map(m => `<div class="lib-item" draggable="true" data-mod="${m.id}"><b>${esc(m.name)}</b><span>${BLOCKS[m.type] ? BLOCKS[m.type].name : m.type} · <a href="#" data-rmmod="${m.id}" style="color:var(--ink-3)">remove</a></span></div>`).join('') : '<div class="lib-item" style="cursor:default"><b>No modules yet</b><span>Select a block, then “Save as module”</span></div>';
+    el.innerHTML = mods.length ? mods.map(m => `<div class="lib-item" draggable="true" data-mod="${esc(m.id)}"><b>${esc(m.name)}</b><span>${Object.prototype.hasOwnProperty.call(BLOCKS, m.type) ? BLOCKS[m.type].name : esc(m.type)} · <a href="#" data-rmmod="${esc(m.id)}" style="color:var(--ink-3)">remove</a></span></div>`).join('') : '<div class="lib-item" style="cursor:default"><b>No modules yet</b><span>Select a block, then “Save as module”</span></div>';
   }
   function renderBrandPanel() {
     const b = brand(), p = $('#panelBrand');
-    p.innerHTML = `<div class="field"><label>Brand</label><select id="brandSel">${brands.map(x => `<option value="${x.id}" ${x.id === b.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
+    p.innerHTML = `<div class="field"><label>Brand</label><select id="brandSel">${brands.map(x => `<option value="${esc(x.id)}" ${x.id === b.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
       <div class="row-btns"><button class="btn" id="brandNew">New brand</button><button class="btn" id="brandDup">Duplicate</button><button class="btn" id="brandDel" ${brands.length < 2 ? 'disabled' : ''}>Delete</button></div>
       <div class="row-btns"><button class="btn" id="brandImport" title="Colors, body font and radius from the Zest studio">Import zest-brand.json</button></div>
-      ${BRAND_FIELDS.map(f => f.length === 1 ? `<h4>${f[0]}</h4>` : f[2] === 'select' ? `<div class="field"><label>${f[1]}</label><select data-bk="${f[0]}">${f[3].map(o => `<option value="${o}" ${b[f[0]] === o ? 'selected' : ''}>${o === 'bento' ? 'Bento (Liquid)' : o === 'generic' ? 'None — plain URLs' : 'Custom tags'}</option>`).join('')}</select></div>` : f[2] === 'color' ? `<div class="field"><label>${f[1]}</label><input type="color" data-bk="${f[0]}" value="${b[f[0]]}"><span class="val" style="width:auto">${b[f[0]]}</span></div>` : `<div class="field"><label>${f[1]}</label><input type="${f[2]}" data-bk="${f[0]}" value="${esc(b[f[0]])}"></div>`).join('')}
+      ${BRAND_FIELDS.map(f => f.length === 1 ? `<h4>${f[0]}</h4>` : f[2] === 'select' ? `<div class="field"><label>${f[1]}</label><select data-bk="${f[0]}">${f[3].map(o => `<option value="${o}" ${b[f[0]] === o ? 'selected' : ''}>${o === 'bento' ? 'Bento (Liquid)' : o === 'generic' ? 'None — plain URLs' : 'Custom tags'}</option>`).join('')}</select></div>` : f[2] === 'color' ? `<div class="field"><label>${f[1]}</label><input type="color" data-bk="${f[0]}" value="${esc(b[f[0]])}"><span class="val" style="width:auto">${esc(b[f[0]])}</span></div>` : `<div class="field"><label>${f[1]}</label><input type="${f[2]}" data-bk="${f[0]}" value="${esc(b[f[0]])}"></div>`).join('')}
       <div class="hint">One brand per Bento site. Platform decides which merge tags the footer, header and “Insert tag” menu use; the canvas shows the raw tags and the Desktop/Mobile previews show sample values. Brands are saved in this browser and travel inside exported .json designs. Import zest-brand.json (or drop one anywhere) to pull the Zest studio’s light palette, body font and corner radius into a brand here — identity fields stay yours.</div>`;
   }
   $('#panelBlock').addEventListener('input', e => {
@@ -781,7 +833,7 @@ ${preheader}${content}
   $('#panelBrand').addEventListener('input', e => {
     const b = brand(), k = e.target.dataset.bk;
     if (e.target.id === 'brandSel') { state.brandId = e.target.value; renderInspector(); renderBrandPanel(); renderCanvas(); run(); return; }
-    if (!k) return; b[k] = e.target.type === 'number' ? +e.target.value : e.target.value; if (e.target.type === 'color') e.target.nextElementSibling.textContent = e.target.value;
+    if (!k) return; b[k] = e.target.type === 'number' ? +e.target.value : k === 'font' ? cleanFont(e.target.value) : e.target.value; if (e.target.type === 'color') e.target.nextElementSibling.textContent = e.target.value;
     if (k === 'name') { $('#brandSel').selectedOptions[0].textContent = b.name; }
     if (k === 'esp') { renderInspector(); renderBrandPanel(); }
     store.set('brands', brands); renderCanvas(); schedule();
@@ -868,8 +920,13 @@ ${preheader}${content}
   const designs = () => store.get('designs', []);
   function persist() { store.set('draft', { blocks: state.blocks, brandId: state.brandId, subject: $('#subject').value, preheader: $('#preheader').value, width: $('#width').value, bg: $('#bg').value, src: src.value, designId: state.designId, designName: state.designName }); }
   function designJSON() { return { name: state.designName, brand: brand(), blocks: state.blocks, subject: $('#subject').value, preheader: $('#preheader').value, width: $('#width').value, bg: $('#bg').value, saved: new Date().toISOString() }; }
-  function loadDesign(d) { snapshot(); state.blocks = d.blocks || []; state.designName = d.name || 'Untitled'; state.designId = d.id || null; $('#subject').value = d.subject || ''; $('#preheader').value = d.preheader || ''; if (d.width) $('#width').value = d.width; if (d.bg) $('#bg').value = d.bg;
-    if (d.brand) { const ex = brands.find(b => b.id === d.brand.id); if (ex) Object.assign(ex, d.brand); else brands.push(d.brand); state.brandId = d.brand.id; store.set('brands', brands); }
+  const setWidth = v => { if ([...$('#width').options].some(o => o.value === String(v))) $('#width').value = String(v); };
+  const setBg = v => { if (BRAND_HEX.test(String(v))) $('#bg').value = v; };
+  // a design is untrusted wherever it comes from (a file, a drop, or storage): blocks and brand are rebuilt, never taken as-is
+  function loadDesign(d) { snapshot(); state.blocks = sanitizeBlocks(d.blocks); state.designName = cleanLine(d.name, 120).trim() || 'Untitled'; state.designId = cleanId(d.id); $('#subject').value = cleanLine(d.subject, 500); $('#preheader').value = cleanLine(d.preheader, 500); setWidth(d.width); setBg(d.bg);
+    if (d.brand && typeof d.brand === 'object') { const nb = sanitizeBrand(d.brand), ex = brands.find(b => b.id === nb.id);
+      if (ex) { for (const k of Object.keys(nb)) if (Object.prototype.hasOwnProperty.call(d.brand, k)) ex[k] = nb[k]; } else brands.push(nb);   // an existing brand only takes the fields the file carries
+      state.brandId = nb.id; store.set('brands', brands); }
     state.selected = null; setMode('build'); renderCanvas(); renderInspector(); renderSaved(); run(); }
   $('#btnSave').addEventListener('click', () => {
     const name = prompt('Design name', state.designName); if (name == null) return;
@@ -878,7 +935,7 @@ ${preheader}${content}
     store.set('designs', list); renderSaved(); toast(`Saved “${name}”`);
   });
   $('#btnNew').addEventListener('click', () => { if (state.blocks.length && !confirm('Start a new design? The canvas will be cleared (Undo works).')) return; snapshot(); state.blocks = []; state.selected = null; state.designId = null; state.designName = 'Untitled'; $('#subject').value = ''; $('#preheader').value = ''; renderCanvas(); renderInspector(); run(); });
-  function renderSaved() { const list = designs(); $('#savedList').innerHTML = list.length ? list.map(d => `<div><span title="${esc(d.name)}">${esc(d.name)}</span><small>${new Date(d.saved).toLocaleDateString()}</small><button data-load="${d.id}" title="Open">↗</button><button data-rm="${d.id}" title="Delete">×</button></div>`).join('') : '<div><span style="color:var(--ink-3)">Nothing saved yet</span></div>'; }
+  function renderSaved() { const list = designs(); $('#savedList').innerHTML = list.length ? list.map(d => `<div><span title="${esc(d.name)}">${esc(d.name)}</span><small>${new Date(d.saved).toLocaleDateString()}</small><button data-load="${esc(d.id)}" title="Open">↗</button><button data-rm="${esc(d.id)}" title="Delete">×</button></div>`).join('') : '<div><span style="color:var(--ink-3)">Nothing saved yet</span></div>'; }
   $('#savedList').addEventListener('click', e => { const l = e.target.closest('[data-load]'), r = e.target.closest('[data-rm]'); if (l) { const d = designs().find(x => x.id === l.dataset.load); if (d) loadDesign(d); } if (r) { if (!confirm('Delete this saved design?')) return; store.set('designs', designs().filter(x => x.id !== r.dataset.rm)); renderSaved(); } });
 
   /* ---------- export ---------- */
@@ -902,9 +959,6 @@ ${preheader}${content}
   } catch { toast(`That file isn’t a ${PRODUCT} design`); } $('#jsonFile').value = ''; });
 
   /* ---------- zest-brand.json import (ZEST-SPEC §7.3): light palette, body font, radius into a brand ---------- */
-  const BRAND_HEX = /^#[0-9a-fA-F]{6}$/;
-  const BRAND_ROLES = ['primary', 'ink', 'muted', 'paper', 'sheet', 'line', 'dark'];
-  const CTRL_RE = new RegExp('[\\x00-\\x1f\\u2028\\u2029]', 'g');
   function emailStack(name) {          // email-safe: the brand family first, classic fallbacks behind it
     // whitelist, not blacklist: the value lands in raw style="" attributes, where &#NN; would decode into CSS delimiters
     const n = String(name || '').replace(CTRL_RE, ' ').replace(/[^A-Za-z0-9 -]/g, '').replace(/\s+/g, ' ').trim().slice(0, 48);
@@ -1034,7 +1088,7 @@ Rules: table-based layout for anything side-by-side (role="presentation", cellpa
 
   /* ---------- boot ---------- */
   const draft = store.get('draft', null);
-  if (draft) { state.blocks = draft.blocks || []; if (brands.find(b => b.id === draft.brandId)) state.brandId = draft.brandId; $('#subject').value = draft.subject || ''; $('#preheader').value = draft.preheader || ''; if (draft.width) $('#width').value = draft.width; if (draft.bg) $('#bg').value = draft.bg; src.value = draft.src || ''; state.designId = draft.designId || null; state.designName = draft.designName || 'Untitled'; }
+  if (draft && typeof draft === 'object') { state.blocks = sanitizeBlocks(draft.blocks); if (brands.find(b => b.id === draft.brandId)) state.brandId = draft.brandId; $('#subject').value = cleanLine(draft.subject, 500); $('#preheader').value = cleanLine(draft.preheader, 500); setWidth(draft.width); setBg(draft.bg); src.value = typeof draft.src === 'string' ? draft.src : ''; state.designId = cleanId(draft.designId); state.designName = cleanLine(draft.designName, 120).trim() || 'Untitled'; }   // the draft comes back from storage: same checks as an import
   renderSaved(); renderModules(); renderInspector(); renderBrandPanel(); renderCanvas(); setMode('build');
   booted = true; // from here on, showTab may open the bottom sheet on narrow screens
 })();

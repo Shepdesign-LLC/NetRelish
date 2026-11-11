@@ -85,6 +85,64 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   await fr.evaluate(j => { const dt = new DataTransfer(); dt.items.add(new File([j], 'pantry-zest-brand.json', { type: 'application/json' })); document.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true })); }, JSON.stringify(brand));
   await ml.waitForTimeout(400);
   ok((await ml.$eval('#toast', e => e.textContent)).includes('zest-brand.json'), 'dropping on the preview iframe imports too');
+
+  console.log('== ZestMail: design import is checked, and an honest design is unchanged by the checks ==');
+  // an honest design first: export it, import it back, and the compiled email must be byte-identical
+  await ml.click('#viewSeg [data-w="canvas"]'); await ml.waitForTimeout(300);
+  await ml.$eval('#tpl [data-tpl="newsletter"]', b => b.click()); await ml.waitForTimeout(400);
+  await ml.click('#viewSeg [data-w="600"]'); await ml.waitForTimeout(500);
+  const compiledBefore = await ml.$eval('#frame', f => f.srcdoc);
+  const designDl = ml.waitForEvent('download'); await ml.$eval('#popExport [data-do="json"]', b => b.click());
+  const designPath = await (await designDl).path();
+  await ml.setInputFiles('#jsonFile', { name: 'newsletter.mailpress.json', mimeType: 'application/json', buffer: fs.readFileSync(designPath) });
+  await ml.waitForTimeout(600);
+  await ml.click('#viewSeg [data-w="600"]'); await ml.waitForTimeout(500);
+  ok(compiledBefore.length > 2000 && await ml.$eval('#frame', f => f.srcdoc) === compiledBefore, 'an exported design re-imports to the same compiled email');
+  await ml.click('#viewSeg [data-w="canvas"]'); await ml.waitForTimeout(300);
+  ok(await ml.$$eval('.cv-block', b => b.length) === 7, 'every block of the exported design comes back');
+  // a hostile design: every field that becomes markup structure (ids, fonts, colors, numbers, select values,
+  // block types, link schemes) carries markup. None of it may reach the page as markup, now or after a reload.
+  const X = '"><img src=x onerror="window.__pwned=1">';
+  const evil = { name: 'Evil' + X, id: 'd' + X, subject: 's', width: '600' + X, bg: '#ffffff' + X,
+    brand: { id: 'evil' + X, name: 'Evil brand', esp: 'custom', tagBrowser: 'x' + X, tagUnsub: 'u' + X, font: 'x' + X, primary: '#000000' + X, ink: X, muted: X, sheet: X, line: X,
+      logo: 'icons/icon-112.png', logoWidth: '140' + X, radius: '8' + X, website: 'javascript:window.__pwned=1', unsubscribe: 'javascript:window.__pwned=1' },
+    blocks: [
+      { id: 'b' + X, type: 'spacer', props: { height: '24' + X, bg: 'x' + X } },
+      { id: 'b2', type: 'header', props: { align: 'left' + X, browser: true, pad: '24' + X, padX: '36' + X, bg: 'brand.font' } },
+      { id: 'b3', type: 'text', props: { size: '16' + X, color: X, body: 'hi [link](javascript:window.__pwned=1)' } },
+      { id: 'b4', type: 'nope' + X, props: {} },
+      { id: 'b5', type: 'constructor', props: {} },
+      { id: 'b6', type: 'footer', props: { browser: true, snooze: true, prefs: true } },
+    ] };
+  const HOSTILE = '[onerror], #canvas script, #canvas a[href^="javascript:" i]';
+  await ml.setInputFiles('#jsonFile', { name: 'evil.mailpress.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(evil)) });
+  await ml.waitForTimeout(700);
+  ok(await ml.evaluate(() => window.__pwned === undefined), 'a hostile design import runs nothing');
+  ok(await ml.$$eval(HOSTILE, n => n.length) === 0, 'the import adds no elements, handlers or script URLs');
+  ok(await ml.$$eval('.cv-block', b => b.length) === 4, 'known block types load; unknown ones are dropped');
+  ok(await ml.$eval('#brandSel', s => s.selectedOptions[0].textContent) === 'Evil brand', 'the imported brand is selected');
+  ok(await ml.$eval('[data-bk="primary"]', e => e.value) === '#1f4ed8', 'a color that is not a six-digit hex falls back to the default');
+  ok(!/[<>"=;:(){}]/.test(await ml.$eval('[data-bk="font"]', e => e.value)), 'an imported font stack is reduced to font-name characters');
+  await ml.$eval('.cv-block', b => b.click()); await ml.waitForTimeout(300);      // inspector renders the block's fields
+  await ml.click('#viewSeg [data-w="600"]'); await ml.waitForTimeout(500);       // and the compiled preview
+  ok(await ml.$eval('#frame', f => new DOMParser().parseFromString(f.srcdoc, 'text/html').querySelectorAll('[onerror], script, a[href^="javascript:" i]').length) === 0, 'the compiled preview carries no handlers or script URLs');
+  ok(await ml.evaluate(() => window.__pwned === undefined) && await ml.$$eval(HOSTILE, n => n.length) === 0, 'still nothing after the inspector and the preview render');
+  await ml.reload({ waitUntil: 'domcontentloaded' }); await ml.waitForTimeout(700);
+  ok(await ml.evaluate(() => window.__pwned === undefined), 'nothing runs when the imported design comes back from storage');
+  ok(await ml.$$eval(HOSTILE, n => n.length) === 0 && await ml.$$eval('.cv-block', b => b.length) === 4, 'the reloaded canvas is the same four clean blocks');
+  // storage itself is untrusted too: brands, the draft, modules and saved designs are checked on the way in
+  await ml.evaluate(x => {
+    const put = (k, v) => localStorage.setItem('mailpress:' + k, JSON.stringify(v));
+    put('brands', [{ id: 'b' + x, name: 'Tampered', font: 'f' + x, ink: x, sheet: x, radius: x, logoWidth: x }]);
+    put('draft', { blocks: [{ id: x, type: 'spacer', props: { height: x, bg: x } }, { id: 'k', type: x, props: {} }], brandId: 'b' + x, designId: x, designName: 'n' + x, width: x, bg: x });
+    put('modules', [{ id: 'm' + x, name: 'M', type: 'spacer', props: { height: x, bg: x } }, { id: 'm2', name: 'N', type: 't' + x, props: {} }]);
+    put('designs', [{ id: 'd' + x, name: 'D', saved: x, blocks: [{ id: x, type: 'divider', props: { color: x } }] }]);
+  }, X);
+  await ml.reload({ waitUntil: 'domcontentloaded' }); await ml.waitForTimeout(700);
+  ok(await ml.evaluate(() => window.__pwned === undefined) && await ml.$$eval('[onerror]', n => n.length) === 0, 'tampered storage runs nothing at boot');
+  await ml.$eval('#mods [data-mod]', e => e.click()); await ml.waitForTimeout(300);            // a stored module onto the canvas
+  await ml.$eval('#savedList [data-load]', e => e.click()); await ml.waitForTimeout(400);      // a stored design opened
+  ok(await ml.evaluate(() => window.__pwned === undefined) && await ml.$$eval('[onerror]', n => n.length) === 0, 'stored modules and saved designs are checked before they reach the canvas');
   ok(mlErrs.length === 0, 'ZestMail: no exceptions (' + mlErrs.slice(0, 1).join('').slice(0, 80) + ')');
   await ml.close();
 
