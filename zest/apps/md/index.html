@@ -418,13 +418,21 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const has = { md: !!window.markdownit, hl: !!window.hljs, katex: !!window.renderMathInElement, mermaid: !!window.mermaid, pure: !!window.DOMPurify };
-  /* on-demand vendors: fetched the first time a document needs them, then has.* flips and render() re-runs */
+  /* on-demand vendors: fetched the first time a document needs them, then has.* flips and render() re-runs.
+     Each file is listed with the sha384 of the release named in its URL; the browser refuses a file that
+     does not match, and the document then renders without that feature. */
   const VENDOR = {
-    katex: { label: 'math (KaTeX)', css: 'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css', js: ['https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js'], ready: () => !!window.renderMathInElement },
-    mermaid: { label: 'diagrams (Mermaid)', js: ['https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js'], ready: () => !!window.mermaid },
+    katex: { label: 'math (KaTeX)',
+      css: ['https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css', 'sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+'],
+      js: [['https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js', 'sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg'],
+           ['https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js', 'sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk']],
+      ready: () => !!window.renderMathInElement },
+    mermaid: { label: 'diagrams (Mermaid)',
+      js: [['https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.17.2/mermaid.min.js', 'sha384-EOXBFmc3gx5mb+vn0vPvvGqACToJD24hhacX5Yx+8NUUQrHIle/Qi5Bg9o3zKwW2']],
+      ready: () => !!window.mermaid },
   };
   // Diagrams render after the document sanitizer has run, so Mermaid keeps its own strict mode:
-  // diagram text never becomes a click handler, a script URL or a raw HTML label.
+  // diagram text never becomes a click handler or a script URL, and Mermaid cleans markup in labels itself.
   const initMermaid = () => { try { mermaid.initialize({ startOnLoad: false, theme: currentTheme() === 'dark' ? 'dark' : 'neutral', securityLevel: 'strict' }); } catch {} };
   const vendorLoading = {};
   function loadVendor(kind) {
@@ -432,8 +440,8 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     const v = VENDOR[kind];
     vendorLoading[kind] = (async () => {
       try {
-        if (v.css) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = v.css; l.crossOrigin = 'anonymous'; document.head.appendChild(l); }
-        for (const src of v.js) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.crossOrigin = 'anonymous'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+        if (v.css) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = v.css[0]; l.integrity = v.css[1]; l.crossOrigin = 'anonymous'; document.head.appendChild(l); }
+        for (const [src, hash] of v.js) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.integrity = hash; s.crossOrigin = 'anonymous'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
         has[kind] = v.ready();
         if (kind === 'mermaid' && has.mermaid) initMermaid();
       } catch { has[kind] = false; }
@@ -980,7 +988,7 @@ var tt=document.getElementById('toTop');addEventListener('scroll',function(){tt.
 <title>${escapeHtml(title)}</title>
 <meta name="generator" content="${PRODUCT}">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500;700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Manrope:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&display=swap" rel="stylesheet">
-${body.querySelector('.katex') ? '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">' : ''}
+${body.querySelector('.katex') ? `<link rel="stylesheet" href="${VENDOR.katex.css[0]}" integrity="${VENDOR.katex.css[1]}" crossorigin="anonymous">` : ''}
 <style>
 ${css}
 html[data-theme="light"],html[data-theme="dark"]{${tokens};--ui-font:${sk.fonts[1]};--mono:${sk.fonts[2]};--radius:${sk.radius};--doc-font:${s.font === 'skin' ? sk.fonts[0] : fontMap[s.font]};--doc-size:${s.size}px;--doc-lh:${s.lh};--measure:${s.measure}ch}
