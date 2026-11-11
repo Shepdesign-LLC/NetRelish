@@ -321,12 +321,18 @@ jobs:
             -destination 'platform=macOS' MACOSX_DEPLOYMENT_TARGET=26.0 \
             CODE_SIGNING_ALLOWED=NO -quiet build
 
+      # Analyze writes SARIF and uploads no results: the gate decides first what goes
+      # to the Security tab (ADR 0026). Code scanning can't read the
+      # NETRELISH-ALLOW-ENDPOINT comment, so an approved endpoint uploaded as-is
+      # sat in the Security tab as an open High alert, and came back as a new one
+      # every time an edit moved it.
       - uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           category: "/language:swift"
           output: .codeql-results
+          upload: failure-only   # results go up below, after the gate; only a crash report goes from here
 
-      # analyze uploads findings; it never fails the job on them, and there is
+      # analyze never fails the job on findings, and there is
       # no `fail-on` input. Without this step the gate is a report, not a gate —
       # the CodeQL check can sit green with an alert on it, so requiring it in
       # branch protection would still let a fifth endpoint merge. Gating
@@ -350,5 +356,25 @@ jobs:
       # the fix is the path-based API. It stays out of the gate because what it
       # matches is ambiguous by nature, and a red CodeQL job has to mean a
       # network call every time.
+      #
+      # The gate also writes the copy that is uploaded: the same SARIF less the
+      # findings it approved, a line with one gate finding and a marker citing a
+      # real ADR. Everything else stays in, so an unapproved call is still an
+      # alert on the pull request that adds it, and it's uploaded before the job
+      # fails. Every other query's results are untouched.
+      - name: Gate, and set aside the findings it approved
+        id: gate
+        continue-on-error: true   # the step below fails the job, after the upload
+        run: python3 scripts/codeql_gate.py .codeql-results --uploadable .codeql-upload
+
+      - name: Upload to code scanning
+        if: always() && hashFiles('.codeql-upload/*.sarif') != ''
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        with:
+          sarif_file: .codeql-upload
+
       - name: Fail if the gate fired
-        run: python3 scripts/codeql_gate.py .codeql-results
+        if: always() && steps.gate.outcome != 'success' && steps.gate.outcome != 'skipped'
+        run: |
+          echo "::error::netrelish/outbound-network-call fired with no approved exception; the gate step above says where"
+          exit 1

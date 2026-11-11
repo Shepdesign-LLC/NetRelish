@@ -908,6 +908,113 @@ class ExitCodeTests(unittest.TestCase):
         self.assertEqual(self.run_main(), 0)
 
 
+class UploadableTests(unittest.TestCase):
+    """What reaches the Security tab: everything but what the gate approved (ADR 0026)."""
+
+    def setUp(self):
+        import contextlib
+        self.stack = contextlib.ExitStack()
+        self.addCleanup(self.stack.close)
+        self.checkout = Checkout(self.stack)
+        self.out = self.checkout.root / ".codeql-upload"
+
+    def upload(self, name="swift.sarif"):
+        """Run main() as CI does, and read back the SARIF it would upload."""
+        code = codeql_gate.main([
+            str(self.checkout.root / ".codeql-results"),
+            "--repo-root", str(self.checkout.root),
+            "--uploadable", str(self.out),
+        ])
+        uploaded = json.loads((self.out / name).read_text())
+        return code, [(r["ruleId"], r["locations"][0]["physicalLocation"]["region"]["startLine"])
+                      for run in uploaded["runs"] for r in run["results"]]
+
+    def test_an_approved_call_is_left_out(self):
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL)
+        self.checkout.results(sarif(result("Sources/A.swift", 2)))
+        self.assertEqual(self.upload(), (0, []))
+
+    def test_an_unapproved_call_is_uploaded_and_still_fails(self):
+        self.checkout.swift("Sources/A.swift", CALL)
+        self.checkout.results(sarif(result("Sources/A.swift", 1)))
+        self.assertEqual(self.upload(), (1, [(codeql_gate.GATE, 1)]))
+
+    def test_only_the_approved_one_of_two_calls_is_left_out(self):
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL + "\n\n" + CALL)
+        self.checkout.results(sarif(result("Sources/A.swift", 2), result("Sources/A.swift", 4)))
+        self.assertEqual(self.upload(), (1, [(codeql_gate.GATE, 4)]))
+
+    def test_two_calls_sharing_an_approved_line_both_stay(self):
+        # The gate blocks a shared line, so the upload must not hide either call.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL + "; " + CALL)
+        self.checkout.results(sarif(
+            result("Sources/A.swift", 2, start_column=1, end_column=10),
+            result("Sources/A.swift", 2, start_column=20, end_column=30)))
+        self.assertEqual(self.upload(), (1, [(codeql_gate.GATE, 2), (codeql_gate.GATE, 2)]))
+
+    def test_a_marker_citing_a_missing_adr_hides_nothing(self):
+        self.checkout.swift("Sources/A.swift", "// NETRELISH-ALLOW-ENDPOINT: adr-0099\n" + CALL)
+        self.checkout.results(sarif(result("Sources/A.swift", 2)))
+        self.assertEqual(self.upload(), (1, [(codeql_gate.GATE, 2)]))
+
+    def test_a_marker_in_a_string_hides_nothing(self):
+        self.checkout.swift("Sources/A.swift", 'let s = "// ' + MARKER + '"\n' + CALL)
+        self.checkout.results(sarif(result("Sources/A.swift", 2)))
+        self.assertEqual(self.upload(), (1, [(codeql_gate.GATE, 2)]))
+
+    def test_another_spelling_of_an_approved_path_is_left_out_too(self):
+        # The same call reported twice under two spellings is one approved call.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL)
+        self.checkout.results(sarif(
+            result("Sources/A.swift", 2, start_column=5, end_column=40),
+            result("Sources/../Sources/A.swift", 2, start_column=5, end_column=40)))
+        self.assertEqual(self.upload(), (0, []))
+
+    def test_a_finding_outside_the_checkout_stays(self):
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL)
+        self.checkout.results(sarif(result("../elsewhere/A.swift", 2)))
+        self.assertEqual(self.upload(), (1, [(codeql_gate.GATE, 2)]))
+
+    def test_other_queries_are_untouched(self):
+        # The audit rule on the very line the gate approved is still uploaded.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL)
+        self.checkout.results(sarif(
+            result("Sources/A.swift", 2),
+            result("Sources/A.swift", 2, rule="netrelish/remote-capable-url-read"),
+            result("Sources/A.swift", 2, rule="swift/cleartext-transmission")))
+        self.assertEqual(self.upload(), (0, [
+            ("netrelish/remote-capable-url-read", 2), ("swift/cleartext-transmission", 2)]))
+
+    def test_the_rest_of_the_sarif_is_kept(self):
+        # Tool metadata, rules and automation details are what code scanning
+        # matches analyses on; only results change.
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL)
+        document = sarif(result("Sources/A.swift", 2))
+        document["runs"][0]["automationDetails"] = {"id": "/language:swift/"}
+        self.checkout.results(document)
+        self.upload()
+        uploaded = json.loads((self.out / "swift.sarif").read_text())
+        document["runs"][0]["results"] = []
+        self.assertEqual(uploaded, document)
+
+    def test_the_original_sarif_is_not_changed(self):
+        self.checkout.swift("Sources/A.swift", "// " + MARKER + "\n" + CALL)
+        self.checkout.results(sarif(result("Sources/A.swift", 2)))
+        before = (self.checkout.root / ".codeql-results" / "swift.sarif").read_text()
+        self.upload()
+        after = (self.checkout.root / ".codeql-results" / "swift.sarif").read_text()
+        self.assertEqual(before, after)
+
+    def test_no_sarif_writes_nothing_and_fails(self):
+        code = codeql_gate.main([
+            str(self.checkout.root / ".codeql-results"),
+            "--repo-root", str(self.checkout.root),
+            "--uploadable", str(self.out),
+        ])
+        self.assertEqual(code, 1)
+        self.assertFalse(self.out.exists())
+
+
 class RepositoryTests(unittest.TestCase):
     """Invariants of this repo that the gate depends on."""
 

@@ -568,6 +568,46 @@ def inside_checkout(repo_root: pathlib.Path, path) -> pathlib.Path | None:
     return resolved
 
 
+def locate(result, repo_root) -> tuple[str, int] | str:
+    """Where a gate result is: (checkout-relative path, startLine), or why not.
+
+    One function, used both to judge a finding and to decide which findings
+    leave the upload (see `uploadable`), so the two can never disagree about
+    which line a result is on.
+    """
+    root = pathlib.Path(repo_root).resolve()
+    where = result["locations"][0]["physicalLocation"]
+    region = where.get("region", {})
+    uri = where["artifactLocation"]["uri"]
+    named = source_path(uri)
+    if named is None:
+        return ("a gate finding names " + uri + ", which is not a local "
+                "file, so it cannot be located or exempted")
+
+    # Canonicalise here, before this path becomes a grouping key.
+    #
+    # SARIF chooses the spelling, and `Sources/A.swift` and
+    # `Sources/../Sources/A.swift` are the same file under two of
+    # them. Grouping on the raw string put two findings on one
+    # physical line into two groups of one, and a single marker
+    # approved both — the shared-line rule defeated by punctuation.
+    located = inside_checkout(pathlib.Path(repo_root), named)
+    if located is None:
+        return (str(named) + " is outside the checkout, so an exemption "
+                "there could not be trusted")
+    where_file = str(located.relative_to(root))
+
+    # Defaulting a missing startLine to 1 was not fail-closed: a
+    # finding whose location is unknown would be handed line 1, and
+    # a marker that happened to sit there would approve it. An
+    # unlocatable finding cannot be exempted at all.
+    start_line = positive_int(region.get("startLine"))
+    if start_line is None:
+        return ("a gate finding in " + where_file + " has no usable "
+                "startLine, so it cannot be located or exempted")
+    return where_file, start_line
+
+
 class Finding:
     """One gate result, reduced to the parts that decide its fate."""
 
@@ -641,6 +681,7 @@ class Finding:
 class Report:
     def __init__(self):
         self.approved = []   # (Finding, adr)
+        self.approved_lines = set()   # (path, line) whose one finding is approved
         self.blocking = []   # (Finding, reason)
         self.errors = []     # strings, printed as ::error and forcing failure
         self.sarif_count = 0
@@ -678,44 +719,12 @@ def evaluate(results_dir, repo_root=None) -> Report:
             for result in run.get("results", []):
                 if result.get("ruleId") != GATE:
                     continue
-                where = result["locations"][0]["physicalLocation"]
-                region = where.get("region", {})
-                uri = where["artifactLocation"]["uri"]
-                named = source_path(uri)
-                if named is None:
-                    report.errors.append(
-                        "a gate finding names " + uri + ", which is not a local "
-                        "file, so it cannot be located or exempted"
-                    )
+                located = locate(result, repo_root)
+                if isinstance(located, str):
+                    report.errors.append(located)
                     continue
-
-                # Canonicalise here, before this path becomes a grouping key.
-                #
-                # SARIF chooses the spelling, and `Sources/A.swift` and
-                # `Sources/../Sources/A.swift` are the same file under two of
-                # them. Grouping on the raw string put two findings on one
-                # physical line into two groups of one, and a single marker
-                # approved both — the shared-line rule defeated by punctuation.
-                located = inside_checkout(repo_root, named)
-                if located is None:
-                    report.errors.append(
-                        str(named) + " is outside the checkout, so an exemption "
-                        "there could not be trusted"
-                    )
-                    continue
-                where_file = str(located.relative_to(root))
-
-                # Defaulting a missing startLine to 1 was not fail-closed: a
-                # finding whose location is unknown would be handed line 1, and
-                # a marker that happened to sit there would approve it. An
-                # unlocatable finding cannot be exempted at all.
-                start_line = positive_int(region.get("startLine"))
-                if start_line is None:
-                    report.errors.append(
-                        "a gate finding in " + where_file + " has no usable "
-                        "startLine, so it cannot be located or exempted"
-                    )
-                    continue
+                where_file, start_line = located
+                region = result["locations"][0]["physicalLocation"].get("region", {})
 
                 finding = Finding(
                     path=where_file,
@@ -805,10 +814,53 @@ def evaluate(results_dir, repo_root=None) -> Report:
                 report.blocking.append((finding, reason))
         elif adr:
             report.approved.append((group[0], adr))
+            report.approved_lines.add((path, line))
         else:
             report.blocking.append((group[0], group[0].message))
 
     return report
+
+
+# --------------------------------------------------------------------------
+# What goes to the Security tab
+# --------------------------------------------------------------------------
+
+def uploadable(results_dir, out_dir, report: Report, repo_root=None) -> int:
+    """Copy each SARIF to `out_dir` without the findings this gate approved.
+
+    Code scanning can't read a NETRELISH-ALLOW-ENDPOINT comment, so an approved
+    call stayed an open "High" alert in GitHub's Security tab forever, and came
+    back as a new one every time an edit moved it to another line. Dismissing
+    it there by hand is invisible from the repository and has to be redone after
+    every such edit (ADR 0026).
+
+    So the workflow uploads this copy instead of analyze's own. A result leaves
+    it only if this gate approved it: the line holds exactly one gate finding
+    and a marker citing a real ADR. Everything else is kept, so an unapproved
+    call, or one this gate couldn't place, is still an alert. Results of every
+    other query are untouched. Returns how many results were left out.
+    """
+    repo_root = pathlib.Path(repo_root or pathlib.Path.cwd())
+    out = pathlib.Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    removed = 0
+    for path in sorted(glob.glob(str(pathlib.Path(results_dir) / "*.sarif"))):
+        with open(path) as handle:
+            sarif = json.load(handle)
+        for run in sarif.get("runs", []):
+            kept = []
+            for result in run.get("results", []):
+                if result.get("ruleId") == GATE:
+                    located = locate(result, repo_root)
+                    if not isinstance(located, str) and located in report.approved_lines:
+                        removed += 1
+                        continue
+                kept.append(result)
+            if "results" in run:
+                run["results"] = kept
+        with open(out / pathlib.Path(path).name, "w") as handle:
+            json.dump(sarif, handle)
+    return removed
 
 
 # --------------------------------------------------------------------------
@@ -825,9 +877,18 @@ def main(argv=None) -> int:
         "--repo-root", default=".",
         help="checkout root that SARIF paths and docs/adr resolve against",
     )
+    parser.add_argument(
+        "--uploadable", metavar="DIR",
+        help="also write the SARIF to DIR without the findings approved here, "
+             "for upload to code scanning (written whatever the verdict)",
+    )
     args = parser.parse_args(argv)
 
     report = evaluate(args.results, args.repo_root)
+    if args.uploadable and report.sarif_count:
+        removed = uploadable(args.results, args.uploadable, report, args.repo_root)
+        print(str(removed) + " approved finding(s) left out of " + args.uploadable
+              + " for code scanning; every other result is kept.")
 
     for message in report.errors:
         print("::error::" + message)
