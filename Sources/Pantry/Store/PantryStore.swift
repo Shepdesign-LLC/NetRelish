@@ -200,8 +200,8 @@ public final class PantryStore: Sendable {
 
     // MARK: The Share extension
 
-    /// The longest address taken from the Share inbox, in bytes. Real ones are far shorter.
-    static let sharedAddressLimit = 8_192
+    /// The longest address taken from the Share inbox, in bytes: the extension's own limit.
+    static let sharedAddressLimit = ShareInbox.addressLimit
     /// The longest title taken from the Share inbox: what the extension itself cuts to.
     static let sharedTitleLimit = 300
 

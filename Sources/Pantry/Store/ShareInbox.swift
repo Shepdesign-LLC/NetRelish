@@ -41,9 +41,21 @@ public struct ShareInbox: @unchecked Sendable {   // UserDefaults is thread-safe
         defaults.set(data, forKey: Self.keyPrefix + UUID().uuidString)
     }
 
-    /// The most one entry can weigh. The extension writes a web address and a title of at
-    /// most 300 characters; anything heavier didn't come from it.
+    /// The longest address the inbox carries, in bytes. The extension refuses a longer one
+    /// where the person can see it, so the app never drops a real share unseen.
+    public static let addressLimit = 8_192
+    /// The most one entry can weigh. The extension writes an address within `addressLimit`
+    /// and a title of at most 300 characters, and offers Capture only when the entry fits
+    /// (`accepts`); anything heavier didn't come from it.
     static let entryLimit = 16_384
+
+    /// Whether the app will take this page in: the address within `addressLimit`, and the
+    /// entry as written within `entryLimit`.
+    public static func accepts(_ page: SharedPage) -> Bool {
+        guard page.url.utf8.count <= addressLimit, let data = try? JSONEncoder().encode(page) else { return false }
+        return data.count <= entryLimit
+    }
+
     /// The most pages taken in one go. More than this stay for the next look.
     static let batchLimit = 200
 

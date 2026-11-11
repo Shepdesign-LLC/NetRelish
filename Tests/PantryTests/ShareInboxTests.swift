@@ -142,6 +142,18 @@ import Testing
         #expect(received.first?.title.count == 300)
     }
 
+    @Test("The extension is told beforehand what the app would skip")
+    func acceptsMatchesWhatIsTakenIn() throws {
+        let long = SharedPage(url: "https://example.com/" + String(repeating: "a", count: 9_000), title: "Long")
+        let fine = SharedPage(url: "https://example.com/" + String(repeating: "a", count: 8_000),
+                              title: String(repeating: "t", count: 300))
+        #expect(!ShareInbox.accepts(long))
+        #expect(ShareInbox.accepts(fine))
+        let store = try PantryStore(inMemory: ())
+        let received = try store.write { db in try store.receive(db, [long, fine]) }
+        #expect(received.count == 1)
+    }
+
     @Test("An entry too big to be a shared page is dropped, not taken in")
     func oversizeEntryIsDropped() throws {
         try withInbox { inbox in
