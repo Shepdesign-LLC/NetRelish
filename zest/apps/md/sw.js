@@ -1,5 +1,5 @@
 /* MD Press service worker — app shell offline, CDN extras cached on first use */
-const VERSION = 'mdpress-v4';   // v4: scope-relative shell — the app serves at / standalone and at /md under the one-origin topology (§8)
+const VERSION = 'mdpress-v5';   // v5: installs replace the stored page (links that carry text are served from it); v4: scope-relative shell, at / standalone and at /md under the one-origin topology (§8)
 const APP_ROOT = new URL('./', self.location).pathname;   // '/' standalone, '/md/' mounted
 const APP_INDEX = `${APP_ROOT}index.html`;
 const SHELL = [APP_ROOT, APP_INDEX, `${APP_ROOT}manifest.webmanifest`, `${APP_ROOT}icons/icon-192.png`, `${APP_ROOT}icons/icon-512.png`, `${APP_ROOT}icons/favicon.svg`];
@@ -25,7 +25,10 @@ self.addEventListener('fetch', e => {
       return;
     }
     // Lookups are scoped to THIS app's cache — a global caches.match() could serve another Zest app's shell on a shared origin.
-    e.respondWith(fetch(e.request).then(r => { if (r.ok) { const copy = r.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); } return r; })
+    // A fresh copy of the page also replaces the stored one that shared links are served from
+    // (above), so a deploy reaches those links too, not only ordinary visits.
+    const isShell = e.request.mode === 'navigate' && (url.pathname === APP_ROOT || url.pathname === APP_INDEX);
+    e.respondWith(fetch(e.request).then(r => { if (r.ok) { const copy = r.clone(), shell = isShell ? r.clone() : null; caches.open(VERSION).then(c => { c.put(e.request, copy); if (shell) c.put(APP_INDEX, shell); }); } return r; })
       .catch(() => caches.open(VERSION).then(c => c.match(e.request).then(r => r || c.match(APP_INDEX)))));
     return;
   }
