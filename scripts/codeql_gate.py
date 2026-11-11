@@ -79,6 +79,7 @@ import json
 import pathlib
 import re
 import sys
+from collections import Counter
 from urllib.parse import unquote, urlparse
 
 # The gate. `netrelish/remote-capable-url-read` is the audit and is deliberately
@@ -681,7 +682,7 @@ class Finding:
 class Report:
     def __init__(self):
         self.approved = []   # (Finding, adr)
-        self.approved_lines = set()   # (path, line) whose one finding is approved
+        self.hidden = []     # (Finding, adr, api): approved AND registered, left out of the upload
         self.blocking = []   # (Finding, reason)
         self.errors = []     # strings, printed as ::error and forcing failure
         self.sarif_count = 0
@@ -814,7 +815,6 @@ def evaluate(results_dir, repo_root=None) -> Report:
                 report.blocking.append((finding, reason))
         elif adr:
             report.approved.append((group[0], adr))
-            report.approved_lines.add((path, line))
         else:
             report.blocking.append((group[0], group[0].message))
 
@@ -825,22 +825,87 @@ def evaluate(results_dir, repo_root=None) -> Report:
 # What goes to the Security tab
 # --------------------------------------------------------------------------
 
+# The endpoints rule 5 allows, one call per line: `path  API  adr-NNNN`. A
+# marker can cite any ADR that exists, which the gate accepts, so a marker alone
+# must not also take a call out of code scanning: that would let a new endpoint
+# pass the gate AND leave no alert anywhere. Only a call listed here is left out
+# of the upload, and only when its marker cites the ADR listed beside it. A call
+# that is approved but not listed still passes the gate and still shows up as an
+# alert, which is how it was before ADR 0026.
+REGISTRY = ".github/codeql/approved-endpoints.txt"
+
+# The query's message opens "Call to [API](1) opens a network connection", the
+# link CodeQL writes for its `$@` placeholder. Anything else names no API, and a
+# finding with no API is never left out.
+API_IN_MESSAGE = re.compile(r"Call to \[([^\[\]\n]+)\]\(\d+\) ")
+REGISTRY_LINE = re.compile(r"(\S+)\s+(\S+)\s+(adr-\d{4})")
+
+
+def called_api(message: str) -> str | None:
+    match = API_IN_MESSAGE.match(message or "")
+    return match.group(1) if match else None
+
+
+def load_registry(repo_root, report: Report, name: str = REGISTRY) -> list[tuple[str, str, str]]:
+    """The listed endpoints as (path, API, adr). Every flaw is an error, which fails the gate."""
+    repo_root = pathlib.Path(repo_root)
+    path = repo_root / name
+    if not path.exists() and not path.is_symlink():
+        return []   # nothing listed: every finding is uploaded
+    if path.is_symlink() or not path.is_file() or inside_checkout(repo_root, name) is None:
+        report.errors.append(name + " must be a regular file in the checkout")
+        return []
+    entries = []
+    for number, raw in enumerate(path.read_text(errors="replace").splitlines(), 1):
+        text = raw.split("#", 1)[0].strip()
+        if not text:
+            continue
+        match = REGISTRY_LINE.fullmatch(text)
+        where = name + ":" + str(number)
+        if not match:
+            report.errors.append(where + " is not `path  API  adr-NNNN`")
+            continue
+        listed, api, adr = match.groups()
+        located = inside_checkout(repo_root, listed)
+        if (located is None or pathlib.PurePosixPath(listed).is_absolute()
+                or str(located.relative_to(repo_root.resolve())) != listed):
+            report.errors.append(where + " names " + listed + ", which is not a path "
+                                 "in the checkout written the way SARIF gives it")
+            continue
+        # The same check a marker's citation gets; it reports its own error.
+        if cited_adr("NETRELISH-ALLOW-ENDPOINT: " + adr, repo_root, report) != adr:
+            continue
+        entries.append((listed, api, adr))
+    return entries
+
+
+def hide(report: Report, registry) -> None:
+    """Decide which approved findings leave the upload: each listed line covers one call."""
+    remaining = Counter(registry)
+    report.hidden = []
+    for finding, adr in sorted(report.approved, key=lambda pair: (pair[0].path, pair[0].line)):
+        api = called_api(finding.message)
+        key = (finding.path, api, adr)
+        if api is not None and remaining[key] > 0:
+            remaining[key] -= 1
+            report.hidden.append((finding, adr, api))
+
+
 def uploadable(results_dir, out_dir, report: Report, repo_root=None) -> int:
-    """Copy each SARIF to `out_dir` without the findings this gate approved.
+    """Copy each SARIF to `out_dir` without the findings in `report.hidden`.
 
     Code scanning can't read a NETRELISH-ALLOW-ENDPOINT comment, so an approved
     call stayed an open "High" alert in GitHub's Security tab forever, and came
-    back as a new one every time an edit moved it to another line. Dismissing
-    it there by hand is invisible from the repository and has to be redone after
-    every such edit (ADR 0026).
+    back as a new one every time an edit moved it to another line (ADR 0026).
 
     So the workflow uploads this copy instead of analyze's own. A result leaves
-    it only if this gate approved it: the line holds exactly one gate finding
-    and a marker citing a real ADR. Everything else is kept, so an unapproved
-    call, or one this gate couldn't place, is still an alert. Results of every
+    it only if the gate approved it AND it is listed in REGISTRY (see `hide`).
+    Everything else is kept, so an unapproved call, an approved but unlisted
+    one, or one this gate couldn't place, is still an alert. Results of every
     other query are untouched. Returns how many results were left out.
     """
     repo_root = pathlib.Path(repo_root or pathlib.Path.cwd())
+    lines = {(finding.path, finding.line) for finding, _, _ in report.hidden}
     out = pathlib.Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     removed = 0
@@ -852,7 +917,7 @@ def uploadable(results_dir, out_dir, report: Report, repo_root=None) -> int:
             for result in run.get("results", []):
                 if result.get("ruleId") == GATE:
                     located = locate(result, repo_root)
-                    if not isinstance(located, str) and located in report.approved_lines:
+                    if not isinstance(located, str) and located in lines:
                         removed += 1
                         continue
                 kept.append(result)
@@ -885,17 +950,24 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     report = evaluate(args.results, args.repo_root)
+    hide(report, load_registry(args.repo_root, report))
     if args.uploadable and report.sarif_count:
         removed = uploadable(args.results, args.uploadable, report, args.repo_root)
-        print(str(removed) + " approved finding(s) left out of " + args.uploadable
+        print(str(removed) + " approved and listed finding(s) left out of " + args.uploadable
               + " for code scanning; every other result is kept.")
 
     for message in report.errors:
         print("::error::" + message)
+    listed = {(finding.path, finding.line) for finding, _, _ in report.hidden}
     for finding, adr in report.approved:
+        api = called_api(finding.message) or "an API the message doesn't name"
+        where = ("listed in " + REGISTRY + ", so not uploaded as an alert"
+                 if (finding.path, finding.line) in listed else
+                 "not listed in " + REGISTRY + " as `" + finding.path + "  " + api
+                 + "  " + adr + "`, so it stays an alert in code scanning")
         print(
             "::notice file=" + finding.path + ",line=" + str(finding.line)
-            + "::approved endpoint (" + adr + ")"
+            + "::approved endpoint (" + adr + "): " + api + "; " + where
         )
     for finding, reason in report.blocking:
         print(
