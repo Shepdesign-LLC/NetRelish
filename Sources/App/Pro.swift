@@ -395,9 +395,11 @@ final class ProStore {
         guard let licensing, var license, !busy else { return }
         busy = true
         defer { busy = false }
-        // Given back already, with only the Keychain left to clear: the store isn't asked again,
-        // since an activation it already let go may get no clear answer the second time.
-        if !givenBack.contains(license.instanceID), !revocations.contains(license.instanceID) {
+        // Given back already this run, with only the Keychain left to clear: the store isn't asked
+        // again, since an activation it already let go may get no clear answer the second time.
+        // Only a give-back the store confirmed counts: a revocation alone (a refund the Keychain
+        // wouldn't record) says nothing about whether this Mac's activation was returned.
+        if !givenBack.contains(license.instanceID) {
             let reply: LicenseReply
             do {
                 reply = try await licensing.authority.deactivate(key: license.key, instanceID: license.instanceID)

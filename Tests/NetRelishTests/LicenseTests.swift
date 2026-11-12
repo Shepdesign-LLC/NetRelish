@@ -614,6 +614,20 @@ private func reply(_ status: LicenseStatus, id: String? = "ins_123", expires: Da
         #expect(pro.note == ProText.deactivated)
     }
 
+    @Test("A revoked license that was never given back still asks the store when deactivated")
+    func revokedStillAsks() async {
+        let stored = License(key: key, instanceID: "ins_9", status: .active, expires: nil, checked: .distantPast)
+        let vault = MemoryVault(stored)
+        let revocations = MemoryRevocations()
+        revocations.add("ins_9")   // a refund the Keychain wouldn't record, at an earlier launch
+        let authority = StubAuthority(failing: LicenseUnreachable())
+        let pro = ProStore(licensedBy: authority, keptIn: vault, revocations: revocations)
+        await pro.deactivate()
+        #expect(authority.calls == [.deactivate(key: key, id: "ins_9")], "the store is asked")
+        #expect(pro.license != nil, "offline, nothing is forgotten")
+        #expect(pro.note == ProText.licenseUnreachable)
+    }
+
     @Test("A Keychain unreadable at launch is read again at the next Pro gate")
     func rereadAtSettle() {
         let stored = License(key: key, instanceID: "ins_9", status: .active, expires: nil, checked: .distantPast)
