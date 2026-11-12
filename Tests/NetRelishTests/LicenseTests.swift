@@ -661,6 +661,23 @@ private func reply(_ status: LicenseStatus, id: String? = "ins_123", expires: Da
                 "the next launch reads the old active record, unlocked")
     }
 
+    @Test("An active answer whose year already ran out, not saved, keeps the revocation")
+    func lapsedActiveKeepsRevocation() async {
+        let clock = TestClock()
+        let stored = License(key: key, instanceID: "ins_9", status: .active, expires: nil, checked: .distantPast)
+        let vault = MemoryVault(stored)
+        vault.refuse(save: true, remove: true)
+        let revocations = MemoryRevocations()
+        revocations.add("ins_9")
+        let authority = StubAuthority(reply(.active, expires: clock.now.addingTimeInterval(-86_400)))
+        let pro = ProStore(licensedBy: authority, keptIn: vault, revocations: revocations, now: { clock.now })
+        await pro.checkAgain()
+        #expect(!pro.isUnlocked)
+        #expect(revocations.contains("ins_9"))
+        #expect(!ProStore(licensedBy: authority, keptIn: vault, revocations: revocations, now: { clock.now }).isUnlocked,
+                "the stale active record can't unlock the next launch")
+    }
+
     @Test("A Keychain unreadable at launch is read again at the next Pro gate")
     func rereadAtSettle() {
         let stored = License(key: key, instanceID: "ins_9", status: .active, expires: nil, checked: .distantPast)

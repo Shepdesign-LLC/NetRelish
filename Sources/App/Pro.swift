@@ -452,10 +452,11 @@ final class ProStore {
             ProStore.log.error("license keychain: \(errorKind(error), privacy: .public)")
         }
         self.license = license
-        // The store says this activation is active again (a refund reversed, a renewal): it isn't ended anymore,
-        // even if the Keychain refused the new record. Its old record has the same id, so the next launch reads it
-        // and, once it's checked again, gets the store's answer, instead of being locked by a stale revocation.
-        if license.status == .active { revocations.remove(license.instanceID) }
+        // The store says this activation is active again (a refund reversed, a renewal): it isn't ended anymore.
+        // Cleared when the new record was kept, or when the answer unlocks Pro now even though the Keychain refused
+        // it (the old record has the same id). An "active" whose year has already run out, not kept, clears nothing:
+        // the old record could otherwise unlock Pro at the next launch.
+        if license.status == .active, kept || license.unlocks(at: now()) { revocations.remove(license.instanceID) }
         settle()
         return kept
     }
