@@ -14,12 +14,15 @@ final class StubAuthority: LicenseAuthority, @unchecked Sendable {
     private let lock = NSLock()
     private var answer: Result<LicenseReply, any Error>
     private var made: [Call] = []
+    private var deactivateFails = false
 
     init(_ reply: LicenseReply) { answer = .success(reply) }
     init(failing error: any Error) { answer = .failure(error) }
 
     func answer(with reply: LicenseReply) { lock.withLock { answer = .success(reply) } }
     func fail(with error: any Error) { lock.withLock { answer = .failure(error) } }
+    /// Deactivations alone get no answer, while the rest still do.
+    func failDeactivations() { lock.withLock { deactivateFails = true } }
     var calls: [Call] { lock.withLock { made } }
 
     private func respond(_ call: Call) throws -> LicenseReply {
@@ -31,7 +34,13 @@ final class StubAuthority: LicenseAuthority, @unchecked Sendable {
 
     func activate(key: String, instanceName: String) async throws -> LicenseReply { try respond(.activate(key: key, name: instanceName)) }
     func validate(key: String, instanceID: String) async throws -> LicenseReply { try respond(.validate(key: key, id: instanceID)) }
-    func deactivate(key: String, instanceID: String) async throws -> LicenseReply { try respond(.deactivate(key: key, id: instanceID)) }
+    func deactivate(key: String, instanceID: String) async throws -> LicenseReply {
+        if lock.withLock({ deactivateFails }) {
+            lock.withLock { made.append(.deactivate(key: key, id: instanceID)) }
+            throw LicenseUnreachable()
+        }
+        return try respond(.deactivate(key: key, id: instanceID))
+    }
 }
 
 /// An authority that holds every question until the test opens it, so a test can press a
@@ -332,6 +341,41 @@ private func reply(_ status: LicenseStatus, id: String? = "ins_123", expires: Da
         #expect(pro.license == nil)
         #expect(pro.note == ProText.keychainUnsaved)
         #expect(authority.calls.last == .deactivate(key: key, id: "ins_77"))
+    }
+
+    @Test("Not kept and not given back either: its id is held, locked, so Deactivate can give it back")
+    func activationHeld() async {
+        let vault = MemoryVault()
+        vault.refuse(save: true)
+        let authority = StubAuthority(reply(.active, id: "ins_77"))
+        authority.failDeactivations()
+        let pro = ProStore(licensedBy: authority, keptIn: vault)
+        await pro.activate(key)
+        #expect(!pro.isUnlocked, "an activation that wasn't kept never unlocks")
+        #expect(pro.license?.instanceID == "ins_77")
+        #expect(pro.license?.status == .inactive)
+        #expect(pro.note == ProText.keychainUnsaved)
+    }
+
+    @Test("A build with a broken relay address keeps Pro locked, and the Keychain as it was")
+    func misconfigured() async {
+        let stored = License(key: key, instanceID: "ins_9", status: .active, expires: nil, checked: .distantPast)
+        let vault = MemoryVault(stored)
+        let pro = ProStore(licensedBy: NoLicenseRelay(), keptIn: vault, misconfigured: true)
+        #expect(!pro.isUnlocked)
+        #expect(pro.lockedLicenseLine == ProText.licenseUnreachable)
+        await pro.checkAgain()
+        pro.settle()
+        #expect(!pro.isUnlocked)
+        #expect(vault.stored == stored)
+    }
+
+    @Test("A license kept but not yet understood asks for Check Again")
+    func needsCheck() {
+        let stored = License(key: key, instanceID: "ins_9", status: .unknown, expires: nil, checked: .distantPast)
+        let pro = ProStore(licensedBy: StubAuthority(reply(.active)), keptIn: MemoryVault(stored))
+        #expect(!pro.isUnlocked)
+        #expect(pro.lockedLicenseLine == ProText.licenseNeedsCheck)
     }
 
     @Test("No answer: Pro stays as it was, and the note says to try again")
@@ -663,6 +707,19 @@ private func reply(_ status: LicenseStatus, id: String? = "ins_123", expires: Da
 // MARK: - The Keychain
 
 @Suite("License keychain", .serialized) struct LicenseKeychainTests {
+    @Test("A record this build can't fully read keeps its key and id, locked, instead of reading as none")
+    func salvage() throws {
+        let newer = Data(#"{"key":"\#(key)","instanceID":"ins_9","status":"paused","checked":"2027-01-01T00:00:00Z","seats":3}"#.utf8)
+        let salvaged = try #require(LicenseKeychain.license(from: newer))
+        #expect(salvaged.key == key)
+        #expect(salvaged.instanceID == "ins_9")
+        #expect(salvaged.status == .unknown)
+        #expect(!salvaged.unlocks(at: Date()))
+        #expect(LicenseKeychain.license(from: Data("not json".utf8)) == nil)
+        #expect(LicenseKeychain.license(from: Data(#"{"key":"\#(key)"}"#.utf8)) == nil, "no id: nothing to keep")
+        #expect(LicenseKeychain.license(from: Data(#"{"key":"x y","instanceID":"ins_9"}"#.utf8)) == nil)
+    }
+
     @Test("A license is kept, read back, replaced and removed")
     func roundTrip() throws {
         let vault = LicenseKeychain(service: "com.shepdesign.netrelish.license.tests.\(UUID().uuidString)")

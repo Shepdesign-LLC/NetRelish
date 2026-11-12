@@ -258,8 +258,19 @@ struct LicenseKeychain: LicenseVault {
         let status = SecItemCopyMatching(q as CFDictionary, &out)
         if status == errSecItemNotFound { return nil }
         guard status == errSecSuccess, let data = out as? Data else { throw VaultError(status: status) }
-        // A license this build can't read is the same as none: the person activates again.
-        return try? LicenseKeychain.decoder.decode(License.self, from: data)
+        return LicenseKeychain.license(from: data)
+    }
+
+    /// The license in a Keychain record. A record this build can't fully read (one a newer
+    /// build wrote, say) still names an activation the store counts, so its key and id are kept,
+    /// locked until Check Again asks about them, rather than written over by a new activation.
+    /// Only a record with no key and id in it reads as no license at all.
+    static func license(from data: Data) -> License? {
+        if let license = try? decoder.decode(License.self, from: data) { return license }
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let key = (object["key"] as? String).flatMap(License.normalized),
+              let id = object["instanceID"] as? String, LicenseRelay.isInstanceID(id) else { return nil }
+        return License(key: key, instanceID: id, status: .unknown, expires: nil, checked: .distantPast)
     }
 
     func save(_ license: License) throws {
