@@ -282,6 +282,7 @@ final class ProStore {
             do {
                 license = try licensing.vault.load()
                 vaultUnread = false
+                honorRevocations()   // a record the Keychain wouldn't let go of stays ended here too
                 settle()
             } catch {
                 ProStore.log.error("license keychain: \(errorKind(error), privacy: .public)")
@@ -451,8 +452,10 @@ final class ProStore {
             ProStore.log.error("license keychain: \(errorKind(error), privacy: .public)")
         }
         self.license = license
-        // Kept as one that unlocks (a refund reversed, say): it isn't ended anymore.
-        if kept, license.status == .active { revocations.remove(license.instanceID) }
+        // The store says this activation is active again (a refund reversed, a renewal): it isn't ended anymore,
+        // even if the Keychain refused the new record. Its old record has the same id, so the next launch reads it
+        // and, once it's checked again, gets the store's answer, instead of being locked by a stale revocation.
+        if license.status == .active { revocations.remove(license.instanceID) }
         settle()
         return kept
     }

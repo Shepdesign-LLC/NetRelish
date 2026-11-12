@@ -628,6 +628,39 @@ private func reply(_ status: LicenseStatus, id: String? = "ins_123", expires: Da
         #expect(pro.note == ProText.licenseUnreachable)
     }
 
+    @Test("Activate's own read of a Keychain unreadable at launch still honors a revocation")
+    func activateRereadHonorsRevocation() async {
+        let stored = License(key: key, instanceID: "ins_9", status: .active, expires: nil, checked: .distantPast)
+        let vault = MemoryVault(stored)
+        vault.refuse(load: true)
+        let revocations = MemoryRevocations()
+        revocations.add("ins_9")
+        let authority = StubAuthority(reply(.active))
+        let pro = ProStore(licensedBy: authority, keptIn: vault, revocations: revocations)
+        vault.refuse()
+        await pro.activate("NR-PRO-ANOTHER-KEY-1234")
+        #expect(!pro.isUnlocked, "the revoked record never unlocks Pro")
+        #expect(pro.license?.status == .inactive)
+        #expect(pro.note == ProText.alreadyActivated)
+        #expect(authority.calls.isEmpty)
+    }
+
+    @Test("A license the store says is active again is no longer revoked, even if the Keychain won't save")
+    func revocationClearedWithoutSave() async {
+        let stored = License(key: key, instanceID: "ins_9", status: .active, expires: nil, checked: .distantPast)
+        let vault = MemoryVault(stored)
+        vault.refuse(save: true, remove: true)
+        let revocations = MemoryRevocations()
+        revocations.add("ins_9")
+        let pro = ProStore(licensedBy: StubAuthority(reply(.active)), keptIn: vault, revocations: revocations)
+        #expect(!pro.isUnlocked)
+        await pro.checkAgain()
+        #expect(pro.isUnlocked)
+        #expect(!revocations.contains("ins_9"))
+        #expect(ProStore(licensedBy: StubAuthority(reply(.active)), keptIn: vault, revocations: revocations).isUnlocked,
+                "the next launch reads the old active record, unlocked")
+    }
+
     @Test("A Keychain unreadable at launch is read again at the next Pro gate")
     func rereadAtSettle() {
         let stored = License(key: key, instanceID: "ins_9", status: .active, expires: nil, checked: .distantPast)
