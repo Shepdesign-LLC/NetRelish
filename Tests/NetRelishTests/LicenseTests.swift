@@ -339,7 +339,7 @@ private func reply(_ status: LicenseStatus, id: String? = "ins_123", expires: Da
         await pro.activate(key)
         #expect(!pro.isUnlocked)
         #expect(pro.license == nil)
-        #expect(pro.note == ProText.keychainUnsaved)
+        #expect(pro.note == ProText.keychainGivenBack)
         #expect(authority.calls.last == .deactivate(key: key, id: "ins_77"))
     }
 
@@ -354,7 +354,7 @@ private func reply(_ status: LicenseStatus, id: String? = "ins_123", expires: Da
         #expect(!pro.isUnlocked, "an activation that wasn't kept never unlocks")
         #expect(pro.license?.instanceID == "ins_77")
         #expect(pro.license?.status == .inactive)
-        #expect(pro.note == ProText.keychainUnsaved)
+        #expect(pro.note == ProText.keychainNotGivenBack)
     }
 
     @Test("A build with a broken relay address keeps Pro locked, and the Keychain as it was")
@@ -469,6 +469,48 @@ private func reply(_ status: LicenseStatus, id: String? = "ins_123", expires: Da
         #expect(!ProStore(licensedBy: StubAuthority(reply(.active)), keptIn: vault).isUnlocked)
     }
 
+    @Test("A refund the Keychain won't save or remove stays a refund at the next launch")
+    func refundRemembered() async {
+        let stored = License(key: key, instanceID: "ins_9", status: .active, expires: nil, checked: .distantPast)
+        let vault = MemoryVault(stored)
+        vault.refuse(save: true, remove: true)
+        let revocations = MemoryRevocations()
+        let pro = ProStore(licensedBy: StubAuthority(reply(.disabled)), keptIn: vault, revocations: revocations)
+        await pro.checkAgain()
+        #expect(!pro.isUnlocked)
+        #expect(vault.stored == stored, "the Keychain still holds the old record")
+        let relaunched = ProStore(licensedBy: StubAuthority(reply(.active)), keptIn: vault, revocations: revocations)
+        #expect(!relaunched.isUnlocked)
+        #expect(relaunched.license?.status == .inactive)
+    }
+
+    @Test("A deactivation the Keychain won't save or remove stays given back at the next launch")
+    func deactivationRemembered() async {
+        let stored = License(key: key, instanceID: "ins_9", status: .active, expires: nil, checked: .distantPast)
+        let vault = MemoryVault(stored)
+        vault.refuse(save: true, remove: true)
+        let revocations = MemoryRevocations()
+        let pro = ProStore(licensedBy: StubAuthority(reply(.inactive)), keptIn: vault, revocations: revocations)
+        await pro.deactivate()
+        #expect(!pro.isUnlocked)
+        let relaunched = ProStore(licensedBy: StubAuthority(reply(.active)), keptIn: vault, revocations: revocations)
+        #expect(!relaunched.isUnlocked)
+    }
+
+    @Test("A license kept as active again is no longer remembered as ended")
+    func revocationCleared() async {
+        let stored = License(key: key, instanceID: "ins_9", status: .active, expires: nil, checked: .distantPast)
+        let vault = MemoryVault(stored)
+        let revocations = MemoryRevocations()
+        revocations.add("ins_9")
+        let pro = ProStore(licensedBy: StubAuthority(reply(.active)), keptIn: vault, revocations: revocations)
+        #expect(!pro.isUnlocked)
+        await pro.checkAgain()
+        #expect(pro.isUnlocked)
+        #expect(!revocations.contains("ins_9"))
+        #expect(ProStore(licensedBy: StubAuthority(reply(.active)), keptIn: vault, revocations: revocations).isUnlocked)
+    }
+
     @Test("A yearly license locks the moment it runs out, with the app still open")
     func expiresWhileOpen() async {
         let clock = TestClock()
@@ -548,11 +590,55 @@ private func reply(_ status: LicenseStatus, id: String? = "ins_123", expires: Da
         #expect(!pro.isUnlocked)
         #expect(pro.license?.status == .inactive)
         #expect(vault.stored?.status == .inactive, "the next launch stays locked")
-        #expect(pro.note == ProText.keychainUnsaved)
+        #expect(pro.note == ProText.keychainNotCleared)
         vault.refuse()
-        await pro.deactivate()   // trying again clears it
+        await pro.deactivate()   // trying again clears it, without asking the store again
         #expect(pro.license == nil)
         #expect(vault.stored == nil)
+    }
+
+    @Test("Trying Deactivate again after the Keychain stuck asks only the Keychain")
+    func deactivateRetryLocal() async {
+        let stored = License(key: key, instanceID: "ins_9", status: .active, expires: nil, checked: .distantPast)
+        let vault = MemoryVault(stored)
+        vault.refuse(remove: true)
+        let authority = StubAuthority(reply(.inactive))
+        let pro = ProStore(licensedBy: authority, keptIn: vault)
+        await pro.deactivate()
+        #expect(authority.calls.count == 1)
+        authority.fail(with: LicenseUnreachable())   // the store wouldn't answer clearly again
+        vault.refuse()
+        await pro.deactivate()
+        #expect(authority.calls.count == 1, "the store isn't asked a second time")
+        #expect(pro.license == nil)
+        #expect(pro.note == ProText.deactivated)
+    }
+
+    @Test("A Keychain unreadable at launch is read again at the next Pro gate")
+    func rereadAtSettle() {
+        let stored = License(key: key, instanceID: "ins_9", status: .active, expires: nil, checked: .distantPast)
+        let vault = MemoryVault(stored)
+        vault.refuse(load: true)
+        let pro = ProStore(licensedBy: StubAuthority(reply(.active)), keptIn: vault)
+        #expect(!pro.isUnlocked)
+        vault.refuse()
+        pro.settle()
+        #expect(pro.isUnlocked)
+        #expect(pro.license == stored)
+    }
+
+    @Test("A year that ran out and won't save keeps its record: the renewal is checked with its id")
+    func expiredNotSavedKept() async {
+        let clock = TestClock()
+        let lapsed = License(key: key, instanceID: "ins_9", status: .expired,
+                             expires: clock.now.addingTimeInterval(-60), checked: .distantPast)
+        let vault = MemoryVault(lapsed)
+        vault.refuse(save: true)
+        let pro = ProStore(licensedBy: StubAuthority(reply(.expired, expires: lapsed.expires)), keptIn: vault,
+                           now: { clock.now })
+        await pro.checkAgain()
+        #expect(vault.stored == lapsed)
+        #expect(pro.note == ProText.keychainUnsaved)
     }
 
     @Test("Deactivating offline changes nothing: going offline never costs an activation")

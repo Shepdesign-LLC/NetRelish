@@ -36,8 +36,11 @@ struct NetRelishApp: App {
         #if DIRECT_BUILD
         switch LicenseRelay.configured {
         case .notSet: return ProStore(unlocked: true)
-        case .relay(let relay): return ProStore(licensedBy: relay, keptIn: LicenseKeychain.live)
-        case .broken: return ProStore(licensedBy: NoLicenseRelay(), keptIn: LicenseKeychain.live, misconfigured: true)
+        case .relay(let relay):
+            return ProStore(licensedBy: relay, keptIn: LicenseKeychain.live, revocations: DefaultsRevocations.live)
+        case .broken:
+            return ProStore(licensedBy: NoLicenseRelay(), keptIn: LicenseKeychain.live,
+                            revocations: DefaultsRevocations.live, misconfigured: true)
         }
         #else
         return .live()

@@ -85,6 +85,42 @@ protocol LicenseVault: Sendable {
     func remove() throws
 }
 
+/// Activations this Mac saw end (a refund, a deactivation) while the Keychain refused to be
+/// changed or emptied. Kept outside the Keychain, so a record it wouldn't let go of can't
+/// unlock Pro again at the next launch. Activation ids only, never a key.
+protocol LicenseRevocations: Sendable {
+    func contains(_ instanceID: String) -> Bool
+    func add(_ instanceID: String)
+    func remove(_ instanceID: String)
+}
+
+/// The revocations in this Mac's user defaults. A few ids at most: one per activation the
+/// Keychain refused to forget.
+struct DefaultsRevocations: LicenseRevocations {
+    static let live = DefaultsRevocations(key: "NRLicenseRevokedActivations")
+    let key: String
+    private var ids: [String] { UserDefaults.standard.stringArray(forKey: key) ?? [] }
+
+    func contains(_ instanceID: String) -> Bool { ids.contains(instanceID) }
+    func add(_ instanceID: String) {
+        guard !contains(instanceID) else { return }
+        UserDefaults.standard.set(Array((ids + [instanceID]).suffix(16)), forKey: key)
+    }
+    func remove(_ instanceID: String) {
+        guard contains(instanceID) else { return }
+        UserDefaults.standard.set(ids.filter { $0 != instanceID }, forKey: key)
+    }
+}
+
+/// Revocations that last as long as the store does: tests, and builds with no license key.
+final class MemoryRevocations: LicenseRevocations, @unchecked Sendable {
+    private let lock = NSLock()
+    private var ids: Set<String> = []
+    func contains(_ instanceID: String) -> Bool { lock.withLock { ids.contains(instanceID) } }
+    func add(_ instanceID: String) { _ = lock.withLock { ids.insert(instanceID) } }
+    func remove(_ instanceID: String) { _ = lock.withLock { ids.remove(instanceID) } }
+}
+
 // MARK: - The relay
 
 struct LicenseRelay: LicenseAuthority {
