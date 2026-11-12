@@ -28,7 +28,7 @@ Native macOS browser with a pantry. Swift. Mac App Store. This file is the contr
 | Intelligence | Foundation Models first. MLX Swift behind an opt-in flag. |
 | Extraction | Defuddle (MIT) injected at capture for `body`. Never SingleFile (AGPL). |
 | Distribution | Mac App Store (primary) + Developer ID (`Pickle` and direct license). One codebase, `#if DIRECT_BUILD`. |
-| Billing | StoreKit 2 in App Store build. Paddle or Lemon Squeezy (merchant of record) in direct build. |
+| Billing | StoreKit 2 in App Store build. Creem (merchant of record) in direct build, activated through a relay on netrelish.com that holds Creem's key (ADR 0027). |
 | Site | Separate repo `netrelish-site`. Astro until the WordPress cutover (week of Jan 4, 2027); then WordPress on WP Engine, laid out visually in a page builder (Bricks proposed), variables generated from `tokens.css`, brand checks on rendered pages (ADR 0016). |
 
 ## Brand (locked — Brand Lock v1.2, full rules in `/design/DESIGN_MANIFEST.md`)

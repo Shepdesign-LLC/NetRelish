@@ -26,6 +26,8 @@
 	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>27.0</string>
+	<key>NRLicenseActivationURL</key>
+	<string>$(NR_LICENSE_ACTIVATION_URL)</string>
 	<key>NRTimestampURL</key>
 	<string>$(NR_TIMESTAMP_URL)</string>
 	<key>NSAppTransportSecurity</key>

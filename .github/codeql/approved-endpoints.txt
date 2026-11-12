@@ -14,3 +14,7 @@
 # RFC 3161 timestamping for Pro provenance (ADR 0022)
 Sources/App/TimestampService.swift  URLSession.init(configuration:)  adr-0022
 Sources/App/TimestampService.swift  URLSession.bytes(for:delegate:)  adr-0022
+
+# The Direct build's license activation, through the relay on netrelish.com (ADR 0027)
+Sources/App/License.swift  URLSession.init(configuration:)  adr-0027
+Sources/App/License.swift  URLSession.bytes(for:delegate:)  adr-0027

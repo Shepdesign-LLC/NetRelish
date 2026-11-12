@@ -116,6 +116,8 @@ targets:
         NSContactsUsageDescription: "NetRelish copies your Contacts card into your Keychain once, so it can fill forms when you ask. It never reads Contacts again."
         # Pro provenance (ADR 0022): the RFC 3161 timestamp authority, from the build settings.
         NRTimestampURL: $(NR_TIMESTAMP_URL)
+        # The Direct build's license relay (ADR 0027), from the build settings. https only.
+        NRLicenseActivationURL: $(NR_LICENSE_ACTIVATION_URL)
         # DigiCert's timestamp service answers on http only. Only a fingerprint is sent, and the
         # signed reply is checked before it's kept (TimestampService), so this one host is excepted.
         NSAppTransportSecurity:

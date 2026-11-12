@@ -80,13 +80,13 @@ Launch target: **Dec 14, 2026**. On Nov 1 Ryan held the date and cut the scope
 | P1 Bench + Shelf + Brine | Tabs, the jar rail, jars as profiles, Brine, ⌘K, ⌘D | Sep 21 – Oct 2 | Done |
 | P2 Seal | Saved copies, search, Reader view, Smart Jars, the Panel | Oct 5–16 | Done |
 | P3 Recipes + Shortcuts + Share | Share menu, Shortcuts, Seal & Summarize | Oct 19–30 | Done. Seal & Summarize merged Nov 5 |
-| P4 Pro | Reseal & diff, provenance export, buying Pro | Nov 2–13 | In progress: Reseal & diff, provenance export and buying Pro (StoreKit 2) merged. Left: the Direct build's license key |
+| P4 Pro | Reseal & diff, provenance export, buying Pro | Nov 2–13 | Reseal & diff, provenance export and buying Pro (StoreKit 2) merged. The Direct build's license key is built (Creem, ADR 0027); it goes live once the Creem products and key are set up |
 | P5 App Store prep | Sandbox and privacy review, StoreKit 2, accessibility, onboarding | Nov 16–25 | Not started |
 | P6 TestFlight + launch | Testers, App Store listing, submission | Nov 30 – Dec 11 | Not started |
 
 Previews 0.4.0–0.4.2 ship the finished phases as a signed direct download
-(`docs/releases/`). 0.5.0 is next: Seal & Summarize and the two Pro features, unlocked
-in the direct build until its license key lands.
+(`docs/releases/`). 0.5.0 is next: Seal & Summarize and the two Pro features. From the first
+preview built with the license key (ADR 0027), Pro in the direct build needs a key from Creem.
 
 ### What 1.0 includes (ADR 0012)
 
