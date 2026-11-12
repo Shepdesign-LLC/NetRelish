@@ -44,6 +44,7 @@
 		44F4E3743EBA933CB106016C /* PantryIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 540CFB70FCEF33BF7DF63007 /* PantryIntents.swift */; };
 		491397EF23E823777A34F536 /* ShapeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0B24A1EE81659EB7BBA716 /* ShapeTests.swift */; };
 		49B870E63311F44EE7519EFB /* Recipe+Behavior.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BA168573E80003B6999EE2C /* Recipe+Behavior.swift */; };
+		4C817ADC5D6F572615FDDF01 /* LicenseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4202F97AB8C354B96FD03F49 /* LicenseTests.swift */; };
 		4CAF4DE84BF4ADDE44625254 /* Types.swift in Sources */ = {isa = PBXBuildFile; fileRef = 703D5F78CD1E867DB5E5D6FD /* Types.swift */; };
 		4EC192B287C6A95EA4A4627F /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE46A525A1828AEFEDABF24D /* Components.swift */; };
 		518399168F3764EADA28D797 /* Step+Behavior.swift in Sources */ = {isa = PBXBuildFile; fileRef = 500F5D46CE9F7219B92624E5 /* Step+Behavior.swift */; };
@@ -81,6 +82,7 @@
 		8A00C8856EB367A8EDF06A57 /* TimestampService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEC4CF61D3952AB4C374DBC /* TimestampService.swift */; };
 		8A18D629407EB1E42E2BFFE6 /* NetRelish+Behavior.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0463DF5285B0BBF00DBF245A /* NetRelish+Behavior.swift */; };
 		8C7FB8FC5FF06667C7A2C364 /* Summary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A27FE12151DE78EF403416A /* Summary.swift */; };
+		8D1A6DF25D30586791E3546D /* License.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78C81F2C612BAEDD03DC4936 /* License.swift */; };
 		906F5FE2A3D24AFE8A9793E8 /* ComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55E0FB4E19A87A130E7B7194 /* ComparisonView.swift */; };
 		92D4CFA50740987E18679FFB /* ProofExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB94C5E4D22999E2CE6A97ED /* ProofExport.swift */; };
 		987F49456C74178131DFF01E /* NetRelishShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B95A9EF84A52A5D6ED036A5A /* NetRelishShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -240,6 +242,7 @@
 		3DBE6B2CBBFF6DDC55781E3E /* Tokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tokens.swift; sourceTree = "<group>"; };
 		3E8A48ABA51BF12211284C9D /* ShortcutsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsTests.swift; sourceTree = "<group>"; };
 		40130C352534C0973D9E549D /* Symbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Symbols.swift; sourceTree = "<group>"; };
+		4202F97AB8C354B96FD03F49 /* LicenseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LicenseTests.swift; sourceTree = "<group>"; };
 		439AE825B43CBFCF48D96703 /* Item+Behavior.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Item+Behavior.swift"; sourceTree = "<group>"; };
 		43E13803770E245554A7C7A2 /* FormFill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormFill.swift; sourceTree = "<group>"; };
 		46C31B20346A1C5CD5B53500 /* HeadlessPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeadlessPage.swift; sourceTree = "<group>"; };
@@ -263,6 +266,7 @@
 		71F2DBDA46CC41E896451980 /* JarProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JarProfile.swift; sourceTree = "<group>"; };
 		7294EB62C146D80E801CB46E /* Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Support.swift; sourceTree = "<group>"; };
 		740668DF1C9796AB0B920873 /* PaletteSourceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaletteSourceTests.swift; sourceTree = "<group>"; };
+		78C81F2C612BAEDD03DC4936 /* License.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = License.swift; sourceTree = "<group>"; };
 		80AA83881FEF26447C9DDD1E /* JarIsolationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JarIsolationTests.swift; sourceTree = "<group>"; };
 		835DCC7CB567037E4025CF3A /* IdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityTests.swift; sourceTree = "<group>"; };
 		83A0FA70EC9D9597C5C56145 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -447,6 +451,7 @@
 				C3C24B8A095CBA7AF7491018 /* Seal */,
 				D492BD29A2E197107C5631B8 /* Vault */,
 				80AA83881FEF26447C9DDD1E /* JarIsolationTests.swift */,
+				4202F97AB8C354B96FD03F49 /* LicenseTests.swift */,
 				F90136E09BA2F6D18415C368 /* OKLCHTests.swift */,
 				2382FFC6AE4886B09524B28A /* ProTests.swift */,
 				EF0B24A1EE81659EB7BBA716 /* ShapeTests.swift */,
@@ -658,6 +663,7 @@
 			children = (
 				1EFD43D9BDEBCE6AECDB40DE /* DesignKitSnapshot.swift */,
 				83A0FA70EC9D9597C5C56145 /* Info.plist */,
+				78C81F2C612BAEDD03DC4936 /* License.swift */,
 				AB18B4779357DA7D7459D1C6 /* LogSafe.swift */,
 				3CAED094D268288F3732DE63 /* NetRelishApp.swift */,
 				8EE83596F73D04918B8FBF71 /* NetRelishIntents.swift */,
@@ -956,6 +962,7 @@
 				C80B7DD1C500A7282051CEA4 /* FormFillTests.swift in Sources */,
 				5DEE19ECAFFBEEF5452871FC /* IdentityTests.swift in Sources */,
 				1CF9373273D94B6D52B49ACE /* JarIsolationTests.swift in Sources */,
+				4C817ADC5D6F572615FDDF01 /* LicenseTests.swift in Sources */,
 				6241E4E5B69644A70237AFC1 /* OKLCHTests.swift in Sources */,
 				6AE616826B560A814742F229 /* PaletteMatcherTests.swift in Sources */,
 				33BF82DDE63475727CBC6DB1 /* PaletteSourceTests.swift in Sources */,
@@ -995,6 +1002,7 @@
 				9C9666B8D0D43BECB130C95A /* Identity.swift in Sources */,
 				7131964397BDD2A3E1BF68F6 /* IdentityFields.swift in Sources */,
 				53CA45E71B9E8D1D9BA81E79 /* JarSheet.swift in Sources */,
+				8D1A6DF25D30586791E3546D /* License.swift in Sources */,
 				06CC354676FFF3A9A5EAF2E4 /* LogSafe.swift in Sources */,
 				3082C4319551742BC2271B52 /* MeOnboardingSheet.swift in Sources */,
 				CD72776B669DF8E7757DA298 /* MeSettingsView.swift in Sources */,
