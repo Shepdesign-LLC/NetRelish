@@ -300,13 +300,19 @@ final class ProStore {
         }
         pendingNames[key] = nil
         let activated = License(key: key, instanceID: instanceID, status: reply.status, expires: reply.expires, checked: now())
-        guard keep(activated) else {
+        do {
+            try licensing.vault.save(activated)
+        } catch {
             // Not kept, its id would be gone at the next launch with the activation still
-            // counted in the store. Give it back now, while the id is here.
+            // counted in the store. Give it back now, while the id is here, and leave Pro as
+            // it was: an activation that wasn't kept never unlocks.
+            ProStore.log.error("license keychain: \(errorKind(error), privacy: .public)")
             _ = try? await licensing.authority.deactivate(key: key, instanceID: instanceID)
             note = ProText.keychainUnsaved
             return
         }
+        license = activated
+        settle()
         // Unlocked, the window's own line says so. Locked, say why: a year that has run out.
         note = isUnlocked ? nil : ProText.licenseNote(.expired, expires: reply.expires)
     }
