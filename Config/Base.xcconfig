@@ -7,8 +7,9 @@
 // RFC 3161 timestamping for Pro provenance: DigiCert's public timestamp authority.
 NR_TIMESTAMP_URL = http:/$()/timestamp.digicert.com
 
-// One-time license activation for the Direct build. Not set up yet.
-NR_LICENSE_ACTIVATION_URL =
+// License activation for the Direct build (ADR 0027): the relay on netrelish.com that holds
+// Creem's API key. Only the Direct build reads it; the App Store build uses StoreKit.
+NR_LICENSE_ACTIVATION_URL = https:/$()/netrelish.com/api/license
 
 // A local Config.xcconfig (gitignored, see Config.xcconfig.example) overrides these, say to
 // point at a test authority. It comes last so its values win. Optional, so a fresh clone builds.

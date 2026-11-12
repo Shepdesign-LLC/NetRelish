@@ -1,5 +1,6 @@
 // ProView.swift — the NetRelish Pro sheet (ADR 0023): what Pro adds, the two prices, buying,
-// and restoring. Opened from the app menu, or by using a Pro feature while it's locked.
+// and restoring. Opened from the app menu, or by using a Pro feature while it's locked. In the
+// Direct build the prices give way to a license key field (ADR 0027).
 //
 // Brand: the cog mark (allowed in onboarding-like moments, manifest §2), one primary button
 // (Lifetime, "Buy once, use forever."), everything else neutral. No new tokens.
@@ -12,18 +13,22 @@ struct ProView: View {
     /// Closes the sheet. Passed in so snapshots can render the view with no Workbench.
     let done: () -> Void
     @Environment(\.purchase) private var purchase
+    /// The license key as typed, in the Direct build.
+    @State private var typedKey = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: NRSpace.sp5) {
             header
             features
             Rectangle().fill(NRColor.hairline).frame(height: NRSpace.hairline)
-            if pro.isUnlocked {
+            if pro.usesLicense {
+                licenseSection
+            } else if pro.isUnlocked {
                 unlocked
             } else {
                 offers
             }
-            if let note = pro.note {
+            if let note = pro.note, note != pro.lockedLicenseLine {   // never the same line twice
                 Text(note).font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -32,8 +37,13 @@ struct ProView: View {
         .padding(NRSpace.sp6)
         .frame(width: 440)
         .background(NRColor.surface)
-        // Opened offline at launch? Ask for the prices again now.
-        .task { if pro.offers.isEmpty { await pro.loadOffers() } }
+        .task {
+            if pro.usesLicense {
+                pro.settle()   // a year that ran out since launch locks now, without asking anyone
+            } else if pro.offers.isEmpty {
+                await pro.loadOffers()   // opened offline at launch? Ask for the prices again now.
+            }
+        }
     }
 
     private var header: some View {
@@ -101,9 +111,66 @@ struct ProView: View {
         }
     }
 
+    /// The Direct build: the license on this Mac, why it's locked, or a field to activate one.
+    @ViewBuilder private var licenseSection: some View {
+        if pro.isUnlocked, let license = pro.license {
+            Text(ProText.licensed(license))
+                .font(NRType.font(NRType.fsMd)).foregroundStyle(NRColor.fg)
+                .fixedSize(horizontal: false, vertical: true)
+        } else if let line = pro.lockedLicenseLine {
+            // A license this Mac holds that doesn't unlock Pro: say why, and offer the two ways
+            // out. No key field: a new key would strand this one's activation in the store.
+            VStack(alignment: .leading, spacing: NRSpace.sp3) {
+                Text(line)
+                    .font(NRType.font(NRType.fsMd)).foregroundStyle(NRColor.fg)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: NRSpace.sp3) {
+                    // One primary button per view (manifest §4).
+                    Button(ProText.checkAgain) { Task { await pro.checkAgain() } }
+                        .buttonStyle(.nrPrimary)
+                    Button(ProText.deactivate) { Task { await pro.deactivate() } }
+                        .buttonStyle(.nrSecondary)
+                    Spacer()
+                }
+                .disabled(pro.busy)
+                Link(ProText.buyLicense, destination: ProText.buyURL)
+                    .font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: NRSpace.sp3) {
+                Text(ProText.keyLine)
+                    .font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: NRSpace.sp3) {
+                    TextField(ProText.keyPlaceholder, text: $typedKey)
+                        .textFieldStyle(.roundedBorder)
+                        .font(NRType.font(NRType.fsMd))
+                        .autocorrectionDisabled()
+                        .onSubmit { if !pro.busy { activate() } }
+                        .accessibilityLabel(ProText.keyPlaceholder)
+                    // One primary button per view (manifest §4).
+                    Button(ProText.activate) { activate() }
+                        .buttonStyle(.nrPrimary)
+                        .disabled(pro.busy || typedKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                Link(ProText.buyLicense, destination: ProText.buyURL)
+                    .font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2)
+            }
+        }
+    }
+
     private var footer: some View {
         HStack(spacing: NRSpace.sp3) {
-            if !pro.isUnlocked {
+            if pro.usesLicense {
+                if pro.isUnlocked, pro.license != nil {   // locked, the section above carries them
+                    Button(ProText.checkAgain) { Task { await pro.checkAgain() } }
+                        .buttonStyle(.plain).font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2)
+                        .disabled(pro.busy)
+                    Button(ProText.deactivate) { Task { await pro.deactivate() } }
+                        .buttonStyle(.plain).font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2)
+                        .disabled(pro.busy)
+                }
+            } else if !pro.isUnlocked {
                 Button(ProText.restore) { Task { await pro.restore() } }
                     .buttonStyle(.plain).font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2)
                     .disabled(pro.busy)
@@ -112,8 +179,10 @@ struct ProView: View {
                     .font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2)
             }
             Spacer()
-            Link(ProText.terms, destination: ProText.termsURL)
-                .font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2)
+            if !pro.usesLicense {   // Apple's terms cover App Store purchases only
+                Link(ProText.terms, destination: ProText.termsURL)
+                    .font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2)
+            }
             Link(ProText.privacy, destination: ProText.privacyURL)
                 .font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2)
         }
@@ -121,6 +190,14 @@ struct ProView: View {
 
     private func buy(_ plan: ProPlan) {
         Task { await pro.buy(plan, with: purchase) }
+    }
+
+    private func activate() {
+        let typed = typedKey
+        Task {
+            await pro.activate(typed)
+            if pro.isUnlocked { typedKey = "" }
+        }
     }
 }
 

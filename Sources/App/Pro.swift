@@ -2,8 +2,9 @@
 //
 // One place decides: `ProStore.isUnlocked`. In the App Store build it reads StoreKit 2's
 // verified record of what this Apple Account bought: Pro Lifetime, or Pro Annual while it's
-// active, never one that was refunded. The Direct build stays unlocked until its license key
-// lands (ADR 0007). Nothing here talks to anything but StoreKit (non-negotiable 5).
+// active, never one that was refunded. In the Direct build it reads the license key this Mac
+// activated (License.swift, ADR 0027), and asks the license relay only when the person presses
+// a button. The App Store build talks to nothing but StoreKit (non-negotiable 5).
 
 import Foundation
 import Observation
@@ -52,8 +53,33 @@ final class ProStore {
     /// The last thing to tell the person, in a sentence.
     private(set) var note: String?
 
+    /// This Mac's license, in the Direct build. Nil until one is activated, and in the App Store build.
+    private(set) var license: License?
+
     /// Told whenever `isUnlocked` changes, so stamping can start or stop.
     @ObservationIgnored var onChange: (@MainActor () -> Void)?
+
+    /// The Direct build's license relay and Keychain. Nil in the App Store build and in a fixed store.
+    @ObservationIgnored private let licensing: (authority: any LicenseAuthority, vault: any LicenseVault)?
+    @ObservationIgnored private let now: @MainActor () -> Date
+    /// Waits until a yearly license runs out. Tests pass one they can wake by hand.
+    @ObservationIgnored private let sleep: @MainActor (Duration) async throws -> Void
+    /// Locks Pro the moment this Mac's yearly license runs out, while the app stays open.
+    @ObservationIgnored private var expiryWatch: Task<Void, Never>?
+    /// Activations that ended while the Keychain refused to let go of them.
+    @ObservationIgnored private let revocations: any LicenseRevocations
+    /// Activations given back this run whose Keychain record wouldn't clear: Deactivate only
+    /// has the Keychain left to try, not the store.
+    @ObservationIgnored private var givenBack: Set<String> = []
+    /// A build whose relay address is broken: Pro stays locked whatever the Keychain holds,
+    /// and the Keychain is left as it is.
+    @ObservationIgnored private let misconfigured: Bool
+    /// The Keychain couldn't be read at launch, so "no license" isn't known to be true.
+    @ObservationIgnored private var vaultUnread = false
+    /// The name a retried activation goes by, per key. A reply lost on the way back still costs
+    /// the store a seat, but the two activations then share one name in the store's list, so a
+    /// duplicate is plain to see and free there.
+    @ObservationIgnored private var pendingNames: [String: String] = [:]
 
     @ObservationIgnored private let live: Bool
     @ObservationIgnored private var products: [ProPlan: Product] = [:]
@@ -64,6 +90,11 @@ final class ProStore {
     /// (which pass `offers` so the sheet has prices to show).
     init(unlocked: Bool, offers: [ProOffer] = []) {
         live = false
+        licensing = nil
+        now = { Date() }
+        sleep = { try await Task.sleep(for: $0) }
+        misconfigured = false
+        revocations = MemoryRevocations()
         isUnlocked = unlocked
         self.offers = offers
     }
@@ -71,7 +102,50 @@ final class ProStore {
     /// StoreKit's answer, kept current while the app runs.
     private init(live: Void) {
         self.live = true
+        licensing = nil
+        now = { Date() }
+        sleep = { try await Task.sleep(for: $0) }
+        misconfigured = false
+        revocations = MemoryRevocations()
         isUnlocked = false
+    }
+
+    /// The Direct build: unlocked by a license key this Mac activated, as the Keychain keeps
+    /// it. Nothing is asked of the relay here; only the buttons ask it.
+    /// `misconfigured` is a build whose relay address is broken: Pro stays locked.
+    init(licensedBy authority: any LicenseAuthority, keptIn vault: any LicenseVault,
+         revocations: any LicenseRevocations = MemoryRevocations(),
+         misconfigured: Bool = false,
+         now: @escaping @MainActor () -> Date = { Date() },
+         sleep: @escaping @MainActor (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
+        live = false
+        licensing = (authority, vault)
+        self.misconfigured = misconfigured
+        self.revocations = revocations
+        self.now = now
+        self.sleep = sleep
+        isUnlocked = false
+        do {
+            license = try vault.load()
+        } catch {
+            vaultUnread = true   // Activate reads it again before trusting "no license here"
+            ProStore.log.error("license keychain: \(errorKind(error), privacy: .public)")
+        }
+        honorRevocations()
+        isUnlocked = !misconfigured && (license?.unlocks(at: now()) ?? false)
+        watchExpiry()
+    }
+
+    /// Whether Pro here comes from a license key (the Direct build) rather than the App Store.
+    var usesLicense: Bool { licensing != nil }
+
+    /// Why this Mac's license doesn't unlock Pro, when there is one that doesn't. Nil otherwise.
+    var lockedLicenseLine: String? {
+        guard let license, !isUnlocked else { return nil }
+        if misconfigured { return ProText.licenseUnreachable }
+        if license.status == .unknown { return ProText.licenseNeedsCheck }
+        // Active but locked can only mean the year ran out since the store last said so.
+        return ProText.licenseNote(license.status == .active ? .expired : license.status, expires: license.expires)
     }
 
     static func live() -> ProStore {
@@ -195,8 +269,246 @@ final class ProStore {
         note = isUnlocked ? ProText.restored : ProText.nothingToRestore
     }
 
+    // MARK: The Direct build's license key (ADR 0027)
+
+    /// Activates `typed` on this Mac. The only time a key leaves the Mac.
+    func activate(_ typed: String) async {
+        // One question at a time: a second press while the first is out would ask the store
+        // for a second activation and lose the first one's id.
+        guard let licensing, !busy else { return }
+        // Read the Keychain again if it couldn't be read at launch: an activation already kept
+        // there must never be written over by a new one.
+        if vaultUnread {
+            do {
+                license = try licensing.vault.load()
+                vaultUnread = false
+                honorRevocations()   // a record the Keychain wouldn't let go of stays ended here too
+                settle()
+            } catch {
+                ProStore.log.error("license keychain: \(errorKind(error), privacy: .public)")
+                note = ProText.keychainUnread
+                return
+            }
+        }
+        // A license already on this Mac is checked or given back, never replaced: replacing it
+        // would strand its activation in the store.
+        guard license == nil else {
+            note = ProText.alreadyActivated
+            return
+        }
+        guard let key = License.normalized(typed) else {
+            note = ProText.notAKey
+            return
+        }
+        busy = true
+        defer { busy = false }
+        let name = pendingNames[key] ?? License.newInstanceName()
+        pendingNames[key] = name
+        let reply: LicenseReply
+        do {
+            reply = try await licensing.authority.activate(key: key, instanceName: name)
+        } catch {
+            note = ProText.licenseUnreachable   // the name is kept: a retry goes by the same one
+            return
+        }
+        guard reply.status == .active || reply.status == .expired else {
+            if reply.status != .unknown { pendingNames[key] = nil }
+            note = ProText.licenseNote(reply.status)
+            return
+        }
+        guard let instanceID = reply.instanceID else {
+            note = ProText.licenseUnreachable   // an activation with no id isn't one
+            return
+        }
+        pendingNames[key] = nil
+        let activated = License(key: key, instanceID: instanceID, status: reply.status, expires: reply.expires, checked: now())
+        do {
+            try licensing.vault.save(activated)
+        } catch {
+            // Not kept, its id would be gone at the next launch with the activation still
+            // counted in the store. Give it back now, while the id is here, and leave Pro as
+            // it was: an activation that wasn't kept never unlocks.
+            ProStore.log.error("license keychain: \(errorKind(error), privacy: .public)")
+            let back = try? await licensing.authority.deactivate(key: key, instanceID: instanceID)
+            guard let back, back.status != .unknown else {
+                // Not given back either: hold its id for this run, locked, so Deactivate can
+                // give it back once netrelish.com answers.
+                var held = activated
+                held.status = .inactive
+                license = held
+                settle()
+                note = ProText.keychainNotGivenBack
+                return
+            }
+            note = ProText.keychainGivenBack
+            return
+        }
+        license = activated
+        settle()
+        // Unlocked, the window's own line says so. Locked, say why: a year that has run out.
+        note = isUnlocked ? nil : ProText.licenseNote(.expired, expires: reply.expires)
+    }
+
+    /// Asks the relay about this Mac's license again: after a renewal, say. Only when pressed.
+    func checkAgain() async {
+        guard let licensing, var license, !busy else { return }
+        busy = true
+        defer { busy = false }
+        let before = license
+        let reply: LicenseReply
+        do {
+            reply = try await licensing.authority.validate(key: license.key, instanceID: license.instanceID)
+        } catch {
+            note = ProText.licenseUnreachable
+            return
+        }
+        // An answer that isn't one changes nothing here, as no answer doesn't.
+        guard reply.status != .unknown else {
+            note = ProText.licenseUnreachable
+            return
+        }
+        // Refused on a check means this Mac's activation isn't one the store counts anymore,
+        // not that the key is in use on too many Macs.
+        license.status = reply.status == .rejected ? .inactive : reply.status
+        license.expires = reply.expires ?? (reply.status == .active ? nil : license.expires)
+        license.checked = now()
+        guard keep(license) else {
+            // The Keychain still holds the old answer. If the new one locks Pro and the old one
+            // would unlock it again at the next launch, take the old one out. One that locks
+            // anyway (a year that ran out) stays: its id is what the renewal is checked with.
+            if !isUnlocked, before.unlocks(at: now()) {
+                do {
+                    try licensing.vault.remove()
+                } catch {
+                    revocations.add(license.instanceID)   // refused that too: remember it elsewhere
+                }
+            }
+            note = ProText.keychainUnsaved
+            return
+        }
+        note = isUnlocked ? nil : ProText.licenseNote(license.status == .active ? .expired : license.status,
+                                                      expires: license.expires)
+    }
+
+    /// Gives this Mac's activation back, so the key can be used on another Mac. The license is
+    /// forgotten here once the store has answered; offline, nothing changes.
+    func deactivate() async {
+        guard let licensing, var license, !busy else { return }
+        busy = true
+        defer { busy = false }
+        // Given back already this run, with only the Keychain left to clear: the store isn't asked
+        // again, since an activation it already let go may get no clear answer the second time.
+        // Only a give-back the store confirmed counts: a revocation alone (a refund the Keychain
+        // wouldn't record) says nothing about whether this Mac's activation was returned.
+        if !givenBack.contains(license.instanceID) {
+            let reply: LicenseReply
+            do {
+                reply = try await licensing.authority.deactivate(key: license.key, instanceID: license.instanceID)
+            } catch {
+                note = ProText.licenseUnreachable
+                return
+            }
+            // An answer that isn't one is no answer: keep the license, and its id, as offline does.
+            guard reply.status != .unknown else {
+                note = ProText.licenseUnreachable
+                return
+            }
+        }
+        // Whatever else the store answered (given back, a key it no longer knows, an activation
+        // it had already let go), this Mac's activation is over: forget it here too.
+        do {
+            try licensing.vault.remove()
+        } catch {
+            ProStore.log.error("license keychain: \(errorKind(error), privacy: .public)")
+            // Still in the Keychain, it would unlock Pro again at the next launch. Keep it as
+            // given back instead, here and outside the Keychain: locked, and Deactivate only
+            // tries the Keychain again.
+            givenBack.insert(license.instanceID)
+            revocations.add(license.instanceID)
+            license.status = .inactive
+            license.checked = now()
+            try? licensing.vault.save(license)
+            self.license = license
+            settle()
+            note = ProText.keychainNotCleared
+            return
+        }
+        givenBack.remove(license.instanceID)
+        revocations.remove(license.instanceID)
+        self.license = nil
+        settle()
+        note = ProText.deactivated
+    }
+
+    /// Keeps `license` in the Keychain and decides again. False when the Keychain refused it:
+    /// this run goes by the new answer, and the caller decides what the next launch will see.
+    @discardableResult
+    private func keep(_ license: License) -> Bool {
+        var kept = true
+        do {
+            try licensing?.vault.save(license)
+        } catch {
+            kept = false
+            ProStore.log.error("license keychain: \(errorKind(error), privacy: .public)")
+        }
+        self.license = license
+        // The store says this activation is active again (a refund reversed, a renewal): it isn't ended anymore.
+        // Cleared when the new record was kept, or when the answer unlocks Pro now even though the Keychain refused
+        // it (the old record has the same id). An "active" whose year has already run out, not kept, clears nothing:
+        // the old record could otherwise unlock Pro at the next launch.
+        if license.status == .active, kept || license.unlocks(at: now()) { revocations.remove(license.instanceID) }
+        settle()
+        return kept
+    }
+
+    /// Whether this Mac's license unlocks Pro right now. A year that has run out locks it
+    /// without asking anyone; Check Again is how a renewal is found.
+    func settle() {
+        guard let licensing else { return }
+        // A Keychain that couldn't be read at launch is read again here, before every Pro
+        // gate and each time the sheet opens, so a license it was hiding counts once it can.
+        if vaultUnread {
+            do {
+                license = try licensing.vault.load()
+                vaultUnread = false
+                honorRevocations()
+            } catch {
+                ProStore.log.error("license keychain: \(errorKind(error), privacy: .public)")
+            }
+        }
+        let unlocked = !misconfigured && (license?.unlocks(at: now()) ?? false)
+        let changed = unlocked != isUnlocked
+        isUnlocked = unlocked
+        if changed { onChange?() }
+        watchExpiry()
+    }
+
+    /// While a yearly license unlocks Pro, waits for its last moment and locks it then, with no
+    /// call, so stamping stops on time even if the app is never quit. The wait counts time the
+    /// Mac spends asleep.
+    private func watchExpiry() {
+        expiryWatch?.cancel()
+        expiryWatch = nil
+        guard isUnlocked, let expires = license?.expires else { return }
+        // Whole seconds, rounded up, so the wake lands at or just after the last moment. Capped
+        // at a century, so a date far off can't overflow.
+        let left = min(max(0, expires.timeIntervalSince(now()).rounded(.up)), 3_153_600_000)
+        let wait = Duration.seconds(Int64(left))
+        expiryWatch = Task { [weak self, sleep] in
+            do { try await sleep(wait) } catch { return }
+            guard !Task.isCancelled else { return }
+            self?.settle()
+        }
+    }
+
+    /// An activation that ended while the Keychain wouldn't let go of it stays ended.
+    private func honorRevocations() {
+        if let id = license?.instanceID, revocations.contains(id) { license?.status = .inactive }
+    }
+
     deinit {
         updates?.cancel()
+        expiryWatch?.cancel()
     }
 }
 
@@ -225,6 +537,46 @@ enum ProText {
     static let restored = "Your purchase is restored. Pro is unlocked."
     static let nothingToRestore = "This Apple Account hasn’t bought Pro."
 
+    // The Direct build's license key.
+    static let keyPlaceholder = "License key"
+    static let activate = "Activate"
+    static let checkAgain = "Check Again"
+    static let deactivate = "Deactivate This Mac"
+    static let buyLicense = "Buy NetRelish Pro"
+    static let keyLine = "Bought Pro on netrelish.com? Paste the license key from your receipt."
+    static let notAKey = "That doesn’t look like a license key. Copy it from your receipt and paste it here."
+    static let licenseUnreachable = "NetRelish couldn’t get an answer from netrelish.com. Nothing changed on this Mac. Try again in a minute."
+    static let licenseActive = "Pro is active on this Mac."
+    static let deactivated = "You gave back this Mac’s activation. The key works on another Mac now."
+    static let alreadyActivated = "This Mac already has a license. Check it again, or deactivate it first to use another key."
+    static let keychainUnread = "NetRelish couldn’t read this Mac’s Keychain, so it can’t tell whether a license is already here. Nothing was sent. Try again in a moment."
+    static let licenseNeedsCheck = "NetRelish needs to check this Mac’s license again. Press Check Again."
+    static let keychainUnsaved = "NetRelish couldn’t save the answer in this Mac’s Keychain. Press Check Again in a moment."
+    static let keychainGivenBack = "NetRelish couldn’t save the license in this Mac’s Keychain, so it gave the activation back. Nothing was used up. Try again in a moment."
+    static let keychainNotGivenBack = "NetRelish couldn’t save the license in this Mac’s Keychain or give the activation back. Press Deactivate This Mac before you quit."
+    static let keychainNotCleared = "You gave back this Mac’s activation, but NetRelish couldn’t clear it from the Keychain. Press Deactivate This Mac again in a moment."
+
+    /// What the window says about a key that didn't (or no longer does) unlock Pro.
+    static func licenseNote(_ status: LicenseStatus, expires: Date? = nil) -> String {
+        switch status {
+        case .active: return licenseActive
+        case .expired:
+            guard let expires else { return "This license has run out. Renew it, then press Check Again." }
+            return "This license ran out on \(expires.formatted(date: .long, time: .omitted)). Renew it, then press Check Again."
+        case .invalid: return "That key isn’t one we know. Check it against your receipt."
+        case .rejected: return "That key is already active on as many Macs as it allows. Deactivate it on one of them first."
+        case .disabled: return "This license is turned off. Pro is locked."
+        case .inactive: return "This Mac’s activation isn’t active anymore. Deactivate it, then activate the key again."
+        case .unknown: return licenseUnreachable
+        }
+    }
+
+    /// What the window says once a license unlocks Pro.
+    static func licensed(_ license: License) -> String {
+        guard let expires = license.expires else { return "Pro is active on this Mac." }
+        return "Pro is active on this Mac until \(expires.formatted(date: .long, time: .omitted))."
+    }
+
     /// What the window says once Pro is unlocked.
     static func unlocked(plan: ProPlan?, renews: Date?) -> String {
         switch plan {
@@ -250,6 +602,8 @@ enum ProText {
     }
 
     static let termsURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+    /// Where the Direct build sends someone to buy a key.
+    static let buyURL = URL(string: "https://netrelish.com/")!
     static let privacyURL = URL(string: "https://netrelish.com/privacy")!
     static let manageURL = URL(string: "macappstores://apps.apple.com/account/subscriptions")!
 }

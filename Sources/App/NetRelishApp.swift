@@ -29,11 +29,19 @@ struct NetRelishApp: App {
     }
 
     /// Whether Pro is unlocked (ADR 0023). The App Store build asks StoreKit; the Direct
-    /// build stays unlocked until its license key lands (ADR 0007). Tests bring their own.
+    /// build reads the license key this Mac activated (ADR 0027), and stays unlocked only in a
+    /// build with no license relay set up. Tests bring their own.
     private static var pro: ProStore {
         if isHostingTests { return ProStore(unlocked: true) }
         #if DIRECT_BUILD
-        return ProStore(unlocked: true)
+        switch LicenseRelay.configured {
+        case .notSet: return ProStore(unlocked: true)
+        case .relay(let relay):
+            return ProStore(licensedBy: relay, keptIn: LicenseKeychain.live, revocations: DefaultsRevocations.live)
+        case .broken:
+            return ProStore(licensedBy: NoLicenseRelay(), keptIn: LicenseKeychain.live,
+                            revocations: DefaultsRevocations.live, misconfigured: true)
+        }
         #else
         return .live()
         #endif
