@@ -34,8 +34,11 @@ struct NetRelishApp: App {
     private static var pro: ProStore {
         if isHostingTests { return ProStore(unlocked: true) }
         #if DIRECT_BUILD
-        guard let relay = LicenseRelay.configured else { return ProStore(unlocked: true) }
-        return ProStore(licensedBy: relay, keptIn: LicenseKeychain.live)
+        switch LicenseRelay.configured {
+        case .notSet: return ProStore(unlocked: true)
+        case .relay(let relay): return ProStore(licensedBy: relay, keptIn: LicenseKeychain.live)
+        case .broken: return ProStore(licensedBy: NoLicenseRelay(), keptIn: LicenseKeychain.live)
+        }
         #else
         return .live()
         #endif

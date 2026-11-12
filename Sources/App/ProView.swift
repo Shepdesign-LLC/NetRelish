@@ -28,7 +28,7 @@ struct ProView: View {
             } else {
                 offers
             }
-            if let note = pro.note {
+            if let note = pro.note, note != pro.lockedLicenseLine {   // never the same line twice
                 Text(note).font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -111,12 +111,31 @@ struct ProView: View {
         }
     }
 
-    /// The Direct build: the license on this Mac, or a field to activate one.
+    /// The Direct build: the license on this Mac, why it's locked, or a field to activate one.
     @ViewBuilder private var licenseSection: some View {
         if pro.isUnlocked, let license = pro.license {
             Text(ProText.licensed(license))
                 .font(NRType.font(NRType.fsMd)).foregroundStyle(NRColor.fg)
                 .fixedSize(horizontal: false, vertical: true)
+        } else if let line = pro.lockedLicenseLine {
+            // A license this Mac holds that doesn't unlock Pro: say why, and offer the two ways
+            // out. No key field: a new key would strand this one's activation in the store.
+            VStack(alignment: .leading, spacing: NRSpace.sp3) {
+                Text(line)
+                    .font(NRType.font(NRType.fsMd)).foregroundStyle(NRColor.fg)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: NRSpace.sp3) {
+                    // One primary button per view (manifest §4).
+                    Button(ProText.checkAgain) { Task { await pro.checkAgain() } }
+                        .buttonStyle(.nrPrimary)
+                    Button(ProText.deactivate) { Task { await pro.deactivate() } }
+                        .buttonStyle(.nrSecondary)
+                    Spacer()
+                }
+                .disabled(pro.busy)
+                Link(ProText.buyLicense, destination: ProText.buyURL)
+                    .font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2)
+            }
         } else {
             VStack(alignment: .leading, spacing: NRSpace.sp3) {
                 Text(ProText.keyLine)
@@ -127,7 +146,7 @@ struct ProView: View {
                         .textFieldStyle(.roundedBorder)
                         .font(NRType.font(NRType.fsMd))
                         .autocorrectionDisabled()
-                        .onSubmit { activate() }
+                        .onSubmit { if !pro.busy { activate() } }
                         .accessibilityLabel(ProText.keyPlaceholder)
                     // One primary button per view (manifest §4).
                     Button(ProText.activate) { activate() }
@@ -143,7 +162,7 @@ struct ProView: View {
     private var footer: some View {
         HStack(spacing: NRSpace.sp3) {
             if pro.usesLicense {
-                if pro.license != nil {
+                if pro.isUnlocked, pro.license != nil {   // locked, the section above carries them
                     Button(ProText.checkAgain) { Task { await pro.checkAgain() } }
                         .buttonStyle(.plain).font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2)
                         .disabled(pro.busy)

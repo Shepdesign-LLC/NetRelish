@@ -105,6 +105,13 @@ final class ProStore {
     /// Whether Pro here comes from a license key (the Direct build) rather than the App Store.
     var usesLicense: Bool { licensing != nil }
 
+    /// Why this Mac's license doesn't unlock Pro, when there is one that doesn't. Nil otherwise.
+    var lockedLicenseLine: String? {
+        guard let license, !isUnlocked else { return nil }
+        // Active but locked can only mean the year ran out since the store last said so.
+        return ProText.licenseNote(license.status == .active ? .expired : license.status, expires: license.expires)
+    }
+
     static func live() -> ProStore {
         let store = ProStore(live: ())
         store.start()
@@ -230,7 +237,15 @@ final class ProStore {
 
     /// Activates `typed` on this Mac. The only time a key leaves the Mac.
     func activate(_ typed: String) async {
-        guard let licensing else { return }
+        // One question at a time: a second press while the first is out would ask the store
+        // for a second activation and lose the first one's id.
+        guard let licensing, !busy else { return }
+        // A license already on this Mac is checked or given back, never replaced: replacing it
+        // would strand its activation in the store.
+        guard license == nil else {
+            note = ProText.alreadyActivated
+            return
+        }
         guard let key = License.normalized(typed) else {
             note = ProText.notAKey
             return
@@ -244,17 +259,22 @@ final class ProStore {
             note = ProText.licenseUnreachable
             return
         }
-        guard let instanceID = reply.instanceID, reply.status == .active || reply.status == .expired else {
+        guard reply.status == .active || reply.status == .expired else {
             note = ProText.licenseNote(reply.status)
             return
         }
+        guard let instanceID = reply.instanceID else {
+            note = ProText.licenseUnreachable   // an activation with no id isn't one
+            return
+        }
         keep(License(key: key, instanceID: instanceID, status: reply.status, expires: reply.expires, checked: now()))
-        note = isUnlocked ? ProText.licenseActive : ProText.licenseNote(reply.status, expires: reply.expires)
+        // Unlocked, the window's own line says so. Locked, say why: a year that has run out.
+        note = isUnlocked ? nil : ProText.licenseNote(.expired, expires: reply.expires)
     }
 
     /// Asks the relay about this Mac's license again: after a renewal, say. Only when pressed.
     func checkAgain() async {
-        guard let licensing, var license else { return }
+        guard let licensing, var license, !busy else { return }
         busy = true
         defer { busy = false }
         let reply: LicenseReply
@@ -269,17 +289,20 @@ final class ProStore {
             note = ProText.licenseUnreachable
             return
         }
-        license.status = reply.status
+        // Refused on a check means this Mac's activation isn't one the store counts anymore,
+        // not that the key is in use on too many Macs.
+        license.status = reply.status == .rejected ? .inactive : reply.status
         license.expires = reply.expires ?? (reply.status == .active ? nil : license.expires)
         license.checked = now()
         keep(license)
-        note = isUnlocked ? ProText.licenseActive : ProText.licenseNote(reply.status, expires: license.expires)
+        note = isUnlocked ? nil : ProText.licenseNote(license.status == .active ? .expired : license.status,
+                                                      expires: license.expires)
     }
 
     /// Gives this Mac's activation back, so the key can be used on another Mac. The license is
     /// forgotten here once the store has answered; offline, nothing changes.
     func deactivate() async {
-        guard let licensing, let license else { return }
+        guard let licensing, let license, !busy else { return }
         busy = true
         defer { busy = false }
         do {
@@ -360,9 +383,10 @@ enum ProText {
     static let buyLicense = "Buy NetRelish Pro"
     static let keyLine = "Bought Pro on netrelish.com? Paste the license key from your receipt."
     static let notAKey = "That doesn’t look like a license key. Copy it from your receipt and paste it here."
-    static let licenseUnreachable = "NetRelish couldn’t reach netrelish.com to check the key. Check your connection and try again."
-    static let licenseActive = "Pro is active on this Mac. Thank you."
-    static let deactivated = "This Mac’s activation is given back. You can use the key on another Mac."
+    static let licenseUnreachable = "NetRelish couldn’t get an answer from netrelish.com. Nothing changed on this Mac. Try again in a minute."
+    static let licenseActive = "Pro is active on this Mac."
+    static let deactivated = "You gave back this Mac’s activation. The key works on another Mac now."
+    static let alreadyActivated = "This Mac already has a license. Check it again, or deactivate it first to use another key."
 
     /// What the window says about a key that didn't (or no longer does) unlock Pro.
     static func licenseNote(_ status: LicenseStatus, expires: Date? = nil) -> String {
@@ -373,8 +397,8 @@ enum ProText {
             return "This license ran out on \(expires.formatted(date: .long, time: .omitted)). Renew it, then press Check Again."
         case .invalid: return "That key isn’t one we know. Check it against your receipt."
         case .rejected: return "That key is already active on as many Macs as it allows. Deactivate it on one of them first."
-        case .disabled: return "This license has been turned off, after a refund or a cancellation. Pro is locked."
-        case .inactive: return "This Mac’s activation isn’t active anymore. Activate the key again."
+        case .disabled: return "This license is turned off. Pro is locked."
+        case .inactive: return "This Mac’s activation isn’t active anymore. Deactivate it, then activate the key again."
         case .unknown: return licenseUnreachable
         }
     }

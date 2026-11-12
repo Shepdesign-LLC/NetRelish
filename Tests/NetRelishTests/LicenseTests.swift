@@ -34,6 +34,43 @@ final class StubAuthority: LicenseAuthority, @unchecked Sendable {
     func deactivate(key: String, instanceID: String) async throws -> LicenseReply { try respond(.deactivate(key: key, id: instanceID)) }
 }
 
+/// An authority that holds every question until the test opens it, so a test can press a
+/// button again while the first question is still out.
+final class GatedAuthority: LicenseAuthority, @unchecked Sendable {
+    private let lock = NSLock()
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+    private var isOpen = false
+    private var count = 0
+
+    var calls: Int { lock.withLock { count } }
+
+    func open() {
+        let held = lock.withLock { () -> [CheckedContinuation<Void, Never>] in
+            isOpen = true
+            defer { waiting = [] }
+            return waiting
+        }
+        held.forEach { $0.resume() }
+    }
+
+    private func held() async -> LicenseReply {
+        lock.withLock { count += 1 }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let now = lock.withLock { () -> Bool in
+                if isOpen { return true }
+                waiting.append(continuation)
+                return false
+            }
+            if now { continuation.resume() }
+        }
+        return LicenseReply(status: .active, instanceID: "ins_1", expires: nil)
+    }
+
+    func activate(key: String, instanceName: String) async throws -> LicenseReply { await held() }
+    func validate(key: String, instanceID: String) async throws -> LicenseReply { await held() }
+    func deactivate(key: String, instanceID: String) async throws -> LicenseReply { await held() }
+}
+
 /// A Keychain in memory.
 final class MemoryVault: LicenseVault, @unchecked Sendable {
     private let lock = NSLock()
@@ -125,7 +162,8 @@ private func reply(_ status: LicenseStatus, id: String? = "ins_123", expires: Da
         #expect(told == 1)
         #expect(vault.stored?.key == key)
         #expect(vault.stored?.instanceID == "ins_123")
-        #expect(pro.note == ProText.licenseActive)
+        #expect(pro.note == nil, "the window's licensed line says so; no second line")
+        #expect(pro.lockedLicenseLine == nil)
         guard case .activate(let sent, let name) = authority.calls.first else {
             Issue.record("expected an activation, got \(authority.calls)")
             return
@@ -162,6 +200,54 @@ private func reply(_ status: LicenseStatus, id: String? = "ins_123", expires: Da
         await pro.activate(key)
         #expect(!pro.isUnlocked)
         #expect(vault.stored == nil)
+        #expect(pro.note == ProText.licenseUnreachable)
+    }
+
+    @Test("Pressing Activate again while the first is out asks once")
+    func oneQuestionAtATime() async {
+        let gate = GatedAuthority()
+        let pro = ProStore(licensedBy: gate, keptIn: MemoryVault())
+        let first = Task { await pro.activate(key) }
+        while gate.calls == 0 { await Task.yield() }
+        #expect(pro.busy)
+        await pro.activate(key)   // the second press
+        await pro.checkAgain()
+        await pro.deactivate()
+        #expect(gate.calls == 1)
+        gate.open()
+        await first.value
+        #expect(pro.isUnlocked)
+        #expect(gate.calls == 1)
+    }
+
+    @Test("A license on this Mac is never replaced by another key: nothing is sent")
+    func noSecondKey() async {
+        let clock = TestClock()
+        let lapsed = License(key: key, instanceID: "ins_9", status: .expired,
+                             expires: clock.now.addingTimeInterval(-60), checked: .distantPast)
+        let authority = StubAuthority(reply(.active))
+        let vault = MemoryVault(lapsed)
+        let pro = ProStore(licensedBy: authority, keptIn: vault, now: { clock.now })
+        await pro.activate("NR-PRO-ANOTHER-KEY-1234")
+        #expect(authority.calls.isEmpty)
+        #expect(vault.stored == lapsed)
+        #expect(pro.note == ProText.alreadyActivated)
+    }
+
+    @Test("A license that doesn't unlock says why; one that does, or none, says nothing here")
+    func lockedLine() {
+        let clock = TestClock()
+        let ended = clock.now.addingTimeInterval(-60)
+        let lapsed = License(key: key, instanceID: "ins_9", status: .active, expires: ended, checked: .distantPast)
+        let disabled = License(key: key, instanceID: "ins_9", status: .disabled, expires: nil, checked: .distantPast)
+        let active = License(key: key, instanceID: "ins_9", status: .active, expires: nil, checked: .distantPast)
+        let authority = StubAuthority(reply(.active))
+        #expect(ProStore(licensedBy: authority, keptIn: MemoryVault(lapsed), now: { clock.now }).lockedLicenseLine
+                == ProText.licenseNote(.expired, expires: ended), "active but past its year reads as run out")
+        #expect(ProStore(licensedBy: authority, keptIn: MemoryVault(disabled)).lockedLicenseLine
+                == ProText.licenseNote(.disabled))
+        #expect(ProStore(licensedBy: authority, keptIn: MemoryVault(active)).lockedLicenseLine == nil)
+        #expect(ProStore(licensedBy: authority, keptIn: MemoryVault()).lockedLicenseLine == nil)
     }
 
     @Test("No answer: Pro stays as it was, and the note says to try again")
@@ -214,6 +300,7 @@ private func reply(_ status: LicenseStatus, id: String? = "ins_123", expires: Da
         #expect(!pro.isUnlocked)
         await pro.checkAgain()
         #expect(pro.isUnlocked)
+        #expect(pro.note == nil)
         #expect(vault.stored?.expires == renewed)
         #expect(authority.calls == [.validate(key: key, id: "ins_9")])
     }
@@ -228,6 +315,17 @@ private func reply(_ status: LicenseStatus, id: String? = "ins_123", expires: Da
         #expect(!pro.isUnlocked)
         #expect(vault.stored?.status == .disabled)
         #expect(pro.note == ProText.licenseNote(.disabled))
+    }
+
+    @Test("Check Again refused means this Mac's activation no longer counts, not too many Macs")
+    func checkRefused() async {
+        let stored = License(key: key, instanceID: "ins_9", status: .active, expires: nil, checked: .distantPast)
+        let vault = MemoryVault(stored)
+        let pro = ProStore(licensedBy: StubAuthority(reply(.rejected, id: nil)), keptIn: vault)
+        await pro.checkAgain()
+        #expect(!pro.isUnlocked)
+        #expect(vault.stored?.status == .inactive)
+        #expect(pro.lockedLicenseLine == ProText.licenseNote(.inactive))
     }
 
     @Test("Check Again with no answer, or an answer that isn't one, changes nothing",
@@ -323,6 +421,17 @@ private func reply(_ status: LicenseStatus, id: String? = "ins_123", expires: Da
         #expect(try await relay.activate(key: key, instanceName: "n").status == .rejected)
     }
 
+    @Test("An activation id that isn't one is dropped, so the answer can't unlock")
+    func badInstanceID() async throws {
+        let host = "badid.relay.test"
+        StandInRelay.answer(host, with: .text(#"{"status":"active","instance_id":"ins 1; drop"}"#))
+        let answer = try await StandInRelay.relay(host).activate(key: key, instanceName: "n")
+        #expect(answer.instanceID == nil)
+        #expect(LicenseRelay.isInstanceID("ins_ABC-123"))
+        #expect(!LicenseRelay.isInstanceID(""))
+        #expect(!LicenseRelay.isInstanceID(String(repeating: "a", count: 129)))
+    }
+
     @Test("A status the app doesn't know is unknown, never active")
     func unknownStatus() async throws {
         let host = "unknown.relay.test"
@@ -337,6 +446,14 @@ private func reply(_ status: LicenseStatus, id: String? = "ins_123", expires: Da
                       .reply(status: 500, body: Data()),
                       .text("not json"),
                       .text(#"{"instance_id":"ins_1"}"#),
+                      // A 404 or 409 that isn't the relay's own verdict: a moved page, a host mid-move.
+                      .text("<html><body>Not Found</body></html>", status: 404),
+                      .reply(status: 409, body: Data()),
+                      .text(#"{"status":"invalid"}"#, status: 409),
+                      .text(#"{"status":"rejected"}"#, status: 404),
+                      // A date that can't be read is never "doesn't run out".
+                      .text(#"{"status":"active","instance_id":"ins_1","expires_at":"2027-13-45"}"#),
+                      .text(#"{"status":"active","instance_id":"ins_1","expires_at":12}"#),
                       .failure(URLError(.notConnectedToInternet))])
     func noAnswer(_ answer: StandInRelay.Answer) async throws {
         let host = "fail-\(UUID().uuidString.prefix(8).lowercased()).relay.test"
@@ -365,6 +482,18 @@ private func reply(_ status: LicenseStatus, id: String? = "ins_123", expires: Da
         await #expect(throws: LicenseUnreachable.self) {
             _ = try await StandInRelay.relay(host).activate(key: key, instanceName: "n")
         }
+    }
+
+    @Test("No address keeps the build without keys; an address that isn't a relay locks Pro")
+    func setup() {
+        guard case .notSet = LicenseRelay.setup(from: nil) else { Issue.record("nil"); return }
+        guard case .notSet = LicenseRelay.setup(from: "  ") else { Issue.record("blank"); return }
+        guard case .relay(let relay) = LicenseRelay.setup(from: "https://netrelish.com/api/license") else {
+            Issue.record("relay"); return
+        }
+        #expect(relay.url.host == "netrelish.com")
+        guard case .broken = LicenseRelay.setup(from: "http://netrelish.com/api/license") else { Issue.record("http"); return }
+        guard case .broken = LicenseRelay.setup(from: "$(NR_LICENSE_ACTIVATION_URL)") else { Issue.record("unexpanded"); return }
     }
 
     @Test("Dates come with or without fractional seconds")

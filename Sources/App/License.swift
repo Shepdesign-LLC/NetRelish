@@ -63,6 +63,14 @@ struct LicenseReply: Equatable, Sendable {
 /// The relay couldn't be reached, or answered with something that isn't an answer.
 struct LicenseUnreachable: Error {}
 
+/// A build whose relay address is set but isn't one: every question goes unanswered, so Pro
+/// stays locked instead of open.
+struct NoLicenseRelay: LicenseAuthority {
+    func activate(key: String, instanceName: String) async throws -> LicenseReply { throw LicenseUnreachable() }
+    func validate(key: String, instanceID: String) async throws -> LicenseReply { throw LicenseUnreachable() }
+    func deactivate(key: String, instanceID: String) async throws -> LicenseReply { throw LicenseUnreachable() }
+}
+
 /// Who answers for license keys. The app has one, `LicenseRelay`; tests bring their own.
 protocol LicenseAuthority: Sendable {
     func activate(key: String, instanceName: String) async throws -> LicenseReply
@@ -100,11 +108,21 @@ struct LicenseRelay: LicenseAuthority {
         return URLSession(configuration: configuration)
     }()
 
-    /// The relay this build is set up with, or nil when none is (the Direct build then stays
-    /// unlocked, as it was before license keys).
-    static var configured: LicenseRelay? {
-        guard let text = Bundle.main.object(forInfoDictionaryKey: "NRLicenseActivationURL") as? String else { return nil }
-        return LicenseRelay(address: text)
+    /// What this build is set up with. Not set (an empty address) keeps the Direct build
+    /// unlocked, as previews were before license keys. Set but not an https address fails
+    /// closed: Pro stays locked rather than open to everyone.
+    enum Setup { case notSet, relay(LicenseRelay), broken }
+
+    static var configured: Setup {
+        setup(from: Bundle.main.object(forInfoDictionaryKey: "NRLicenseActivationURL") as? String)
+    }
+
+    /// No address is a build without the license key; an address that isn't a relay is a
+    /// broken build, which must lock Pro rather than give it away.
+    static func setup(from address: String?) -> Setup {
+        let text = (address ?? "").trimmingCharacters(in: .whitespaces)
+        if text.isEmpty { return .notSet }
+        return LicenseRelay(address: text).map(Setup.relay) ?? .broken
     }
 
     /// Nil unless `address` is an https address with a host and no sign-in folded into it.
@@ -146,8 +164,13 @@ struct LicenseRelay: LicenseAuthority {
         }
         switch status {
         case 200: return try LicenseRelay.read(body)
-        case 404: return LicenseReply(status: .invalid, instanceID: nil, expires: nil)
-        case 409: return LicenseReply(status: .rejected, instanceID: nil, expires: nil)
+        // A 404 or 409 is the store's verdict only when the relay itself says so. Any other
+        // 404 (a page that moved, an outage, the site mid-move) is no answer: it must never
+        // lock Pro, or make Deactivate forget an activation the store still counts.
+        case 404 where LicenseRelay.says(.invalid, in: body):
+            return LicenseReply(status: .invalid, instanceID: nil, expires: nil)
+        case 409 where LicenseRelay.says(.rejected, in: body):
+            return LicenseReply(status: .rejected, instanceID: nil, expires: nil)
         default:
             LicenseRelay.log.error("license \(fields["action"] ?? "", privacy: .public): HTTP \(status)")
             throw LicenseUnreachable()
@@ -172,10 +195,30 @@ struct LicenseRelay: LicenseAuthority {
     static func read(_ body: Data) throws -> LicenseReply {
         guard let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
               let statusText = object["status"] as? String else { throw LicenseUnreachable() }
-        let instanceID = (object["instance_id"] as? String).flatMap { $0.isEmpty ? nil : $0 }
-        let expires = (object["expires_at"] as? String).flatMap(date(from:))
+        // An activation id the relay would refuse to take back is no id: without it this Mac
+        // could never check the license again or give the activation back.
+        let instanceID = (object["instance_id"] as? String).flatMap { isInstanceID($0) ? $0 : nil }
+        // Absent or null means the license doesn't run out. A date that can't be read is no
+        // answer, never "forever": the date is what locks a lapsed year without a call.
+        var expires: Date?
+        if let raw = object["expires_at"], !(raw is NSNull) {
+            guard let text = raw as? String, let date = date(from: text) else { throw LicenseUnreachable() }
+            expires = date
+        }
         return LicenseReply(status: LicenseStatus(rawValue: statusText) ?? .unknown,
                             instanceID: instanceID, expires: expires)
+    }
+
+    /// Whether `body` is the relay's own `{"status": "<status>"}`.
+    static func says(_ status: LicenseStatus, in body: Data) -> Bool {
+        guard let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else { return false }
+        return object["status"] as? String == status.rawValue
+    }
+
+    /// The relay's rule for an activation id: 1 to 128 letters, digits, `-` or `_`.
+    static func isInstanceID(_ text: String) -> Bool {
+        (1...128).contains(text.count)
+            && text.unicodeScalars.allSatisfy { $0.isASCII && (CharacterSet.alphanumerics.contains($0) || $0 == "-" || $0 == "_") }
     }
 
     /// ISO 8601, with or without fractional seconds.

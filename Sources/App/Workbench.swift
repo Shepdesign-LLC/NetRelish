@@ -282,6 +282,7 @@ final class Workbench {
     /// Asks where to save the proof of a sealed page, then saves it there: a one-page PDF,
     /// the saved copy itself and the timestamp token (ADR 0022).
     func exportProof(_ item: Item) {
+        pro.settle()   // a year that ran out since launch locks here, without a call
         guard pro.isUnlocked else { showingPro = true; return }
         guard let provenance = provenance(of: item), let path = item.snapshotPath else {
             report("This page’s fingerprint isn’t ready yet")
@@ -833,6 +834,7 @@ final class Workbench {
     /// Seals the page again, in its own jar's profile, and compares the new seal with the latest
     /// one before it. The earlier seal is never touched (non-negotiable 3).
     func resealAndCompare(_ item: Item) async {
+        pro.settle()   // a year that ran out since launch locks here, without a call
         guard pro.isUnlocked else { showingPro = true; return }
         guard let link = item.url, let url = URL(string: link) else {
             report("This page has no link to seal again")
@@ -865,6 +867,7 @@ final class Workbench {
     /// Shows two seals side by side. The difference is worked out off the main thread, so a
     /// long page never stalls the window.
     func compare(_ older: Item, _ newer: Item) async {
+        pro.settle()   // a year that ran out since launch locks here, without a call
         guard pro.isUnlocked else { showingPro = true; return }
         // A saved copy open underneath stays open: Done goes back to it.
         comparison = Comparison(older: older, newer: newer, diff: nil)
