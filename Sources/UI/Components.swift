@@ -141,7 +141,7 @@ public struct NRDropMark: View {
 /// `#nr-jar` drawn from shapes at any size: lid, superellipse shoulders, filled body.
 /// Prefer `NRSymbol.jar.image` at 24pt; use this when a jar must scale or animate.
 public struct NRJarGlyph: View {
-    public enum Variant { case plain, smart, pickle }
+    public enum Variant { case plain, smart, mason }
     public var variant: Variant
     public var size: CGFloat
 

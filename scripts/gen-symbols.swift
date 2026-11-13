@@ -56,7 +56,7 @@ for m in symbolRE.matches(in: symbolsSVG, range: NSRange(symbolsSVG.startIndex..
     symbols.append(Sym(id: id, attrs: passthrough, body: body, width: parts[2], height: parts[3]))
 }
 
-let required = ["nr-jar", "nr-jar-smart", "nr-jar-pickle", "nr-seal", "nr-lip", "nr-drip", "nr-sink"]
+let required = ["nr-jar", "nr-jar-smart", "nr-jar-mason", "nr-seal", "nr-lip", "nr-drip", "nr-sink"]
 let found = symbols.map(\.id)
 if found != required {
     fail("symbols.svg must define exactly manifest §7, in order: \(required.joined(separator: ", ")) — found: \(found.joined(separator: ", "))")

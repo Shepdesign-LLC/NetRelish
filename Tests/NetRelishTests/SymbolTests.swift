@@ -6,7 +6,7 @@ import Testing
 
     @Test("All seven manifest §7 symbols exist, in order")
     func ids() {
-        #expect(NRSymbol.allCases.map(\.rawValue) == ["nr-jar", "nr-jar-smart", "nr-jar-pickle", "nr-seal", "nr-lip", "nr-drip", "nr-sink"])
+        #expect(NRSymbol.allCases.map(\.rawValue) == ["nr-jar", "nr-jar-smart", "nr-jar-mason", "nr-seal", "nr-lip", "nr-drip", "nr-sink"])
     }
 
     @Test("Symbols load as template images at their viewBox size")

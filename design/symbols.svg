@@ -17,8 +17,8 @@
     <path d="M6.5 8.5 V18 C6.5 20.2 7.8 21.5 10 21.5 H14 C16.2 21.5 17.5 20.2 17.5 18 V8.5 Z M9 11.5 H15 L12.8 14.5 V18 L11.2 17 V14.5 Z" fill="currentColor" fill-rule="evenodd"/>
   </symbol>
 
-  <!-- Pickle jar: jar + </> -->
-  <symbol id="nr-jar-pickle" viewBox="0 0 24 24">
+  <!-- Mason Jar: jar + </> -->
+  <symbol id="nr-jar-mason" viewBox="0 0 24 24">
     <rect x="7.5" y="2.5" width="9" height="3" rx="1" fill="none" stroke="currentColor" stroke-width="1"/>
     <path d="M6.5 8.5 C6.5 6.6 7.4 5.5 9 5.5 H15 C16.6 5.5 17.5 6.6 17.5 8.5" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
     <path d="M6.5 8.5 V18 C6.5 20.2 7.8 21.5 10 21.5 H14 C16.2 21.5 17.5 20.2 17.5 18 V8.5 Z M9 15 L10.8 12.6 V13.8 L9.9 15 L10.8 16.2 V17.4 Z M15 15 L13.2 12.6 V13.8 L14.1 15 L13.2 16.2 V17.4 Z M12.9 11.8 H13.8 L11.1 18.2 H10.2 Z" fill="currentColor" fill-rule="evenodd"/>
