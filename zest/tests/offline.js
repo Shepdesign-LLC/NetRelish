@@ -2,9 +2,12 @@
 //
 // Serves Resources/Zest (bash zest/build.sh --app) on 127.0.0.1 at a free port, opens each tool with every
 // request that is not to this server aborted and recorded, works the main flows lightly, and fails on any
-// attempted request to another host — page loads, fonts, scripts, fetch/XHR, workers, WebSockets.
+// attempted request to another host — page loads, fonts, scripts, fetch/XHR, workers, WebSockets. Resource
+// hints open connections without a request the router can see (preconnect, dns-prefetch), so every
+// <link rel=preconnect|dns-prefetch|prefetch|prerender|preload|modulepreload> in any frame, static or added
+// by script (even if removed again), counts as an attempt too.
 //
-//   node offline.js [--json report.json]
+//   node offline.js [--json report.json]        ZEST_APP_ROOT=<dir> serves another copy (default ../../Resources/Zest)
 //
 // Not in run.js's default list yet: until the tools stop loading Google Fonts and cdnjs (phase 2) it fails
 // by design. To register it, add 'offline.js' to ALL in run.js and run `bash build.sh --app` before the suites.
@@ -13,7 +16,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.resolve(__dirname, '..', '..', 'Resources', 'Zest');
+const ROOT = path.resolve(process.env.ZEST_APP_ROOT || path.join(__dirname, '..', '..', 'Resources', 'Zest'));
 const LAUNCH = process.env.ZEST_CHROMIUM ? { executablePath: process.env.ZEST_CHROMIUM } : {};
 const jsonAt = process.argv.indexOf('--json');
 const JSON_OUT = jsonAt > 0 ? process.argv[jsonAt + 1] : null;
@@ -21,6 +24,30 @@ const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
   '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.txt': 'text/plain',
 };
+// Resource hints: DNS and TLS happen with no HTTP request, so context.route never sees them. An init script
+// in every frame records each hint link as it appears; hintsIn() also reads the ones in the DOM now.
+const HINT_SEL = 'link[rel~=preconnect],link[rel~=dns-prefetch],link[rel~=prefetch],link[rel~=prerender],link[rel~=preload],link[rel~=modulepreload]';
+const HINT_WATCH = `(() => {
+  const SEL = ${JSON.stringify(HINT_SEL)};
+  const seen = window.__zestHints = [];
+  const note = el => { if (el.matches && el.matches(SEL)) seen.push({ rel: el.rel, href: el.href }); };
+  new MutationObserver(ms => { for (const m of ms) {
+    if (m.type === 'attributes') note(m.target);
+    for (const n of m.addedNodes || []) if (n.nodeType === 1) { note(n); n.querySelectorAll && n.querySelectorAll(SEL).forEach(note); }
+  } }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['rel', 'href'] });
+})();`;
+async function hintsIn(page) {
+  const out = [];
+  for (const frame of page.frames()) {
+    try {
+      out.push(...await frame.evaluate(sel => [
+        ...(window.__zestHints || []),
+        ...[...document.querySelectorAll(sel)].map(l => ({ rel: l.rel, href: l.href })),
+      ], HINT_SEL));
+    } catch { /* a frame that navigated away mid-read */ }
+  }
+  return out;
+}
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
 function serve() {
@@ -40,6 +67,8 @@ function serve() {
 
 // The light flows: the things a person does first in each tool, enough to make it reach for whatever it
 // would load. Selectors are the ones sound.js and test.js already hold the tools to.
+// Click and wait for the download together, so a click that never lands leaves no wait behind to throw later.
+const download = (pg, sel) => Promise.all([pg.waitForEvent('download', { timeout: 8000 }), pg.click(sel)]);
 const TOOLS = [
   { name: 'studio', path: '/', steps: [
     ['switch the palette to Dark', pg => pg.click('#mDark')],
@@ -47,8 +76,8 @@ const TOOLS = [
     ['pick a preset (it sets a type pairing)', pg => pg.click('.pcell:nth-child(3)')],
     ['pick another pairing', pg => pg.click('.pair:nth-child(2)')],
     ['save the brand', pg => pg.click('#bSave')],
-    ['export the brand file', async pg => { const d = pg.waitForEvent('download'); await pg.click('#xBrand'); await d; }],
-    ['export the @font-face CSS', async pg => { const d = pg.waitForEvent('download'); await pg.click('#xFontface'); await d; }],
+    ['export the brand file', pg => download(pg, '#xBrand')],
+    ['export the @font-face CSS', pg => download(pg, '#xFontface')],
   ] },
   { name: 'mail', path: '/mail/', steps: [
     ['open the Message tab', pg => pg.click('#tabs button[data-t="message"]')],
@@ -66,7 +95,7 @@ const TOOLS = [
     ['choose a layout', pg => pg.click('#layoutGrid .lcell:nth-child(2)')],
     ['add a photo', pg => pg.setInputFiles('#fPhoto', { name: 'photo.png', mimeType: 'image/png', buffer: PNG })],
     ['write the alt text', pg => pg.fill('#cAlt', 'A title card')],
-    ['export the image (embeds the brand fonts)', async pg => { const d = pg.waitForEvent('download'); await pg.click('#bExport'); await d; }],
+    ['export the image (embeds the brand fonts)', pg => download(pg, '#bExport')],
   ] },
 ];
 
@@ -91,18 +120,29 @@ const TOOLS = [
       return route.abort('blockedbyclient');
     });
     await context.routeWebSocket(/.*/, ws => { blocked.push({ url: ws.url(), type: 'websocket', step }); ws.close(); });
+    await context.addInitScript(HINT_WATCH);
     const page = await context.newPage();
+    const hintsSeen = new Set();
+    const checkHints = async () => {
+      for (const h of await hintsIn(page)) {
+        if (!h.href || isLocal(h.href) || hintsSeen.has(h.href)) continue;
+        hintsSeen.add(h.href);
+        blocked.push({ url: h.href, type: `hint:${h.rel.split(/\s+/)[0]}`, step });
+      }
+    };
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     console.log(`\n=== ${tool.name} (${tool.path}) ===`);
     await page.goto(origin + tool.path, { waitUntil: 'load' });
     await page.waitForTimeout(800);   // first-paint work: deferred font links, on-load handlers
+    await checkHints();
     const flows = [];
     for (const [name, run] of tool.steps) {
       step = name;
       try {
         await Promise.race([run(page), new Promise((_, no) => setTimeout(() => no(new Error('timed out after 8s')), 8000))]);
         await page.waitForTimeout(300);
+        await checkHints();
         flows.push({ step: name, ok: true });
       } catch (e) {
         flowFails++;
@@ -112,10 +152,11 @@ const TOOLS = [
     }
     step = 'settle';
     await page.waitForTimeout(500);
+    await checkHints();
     await context.close();
 
     const seen = new Map();
-    for (const b of blocked) { const k = b.url; if (!seen.has(k)) seen.set(k, { ...b, count: 0 }); seen.get(k).count++; }
+    for (const b of blocked) { const k = `${b.type.startsWith('hint:') ? 'hint ' : ''}${b.url}`; if (!seen.has(k)) seen.set(k, { ...b, count: 0 }); seen.get(k).count++; }
     const unique = [...seen.values()];
     blockedTotal += unique.length;
     if (unique.length) for (const b of unique) console.error(`  FAIL ${b.type.padEnd(10)} ${b.url.length > 120 ? b.url.slice(0, 117) + '...' : b.url}  [during: ${b.step}${b.count > 1 ? `, ×${b.count}` : ''}]`);

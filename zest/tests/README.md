@@ -23,7 +23,7 @@ CI runs the same thing on every PR that touches `zest/**`
 | `topology.js` (38) | The assembled `dist/`: studio at `/`, tools at `/mail` `/md` `/image`, store at `/pricing`, scope-relative service workers and manifests, tools-row links, cross-app brand download |
 | `mobile.js` (52) | Every surface at 390×844 with touch (plus a landscape-phone case): no layout-viewport blowout, panels reachable, and each core flow works by tap — Mail's drawer/bottom-sheet/scaled canvas, MD's wrapped bar + Contents drawer + clamped popovers, the studio's capped preview + jump nav, Image's docked preview, the store's menu and stacked comparison table |
 | `sound.js` (139) | The sound kit and its mute toggle in all four tools: the kit block is present and the four copies are byte-identical; nothing plays, and no audio context is made, before the first real click or key press; each wired interaction asks for its sound and stays quiet and short; the Sound toggle has a name and `aria-pressed`, works by keyboard, and its choice survives a reload under the one shared key `zest.sound`; muted means no oscillator starts; nothing throws without Web Audio or without `localStorage`; no request goes to a new host |
-| `offline.js` (not in the default run yet) | Offline gate 2 for the app's copy, `Resources/Zest` (`bash build.sh --app`): serves it on a free local port, opens each tool with every request to another host aborted and recorded, works the first flows (studio pairings and exports, a ZestMail block and copy, Zest MD's sample with math and a diagram, a ZestImage export), and fails on any attempted request outside 127.0.0.1 or any step that did not run. Fails today by design: the tools still load Google Fonts and cdnjs |
+| `offline.js` (not in the default run yet) | Offline gate 2 for the app's copy, `Resources/Zest` (`bash build.sh --app`): serves it on a free local port, opens each tool with every request to another host aborted and recorded, works the first flows (studio pairings and exports, a ZestMail block and copy, Zest MD's sample with math and a diagram, a ZestImage export), and fails on any attempted request outside 127.0.0.1 (resource hints included: a `preconnect` or `dns-prefetch` link to another host counts, static or added by script, since it opens a connection the router never sees) or any step that did not run. Fails today by design: the tools still load Google Fonts and cdnjs |
 | `contrast-audit.js` | Full-page WCAG text-contrast sweep (alpha compositing, gradient detection) on Mail, MD (dark **and** light scheme — its reader skins react to `prefers-color-scheme`), and the studio — any failure fails the run. Mail and the studio ship one fixed dark chrome, so a single sweep covers them |
 
 ## The offline gates (app bundle)
@@ -43,8 +43,18 @@ suites. It is not in `run.js`'s default list yet. To register it once the
 tools pass: add `'offline.js'` to `ALL` in `run.js`, and have `run.js` run
 `bash build.sh --app` next to `bash build.sh` so the suite sees a fresh copy.
 CI already runs both gates in the `app-bundle` job of
-`.github/workflows/zest-tests.yml`, reporting without failing the PR until
-`ZEST_OFFLINE_ENFORCE` there is `'true'`.
+`.github/workflows/zest-tests.yml`, on the committed `Resources/Zest` (CI
+rebuilds into a temp folder only to diff it against the committed copy),
+reporting without failing the PR until `ZEST_OFFLINE_ENFORCE` there is
+`'true'`.
+
+The scan's exceptions live in `../scripts/offline-allowlist.json`, each
+narrowed to the files and exact links in use. A URL in a load position
+(including every `srcset` candidate, `srcdoc`, `image-set()`, a JSON-escaped
+`https:\/\/` and a protocol-relative `//host`) always fails, and no entry
+passes a URL whose path ends in `.png`, `.js`, `.css`, `.woff2` and the like
+unless it names that one URL exactly. A library bump that brings a URL on a
+new host fails the scan until someone adds a reviewed entry.
 
 ## Notes
 
@@ -71,8 +81,10 @@ CI already runs both gates in the `app-bundle` job of
   by `../scripts/vendor.config.json` and recorded in `VENDOR.lock.json`.
   `node ../scripts/vendor.mjs --check` fails when the tag's version, any
   integrity hash in `apps/md/index.html`, or the `dompurify` pin here differs
-  from the vendored files, so a bump now also means rerunning
-  `node scripts/vendor.mjs` and `bash build.sh --app`.
+  from the vendored files, or when `Resources/Zest/vendor/` or
+  `Resources/Zest/NOTICE` differ from the lock and the root `NOTICE`, so a
+  bump now also means rerunning `node scripts/vendor.mjs` and
+  `bash build.sh --app`.
 - **The sanitizer tag carries an `integrity` hash**, so a version bump is
   three edits: `package.json` here, the version in the cdnjs URL, and the
   hash. Compute the hash from the installed package, never by hand:
