@@ -4,7 +4,9 @@
 # /pricing. Vercel runs this as the buildCommand and serves ./dist.
 #
 # bash build.sh --app assembles the copy NetRelish.app bundles instead (ADR 0015):
-# ../Resources/Zest, generated and committed, never edited by hand.
+# ../Resources/Zest, generated and committed, never edited by hand. ZEST_APP_OUT=<dir>
+# builds it somewhere else (CI builds into a temp folder and diffs it against the
+# committed copy, so the gates test the bytes that ship).
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -13,22 +15,36 @@ if [ "${1:-}" = "--app" ]; then
   # vendored libraries and fonts, and the third-party notices. No store, no pricing,
   # no API, and none of the files only the web uses: the install manifest, the
   # service worker, the registry manifest (zest.json), Vercel config, READMEs, and
-  # the icon sizes only the install manifest names. Same input, same bytes out.
-  OUT=../Resources/Zest
+  # the icon sizes only the install manifest names. Only files git tracks are copied
+  # (a .DS_Store or a scratch file in apps/ never reaches the app). Same input, same
+  # bytes out.
+  OUT=${ZEST_APP_OUT:-../Resources/Zest}
+  case "$OUT" in ''|/|.|..|../|./) echo "build.sh --app: refusing to build into '$OUT'" >&2; exit 1;; esac
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "build.sh --app: run it inside the git checkout (it copies the files git tracks)" >&2; exit 1; }
   [ -f vendor/VENDOR.lock.json ] || { echo "build.sh --app: vendor/ is missing; run node scripts/vendor.mjs" >&2; exit 1; }
   [ -f ../NOTICE ] || { echo "build.sh --app: the root NOTICE is missing" >&2; exit 1; }
   WEB_ONLY=(manifest.webmanifest sw.js zest.json vercel.json README.md package.json api
             icons/icon-192.png icons/icon-512.png icons/icon-512-maskable.png)
+  copy_tracked() {   # the files git tracks under $1 (as they are in the working tree), into $2
+    local src=$1 dest=$2 f rel n=0
+    mkdir -p "$dest"
+    while IFS= read -r -d '' f; do
+      [ -f "$f" ] || continue          # tracked but deleted in the working tree
+      rel=${f#"$src"/}
+      mkdir -p "$dest/$(dirname "$rel")"
+      cp "$f" "$dest/$rel"
+      n=$((n + 1))
+    done < <(git ls-files -z --cached -- "$src")
+    [ "$n" -gt 0 ] || { echo "build.sh --app: git tracks no files under zest/$src" >&2; exit 1; }
+  }
   copy_tool() {
-    mkdir -p "$2"
-    cp -R "$1/." "$2/"
+    copy_tracked "$1" "$2"
     for f in "${WEB_ONLY[@]}"; do rm -rf "${2:?}/$f"; done
   }
   rm -rf "$OUT"
   copy_tool apps/zest "$OUT"
   for app in mail md image; do copy_tool "apps/$app" "$OUT/$app"; done
-  mkdir -p "$OUT/vendor"
-  cp -R vendor/. "$OUT/vendor/"
+  copy_tracked vendor "$OUT/vendor"
   rm -f "$OUT/vendor/VENDOR.lock.json"      # build metadata; the licenses travel as NOTICE and the LICENSE files
   cp ../NOTICE "$OUT/NOTICE"
   find "$OUT" -type d -exec chmod 755 {} +
@@ -37,7 +53,7 @@ if [ "${1:-}" = "--app" ]; then
   bytes() { find "$1" -type f -print0 | xargs -0 cat | wc -c | tr -d ' '; }
   mb() { awk -v b="$1" 'BEGIN {printf "%.2f MB", b/1048576}'; }
   total=$(bytes "$OUT")
-  echo "Resources/Zest assembled: / (studio) · /mail · /md · /image · /vendor — $(find "$OUT" -type f | wc -l | tr -d ' ') files, $(mb "$total")"
+  echo "$([ "$OUT" = ../Resources/Zest ] && echo Resources/Zest || echo "$OUT") assembled: / (studio) · /mail · /md · /image · /vendor — $(find "$OUT" -type f | wc -l | tr -d ' ') files, $(mb "$total")"
   for part in mail md image vendor/fonts vendor/katex vendor/mermaid vendor/dompurify; do
     printf '  %-16s %s\n' "$part" "$(mb "$(bytes "$OUT/$part")")"
   done
