@@ -87,3 +87,13 @@ Append-only. Newest entries at the bottom.
   where links go, and the gating of the page commands while the window is key. Ten traps,
   among them the scheme handler's isolation, realpath over `resolvingSymlinksInPath`, and
   `pageInFront` rather than `benchTab`
+
+## [2026-11-13] zest-window: review fixes
+
+- A download link to the web is now routed as a web link, never a `WKDownload`; gating
+  follows the main window, so a color panel or save panel no longer switches it off; a web
+  link brings forward the registered main window, not the first window in the list; the
+  jar that spells Zest's UUID moves under a namespace of its own; the integration tests use
+  throwaway stores. The page now says plainly what CI doesn't show (storage surviving a
+  relaunch, IndexedDB) and that `zest/build.sh --app` is phase 2's, not yet written. Four
+  new traps
