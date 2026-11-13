@@ -11,7 +11,7 @@ sources:
   - code: zest/tests/sound.js
   - code: zest/tests/run.js
   - code: zest/README.md
-verified_at: 27b385f
+verified_at: 3287635
 ---
 
 # Zest sound
@@ -65,6 +65,16 @@ the toast function takes a sound name, and the copy and download helpers play `d
 > ⚠️ **To run the suites in a cloud session, point them at the installed browser:**
 > `ZEST_CHROMIUM=/opt/pw-browsers/chromium npm test` from `zest/tests`, after `npm ci`.
 > Do not run `playwright install`. The variable changes nothing when it is unset.
+
+> ⚠️ **The suites bind fixed ports, so two runs at once collide.** A second `npm test` on
+> the same machine dies with `EADDRINUSE`, or worse, talks to the other run's server.
+> When more than one run can be going (several workers, or a run left in the background),
+> give each its own network: `unshare -n`, bring loopback up, then run the suite inside it.
+
+> ⚠️ **In a test, do not use `offsetParent` to ask whether something inside a `<details>` is
+> visible.** In this Chromium an element inside a closed `<details>` still reports an
+> `offsetParent` and a non-zero box. Ask Playwright (`isVisible`) instead. Two checks
+> passed for the wrong reason before this was found.
 
 > ⚠️ **The suites allow three outside hosts and no others.** The tools already ask for
 > Google Fonts, and Zest MD for cdnjs; the tests abort those requests and fail on any

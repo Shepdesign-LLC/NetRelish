@@ -40,3 +40,8 @@ Append-only. Newest entries at the bottom.
 ## [2026-11-13] rearranging re-checked
 
 - Against `d0cdaeb` (Reader view and a moved tab). The await trap now names Reader view too
+
+## [2026-11-13] zest-sound re-checked
+
+- Against `3287635` (the studio, ZestImage and Zest MD simplified). The kit and how it is
+  wired are unchanged. Two test traps added: fixed ports, and `offsetParent` inside `<details>`
