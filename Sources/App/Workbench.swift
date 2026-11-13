@@ -574,7 +574,9 @@ final class Workbench {
         let target = jarId ?? (showingSmartJar ? jars.first?.id : activeJarId)
         guard let target, jars.contains(where: { $0.id == target }) else { return nil }
         if activeJarId != target { activate(jarId: target) }
-        var tab = Tab(interactionState: interactionState, isPinned: false, sortOrder: Double(tabs.count),
+        // After the last tab, wherever that is: closing or moving a tab leaves gaps in the order.
+        var tab = Tab(interactionState: interactionState, isPinned: false,
+                      sortOrder: (tabs.map(\.sortOrder).max() ?? -1) + 1,
                       title: nil, touchedAt: Date(), url: url, jarId: target)
         do {
             try store.write { db in try tab.insert(db) }

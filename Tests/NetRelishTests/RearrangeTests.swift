@@ -184,6 +184,46 @@ import Testing
         #expect(bench.tabs.map(\.id) == [waiting.id, a.id])
     }
 
+    @Test("A tab that changed jars gets a new web view on the new jar's store, in every window")
+    func aMovedTabNeverKeepsItsOldPage() throws {
+        let bench = try bench()
+        bench.newJar(name: "Birch", tint: nil, shelfLifeDays: 3)
+        bench.newJar(name: "Ash", tint: nil, shelfLifeDays: 3)
+        let tab = try #require(bench.newTab(url: "https://a.example/"))
+        let birch = try jar("Birch", in: bench)
+        // Two windows share one Workbench and each keeps its own web views. Only the window
+        // wired last hears that a tab is gone, so the other must work it out for itself.
+        let otherWindow = BenchWebViews()
+        let before = otherWindow.view(for: tab)
+        #expect(before.jarId == tab.jarId)
+
+        bench.moveTab(tab, toJar: birch.id)
+
+        let moved = try stored(tab, in: bench)
+        let after = otherWindow.view(for: moved)
+        #expect(after !== before)
+        #expect(after.jarId == birch.id)
+        #expect(otherWindow.view(for: moved) === after)      // and it keeps the new one
+    }
+
+    @Test("A new tab opens after the last one, even when tabs have left the strip")
+    func newTabsGoLast() throws {
+        let bench = try bench()
+        bench.newJar(name: "Birch", tint: nil, shelfLifeDays: 3)
+        bench.newJar(name: "Ash", tint: nil, shelfLifeDays: 3)
+        let a = try #require(bench.newTab(url: "https://a.example/"))
+        let b = try #require(bench.newTab(url: "https://b.example/"))
+        let c = try #require(bench.newTab(url: "https://c.example/"))
+        let d = try #require(bench.newTab(url: "https://d.example/"))
+        let birch = try jar("Birch", in: bench)
+
+        bench.moveTab(a, toJar: birch.id)
+        bench.moveTab(b, toJar: birch.id)
+        let e = try #require(bench.newTab(url: "https://e.example/"))
+
+        #expect(bench.tabs.map(\.id) == [c.id, d.id, e.id])
+    }
+
     @Test("Dropping a tab on its own jar, or something that isn't ours on any jar, does nothing")
     func ignoresDropsThatAreNotMoves() throws {
         let bench = try bench()

@@ -21,8 +21,12 @@ final class BenchWebViews {
     @ObservationIgnored var closeTab: ((String) -> Void)?
 
     func view(for tab: Tab) -> JarWebView {
-        if let v = byTab[tab.id] { return v }
-        let v = JarWebView(jarId: tab.jarId ?? "brine")
+        let jarId = tab.jarId ?? "brine"
+        // A tab that has changed jars never keeps the page it had: that page lives on the
+        // store of the jar it left (non-negotiable 6). Checked here, and not only when the
+        // move happens, because every window keeps its own web views.
+        if let v = byTab[tab.id], v.jarId == jarId { return v }
+        let v = JarWebView(jarId: jarId)
         if let state = tab.interactionState, !state.isEmpty {
             v.interactionState = state          // restored from a sunk item, or from last launch
         } else if let url = tab.url {
