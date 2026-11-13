@@ -23,6 +23,7 @@ const TOOLS = [
     ['Shuffle', 'pop', pg => pg.click('#bShuffle')],
     ['saving the brand', 'done', pg => pg.click('#bSave')],
     ['removing a saved brand', 'drop', pg => pg.click('#savedList .bdel')],
+    ['opening the sliders fold', 'tap', pg => pg.click('#slFold > summary')],
     ['a Pro row', 'nope', pg => pg.click('.pro')],
   ] },
   { name: 'image', dir: 'image', url: 'http://localhost:8772/', toggle: '#bSound', steps: [

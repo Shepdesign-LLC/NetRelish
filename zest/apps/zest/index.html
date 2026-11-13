@@ -69,6 +69,17 @@ header a:hover{color:var(--ink)}
 .modes{display:flex;gap:6px}
 .modes .btn[aria-pressed="true"]{border-color:var(--acc);color:var(--acc)}
 
+/* folds: a native <details> whose summary reads as a section label. Closed on every load — except Pro, which loads open (spec §4.3: never hide Pro). */
+.fold{margin-top:12px}
+.sec>.fold:first-child{margin-top:0}
+.fold>summary{list-style:none;cursor:pointer;margin:-5px 0;padding:5px 0;transition:color var(--t)} /* the padding is the click target; the negative margin keeps the label where a plain .lab sits */
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary::before{content:"";flex:none;width:5px;height:5px;margin:0 2px 0 1px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(-45deg);transition:transform var(--t) var(--ease)}
+.fold[open]>summary::before{transform:translateY(-2px) rotate(45deg)}
+.fold>summary:hover{color:var(--ink-2)}
+.fold[open]>summary{margin-bottom:5px}
+.fold .sliders{margin-top:0}
+
 /* roles */
 .role{display:grid;grid-template-columns:26px 30px 1fr 86px;gap:8px;align-items:center;margin-bottom:7px}
 .role .lock{width:26px;height:26px;display:grid;place-items:center;border-radius:7px;color:var(--ink-3)}
@@ -193,6 +204,7 @@ footer .sp{flex:1}
   .role .lock{width:34px;height:34px}
   .role input[type=color]{width:38px;height:38px}
   input[type=range]{height:32px}
+  .fold>summary{min-height:36px}
   .ramp{height:44px}
   header a{padding:10px 6px}
   .sliders output,.arow output{font-size:12px}
@@ -243,12 +255,15 @@ footer .sp{flex:1}
     <div class="sec">
       <p class="lab">Roles<span class="sp"></span><button class="btn sm" id="bShuffle" title="Shuffle unlocked roles within the harmony"><svg><use href="#i-dice"/></svg>Shuffle</button></p>
       <div id="roles"></div>
-      <div class="sliders" id="sliders">
-        <div class="sl"><b>L</b><input type="range" id="sL" min="0" max="100" step="0.5" aria-label="Lightness"><output id="oL"></output></div>
-        <div class="sl"><b>C</b><input type="range" id="sC" min="0" max="0.35" step="0.002" aria-label="Chroma"><output id="oC"></output></div>
-        <div class="sl"><b>H</b><input type="range" id="sH" min="0" max="360" step="1" aria-label="Hue"><output id="oH"></output></div>
-        <p class="hint" id="slHint">OKLCH, gamut-mapped to sRGB. Pick a role above to edit it here.</p>
-      </div>
+      <details class="fold" id="slFold">
+        <summary class="lab">OKLCH sliders</summary>
+        <div class="sliders" id="sliders">
+          <div class="sl"><b>L</b><input type="range" id="sL" min="0" max="100" step="0.5" aria-label="Lightness"><output id="oL"></output></div>
+          <div class="sl"><b>C</b><input type="range" id="sC" min="0" max="0.35" step="0.002" aria-label="Chroma"><output id="oC"></output></div>
+          <div class="sl"><b>H</b><input type="range" id="sH" min="0" max="360" step="1" aria-label="Hue"><output id="oH"></output></div>
+          <p class="hint" id="slHint">OKLCH, gamut-mapped to sRGB. Pick a role above to edit it here.</p>
+        </div>
+      </details>
     </div>
     <div class="sec">
       <p class="lab">Harmony</p>
@@ -278,11 +293,7 @@ footer .sp{flex:1}
     <div class="stagebar">
       <span class="fn" id="fname">—</span>
       <span class="sp"></span>
-      <span>Preview</span>
-      <div class="modes">
-        <button class="btn sm" id="pvLight" aria-pressed="true">Light</button>
-        <button class="btn sm" id="pvDark" aria-pressed="false">Dark</button>
-      </div>
+      <span id="pvLabel">Preview · Light</span>
     </div>
     <div class="stage"><div class="frame"><iframe id="pv" title="Live brand preview"></iframe></div></div>
   </main>
@@ -297,19 +308,22 @@ footer .sp{flex:1}
       </div>
       <div class="row2">
         <div class="field"><label for="fMono">Mono</label><select id="fMono"></select></div>
-        <div class="field"><label for="tRatio">Scale ratio</label><select id="tRatio">
-          <option value="1.125">1.125 — major second</option>
-          <option value="1.2">1.2 — minor third</option>
-          <option value="1.25" selected>1.25 — major third</option>
-          <option value="1.333">1.333 — perfect fourth</option>
-          <option value="1.414">1.414 — augmented fourth</option>
-          <option value="1.5">1.5 — perfect fifth</option>
-        </select></div>
-      </div>
-      <div class="row2">
-        <div class="field"><label for="tBase">Base size</label><input type="number" id="tBase" value="16" min="12" max="24"></div>
         <div class="field"><label for="radius">Radius — <b id="radVal">8px</b></label><input type="range" id="radius" min="0" max="24" value="8" style="margin-top:9px"></div>
       </div>
+      <details class="fold" id="scaleFold">
+        <summary class="lab">Type scale</summary>
+        <div class="row2">
+          <div class="field"><label for="tRatio">Scale ratio</label><select id="tRatio">
+            <option value="1.125">1.125 — major second</option>
+            <option value="1.2">1.2 — minor third</option>
+            <option value="1.25" selected>1.25 — major third</option>
+            <option value="1.333">1.333 — perfect fourth</option>
+            <option value="1.414">1.414 — augmented fourth</option>
+            <option value="1.5">1.5 — perfect fifth</option>
+          </select></div>
+          <div class="field"><label for="tBase">Base size</label><input type="number" id="tBase" value="16" min="12" max="24"></div>
+        </div>
+      </details>
     </div>
     <div class="sec">
       <p class="lab">Your fonts</p>
@@ -319,15 +333,17 @@ footer .sp{flex:1}
       <p class="hint">Stored in this browser (IndexedDB), usable in every select above. A cloud font library arrives with Pro.</p>
     </div>
     <div class="sec">
-      <p class="lab">Spacing</p>
-      <div class="row2">
-        <div class="field"><label for="spUnit">Unit</label><select id="spUnit"><option>2</option><option selected>4</option><option>6</option><option>8</option></select></div>
-        <div class="field"><label for="spDensity">Density</label><select id="spDensity"><option value="compact">Compact</option><option value="comfortable" selected>Comfortable</option><option value="spacious">Spacious</option></select></div>
-      </div>
-      <div class="row2">
-        <div class="field"><label for="btnSize">Buttons</label><select id="btnSize"><option value="sm">Small</option><option value="md" selected>Medium</option><option value="lg">Large</option></select></div>
-        <div class="field"><label for="btnShape">Shape</label><select id="btnShape"><option value="rounded" selected>Rounded</option><option value="pill">Pill</option><option value="square">Square</option></select></div>
-      </div>
+      <details class="fold" id="spaceFold">
+        <summary class="lab">Spacing and buttons</summary>
+        <div class="row2">
+          <div class="field"><label for="spUnit">Unit</label><select id="spUnit"><option>2</option><option selected>4</option><option>6</option><option>8</option></select></div>
+          <div class="field"><label for="spDensity">Density</label><select id="spDensity"><option value="compact">Compact</option><option value="comfortable" selected>Comfortable</option><option value="spacious">Spacious</option></select></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="btnSize">Buttons</label><select id="btnSize"><option value="sm">Small</option><option value="md" selected>Medium</option><option value="lg">Large</option></select></div>
+          <div class="field"><label for="btnShape">Shape</label><select id="btnShape"><option value="rounded" selected>Rounded</option><option value="pill">Pill</option><option value="square">Square</option></select></div>
+        </div>
+      </details>
     </div>
     <div class="sec">
       <p class="lab">Logo <span style="font:500 10px var(--mono);color:var(--ink-3)">FOR THE IMAGE KIT</span></p>
@@ -353,22 +369,24 @@ footer .sp{flex:1}
         <button class="btn sm" id="xShare"><svg><use href="#i-link"/></svg>Share link</button>
       </div>
       <p class="hint" id="xNote">One file is the handoff — every Zest tool reads it.</p>
+      <details class="fold" id="sendFold">
+        <summary class="lab">Send to</summary>
+        <button class="btn wide" data-send="image" style="margin-bottom:7px"><svg><use href="#i-send"/></svg>ZestImage — tokens + logo</button>
+        <button class="btn wide" data-send="mail" style="margin-bottom:7px"><svg><use href="#i-send"/></svg>ZestMail — brand</button>
+        <button class="btn wide" data-send="md"><svg><use href="#i-send"/></svg>Zest MD — skin</button>
+        <p class="hint">In the browser this is a download and an import on the other side. Inside NetRelish it becomes a direct handoff.</p>
+      </details>
     </div>
     <div class="sec">
-      <p class="lab">Send to</p>
-      <button class="btn wide" data-send="image" style="margin-bottom:7px"><svg><use href="#i-send"/></svg>ZestImage — tokens + logo</button>
-      <button class="btn wide" data-send="mail" style="margin-bottom:7px"><svg><use href="#i-send"/></svg>ZestMail — brand</button>
-      <button class="btn wide" data-send="md"><svg><use href="#i-send"/></svg>Zest MD — skin</button>
-      <p class="hint">In the browser this is a download and an import on the other side. Inside NetRelish it becomes a direct handoff.</p>
-    </div>
-    <div class="sec">
-      <p class="lab">Pro</p>
-      <button class="pro" data-pro="cloud"><svg><use href="#i-lock"/></svg>Cloud brand systems — named, versioned, shared<em>PRO</em></button>
-      <button class="pro" data-pro="fonts"><svg><use href="#i-lock"/></svg>Cloud font library across tools and devices<em>PRO</em></button>
-      <button class="pro" data-pro="figma"><svg><use href="#i-lock"/></svg>Figma variables JSON export<em>PRO</em></button>
-      <button class="pro" data-pro="bricks"><svg><use href="#i-lock"/></svg>Bricks global classes + WordPress theme.json<em>PRO</em></button>
-      <button class="pro" data-pro="sheet"><svg><use href="#i-lock"/></svg>Brand sheet — the client-facing PDF<em>PRO</em></button>
-      <button class="pro" data-pro="pairings"><svg><use href="#i-lock"/></svg>Model-assisted font pairings<em>PRO</em></button>
+      <details class="fold" id="proFold" open>
+        <summary class="lab">Pro</summary>
+        <button class="pro" data-pro="cloud"><svg><use href="#i-lock"/></svg>Cloud brand systems — named, versioned, shared<em>PRO</em></button>
+        <button class="pro" data-pro="fonts"><svg><use href="#i-lock"/></svg>Cloud font library across tools and devices<em>PRO</em></button>
+        <button class="pro" data-pro="figma"><svg><use href="#i-lock"/></svg>Figma variables JSON export<em>PRO</em></button>
+        <button class="pro" data-pro="bricks"><svg><use href="#i-lock"/></svg>Bricks global classes + WordPress theme.json<em>PRO</em></button>
+        <button class="pro" data-pro="sheet"><svg><use href="#i-lock"/></svg>Brand sheet — the client-facing PDF<em>PRO</em></button>
+        <button class="pro" data-pro="pairings"><svg><use href="#i-lock"/></svg>Model-assisted font pairings<em>PRO</em></button>
+      </details>
       <p class="hint">Pro arrives with Zest accounts. The local core stays free — that is the point.</p>
     </div>
   </aside>
@@ -660,8 +678,7 @@ function sanitizeBrand(b) {           // imports and localStorage survive tamper
     logo: safeLogo(b.logo) };
 }
 let S = freshBrand();                 // restored in boot(), after the custom-font registry loads
-let mode = 'light';                   // which palette is being edited
-let pvMode = 'light';                 // which palette the preview shows
+let mode = 'light';                   // which palette is being edited — the preview shows the same one
 let selRole = 'primary';
 let saved = [];
 const save = () => { const a = store.set('current', S); return store.set('brands', saved) && a; };
@@ -719,7 +736,7 @@ const famCss = f => customs.some(c => c.name === f) ? `'${f}', system-ui, sans-s
   : SERIF.includes(f) || f === 'Fraunces' || f === 'DM Serif Display' ? `'${f}', Georgia, serif`
   : MONO.includes(f) ? `'${f}', ui-monospace, Menlo, monospace` : `'${f}', system-ui, sans-serif`;
 function previewDoc() {
-  const t = S[pvMode], sp = scaleSteps(), gf = gfontsUrl(S.fonts);
+  const t = S[mode], sp = scaleSteps(), gf = gfontsUrl(S.fonts);
   const customFaces = customs.filter(c => [S.fonts.head, S.fonts.body, S.fonts.mono].includes(c.name));
   return `<!doctype html><html><head><meta charset="utf-8">${gf ? `<link href="${esc(gf)}" rel="stylesheet" crossorigin="anonymous">` : ''}
 <style>
@@ -763,7 +780,7 @@ h1{font-family:${famCss(S.fonts.head)};font-weight:800;font-size:${typeSize(4)}p
   <div class="card"><span class="tag">Local</span><h3>Runs in the browser</h3><p>The core is local. Nothing here leaves this machine.</p></div>
   <div class="card"><span class="tag">Handoff</span><h3>One file, every tool</h3><p>zest-brand.json carries all of it into Mail, MD and Image.</p></div>
 </div>
-<div class="panel"><b>Panel surface</b><code>--dark on ${esc(pvMode)} · radius ${S.radius}px</code></div>
+<div class="panel"><b>Panel surface</b><code>--dark on ${esc(mode)} · radius ${S.radius}px</code></div>
 <div class="spec"><h4>Type scale — ${esc(String(S.type.base))}px × ${esc(String(S.type.ratio))}</h4>
 ${[4, 3, 2, 1, 0, -1].map(n => `<div class="row"><small>${typeSize(n)}px</small><span style="font-family:${n > 0 ? famCss(S.fonts.head) : famCss(S.fonts.body)};font-size:${typeSize(n)}px;font-weight:${n > 1 ? 700 : 400};letter-spacing:${n > 1 ? '-.02em' : '0'}">The quick brown fox jumps over the lazy dog</span></div>`).join('')}
 <div class="sw">${[...ROLES, ...DERIVED].map(k => `<i style="background:${t[k]}" title="${k}"></i>`).join('')}</div>
@@ -869,8 +886,7 @@ function renderSaved() {
 let pvT;
 function renderPreview() { clearTimeout(pvT); pvT = setTimeout(() => { $('#pv').srcdoc = previewDoc(); }, 60);
   $('#fname').textContent = `${slug(S.name)}-zest-brand.json`;
-  $('#pvLight').setAttribute('aria-pressed', pvMode === 'light');
-  $('#pvDark').setAttribute('aria-pressed', pvMode === 'dark');
+  $('#pvLabel').textContent = 'Preview · ' + (mode === 'dark' ? 'Dark' : 'Light');
   $('#radVal').textContent = S.radius + 'px';
 }
 function render() { rederive('light'); rederive('dark'); syncRoles(); renderHarmony(); renderRamp(); renderAudit(); renderPreview(); save(); }
@@ -925,11 +941,10 @@ async function saveFile(name, text, type) {
 
 /* ---------- events ---------- */
 $('#bName').addEventListener('input', e => { S.name = e.target.value.replace(CTRL_RE, ' ').slice(0, 48) || 'Untitled'; renderPreview(); save(); });
-$('#mLight').addEventListener('click', () => { mode = 'light'; syncRoles(); renderHarmony(); });
-$('#mDark').addEventListener('click', () => { mode = 'dark'; syncRoles(); renderHarmony(); });
-$('#pvLight').addEventListener('click', () => { pvMode = 'light'; renderPreview(); });
-$('#pvDark').addEventListener('click', () => { pvMode = 'dark'; renderPreview(); });
-$$('#mLight, #mDark, #pvLight, #pvDark').forEach(b => b.addEventListener('click', () => snd('tap')));
+const setMode = m => { mode = m; syncRoles(); renderHarmony(); renderPreview(); snd('tap'); };   // one switch: the role rows and the preview move together
+$('#mLight').addEventListener('click', () => setMode('light'));
+$('#mDark').addEventListener('click', () => setMode('dark'));
+$$('details.fold').forEach(d => d.addEventListener('toggle', () => snd('tap')));
 $('#bDerive').addEventListener('click', () => { S.dark = deriveDark(S.light); for (const k of [...ROLES, ...DERIVED]) delete S.locks['dark:' + k]; render(); toast('Dark palette derived from the light roles — ink and paper swap, the primary keeps its hue.'); });
 
 $('#roles').addEventListener('input', e => {

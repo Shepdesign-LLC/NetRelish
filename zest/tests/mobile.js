@@ -26,6 +26,9 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   await st.tap('.jump a[href="#exportsec"]'); await st.waitForTimeout(400);
   ok(await st.evaluate(() => { const s = document.querySelector('#exportsec').getBoundingClientRect(); const j = document.querySelector('.jump').getBoundingClientRect(); return s.top >= j.bottom - 2 && s.top < innerHeight; }), 'studio: jump targets land below the sticky bar, not under it');
   ok(await st.evaluate(() => getComputedStyle(document.querySelector('#pv')).pointerEvents === 'none'), 'studio: the preview no longer swallows touch pans');
+  ok(await st.evaluate(() => [...document.querySelectorAll('details.fold > summary')].every(s => s.getBoundingClientRect().height >= 36)), 'studio: every fold has a 36px tap target');
+  await st.tap('#sendFold > summary'); await st.waitForTimeout(300);
+  ok(await st.$eval('#sendFold', d => d.open) && await inVp(st, '[data-send="md"]') && await fits(st), 'studio: a fold opens by tap, its buttons on screen, still no blowout');
   await st.close();
 
   console.log('== mail at 390 ==');
