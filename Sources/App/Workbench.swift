@@ -1190,7 +1190,9 @@ final class Workbench {
                 report("This page has no article to read")
                 return
             }
-            guard benchTab?.id == tab.id else { return }    // you moved on while it was reading
+            // You moved on while it was reading, or the tab moved to another jar: the article
+            // was read with the old jar's sign-ins and must not show over the new jar's page.
+            guard benchTab?.id == tab.id, benchTab?.jarId == tab.jarId else { return }
             // The page the article came from, which can be ahead of the tab's saved URL while
             // a heavy page is still loading.
             reader = ReaderState(tabId: tab.id, url: article.url ?? tab.url, article: article)

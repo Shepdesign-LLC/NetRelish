@@ -25,7 +25,7 @@ Stale and unverified pages, unprocessed `raw/` material, unfinished `- [ ]` item
 last 3 entries of `docs/log.md`.
 
 ```bash
-python3 .claude/scripts/docs-lint.py --root . --quiet
+python3 .claude/scripts/docs-lint.py --root .
 ```
 
 ## 6. Size

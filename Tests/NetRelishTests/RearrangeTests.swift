@@ -238,6 +238,27 @@ import Testing
         #expect(otherWindow.existing(for: kept.id) === keptView)
     }
 
+    @Test("Reader view started on a tab that then moved jars doesn't show the old jar's article")
+    func readerDoesNotFollowAMovedTab() async throws {
+        let bench = try bench()
+        bench.newJar(name: "Birch", tint: nil, shelfLifeDays: 3)
+        bench.newJar(name: "Ash", tint: nil, shelfLifeDays: 3)
+        let tab = try #require(bench.newTab(url: "https://a.example/account"))
+        let birch = try jar("Birch", in: bench)
+        bench.readerProvider = { reading in
+            bench.moveTab(reading, toJar: birch.id)      // moved while the article is being read,
+            bench.activate(birch)                        // and it is the tab showing in its new jar
+            return Extraction.Article(title: "Account", byline: "", site: "a.example",
+                                      html: "<p>Signed in as someone.</p>", wordCount: 120)
+        }
+
+        await bench.toggleReader()
+
+        #expect(bench.activeTab?.id == tab.id)           // the same tab is in front, now in Birch
+        #expect(bench.activeTab?.jarId == birch.id)
+        #expect(bench.reader == nil)                     // and Ash's article is not laid over it
+    }
+
     @Test("A Seal that finishes after its tab moved to another jar leaves the tab where it was put")
     func aSealDoesNotCloseAMovedTab() async throws {
         let bench = try bench()
