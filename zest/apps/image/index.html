@@ -172,6 +172,7 @@ footer .sp{flex:1}
   <div class="brand"><img class="mark" src="icons/icon-112.png" alt="" aria-hidden="true">ZestImage</div>
   <span class="tag">Grapefruit · composed, not generated</span>
   <span class="sp"></span>
+  <div class="modes"><button type="button" class="btn sm" id="bSound" data-zest-sound aria-pressed="true" title="Short sounds when you copy, save, add or remove something">Sound</button></div>
   <a href="https://zest.netrelish.com" rel="noopener">Zest</a>
 </header>
 
@@ -283,13 +284,111 @@ footer .sp{flex:1}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
+/* zest-sound:start v1 */
+/* Zest sound kit: short synthesized sounds for the things you do in a tool. No audio files, no network.
+   This block is inlined, byte for byte, in all four tools (studio, mail, md, image). To change it,
+   edit one copy, paste it over the other three and bump the version; tests/sound.js fails if they differ.
+     window.ZestSound = { play(name), muted, setMuted(bool) }   names: tap · pop · drop · done · nope
+   Any button carrying data-zest-sound is the mute toggle; the kit keeps its aria-pressed in step.
+   The choice lives in localStorage under one key, zest.sound = on | off, shared by every tool on the origin. */
+(function () {
+  'use strict';
+  var KEY = 'zest.sound', GESTURES = ['pointerdown', 'keydown', 'touchend', 'click'];
+  var AC = window.AudioContext || window.webkitAudioContext;
+  var ctx = null, armed = false, idle = 0, last = '', lastAt = 0;
+  function stored() { try { return localStorage.getItem(KEY) === 'off'; } catch (e) { return false; } }
+  var muted = stored();
+
+  // A sound is one or two notes: [wave, start Hz, end Hz, delay s, length s, peak gain].
+  // One family: soft sine and triangle blips around D, 35-180 ms, never louder than 0.07.
+  var SOUNDS = {
+    tap:  [['sine', 1175, 880, 0, 0.035, 0.05]],                                              // select, toggle, switch
+    pop:  [['sine', 440, 880, 0, 0.07, 0.07]],                                                // something was added
+    drop: [['sine', 587, 294, 0, 0.11, 0.07]],                                                // something left, or a drag landed
+    done: [['sine', 880, 880, 0, 0.07, 0.06], ['sine', 1319, 1319, 0.06, 0.12, 0.06]],        // copied, saved, exported
+    nope: [['triangle', 233, 208, 0, 0.06, 0.06], ['triangle', 208, 185, 0.08, 0.08, 0.06]]   // blocked, or it failed
+  };
+
+  function noop() {}
+  function resume() { try { return Promise.resolve(ctx.resume()); } catch (e) { return Promise.reject(e); } }
+  function rest() {            // an idle context is suspended, so an open tab does not hold the audio device
+    clearTimeout(idle);
+    idle = setTimeout(function () { try { if (ctx) Promise.resolve(ctx.suspend()).catch(noop); } catch (e) {} }, 20000);
+  }
+  function wake() {            // only reached once a real gesture has happened
+    if (!AC) return null;
+    try {
+      if (!ctx) ctx = new AC();
+      if (ctx.state !== 'running') resume().catch(noop);
+      rest();
+    } catch (e) { ctx = null; }
+    return ctx;
+  }
+  function sound(notes) {
+    var t0 = ctx.currentTime + 0.005;
+    notes.forEach(function (n) {
+      var osc = ctx.createOscillator(), amp = ctx.createGain(), t = t0 + n[3];
+      osc.type = n[0];
+      osc.frequency.setValueAtTime(n[1], t);
+      if (n[2] !== n[1]) osc.frequency.exponentialRampToValueAtTime(n[2], t + n[4]);
+      amp.gain.setValueAtTime(0.001, t);
+      amp.gain.exponentialRampToValueAtTime(n[5], t + 0.006);
+      amp.gain.exponentialRampToValueAtTime(0.001, t + n[4]);
+      osc.connect(amp); amp.connect(ctx.destination);
+      osc.start(t); osc.stop(t + n[4] + 0.02);
+    });
+    rest();
+  }
+  function play(name) {
+    var notes = SOUNDS[name], now = Date.now();
+    if (muted || !armed || !notes) return;          // silent until the first real gesture: nothing plays on load
+    if (name === last && now - lastAt < 60) return;  // one action, one sound
+    last = name; lastAt = now;
+    try {
+      if (!wake()) return;
+      if (ctx.state === 'running') sound(notes);
+      else resume().then(function () { if (!muted && Date.now() - now < 250) sound(notes); }, noop);
+    } catch (e) {}
+  }
+  function paint() {
+    var els = document.querySelectorAll('[data-zest-sound]');
+    for (var i = 0; i < els.length; i++) els[i].setAttribute('aria-pressed', String(!muted));
+  }
+  function setMuted(off) {
+    muted = !!off;
+    try { localStorage.setItem(KEY, muted ? 'off' : 'on'); } catch (e) {}
+    if (!muted && armed) wake();
+    paint();
+  }
+  function arm(e) {            // the audio context is made on the first real gesture, never before
+    if (!e.isTrusted) return;
+    armed = true;
+    GESTURES.forEach(function (g) { window.removeEventListener(g, arm, true); });
+    if (!muted) wake();
+  }
+  GESTURES.forEach(function (g) { window.addEventListener(g, arm, true); });
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest && e.target.closest('[data-zest-sound]');
+    if (!b) return;
+    setMuted(!muted);
+    play('tap');               // turning sound on answers with a tap; turning it off is silent
+  });
+  window.addEventListener('storage', function (e) { if (e.key === KEY || e.key === null) { muted = stored(); paint(); } });
+  document.addEventListener('DOMContentLoaded', paint);
+  paint();
+  window.ZestSound = { play: play, setMuted: setMuted, get muted() { return muted; } };
+})();
+/* zest-sound:end */
+</script>
+<script>
 (() => {
 'use strict';
 const PRODUCT = 'ZestImage';
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const slug = s => String(s || '').toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'untitled';
-let tT; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tT); tT = setTimeout(() => t.classList.remove('show'), 3200); };
+const snd = n => { try { window.ZestSound.play(n); } catch {} };   // tap · pop · drop · done · nope (the zest-sound kit above)
+let tT; const toast = (m, s) => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tT); tT = setTimeout(() => t.classList.remove('show'), 3200); if (s) snd(s); };
 
 /* ---------- bundled sample brands (zest-brand.json shape, spec §7.3) ---------- */
 /* Brands are untrusted input (imports and localStorage survive tampering).
@@ -650,6 +749,9 @@ const save = () => { store.set('brands', S.brands); store.set('brandIdx', S.bran
 let hostSave = null;
 if (window.claude && window.claude.use) claude.use('downloads').then(d => { hostSave = d; }).catch(() => {});
 async function download(name, blob) {             // resolves true only when the save was not cancelled
+  const ok = await saveFile(name, blob); if (ok) snd('done'); return ok;
+}
+async function saveFile(name, blob) {
   if (hostSave) {
     try { await hostSave.save({ filename: name, data: blob }); return true; }
     catch (e) { if (e && e.code === 'declined') return false; }
@@ -663,7 +765,7 @@ async function exportImage() {
   if (ext() === 'webp' && !canWebp()) { toast('This browser cannot encode WebP — exporting PNG instead.'); $('#eFmt').value = 'png'; }
   await loadBrandFonts(brand());   // settle fonts before composing, so the file matches the preview rather than a mid-load fallback (failed loads keep system type)
   const alt = $('#cAlt').value.trim();   // read + validate after the font wait, with the rest of the snapshot — edits made during the load must count
-  if (!alt) { const s = $('#altSec'); s.classList.add('err'); setTimeout(() => s.classList.remove('err'), 600); $('#cAlt').focus(); toast('Alt text first — someone will hear this image instead of seeing it.'); return; }
+  if (!alt) { const s = $('#altSec'); s.classList.add('err'); setTimeout(() => s.classList.remove('err'), 600); $('#cAlt').focus(); toast('Alt text first — someone will hear this image instead of seeing it.', 'nope'); return; }
   const { w, h } = dims(), k = scale(), fmt = ext() === 'webp' ? 'image/webp' : 'image/png';
   const svg = compose(w, h);
   // Snapshot everything editable AFTER the font wait and BEFORE the raster awaits — switching controls mid-export must not mislabel the file
@@ -683,7 +785,7 @@ async function exportImage() {
     S.exports.push(rec);
     render();
     toast(`${name} — alt text and manifest are one click away.`);
-  } catch (err) { toast(PRODUCT + ': ' + err.message); }
+  } catch (err) { toast(PRODUCT + ': ' + err.message, 'nope'); }
   finally { URL.revokeObjectURL(url); }
 }
 const ogSnippet = () => { const { w, h } = dims(), k = scale(), alt = esc($('#cAlt').value.trim() || altDefault());
@@ -701,16 +803,17 @@ $('#brandList').addEventListener('click', async e => {
     S.brands.splice(rel, 1);
     if (S.brandIdx === abs) S.brandIdx = 0;
     else if (S.brandIdx > abs) S.brandIdx--;
-    save(); renderBrands(); syncBrandLogo(); render(); toast(`${gone.name} removed.`);
+    save(); renderBrands(); syncBrandLogo(); render(); toast(`${gone.name} removed.`, 'drop');
     await loadBrandFonts(brand()); render();   // the replacement selection needs its fonts, same as choosing it by hand
     return;
   }
   const b = e.target.closest('[data-i]'); if (!b) return;
-  S.brandIdx = +b.dataset.i; save(); renderBrands(); syncBrandLogo(); render();
+  S.brandIdx = +b.dataset.i; save(); renderBrands(); syncBrandLogo(); render(); snd('tap');
   await loadBrandFonts(brand()); render();
 });
 $('#mLight').addEventListener('click', () => { S.mode = 'light'; save(); renderBrands(); render(); });
 $('#mDark').addEventListener('click', () => { S.mode = 'dark'; save(); renderBrands(); render(); });
+$$('#mLight, #mDark').forEach(b => b.addEventListener('click', () => snd('tap')));
 $('#bImport').addEventListener('click', () => $('#fBrand').click());
 $('#fBrand').addEventListener('change', e => { importBrand(e.target.files[0]); e.target.value = ''; });
 async function importBrand(file) {
@@ -719,14 +822,14 @@ async function importBrand(file) {
     const b = JSON.parse(await file.text());
     if (b.zest !== 1 || !b.name || !b.light) throw new Error('Not a zest-brand.json — export one from the Zest studio');
     const replaces = S.brands.some(x => x.name.toLowerCase() === String(b.name).slice(0, 48).toLowerCase());
-    if (!replaces && S.brands.length >= FREE_BRANDS) { toast(`Free holds ${FREE_BRANDS} saved brands — remove one (×), or unlimited brands arrive with Pro.`); return; }
+    if (!replaces && S.brands.length >= FREE_BRANDS) { toast(`Free holds ${FREE_BRANDS} saved brands — remove one (×), or unlimited brands arrive with Pro.`, 'nope'); return; }
     const clean = sanitizeBrand(b);
     const existing = S.brands.findIndex(x => x.name.toLowerCase() === clean.name.toLowerCase());
     if (existing >= 0) { S.brands[existing] = clean; S.brandIdx = SAMPLES.length + existing; }
     else { S.brands.push(clean); S.brandIdx = SAMPLES.length + S.brands.length - 1; }
-    save(); renderBrands(); syncBrandLogo(); render(); toast(`${clean.name} ${existing >= 0 ? 'updated' : 'imported'}.`);
+    save(); renderBrands(); syncBrandLogo(); render(); toast(`${clean.name} ${existing >= 0 ? 'updated' : 'imported'}.`, 'pop');
     await loadBrandFonts(clean); render();
-  } catch (err) { toast(err.message); }
+  } catch (err) { toast(err.message, 'nope'); }
 }
 function pickFile(drop, input, handler) {
   drop.addEventListener('click', () => input.click());
@@ -734,13 +837,13 @@ function pickFile(drop, input, handler) {
 }
 function readAsDataURL(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
 async function setLogo(f) { if (!f) return; S.logo = await readAsDataURL(f); S.logoName = f.name; logoFromBrand = false;
-  $('#tLogo').hidden = false; $('#tLogo img').src = S.logo; $('#tLogo span').textContent = f.name; render(); }
+  $('#tLogo').hidden = false; $('#tLogo img').src = S.logo; $('#tLogo span').textContent = f.name; render(); snd('pop'); }
 async function setPhoto(f) { if (!f) return; S.photo = await readAsDataURL(f); S.photoName = f.name;
-  $('#tPhoto').hidden = false; $('#tPhoto img').src = S.photo; $('#tPhoto span').textContent = f.name; $('#tintRow').hidden = false; render(); }
+  $('#tPhoto').hidden = false; $('#tPhoto img').src = S.photo; $('#tPhoto span').textContent = f.name; $('#tintRow').hidden = false; render(); snd('pop'); }
 pickFile($('#dLogo'), $('#fLogo'), setLogo);
-$('#tLogo button').addEventListener('click', () => { S.logo = null; S.logoName = ''; logoFromBrand = false; $('#tLogo').hidden = true; render(); });
+$('#tLogo button').addEventListener('click', () => { S.logo = null; S.logoName = ''; logoFromBrand = false; $('#tLogo').hidden = true; render(); snd('drop'); });
 pickFile($('#dPhoto'), $('#fPhoto'), setPhoto);
-$('#tPhoto button').addEventListener('click', () => { S.photo = null; $('#tPhoto').hidden = true; $('#tintRow').hidden = true; render(); });
+$('#tPhoto button').addEventListener('click', () => { S.photo = null; $('#tPhoto').hidden = true; $('#tintRow').hidden = true; render(); snd('drop'); });
 document.addEventListener('dragover', e => { e.preventDefault(); });
 document.addEventListener('drop', async e => {
   e.preventDefault(); const f = e.dataTransfer.files[0]; if (!f) return;
@@ -749,8 +852,8 @@ document.addEventListener('drop', async e => {
   if (e.target.closest && e.target.closest('#dLogo')) return setLogo(f);   // a drop on the Logo area is a logo
   setPhoto(f);
 });
-$('#layoutGrid').addEventListener('click', e => { const b = e.target.closest('[data-l]'); if (!b) return; S.layout = b.dataset.l; save(); renderChoosers(); render(); });
-$('#targetGrid').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; S.target = b.dataset.t; save(); renderChoosers(); render(); });
+$('#layoutGrid').addEventListener('click', e => { const b = e.target.closest('[data-l]'); if (!b) return; S.layout = b.dataset.l; save(); renderChoosers(); render(); snd('tap'); });
+$('#targetGrid').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; S.target = b.dataset.t; save(); renderChoosers(); render(); snd('tap'); });
 $('#customRow').addEventListener('input', () => { S.custom = { w: +$('#cw').value, h: +$('#ch').value }; save(); render(); });
 $('#safeTgl').addEventListener('change', render);
 $('#eFmt').addEventListener('change', render);
@@ -764,11 +867,11 @@ $('#bManifest').addEventListener('click', async () => {
   const saved = await download(`${slug(brand().name)}-zest-image.json`, new Blob([JSON.stringify(m, null, 2)], { type: 'application/json' }));
   toast(!saved ? 'Manifest save cancelled.' : S.exports.length ? 'Manifest saved — regenerate the whole set from it after a rebrand.' : 'Manifest saved — it fills as you export.'); });
 $('#bOg').addEventListener('click', async () => { const snip = ogSnippet();
-  try { await navigator.clipboard.writeText(snip); toast('OG meta copied — swap your-site.example for where the image is hosted.'); }
+  try { await navigator.clipboard.writeText(snip); toast('OG meta copied — swap your-site.example for where the image is hosted.', 'done'); }
   catch { const saved = await download(filename().replace(/\.(png|webp)$/, '') + '.og.txt', new Blob([snip], { type: 'text/plain' }));
     toast(saved ? 'Clipboard access was blocked — the snippet saved as a file instead.' : 'Cancelled — nothing saved.'); } });
 $$('.pro').forEach(p => p.addEventListener('click', () =>
-  toast('Pro arrives with Zest accounts — everything local stays free. zest.netrelish.com/pricing has the plan.')));
+  toast('Pro arrives with Zest accounts — everything local stays free. zest.netrelish.com/pricing has the plan.', 'nope')));
 document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'e') { e.preventDefault(); exportImage(); }
 });

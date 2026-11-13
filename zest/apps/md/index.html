@@ -168,6 +168,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .btn.primary:hover{background:var(--accent); color:var(--on-accent)}
 .btn svg{width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none}
 .btn.icon{width:32px; padding:0; justify-content:center}
+@media (prefers-reduced-motion:no-preference){.btn:active{transform:translateY(1px)}} /* pressed feedback; none under reduced motion */
 .label{display:none}
 @media (min-width:1100px){.label{display:inline}}
 
@@ -301,6 +302,9 @@ button{cursor:pointer; background:none; border:0; padding:0}
       <button class="btn icon" id="btnTheme" title="Theme: auto">
         <svg viewBox="0 0 24 24" id="themeIcon"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>
       </button>
+      <button type="button" class="btn icon" id="btnSound" data-zest-sound aria-pressed="true" aria-label="Sound" title="Short sounds when you copy, save, add or remove something">
+        <svg viewBox="0 0 24 24"><path d="M4 10v4h3l5 4V6l-5 4z"/><path d="M16 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg>
+      </button>
     </div>
 
     <div class="group">
@@ -412,11 +416,109 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.17/purify.min.js" integrity="sha384-P0JNneQf81HOl9VwNXK76cQ9VMD6Nfsnepxb0cCOg8+UzEdzgPHAPV4wVQrvYQSx" crossorigin="anonymous" onerror="__mdfail('the HTML sanitizer (DOMPurify)')"></script>
 
 <script>
+/* zest-sound:start v1 */
+/* Zest sound kit: short synthesized sounds for the things you do in a tool. No audio files, no network.
+   This block is inlined, byte for byte, in all four tools (studio, mail, md, image). To change it,
+   edit one copy, paste it over the other three and bump the version; tests/sound.js fails if they differ.
+     window.ZestSound = { play(name), muted, setMuted(bool) }   names: tap · pop · drop · done · nope
+   Any button carrying data-zest-sound is the mute toggle; the kit keeps its aria-pressed in step.
+   The choice lives in localStorage under one key, zest.sound = on | off, shared by every tool on the origin. */
+(function () {
+  'use strict';
+  var KEY = 'zest.sound', GESTURES = ['pointerdown', 'keydown', 'touchend', 'click'];
+  var AC = window.AudioContext || window.webkitAudioContext;
+  var ctx = null, armed = false, idle = 0, last = '', lastAt = 0;
+  function stored() { try { return localStorage.getItem(KEY) === 'off'; } catch (e) { return false; } }
+  var muted = stored();
+
+  // A sound is one or two notes: [wave, start Hz, end Hz, delay s, length s, peak gain].
+  // One family: soft sine and triangle blips around D, 35-180 ms, never louder than 0.07.
+  var SOUNDS = {
+    tap:  [['sine', 1175, 880, 0, 0.035, 0.05]],                                              // select, toggle, switch
+    pop:  [['sine', 440, 880, 0, 0.07, 0.07]],                                                // something was added
+    drop: [['sine', 587, 294, 0, 0.11, 0.07]],                                                // something left, or a drag landed
+    done: [['sine', 880, 880, 0, 0.07, 0.06], ['sine', 1319, 1319, 0.06, 0.12, 0.06]],        // copied, saved, exported
+    nope: [['triangle', 233, 208, 0, 0.06, 0.06], ['triangle', 208, 185, 0.08, 0.08, 0.06]]   // blocked, or it failed
+  };
+
+  function noop() {}
+  function resume() { try { return Promise.resolve(ctx.resume()); } catch (e) { return Promise.reject(e); } }
+  function rest() {            // an idle context is suspended, so an open tab does not hold the audio device
+    clearTimeout(idle);
+    idle = setTimeout(function () { try { if (ctx) Promise.resolve(ctx.suspend()).catch(noop); } catch (e) {} }, 20000);
+  }
+  function wake() {            // only reached once a real gesture has happened
+    if (!AC) return null;
+    try {
+      if (!ctx) ctx = new AC();
+      if (ctx.state !== 'running') resume().catch(noop);
+      rest();
+    } catch (e) { ctx = null; }
+    return ctx;
+  }
+  function sound(notes) {
+    var t0 = ctx.currentTime + 0.005;
+    notes.forEach(function (n) {
+      var osc = ctx.createOscillator(), amp = ctx.createGain(), t = t0 + n[3];
+      osc.type = n[0];
+      osc.frequency.setValueAtTime(n[1], t);
+      if (n[2] !== n[1]) osc.frequency.exponentialRampToValueAtTime(n[2], t + n[4]);
+      amp.gain.setValueAtTime(0.001, t);
+      amp.gain.exponentialRampToValueAtTime(n[5], t + 0.006);
+      amp.gain.exponentialRampToValueAtTime(0.001, t + n[4]);
+      osc.connect(amp); amp.connect(ctx.destination);
+      osc.start(t); osc.stop(t + n[4] + 0.02);
+    });
+    rest();
+  }
+  function play(name) {
+    var notes = SOUNDS[name], now = Date.now();
+    if (muted || !armed || !notes) return;          // silent until the first real gesture: nothing plays on load
+    if (name === last && now - lastAt < 60) return;  // one action, one sound
+    last = name; lastAt = now;
+    try {
+      if (!wake()) return;
+      if (ctx.state === 'running') sound(notes);
+      else resume().then(function () { if (!muted && Date.now() - now < 250) sound(notes); }, noop);
+    } catch (e) {}
+  }
+  function paint() {
+    var els = document.querySelectorAll('[data-zest-sound]');
+    for (var i = 0; i < els.length; i++) els[i].setAttribute('aria-pressed', String(!muted));
+  }
+  function setMuted(off) {
+    muted = !!off;
+    try { localStorage.setItem(KEY, muted ? 'off' : 'on'); } catch (e) {}
+    if (!muted && armed) wake();
+    paint();
+  }
+  function arm(e) {            // the audio context is made on the first real gesture, never before
+    if (!e.isTrusted) return;
+    armed = true;
+    GESTURES.forEach(function (g) { window.removeEventListener(g, arm, true); });
+    if (!muted) wake();
+  }
+  GESTURES.forEach(function (g) { window.addEventListener(g, arm, true); });
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest && e.target.closest('[data-zest-sound]');
+    if (!b) return;
+    setMuted(!muted);
+    play('tap');               // turning sound on answers with a tap; turning it off is silent
+  });
+  window.addEventListener('storage', function (e) { if (e.key === KEY || e.key === null) { muted = stored(); paint(); } });
+  document.addEventListener('DOMContentLoaded', paint);
+  paint();
+  window.ZestSound = { play: play, setMuted: setMuted, get muted() { return muted; } };
+})();
+/* zest-sound:end */
+</script>
+<script>
 (() => {
   'use strict';
   const PRODUCT = 'Zest MD';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const snd = n => { try { window.ZestSound.play(n); } catch {} };   // tap · pop · drop · done · nope (the zest-sound kit above)
   const has = { md: !!window.markdownit, hl: !!window.hljs, katex: !!window.renderMathInElement, mermaid: !!window.mermaid, pure: !!window.DOMPurify };
   /* on-demand vendors: fetched the first time a document needs them, then has.* flips and render() re-runs.
      Each file is listed with the sha384 of the release named in its URL; the browser refuses a file that
@@ -589,8 +691,8 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   }
   doc.addEventListener('click', async e => {
     const b = e.target.closest('.copy'); if (!b) return;
-    try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = 'Copied'; b.classList.add('done'); setTimeout(() => { b.textContent = 'Copy'; b.classList.remove('done'); }, 1400); }
-    catch { toast('Copy blocked by the browser'); }
+    try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = 'Copied'; b.classList.add('done'); snd('done'); setTimeout(() => { b.textContent = 'Copy'; b.classList.remove('done'); }, 1400); }
+    catch { toast('Copy blocked by the browser', 'nope'); }
   });
 
   function renderEmpty() {
@@ -650,15 +752,15 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   }
   function closeFile(i) {
     const f = state.files[i]; if (!f) return;
-    if (f.locked) { toast(`${f.name} is locked. Click the lock to unlock it first.`); return; }
-    state.files.splice(i, 1);
+    if (f.locked) { toast(`${f.name} is locked. Click the lock to unlock it first.`, 'nope'); return; }
+    state.files.splice(i, 1); snd('drop');
     if (state.active >= state.files.length) state.active = state.files.length - 1;
     renderTabs(); syncEditor(); render();
     toast(`Closed ${f.name}`, { label: 'Undo', fn() {
       const at = Math.min(i, state.files.length); state.files.splice(at, 0, f); state.active = at; renderTabs(); syncEditor(); render();
     } });
   }
-  function toggleLock(i) { const f = state.files[i]; if (!f) return; f.locked = !f.locked; renderTabs(); toast(f.locked ? `${f.name} locked` : `${f.name} unlocked`); }
+  function toggleLock(i) { const f = state.files[i]; if (!f) return; f.locked = !f.locked; renderTabs(); toast(f.locked ? `${f.name} locked` : `${f.name} unlocked`, 'tap'); }
   const LOCK_OPEN = '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7"/></svg>';
   const LOCK_SHUT = '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
   function renderTabs() {
@@ -667,7 +769,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   tabs.addEventListener('click', e => {
     const l = e.target.closest('[data-lock]'); if (l) { toggleLock(+l.dataset.lock); return; }
     const x = e.target.closest('[data-close]'); if (x) { closeFile(+x.dataset.close); return; }
-    const t = e.target.closest('.tab'); if (t) { state.active = +t.dataset.i; renderTabs(); syncEditor(); render(); }
+    const t = e.target.closest('.tab'); if (t) { state.active = +t.dataset.i; renderTabs(); syncEditor(); render(); snd('tap'); }
   });
   tabs.addEventListener('dblclick', e => { const t = e.target.closest('.tab'); if (t && !e.target.closest('button')) toggleLock(+t.dataset.i); });
   tabs.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const t = e.target.closest('.tab'); if (t) { e.preventDefault(); t.click(); } } });
@@ -678,14 +780,14 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     // a dropped zest-brand.json re-skins instead of opening as a document — the §7.3 interchange
     const jsonF = all.find(f => /\.json$/i.test(f.name));
     if (jsonF) {
-      try { const b = JSON.parse(await jsonF.text()); if (b && b.zest === 1) importZestBrand(b); else toast('Not a zest-brand.json.'); }
-      catch { toast('That file would not read as JSON.'); }
+      try { const b = JSON.parse(await jsonF.text()); if (b && b.zest === 1) importZestBrand(b); else toast('Not a zest-brand.json.', 'nope'); }
+      catch { toast('That file would not read as JSON.', 'nope'); }
       if (all.length === 1) return;
     }
     const files = all.filter(f => okExt.test(f.name) || /text\/(markdown|plain)/.test(f.type));
-    if (!files.length) { if (!jsonF) toast('Drop .md, .markdown or .txt files'); return; }
+    if (!files.length) { if (!jsonF) toast('Drop .md, .markdown or .txt files', 'nope'); return; }
     for (const f of files) addFile(f.name, await f.text(), true);
-    toast(files.length === 1 ? `Opened ${files[0].name}` : `Opened ${files.length} files`);
+    toast(files.length === 1 ? `Opened ${files[0].name}` : `Opened ${files.length} files`, 'pop');
   }
   const picker = $('#file');
   function openPicker() { picker.value = ''; picker.click(); }
@@ -694,8 +796,8 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   async function pasteClipboard() {
     try {
       const t = await navigator.clipboard.readText();
-      if (!t.trim()) { toast('Clipboard is empty'); return; }
-      addFile(`Pasted ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.md`, t);
+      if (!t.trim()) { toast('Clipboard is empty', 'nope'); return; }
+      addFile(`Pasted ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.md`, t); snd('pop');
     } catch { addFile('Untitled.md', ''); setEdit(true); toast('Clipboard blocked — paste into the editor instead'); $('#src').focus(); }
   }
 
@@ -709,7 +811,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   // paste into page when nothing is focused
   document.addEventListener('paste', e => {
     if (e.target.closest('textarea,input')) return;
-    const t = e.clipboardData.getData('text/plain'); if (t && t.trim()) { e.preventDefault(); addFile('Pasted.md', t); }
+    const t = e.clipboardData.getData('text/plain'); if (t && t.trim()) { e.preventDefault(); addFile('Pasted.md', t); snd('pop'); }
   });
 
   /* ---------- editor ---------- */
@@ -878,7 +980,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     return FONT_CHOICES[slot].includes(k) ? k : { doc: 'geist', ui: 'geist', mono: 'geistMono' }[slot];
   }
   function importZestBrand(b) {
-    if (!b || b.zest !== 1 || !palOk(b.light)) { toast('Not a zest-brand.json.'); return false; }
+    if (!b || b.zest !== 1 || !palOk(b.light)) { toast('Not a zest-brand.json.', 'nope'); return false; }
     const name = String(b.name || 'Zest brand').replace(CTRL_RE, ' ').slice(0, 48).trim() || 'Zest brand';
     const light = brandTokens(b.light);
     // a missing or invalid dark palette falls back to this app's own other-mode derivation from the light roles
@@ -893,14 +995,14 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     });
     state.settings.skin = 'custom';
     syncCustomPanel(); applySettings(); renderSkins(); render();
-    toast(`${name} imported — the custom skin carries both palettes.`);
+    toast(`${name} imported — the custom skin carries both palettes.`, 'pop');
     return true;
   }
   $('#btnImportBrand').addEventListener('click', () => $('#brandFile').click());
   $('#brandFile').addEventListener('change', async e => {
     const file = e.target.files[0]; e.target.value = '';
     if (!file) return;
-    try { importZestBrand(JSON.parse(await file.text())); } catch { toast('That file would not read as a zest-brand.json.'); }
+    try { importZestBrand(JSON.parse(await file.text())); } catch { toast('That file would not read as a zest-brand.json.', 'nope'); }
   });
   function renderSkins() {            // built with DOM APIs: a skin's name, font and colors are set as text and style properties, never parsed as markup
     const el = (tag, cls) => { const n = document.createElement(tag); if (cls) n.className = cls; return n; };
@@ -914,7 +1016,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
       return b;
     }));
   }
-  $('#skins').addEventListener('click', e => { const b = e.target.closest('.skin'); if (!b) return; state.settings.skin = b.dataset.skin; if (b.dataset.skin === 'custom') syncCustomPanel(); applySettings(); render(); });
+  $('#skins').addEventListener('click', e => { const b = e.target.closest('.skin'); if (!b) return; state.settings.skin = b.dataset.skin; if (b.dataset.skin === 'custom') syncCustomPanel(); applySettings(); render(); snd('tap'); });
   function applySettings() {
     const s = state.settings;
     if (!SKINS[s.skin] && s.skin !== 'custom') s.skin = 'press';
@@ -951,6 +1053,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   $('#btnToc').addEventListener('click', () => { state.settings.toc = !state.settings.toc; applySettings(); });
   function setEdit(v) { state.settings.edit = v; applySettings(); if (v) src.focus(); }
   $('#btnEdit').addEventListener('click', () => setEdit(!state.settings.edit));
+  $$('#btnEdit, #btnToc, #btnTheme').forEach(b => b.addEventListener('click', () => snd('tap')));
   $('#btnOpen').addEventListener('click', openPicker);
   $('#btnPaste').addEventListener('click', pasteClipboard);
 
@@ -971,7 +1074,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
   function exportHtml() {
-    const f = state.files[state.active]; if (!f) { toast('Open a file first'); return; }
+    const f = state.files[state.active]; if (!f) { toast('Open a file first', 'nope'); return; }
     const s = state.settings, title = document.title, mode = currentTheme();
     const sk = resolveSkin(s.skin), vals = sk[mode];
     const body = doc.cloneNode(true); $$('.anchor', body).forEach(a => a.remove());
@@ -1009,14 +1112,14 @@ ${copyScript}
     toast('HTML exported');
   }
   function download(name, content, type) {
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); snd('done');
   }
-  async function copy(text, msg) { try { await navigator.clipboard.writeText(text); toast(msg); } catch { toast('Copy blocked by the browser'); } }
+  async function copy(text, msg) { try { await navigator.clipboard.writeText(text); toast(msg, 'done'); } catch { toast('Copy blocked by the browser', 'nope'); } }
   $('#popExport').addEventListener('click', e => {
     const b = e.target.closest('[data-do]'); if (!b) return;
     const f = state.files[state.active];
     $$('.pop').forEach(x => x.dataset.open = 'false');
-    if (!f) { toast('Open a file first'); return; }
+    if (!f) { toast('Open a file first', 'nope'); return; }
     switch (b.dataset.do) {
       case 'html': exportHtml(); break;
       case 'copyhtml': { const c = doc.cloneNode(true); $$('.anchor', c).forEach(a => a.remove()); copy(c.innerHTML.trim(), 'HTML copied'); break; }
@@ -1043,6 +1146,7 @@ ${copyScript}
   /* ---------- toast ---------- */
   let toastT;
   function toast(msg, action) {
+    if (typeof action === 'string') { snd(action); action = null; }   // a string is a sound name; an object is the action button
     const t = $('#toast'); t.textContent = msg;
     if (action) { const b = document.createElement('button'); b.type = 'button'; b.textContent = action.label; b.onclick = () => { t.classList.remove('show'); action.fn(); }; t.appendChild(b); }
     t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), action ? 6000 : 2200);
@@ -1108,6 +1212,7 @@ flowchart LR
 
 <details><summary>Raw HTML works too</summary>Because it's Markdown, not a walled garden.</details>
 `);
+    snd('pop');
   }
 
   /* ---------- boot ---------- */

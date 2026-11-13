@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Zest test runner: builds dist/, serves the apps, runs the three Playwright
-// suites and the WCAG contrast sweeps. Exits nonzero if anything fails.
+// Zest test runner: builds dist/, serves the apps, runs the Playwright suites
+// and the WCAG contrast sweeps. Exits nonzero if anything fails.
 //
 //   cd zest/tests && npm ci && npx playwright install chromium && npm test
 //
@@ -64,7 +64,7 @@ function runNode(args, capture) {
   const servers = await Promise.all(Object.entries(SERVERS).map(([p, d]) => serve(+p, d)));
   let failed = 0;
 
-  for (const suite of ['test.js', 'handoff2.js', 'topology.js', 'mobile.js']) {
+  for (const suite of ['test.js', 'handoff2.js', 'topology.js', 'mobile.js', 'sound.js']) {
     console.log(`\n=== ${suite} ===`);
     const r = await runNode([path.join(__dirname, suite)]);
     if (r.code !== 0) failed++;

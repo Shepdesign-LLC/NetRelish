@@ -58,6 +58,19 @@ null origin, which breaks the service worker and any API call.
   built `dist/`, but does not run the build itself). The Vercel project
   points at `zest/`; `vercel.json` carries the build and headers.
 
+## Sound
+
+Every tool plays a short sound when you copy, save, add or remove something,
+switch a tab or mode, or hit something it will not do. The sounds are
+synthesized in the browser (Web Audio): no audio files, no requests. One kit,
+`window.ZestSound = { play(name), muted, setMuted(bool) }` with five sounds
+(`tap`, `pop`, `drop`, `done`, `nope`), is inlined in each tool between
+`/* zest-sound:start v1 */` and `/* zest-sound:end */`. Each tool has one
+**Sound** toggle; the choice is stored under one `localStorage` key,
+`zest.sound` (`on` or `off`, on by default), shared by every tool on the same
+origin. Nothing plays before the first click or key press. `tests/sound.js`
+covers it; `tests/README.md` says how to change the kit.
+
 ## Status against ZEST-SPEC §10, Milestone 1
 
 In hand:

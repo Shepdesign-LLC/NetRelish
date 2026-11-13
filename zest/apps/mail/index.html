@@ -43,6 +43,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .btn:disabled{opacity:.45; cursor:default}
 .btn svg{width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none}
 .btn.icon{width:32px; padding:0; justify-content:center}
+@media (prefers-reduced-motion:no-preference){.btn:active:not(:disabled),.seg button:active{transform:translateY(1px)}} /* pressed feedback; none under reduced motion */
 .seg{display:flex; gap:2px; background:var(--paper); border-radius:6px; padding:2px}
 .seg button{padding:5px 10px; border-radius:4px; color:var(--ink-2); font-size:13px}
 .seg button:hover{color:var(--ink)}
@@ -224,6 +225,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
       </div>
     </div>
     <div class="group">
+      <button type="button" class="btn icon" id="btnSound" data-zest-sound aria-pressed="true" aria-label="Sound" title="Short sounds when you copy, save, add or remove something"><svg viewBox="0 0 24 24"><path d="M4 10v4h3l5 4V6l-5 4z"/><path d="M16 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></button>
     </div>
     <div class="group"><button class="btn icon mobile-only" id="btnPanel" aria-label="Message, brand and lint panel"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button><button class="btn primary" id="btnExport"><svg viewBox="0 0 24 24"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>Export</button></div>
     <div class="pop" id="popExport">
@@ -308,6 +310,103 @@ button{cursor:pointer; background:none; border:0; padding:0}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
+/* zest-sound:start v1 */
+/* Zest sound kit: short synthesized sounds for the things you do in a tool. No audio files, no network.
+   This block is inlined, byte for byte, in all four tools (studio, mail, md, image). To change it,
+   edit one copy, paste it over the other three and bump the version; tests/sound.js fails if they differ.
+     window.ZestSound = { play(name), muted, setMuted(bool) }   names: tap · pop · drop · done · nope
+   Any button carrying data-zest-sound is the mute toggle; the kit keeps its aria-pressed in step.
+   The choice lives in localStorage under one key, zest.sound = on | off, shared by every tool on the origin. */
+(function () {
+  'use strict';
+  var KEY = 'zest.sound', GESTURES = ['pointerdown', 'keydown', 'touchend', 'click'];
+  var AC = window.AudioContext || window.webkitAudioContext;
+  var ctx = null, armed = false, idle = 0, last = '', lastAt = 0;
+  function stored() { try { return localStorage.getItem(KEY) === 'off'; } catch (e) { return false; } }
+  var muted = stored();
+
+  // A sound is one or two notes: [wave, start Hz, end Hz, delay s, length s, peak gain].
+  // One family: soft sine and triangle blips around D, 35-180 ms, never louder than 0.07.
+  var SOUNDS = {
+    tap:  [['sine', 1175, 880, 0, 0.035, 0.05]],                                              // select, toggle, switch
+    pop:  [['sine', 440, 880, 0, 0.07, 0.07]],                                                // something was added
+    drop: [['sine', 587, 294, 0, 0.11, 0.07]],                                                // something left, or a drag landed
+    done: [['sine', 880, 880, 0, 0.07, 0.06], ['sine', 1319, 1319, 0.06, 0.12, 0.06]],        // copied, saved, exported
+    nope: [['triangle', 233, 208, 0, 0.06, 0.06], ['triangle', 208, 185, 0.08, 0.08, 0.06]]   // blocked, or it failed
+  };
+
+  function noop() {}
+  function resume() { try { return Promise.resolve(ctx.resume()); } catch (e) { return Promise.reject(e); } }
+  function rest() {            // an idle context is suspended, so an open tab does not hold the audio device
+    clearTimeout(idle);
+    idle = setTimeout(function () { try { if (ctx) Promise.resolve(ctx.suspend()).catch(noop); } catch (e) {} }, 20000);
+  }
+  function wake() {            // only reached once a real gesture has happened
+    if (!AC) return null;
+    try {
+      if (!ctx) ctx = new AC();
+      if (ctx.state !== 'running') resume().catch(noop);
+      rest();
+    } catch (e) { ctx = null; }
+    return ctx;
+  }
+  function sound(notes) {
+    var t0 = ctx.currentTime + 0.005;
+    notes.forEach(function (n) {
+      var osc = ctx.createOscillator(), amp = ctx.createGain(), t = t0 + n[3];
+      osc.type = n[0];
+      osc.frequency.setValueAtTime(n[1], t);
+      if (n[2] !== n[1]) osc.frequency.exponentialRampToValueAtTime(n[2], t + n[4]);
+      amp.gain.setValueAtTime(0.001, t);
+      amp.gain.exponentialRampToValueAtTime(n[5], t + 0.006);
+      amp.gain.exponentialRampToValueAtTime(0.001, t + n[4]);
+      osc.connect(amp); amp.connect(ctx.destination);
+      osc.start(t); osc.stop(t + n[4] + 0.02);
+    });
+    rest();
+  }
+  function play(name) {
+    var notes = SOUNDS[name], now = Date.now();
+    if (muted || !armed || !notes) return;          // silent until the first real gesture: nothing plays on load
+    if (name === last && now - lastAt < 60) return;  // one action, one sound
+    last = name; lastAt = now;
+    try {
+      if (!wake()) return;
+      if (ctx.state === 'running') sound(notes);
+      else resume().then(function () { if (!muted && Date.now() - now < 250) sound(notes); }, noop);
+    } catch (e) {}
+  }
+  function paint() {
+    var els = document.querySelectorAll('[data-zest-sound]');
+    for (var i = 0; i < els.length; i++) els[i].setAttribute('aria-pressed', String(!muted));
+  }
+  function setMuted(off) {
+    muted = !!off;
+    try { localStorage.setItem(KEY, muted ? 'off' : 'on'); } catch (e) {}
+    if (!muted && armed) wake();
+    paint();
+  }
+  function arm(e) {            // the audio context is made on the first real gesture, never before
+    if (!e.isTrusted) return;
+    armed = true;
+    GESTURES.forEach(function (g) { window.removeEventListener(g, arm, true); });
+    if (!muted) wake();
+  }
+  GESTURES.forEach(function (g) { window.addEventListener(g, arm, true); });
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest && e.target.closest('[data-zest-sound]');
+    if (!b) return;
+    setMuted(!muted);
+    play('tap');               // turning sound on answers with a tap; turning it off is silent
+  });
+  window.addEventListener('storage', function (e) { if (e.key === KEY || e.key === null) { muted = stored(); paint(); } });
+  document.addEventListener('DOMContentLoaded', paint);
+  paint();
+  window.ZestSound = { play: play, setMuted: setMuted, get muted() { return muted; } };
+})();
+/* zest-sound:end */
+</script>
+<script>
 (() => {
   'use strict';
   const PRODUCT = 'ZestMail';
@@ -315,6 +414,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
   const store = { get(k, d) { try { const v = localStorage.getItem('mailpress:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem('mailpress:' + k, JSON.stringify(v)); } catch {} } };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const uid = () => Math.random().toString(36).slice(2, 9);
+  const snd = n => { try { window.ZestSound.play(n); } catch {} };   // tap · pop · drop · done · nope (the zest-sound kit above)
 
   /* =========================================================
      CSS parsing — tiny, tolerant, no dependencies
@@ -761,6 +861,7 @@ ${preheader}${content}
       if (act.dataset.act === 'down' && i < state.blocks.length - 1) [state.blocks[i + 1], state.blocks[i]] = [state.blocks[i], state.blocks[i + 1]];
       if (act.dataset.act === 'dup') { const c = JSON.parse(JSON.stringify(state.blocks[i])); c.id = uid(); state.blocks.splice(i + 1, 0, c); state.selected = c.id; }
       if (act.dataset.act === 'del') { const gone = state.blocks.splice(i, 1)[0]; state.selected = null; toast(`Removed ${BLOCKS[gone.type].name}`, { label: 'Undo', fn: undo }); }
+      snd({ up: 'tap', down: 'tap', dup: 'pop', del: 'drop' }[act.dataset.act]);
       renderCanvas(); renderInspector(); run(); return;
     }
     if (state.selected !== blk.dataset.id) { state.selected = blk.dataset.id; $$('.cv-block', canvas).forEach(x => x.setAttribute('aria-selected', x.dataset.id === state.selected)); renderInspector(); showTab('block'); }
@@ -793,7 +894,7 @@ ${preheader}${content}
   $('#lib').addEventListener('dragstart', e => { const it = e.target.closest('.lib-item'); if (!it) return; dragType = 'lib:' + it.dataset.type; e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', dragType); });
   $('#mods').addEventListener('dragstart', e => { const it = e.target.closest('[data-mod]'); if (!it) return; dragType = 'mod:' + it.dataset.mod; e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', dragType); });
   const fromModule = id => { const m = store.get('modules', []).find(x => x.id === id); return (m && sanitizeBlocks([m])[0]) || null; };   // modules come back from storage: same checks as an import
-  $('#mods').addEventListener('click', e => { const rm = e.target.closest('[data-rmmod]'); if (rm) { e.preventDefault(); store.set('modules', store.get('modules', []).filter(x => x.id !== rm.dataset.rmmod)); renderModules(); return; } const it = e.target.closest('[data-mod]'); if (!it) return; const nb = fromModule(it.dataset.mod); if (!nb) return; snapshot(); state.blocks.push(nb); state.selected = nb.id; renderCanvas(); renderInspector(); run(); showTab('block'); closeLibOnAdd(); });
+  $('#mods').addEventListener('click', e => { const rm = e.target.closest('[data-rmmod]'); if (rm) { e.preventDefault(); store.set('modules', store.get('modules', []).filter(x => x.id !== rm.dataset.rmmod)); renderModules(); snd('drop'); return; } const it = e.target.closest('[data-mod]'); if (!it) return; const nb = fromModule(it.dataset.mod); if (!nb) return; snapshot(); state.blocks.push(nb); state.selected = nb.id; renderCanvas(); renderInspector(); run(); showTab('block'); closeLibOnAdd(); snd('pop'); });
   canvas.addEventListener('dragstart', e => { const blk = e.target.closest('.cv-block'); if (!blk) return; dragType = 'block:' + blk.dataset.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dragType); });
   const clearDrop = () => { $$('.cv-block', canvas).forEach(x => x.classList.remove('drop-before', 'drop-after')); canvas.classList.remove('drag-over'); };
   canvas.addEventListener('dragover', e => { if (!dragType) return; e.preventDefault(); clearDrop(); const blk = e.target.closest('.cv-block'); if (blk) { const r = blk.getBoundingClientRect(); blk.classList.add(e.clientY < r.top + r.height / 2 ? 'drop-before' : 'drop-after'); } else canvas.classList.add('drag-over'); });
@@ -806,14 +907,14 @@ ${preheader}${content}
     if (t.startsWith('lib:')) { const nb = newBlock(t.slice(4)); state.blocks.splice(at, 0, nb); state.selected = nb.id; }
     else if (t.startsWith('mod:')) { const nb = fromModule(t.slice(4)); if (!nb) return clearDrop(); state.blocks.splice(at, 0, nb); state.selected = nb.id; }
     else { const id = t.slice(6), from = state.blocks.findIndex(x => x.id === id); if (from < 0) return clearDrop(); const [mv] = state.blocks.splice(from, 1); if (from < at) at--; state.blocks.splice(at, 0, mv); state.selected = id; }
-    clearDrop(); renderCanvas(); renderInspector(); run(); showTab('block');
+    clearDrop(); renderCanvas(); renderInspector(); run(); showTab('block'); snd('drop');
   });
   document.addEventListener('dragend', () => { dragType = null; clearDrop(); });
   // library click = append
-  $('#lib').addEventListener('click', e => { const it = e.target.closest('.lib-item'); if (!it) return; snapshot(); const nb = newBlock(it.dataset.type); state.blocks.push(nb); state.selected = nb.id; renderCanvas(); renderInspector(); run(); showTab('block'); closeLibOnAdd(); $('#stage').scrollTop = 1e6; });
+  $('#lib').addEventListener('click', e => { const it = e.target.closest('.lib-item'); if (!it) return; snapshot(); const nb = newBlock(it.dataset.type); state.blocks.push(nb); state.selected = nb.id; renderCanvas(); renderInspector(); run(); showTab('block'); closeLibOnAdd(); $('#stage').scrollTop = 1e6; snd('pop'); });
   $('#lib').innerHTML = Object.entries(BLOCKS).map(([k, b]) => `<div class="lib-item" draggable="true" data-type="${k}"><b>${b.name}</b><span>${b.desc}</span></div>`).join('');
   $('#tpl').innerHTML = Object.entries(TEMPLATES).map(([k, t]) => `<button data-tpl="${k}"><b>${t.name}</b><span>${t.desc}</span></button>`).join('');
-  $('#tpl').addEventListener('click', e => { const b = e.target.closest('[data-tpl]'); if (!b) return; if (state.blocks.length && !confirm('Replace the current canvas with this template?')) return; snapshot(); state.blocks = TEMPLATES[b.dataset.tpl].blocks(); state.selected = null; state.designName = TEMPLATES[b.dataset.tpl].name; if (!$('#subject').value) $('#subject').value = TEMPLATES[b.dataset.tpl].name; renderCanvas(); renderInspector(); run(); closeLibOnAdd(); });
+  $('#tpl').addEventListener('click', e => { const b = e.target.closest('[data-tpl]'); if (!b) return; if (state.blocks.length && !confirm('Replace the current canvas with this template?')) return; snapshot(); state.blocks = TEMPLATES[b.dataset.tpl].blocks(); state.selected = null; state.designName = TEMPLATES[b.dataset.tpl].name; if (!$('#subject').value) $('#subject').value = TEMPLATES[b.dataset.tpl].name; renderCanvas(); renderInspector(); run(); closeLibOnAdd(); snd('pop'); });
 
   /* =========================================================
      Inspector
@@ -849,7 +950,7 @@ ${preheader}${content}
     if (e.target.id !== 'btnModule') return;
     const bl = state.blocks.find(x => x.id === state.selected); if (!bl) return;
     const name = prompt('Module name', BLOCKS[bl.type].name + ' — ' + brand().name); if (!name) return;
-    const mods = store.get('modules', []); mods.unshift({ id: uid(), name, type: bl.type, props: JSON.parse(JSON.stringify(bl.props)) }); store.set('modules', mods); renderModules(); toast(`Saved module “${name}”`);
+    const mods = store.get('modules', []); mods.unshift({ id: uid(), name, type: bl.type, props: JSON.parse(JSON.stringify(bl.props)) }); store.set('modules', mods); renderModules(); toast(`Saved module “${name}”`, 'done');
   });
   function renderModules() {
     const mods = store.get('modules', []); const el = $('#mods'); if (!el) return;
@@ -893,7 +994,7 @@ ${preheader}${content}
   const narrow = () => matchMedia('(max-width:1100px)').matches, phone = () => matchMedia('(max-width:700px)').matches;
   let booted = false; // the sheet only auto-opens for user actions, never on load
   function showTab(t) { $$('#tabs button[data-t]').forEach(b => b.setAttribute('aria-selected', b.dataset.t === t)); $$('.panel').forEach(p => p.dataset.active = p.id === 'panel' + t[0].toUpperCase() + t.slice(1)); if (booted && narrow()) $('#inspector').dataset.open = 'true'; }
-  $('#tabs').addEventListener('click', e => { if (e.target.closest('#sheetClose')) { $('#inspector').dataset.open = 'false'; return; } const b = e.target.closest('button[data-t]'); if (b) showTab(b.dataset.t); });
+  $('#tabs').addEventListener('click', e => { if (e.target.closest('#sheetClose')) { $('#inspector').dataset.open = 'false'; return; } const b = e.target.closest('button[data-t]'); if (b) { showTab(b.dataset.t); snd('tap'); } });
   $('#btnPanel').addEventListener('click', () => { const cur = $('#tabs button[aria-selected="true"]'); showTab(cur && cur.dataset.t !== 'block' ? cur.dataset.t : 'message'); $('#inspector').dataset.open = 'true'; });
   const libPane = $('.pane.left');
   $('#btnLib').addEventListener('click', () => { libPane.dataset.open = libPane.dataset.open === 'true' ? 'false' : 'true'; });
@@ -947,15 +1048,15 @@ ${preheader}${content}
     if (m === 'source' && state.view === 'canvas') setView('600'); else run();
   }
   function setView(v) { state.view = v; $$('#viewSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.w === v)); run(); }
-  $('#modeSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.m); });
-  $('#viewSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setView(b.dataset.w); });
+  $('#modeSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { setMode(b.dataset.m); snd('tap'); } });
+  $('#viewSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { setView(b.dataset.w); snd('tap'); } });
   // The chrome wears orange, always (fruits.json) — the one theme every Zest tool shares; emails keep their own brand colors.
   $('#btnUndo').addEventListener('click', undo);
   document.addEventListener('keydown', e => {
     const mod = e.metaKey || e.ctrlKey, inField = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || document.activeElement.isContentEditable;
     if (mod && e.key.toLowerCase() === 'z' && !inField && state.mode === 'build') { e.preventDefault(); undo(); }
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); if (last) copy(last.html, 'Email HTML copied'); }
-    if ((e.key === 'Delete' || e.key === 'Backspace') && !inField && state.selected) { const i = state.blocks.findIndex(x => x.id === state.selected); if (i > -1) { snapshot(); state.blocks.splice(i, 1); state.selected = null; renderCanvas(); renderInspector(); run(); } }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && !inField && state.selected) { const i = state.blocks.findIndex(x => x.id === state.selected); if (i > -1) { snapshot(); state.blocks.splice(i, 1); state.selected = null; renderCanvas(); renderInspector(); run(); snd('drop'); } }
     if (e.key === 'Escape') { state.selected = null; renderCanvas(); renderInspector(); }
   });
 
@@ -982,36 +1083,36 @@ ${preheader}${content}
   function loadDesign(d) { let added = null; snapshot(); state.blocks = sanitizeBlocks(d.blocks); state.designName = cleanLine(d.name, 120).trim() || 'Untitled'; state.designId = cleanId(d.id); $('#subject').value = cleanLine(d.subject, 500); $('#preheader').value = cleanLine(d.preheader, 500); setWidth(d.width); setBg(d.bg);
     if (d.brand && typeof d.brand === 'object') { const a = adoptBrand(d.brand); state.brandId = a.id; added = a.added; }
     state.selected = null; setMode('build'); renderCanvas(); renderInspector(); renderBrandPanel(); renderSaved(); run(); return added; }   // the Brand tab is redrawn too: with no block selected the inspector leaves it alone
-  function importedDesign(d, size = 0) { const over = overBudget(d, size); if (over) return toast(`${over}, so it was not imported. Nothing changed.`); const added = loadDesign(d); toast(`Imported “${state.designName}”` + (added ? ` — its brand was added as “${added}”` : '')); }
+  function importedDesign(d, size = 0) { const over = overBudget(d, size); if (over) return toast(`${over}, so it was not imported. Nothing changed.`, 'nope'); const added = loadDesign(d); toast(`Imported “${state.designName}”` + (added ? ` — its brand was added as “${added}”` : ''), 'pop'); }
   $('#btnSave').addEventListener('click', () => {
     const name = prompt('Design name', state.designName); if (name == null) return;
     const list = designs(), d = Object.assign(designJSON(), { name, id: state.designId || uid() }); state.designName = name; state.designId = d.id;
     const i = list.findIndex(x => x.id === d.id); if (i > -1) list[i] = d; else list.unshift(d);
-    store.set('designs', list); renderSaved(); toast(`Saved “${name}”`);
+    store.set('designs', list); renderSaved(); toast(`Saved “${name}”`, 'done');
   });
   $('#btnNew').addEventListener('click', () => { if (state.blocks.length && !confirm('Start a new design? The canvas will be cleared (Undo works).')) return; snapshot(); state.blocks = []; state.selected = null; state.designId = null; state.designName = 'Untitled'; $('#subject').value = ''; $('#preheader').value = ''; renderCanvas(); renderInspector(); run(); });
   function renderSaved() { const list = designs(); $('#savedList').innerHTML = list.length ? list.map(d => `<div><span title="${esc(d.name)}">${esc(d.name)}</span><small>${new Date(d.saved).toLocaleDateString()}</small><button data-load="${esc(d.id)}" title="Open">↗</button><button data-rm="${esc(d.id)}" title="Delete">×</button></div>`).join('') : '<div><span style="color:var(--ink-3)">Nothing saved yet</span></div>'; }
-  $('#savedList').addEventListener('click', e => { const l = e.target.closest('[data-load]'), r = e.target.closest('[data-rm]'); if (l) { const d = designs().find(x => x.id === l.dataset.load); if (d) { const added = loadDesign(d); if (added) toast(`The brand saved with this design was added as “${added}”`); } } if (r) { if (!confirm('Delete this saved design?')) return; store.set('designs', designs().filter(x => x.id !== r.dataset.rm)); renderSaved(); } });
+  $('#savedList').addEventListener('click', e => { const l = e.target.closest('[data-load]'), r = e.target.closest('[data-rm]'); if (l) { const d = designs().find(x => x.id === l.dataset.load); if (d) { const added = loadDesign(d); if (added) toast(`The brand saved with this design was added as “${added}”`); } } if (r) { if (!confirm('Delete this saved design?')) return; store.set('designs', designs().filter(x => x.id !== r.dataset.rm)); renderSaved(); snd('drop'); } });
 
   /* ---------- export ---------- */
   $('#btnExport').addEventListener('click', e => { e.stopPropagation(); const p = $('#popExport'); p.dataset.open = p.dataset.open !== 'true'; if (p.dataset.open === 'true' && narrow()) $('#inspector').dataset.open = 'false'; });
   document.addEventListener('click', e => { if (!e.target.closest('.pop')) $('#popExport').dataset.open = 'false'; });
-  const download = (name, content, type) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
-  const copy = async (t, msg) => { try { await navigator.clipboard.writeText(t); toast(msg); } catch { toast('Copy blocked by the browser'); } };
+  const download = (name, content, type) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); snd('done'); };
+  const copy = async (t, msg) => { try { await navigator.clipboard.writeText(t); toast(msg, 'done'); } catch { toast('Copy blocked by the browser', 'nope'); } };
   const slug = () => ($('#subject').value || state.designName || 'email').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'email';
   $('#popExport').addEventListener('click', e => {
     const b = e.target.closest('[data-do]'); if (!b) return; $('#popExport').dataset.open = 'false';
     const act = b.dataset.do;
     if (act === 'importjson') return $('#jsonFile').click();
     if (act === 'json') return download(slug() + '.mailpress.json', JSON.stringify(designJSON(), null, 2), 'application/json');
-    if (!last) return toast('Nothing compiled yet');
+    if (!last) return toast('Nothing compiled yet', 'nope');
     ({ copy: () => copy(last.html, 'Email HTML copied'), download: () => download(slug() + '.html', last.html, 'text/html'), text: () => copy(toText(last.html), 'Plain-text version copied'), tosource: () => { src.value = last.html; setMode('source'); toast('Compiled HTML is now in Source — the builder still has your blocks'); } })[act]();
   });
   $('#jsonFile').addEventListener('change', async () => { const f = $('#jsonFile').files[0]; if (!f) return; try { const d = JSON.parse(await f.text());
     if (d && d.zest === 1) importZestBrand(d);                       // a zest-brand.json is a brand, never an empty design
     else if (d && Array.isArray(d.blocks)) importedDesign(d, f.size);
-    else toast(`That file isn’t a ${PRODUCT} design`);
-  } catch { toast(`That file isn’t a ${PRODUCT} design`); } $('#jsonFile').value = ''; });
+    else toast(`That file isn’t a ${PRODUCT} design`, 'nope');
+  } catch { toast(`That file isn’t a ${PRODUCT} design`, 'nope'); } $('#jsonFile').value = ''; });
 
   /* ---------- zest-brand.json import (ZEST-SPEC §7.3): light palette, body font, radius into a brand ---------- */
   function emailStack(name) {          // email-safe: the brand family first, classic fallbacks behind it
@@ -1024,7 +1125,7 @@ ${preheader}${content}
   }
   function importZestBrand(z) {
     const pal = z && z.light && typeof z.light === 'object' ? z.light : null;
-    if (!z || z.zest !== 1 || !pal || !BRAND_ROLES.every(k => BRAND_HEX.test(String(pal[k] || '')))) { toast('Not a zest-brand.json.'); return false; }
+    if (!z || z.zest !== 1 || !pal || !BRAND_ROLES.every(k => BRAND_HEX.test(String(pal[k] || '')))) { toast('Not a zest-brand.json.', 'nope'); return false; }
     const name = String(z.name || 'Zest brand').replace(CTRL_RE, ' ').slice(0, 48).trim() || 'Zest brand';
     const tokens = {};
     for (const k of BRAND_ROLES) tokens[k] = String(pal[k]).toLowerCase();
@@ -1038,21 +1139,21 @@ ${preheader}${content}
     store.set('brands', brands);
     renderBrandPanel(); renderInspector(); renderCanvas(); run(); showTab('brand');
     persist();                         // run() skips persist() on an empty canvas — the selection must survive a reload regardless
-    toast(`${name} ${ex ? 'updated' : 'created'} from zest-brand.json — identity fields stay yours.`);
+    toast(`${name} ${ex ? 'updated' : 'created'} from zest-brand.json — identity fields stay yours.`, 'pop');
     return true;
   }
   $('#brandFile').addEventListener('change', async () => {
     const f = $('#brandFile').files[0]; $('#brandFile').value = '';
     if (!f) return;
-    try { importZestBrand(JSON.parse(await f.text())); } catch { toast('That file would not read as a zest-brand.json.'); }
+    try { importZestBrand(JSON.parse(await f.text())); } catch { toast('That file would not read as a zest-brand.json.', 'nope'); }
   });
   /* zest-brand.json can be dropped anywhere — the §7.3 interchange; block drags carry no files and are untouched */
   async function routeDroppedJson(f) {
     try { const d = JSON.parse(await f.text());
       if (d && d.zest === 1) importZestBrand(d);
       else if (d && Array.isArray(d.blocks)) importedDesign(d, f.size);
-      else toast('Not a zest-brand.json.');
-    } catch { toast('That file would not read as JSON.'); }
+      else toast('Not a zest-brand.json.', 'nope');
+    } catch { toast('That file would not read as JSON.', 'nope'); }
   }
   const wantsFile = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
   const dropJson = e => {
@@ -1119,27 +1220,28 @@ Rules: table-based layout for anything side-by-side (role="presentation", cellpa
       if (!r.ok) throw new Error(data.error?.message || data.error || `${r.status} ${r.statusText}`);
       const text = data.content.filter(c => c.type === 'text').map(c => c.text).join('\n');
       const m = text.match(/```(?:html)?\s*([\s\S]*?)```/); return (m ? m[1] : text).trim();
-    } catch (e) { toast('Claude: ' + e.message); return null; }
+    } catch (e) { toast('Claude: ' + e.message, 'nope'); return null; }
     finally { $('#claudePill').textContent = 'optional'; $('#btnDraft').disabled = $('#btnFix').disabled = false; }
   }
   $('#btnDraft').addEventListener('click', async () => {
     const brief = $('#brief').value.trim(); if (!brief) return toast('Write a brief first');
     const b = brand(); const html = await callClaude(`Brief:\n${brief}\n\nSubject line (if set): ${$('#subject').value || 'none'}. Container width: ${$('#width').value}px.\nBrand: ${b.name}. Primary ${b.primary}, text ${b.ink}, muted ${b.muted}, dark panel ${b.dark}, sheet ${b.sheet}, page ${b.paper}. Font stack: ${b.font}. Corner radius ${b.radius}px. Company ${b.company}, ${b.address}. Website ${b.website}.${b.logo ? ' Logo image: ' + b.logo + ' at ' + b.logoWidth + 'px wide.' : ''}\nPlatform: ${ESP[b.esp || 'bento'].name}. Use these merge tags verbatim where relevant: first name ${tag('first') || '(none)'}, unsubscribe URL ${tag('unsubscribe') || b.unsubscribe}, view-in-browser URL ${tag('browser') || '(none)'}. Never wrap a tag URL in extra quotes or HTML.`);
-    if (html) { src.value = html; setMode('source'); showTab('lint'); toast('Draft landed in Source — review it, then check the lint.'); }
+    if (html) { src.value = html; setMode('source'); showTab('lint'); toast('Draft landed in Source — review it, then check the lint.', 'done'); }
   });
   $('#btnFix').addEventListener('click', async () => {
     if (!last) return toast('Nothing to fix yet'); if (state.mode === 'build') { src.value = last.html; }
     const flags = last.issues.filter(i => i[0] !== 'ok').map(i => `- ${i[1]}: ${i[2].replace(/<[^>]+>/g, '')}`).join('\n');
     if (!flags) return toast('Nothing flagged');
     const html = await callClaude(`Rewrite this email so every flagged issue is resolved while preserving the visual design as closely as email clients allow. Return the full document.\n\nFlags:\n${flags}\n\nHTML:\n${state.mode === 'build' ? last.html : src.value}`);
-    if (html) { src.value = html; setMode('source'); showTab('lint'); toast('Rewritten — compare the lint count before and after.'); }
+    if (html) { src.value = html; setMode('source'); showTab('lint'); toast('Rewritten — compare the lint count before and after.', 'done'); }
   });
 
 
 
   /* ---------- toast ---------- */
   let toastT;
-  function toast(msg, action) { const t = $('#toast'); t.textContent = msg; if (action) { const b = document.createElement('button'); b.type = 'button'; b.textContent = action.label; b.onclick = () => { t.classList.remove('show'); action.fn(); }; t.appendChild(b); } t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), action ? 6000 : 2400); }
+  function toast(msg, action) { if (typeof action === 'string') { snd(action); action = null; }   // a string is a sound name; an object is the action button
+    const t = $('#toast'); t.textContent = msg; if (action) { const b = document.createElement('button'); b.type = 'button'; b.textContent = action.label; b.onclick = () => { t.classList.remove('show'); action.fn(); }; t.appendChild(b); } t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), action ? 6000 : 2400); }
 
   /* ---------- boot ---------- */
   const draft = store.get('draft', null);
