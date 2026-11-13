@@ -30,3 +30,9 @@ Append-only. Newest entries at the bottom.
 
 - Against `5a2b9a6` (Seal and a moved tab; Close Other Tabs in one write). One trap added:
   after an await, check the tab's jar again. Line citations moved with the code
+
+## [2026-11-13] rearranging re-checked; the linter checks Swift
+
+- Against `7d472f8` (a page left behind in another window). One trap added
+- `.claude/scripts/docs-lint.py`: `swift` added to the code extensions it checks citations
+  for. This and the exclude list are the two local changes to the vendored linter

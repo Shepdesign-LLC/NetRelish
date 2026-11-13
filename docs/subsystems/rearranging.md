@@ -10,7 +10,7 @@ sources:
   - code: Sources/Bench/BrineView.swift
   - code: Sources/UI/Components.swift
   - code: Tests/NetRelishTests/RearrangeTests.swift
-verified_at: 5a2b9a6
+verified_at: 7d472f8
 ---
 
 # Rearranging
@@ -24,7 +24,8 @@ and tested, see [[building-without-a-mac]].
 
 The views carry no rules. They call one of a handful of functions on `Workbench`, under
 `// MARK: Rearranging` (`Sources/App/Workbench.swift:645`), and those decide what moves
-and what is left behind. That is why the tests in `RearrangeTests.swift` drive the
+and what is left behind. That is why the tests in
+`Tests/NetRelishTests/RearrangeTests.swift` drive the
 Workbench directly and never a view.
 
 | Gesture | View | Workbench |
@@ -33,7 +34,7 @@ Workbench directly and never a view.
 | Move Up, Move Down, color | jar menu (`Sources/Shelf/ShelfView.swift:88`) | `moveJar(_:by:)`, `setTint` |
 | Tab onto a tab | `.draggable` + `.dropDestination` on `TabChip` | `drop(_:onTab:)` (`Sources/App/Workbench.swift:780`) |
 | Tab or Brine row onto a jar | `.dropDestination` on `JarRow` | `drop(_:onJar:)` (`Sources/App/Workbench.swift:761`) |
-| Tab menu | `menu(for:)` (`Sources/Bench/BenchView.swift:253`) | `togglePin`, `setGlyph`, `copyLink`, `moveTab(_:toJar:)`, `closeOtherTabs` |
+| Tab menu | `menu(for:)` (`Sources/Bench/BenchView.swift:267`) | `togglePin`, `setGlyph`, `copyLink`, `moveTab(_:toJar:)`, `closeOtherTabs` |
 
 ## Two kinds of drag, on purpose
 
@@ -52,7 +53,7 @@ relish placement 9 in the manifest.
 ## Traps
 
 > ⚠️ **One Workbench, many windows.** `NetRelishApp` holds a single `Workbench` for a
-> `WindowGroup`, and every `BenchView.wire()` (`Sources/Bench/BenchView.swift:109`)
+> `WindowGroup`, and every `BenchView.wire()` (`Sources/Bench/BenchView.swift:120`)
 > replaces `onTabsGone` and the other callbacks with its own. Only the window wired last
 > hears them. Never rely on a Workbench callback to clean up something each window keeps
 > for itself. Put the check where the per-window thing is used.
@@ -63,15 +64,22 @@ relish placement 9 in the manifest.
 > cached web view only while its `jarId` matches the tab's. Remove that comparison and a
 > second window shows the moved tab still signed in on the jar it left.
 
+> ⚠️ **A web view left behind in another window is still a live page.** Until that window
+> lets it go, it can navigate and report back by tab id. So `tabDidNavigate`
+> (`Sources/App/Workbench.swift:822`) is told which jar's web view is reporting and
+> ignores one that isn't the tab's jar, and each window drops moved tabs' web views in
+> `forgetMoved` (`Sources/Bench/BenchView.swift:66`) when the open tabs change. A new
+> callback from a web view to the Workbench needs the same jar check.
+
 > ⚠️ **`moveTab(_:toJar:)` clears `interactionState` deliberately.** History and form
 > state were made with the old jar's sign-ins. The same rule is in
-> `restore(_:into:)` (`Sources/App/Workbench.swift:1299`): a Brine row gets its history
+> `restore(_:into:)` (`Sources/App/Workbench.swift:1304`): a Brine row gets its history
 > back only in the jar it sank from. Both look like lost data. Both are the rule.
 
 > ⚠️ **Anything that awaits and then acts on a tab must check the tab's jar again.** A
 > move keeps the tab's id and address, so a check on those two alone passes for a tab that
 > is now somewhere else. Seal froze a page, came back, and closed the tab in the jar it
-> had just been moved to. `closeIfStillOn` (`Sources/App/Workbench.swift:1008`) now
+> had just been moved to. `closeIfStillOn` (`Sources/App/Workbench.swift:1013`) now
 > requires the same jar as well.
 
 > ⚠️ **`sortOrder` has gaps.** Closing or moving a tab does not renumber the strip. A new

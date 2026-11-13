@@ -74,6 +74,10 @@ linter skips them: the list is `DEFAULT_EXCLUDE_DIRS` in `.claude/scripts/docs-l
 A new top-level document in `docs/` that is not a wiki page has to be added there, or the
 linter reports it as a page with no frontmatter.
 
+The repository's copy of the linter differs from the plugin's in two places, both marked
+`NetRelish:` in the file: that exclude list, and `swift` in the list of code extensions
+whose citations are checked. If the copy is refreshed from the plugin, put both back.
+
 A wiki page says how the code is put together and where it bites. An ADR says what was
 decided and who decided it. When a page needs a decision, it names the ADR.
 
