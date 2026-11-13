@@ -49,3 +49,8 @@ Append-only. Newest entries at the bottom.
 ## [2026-11-13] zest-sound re-checked
 
 - Against `f859210` (ZestMail simplified; the studio's switch renamed Palette). Prose unchanged
+
+## [2026-11-13] both pages re-checked
+
+- `rearranging` against `b55a895` (closed tabs' pages in another window). `zest-sound`
+  against `da319b6` (a one-line README change)

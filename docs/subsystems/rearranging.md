@@ -10,7 +10,7 @@ sources:
   - code: Sources/Bench/BrineView.swift
   - code: Sources/UI/Components.swift
   - code: Tests/NetRelishTests/RearrangeTests.swift
-verified_at: d0cdaeb
+verified_at: b55a895
 ---
 
 # Rearranging
@@ -34,7 +34,7 @@ Workbench directly and never a view.
 | Move Up, Move Down, color | jar menu (`Sources/Shelf/ShelfView.swift:88`) | `moveJar(_:by:)`, `setTint` |
 | Tab onto a tab | `.draggable` + `.dropDestination` on `TabChip` | `drop(_:onTab:)` (`Sources/App/Workbench.swift:780`) |
 | Tab or Brine row onto a jar | `.dropDestination` on `JarRow` | `drop(_:onJar:)` (`Sources/App/Workbench.swift:761`) |
-| Tab menu | `menu(for:)` (`Sources/Bench/BenchView.swift:267`) | `togglePin`, `setGlyph`, `copyLink`, `moveTab(_:toJar:)`, `closeOtherTabs` |
+| Tab menu | `menu(for:)` (`Sources/Bench/BenchView.swift:266`) | `togglePin`, `setGlyph`, `copyLink`, `moveTab(_:toJar:)`, `closeOtherTabs` |
 
 ## Two kinds of drag, on purpose
 
@@ -53,7 +53,7 @@ relish placement 9 in the manifest.
 ## Traps
 
 > ⚠️ **One Workbench, many windows.** `NetRelishApp` holds a single `Workbench` for a
-> `WindowGroup`, and every `BenchView.wire()` (`Sources/Bench/BenchView.swift:120`)
+> `WindowGroup`, and every `BenchView.wire()` (`Sources/Bench/BenchView.swift:119`)
 > replaces `onTabsGone` and the other callbacks with its own. Only the window wired last
 > hears them. Never rely on a Workbench callback to clean up something each window keeps
 > for itself. Put the check where the per-window thing is used.
@@ -68,7 +68,8 @@ relish placement 9 in the manifest.
 > lets it go, it can navigate and report back by tab id. So `tabDidNavigate`
 > (`Sources/App/Workbench.swift:822`) is told which jar's web view is reporting and
 > ignores one that isn't the tab's jar, and each window drops moved tabs' web views in
-> `forgetMoved` (`Sources/Bench/BenchView.swift:66`) when the open tabs change. A new
+> `forgetStale` (`Sources/Bench/BenchView.swift:67`) when the open tabs change. The same
+> function lets go of pages whose tab was closed in the other window. A new
 > callback from a web view to the Workbench needs the same jar check.
 
 > ⚠️ **`moveTab(_:toJar:)` clears `interactionState` deliberately.** History and form
