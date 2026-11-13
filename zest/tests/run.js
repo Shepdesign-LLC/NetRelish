@@ -3,6 +3,7 @@
 // and the WCAG contrast sweeps. Exits nonzero if anything fails.
 //
 //   cd zest/tests && npm ci && npx playwright install chromium && npm test
+//   node run.js mobile.js test.js   — only those suites (no contrast sweeps), for a quick loop
 //
 // ZEST_CHROMIUM=/path/to/chromium skips the downloaded browser and launches
 // that binary instead (used by sandboxes with a system Chromium).
@@ -64,7 +65,9 @@ function runNode(args, capture) {
   const servers = await Promise.all(Object.entries(SERVERS).map(([p, d]) => serve(+p, d)));
   let failed = 0;
 
-  for (const suite of ['test.js', 'handoff2.js', 'topology.js', 'mobile.js', 'sound.js']) {
+  const ALL = ['test.js', 'handoff2.js', 'topology.js', 'mobile.js', 'sound.js'];
+  const picked = process.argv.slice(2).filter(a => a.endsWith('.js'));
+  for (const suite of picked.length ? picked : ALL) {
     console.log(`\n=== ${suite} ===`);
     const r = await runNode([path.join(__dirname, suite)]);
     if (r.code !== 0) failed++;
@@ -73,7 +76,7 @@ function runNode(args, capture) {
   // Contrast sweeps. ZestImage is excluded: its body background is a gradient,
   // which the auditor can't composite — it falls back to white and flags the
   // whole page (pre-existing harness limitation, see tests/README.md).
-  const SWEEPS = [
+  const SWEEPS = picked.length ? [] : [
     ['http://localhost:8773/', 'dark', 'mail'],
     ['http://localhost:8774/', 'dark', 'md'],
     ['http://localhost:8774/', 'light', 'md-light'],
