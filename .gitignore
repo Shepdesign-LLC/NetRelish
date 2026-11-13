@@ -39,3 +39,6 @@ __pycache__/
 
 # Zest one-origin deploy output (zest/build.sh)
 zest/dist/
+
+# local tool session state (written by an editor plugin, never project work)
+.anchor/
