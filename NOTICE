@@ -1,0 +1,164 @@
+NetRelish — third-party notices
+
+NetRelish's own code is MIT (see LICENSE). The name, logo.svg and logo-cog.svg
+are not covered by that license. This file lists the third-party software and
+fonts this repository redistributes, each under its own license. The files are
+copied unmodified from the npm releases named below; zest/vendor/VENDOR.lock.json
+records each file's source tarball, path and SHA-256. In the app, the same files
+sit under Contents/Resources/Zest/vendor/, and this NOTICE beside them.
+
+
+1. Libraries the Zest tools use (zest/vendor/)
+
+- DOMPurify — dompurify@3.4.17
+    Copyright (c) Cure53 and other contributors.
+    Dual-licensed under the Apache License 2.0 or the Mozilla Public License 2.0.
+    NetRelish redistributes it under the Apache License 2.0, whose full text is
+    in zest/vendor/dompurify/LICENSE. The MPL 2.0 text is at
+    https://www.mozilla.org/MPL/2.0/. The package carries no NOTICE file.
+
+- KaTeX — katex@0.16.11 (katex.min.js, katex.min.css, contrib/auto-render.min.js,
+  and the woff2 files of the KaTeX fonts its stylesheet names)
+    Copyright (c) 2013-2020 Khan Academy and other contributors.
+    MIT License; full text in zest/vendor/katex/LICENSE.
+
+- Mermaid — mermaid@11.17.2 (mermaid.min.js)
+    Copyright (c) 2014 - 2022 Knut Sveidqvist.
+    MIT License; full text in zest/vendor/mermaid/LICENSE.
+    mermaid.min.js also contains Mermaid's npm dependencies and theirs (among
+    them d3, dagre-d3-es, cytoscape, khroma, marked, dayjs, roughjs, stylis,
+    lodash-es, KaTeX and DOMPurify), under the
+    MIT, ISC, BSD-3-Clause or Apache-2.0/MPL-2.0 licenses. The notices for
+    lodash-es, cytoscape and DOMPurify are kept inside mermaid.min.js, in its
+    "Bundled license information" comments.
+
+
+2. Fonts the Zest tools use (zest/vendor/fonts/)
+
+Latin-subset woff2 files from the @fontsource and @fontsource-variable npm
+packages. Every family is licensed under the SIL Open Font License, Version 1.1
+(OFL-1.1); the full license text, with each family's copyright line, is in
+zest/vendor/fonts/<family>/LICENSE. The fonts are not sold on their own, and
+none is renamed or modified here.
+
+- Bricolage Grotesque — @fontsource-variable/bricolage-grotesque@5.3.0 — OFL-1.1
+    Copyright 2022 The Bricolage Grotesque Project Authors (https://github.com/ateliertriay/bricolage)
+    License text: zest/vendor/fonts/bricolage-grotesque/LICENSE
+- DM Serif Display — @fontsource/dm-serif-display@5.3.0 — OFL-1.1
+    Copyright 2014 - 2017 Adobe Systems Incorporated (http://www.adobe.com/), with Reserved Font Name 'Source'. Copyright 2019 Google LLC.
+    License text: zest/vendor/fonts/dm-serif-display/LICENSE
+- Fraunces — @fontsource-variable/fraunces@5.3.0 — OFL-1.1
+    Copyright 2020 The Fraunces Project Authors (github.com/undercasetype/Fraunces)
+    License text: zest/vendor/fonts/fraunces/LICENSE
+- Geist — @fontsource-variable/geist@5.3.0 — OFL-1.1
+    Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font)
+    License text: zest/vendor/fonts/geist/LICENSE
+- Inter — @fontsource-variable/inter@5.3.0 — OFL-1.1
+    Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
+    License text: zest/vendor/fonts/inter/LICENSE
+- Instrument Sans — @fontsource-variable/instrument-sans@5.3.0 — OFL-1.1
+    Copyright 2022 The Instrument Sans Project Authors (https://github.com/Instrument/instrument-sans)
+    License text: zest/vendor/fonts/instrument-sans/LICENSE
+- Manrope — @fontsource-variable/manrope@5.3.0 — OFL-1.1
+    Copyright 2019 The Manrope Project Authors (https://github.com/sharanda/manrope)
+    License text: zest/vendor/fonts/manrope/LICENSE
+- Space Grotesk — @fontsource-variable/space-grotesk@5.3.0 — OFL-1.1
+    Copyright 2020 The Space Grotesk Project Authors (https://github.com/floriankarsten/space-grotesk)
+    License text: zest/vendor/fonts/space-grotesk/LICENSE
+- Sora — @fontsource-variable/sora@5.3.0 — OFL-1.1
+    Copyright 2019 The Sora Project Authors (https://github.com/sora-xor/sora-font)
+    License text: zest/vendor/fonts/sora/LICENSE
+- Work Sans — @fontsource-variable/work-sans@5.3.0 — OFL-1.1
+    Copyright 2019 The Work Sans Project Authors (https://github.com/weiweihuanghuang/Work-Sans)
+    License text: zest/vendor/fonts/work-sans/LICENSE
+- DM Sans — @fontsource-variable/dm-sans@5.3.0 — OFL-1.1
+    Copyright 2014 The DM Sans Project Authors (https://github.com/googlefonts/dm-fonts)
+    License text: zest/vendor/fonts/dm-sans/LICENSE
+- Plus Jakarta Sans — @fontsource-variable/plus-jakarta-sans@5.3.0 — OFL-1.1
+    Copyright 2020 The Plus Jakarta Sans Project Authors (https://github.com/tokotype/PlusJakartaSans)
+    License text: zest/vendor/fonts/plus-jakarta-sans/LICENSE
+- Outfit — @fontsource-variable/outfit@5.3.0 — OFL-1.1
+    Copyright 2021 The Outfit Project Authors (https://github.com/Outfitio/Outfit-Fonts)
+    License text: zest/vendor/fonts/outfit/LICENSE
+- Figtree — @fontsource-variable/figtree@5.3.0 — OFL-1.1
+    Copyright 2022 The Figtree Project Authors (https://github.com/erikdkennedy/figtree)
+    License text: zest/vendor/fonts/figtree/LICENSE
+- Archivo — @fontsource-variable/archivo@5.3.0 — OFL-1.1
+    Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)
+    License text: zest/vendor/fonts/archivo/LICENSE
+- Public Sans — @fontsource-variable/public-sans@5.3.0 — OFL-1.1
+    Copyright 2015 The Public Sans Project Authors (https://github.com/uswds/public-sans)
+    License text: zest/vendor/fonts/public-sans/LICENSE
+- Epilogue — @fontsource-variable/epilogue@5.3.0 — OFL-1.1
+    Copyright 2020 The Epilogue Project Authors (https://github.com/Etcetera-Type-Co/Epilogue)
+    License text: zest/vendor/fonts/epilogue/LICENSE
+- Hanken Grotesk — @fontsource-variable/hanken-grotesk@5.3.0 — OFL-1.1
+    Copyright 2021 The Hanken Grotesk Project Authors (https://github.com/marcologous/hanken-grotesk)
+    License text: zest/vendor/fonts/hanken-grotesk/LICENSE
+- Chivo — @fontsource-variable/chivo@5.3.0 — OFL-1.1
+    Copyright 2019 The Chivo Project Authors (https://github.com/Omnibus-Type/Chivo)
+    License text: zest/vendor/fonts/chivo/LICENSE
+- Rubik — @fontsource-variable/rubik@5.3.0 — OFL-1.1
+    Copyright 2015 The Rubik Project Authors (https://github.com/googlefonts/rubik)
+    License text: zest/vendor/fonts/rubik/LICENSE
+- Karla — @fontsource-variable/karla@5.3.0 — OFL-1.1
+    Copyright 2019 The Karla Project Authors (https://github.com/googlefonts/karla)
+    License text: zest/vendor/fonts/karla/LICENSE
+- Nunito Sans — @fontsource-variable/nunito-sans@5.3.0 — OFL-1.1
+    Copyright 2016 The Nunito Sans Project Authors (https://github.com/Fonthausen/NunitoSans)
+    License text: zest/vendor/fonts/nunito-sans/LICENSE
+- Red Hat Display — @fontsource-variable/red-hat-display@5.3.0 — OFL-1.1
+    Copyright 2024 The Red Hat Project Authors (https://github.com/RedHatOfficial/RedHatFont)
+    License text: zest/vendor/fonts/red-hat-display/LICENSE
+- IBM Plex Sans — @fontsource-variable/ibm-plex-sans@5.3.0 — OFL-1.1
+    Copyright 2019 IBM Corp. All rights reserved.
+    License text: zest/vendor/fonts/ibm-plex-sans/LICENSE
+- Newsreader — @fontsource-variable/newsreader@5.3.0 — OFL-1.1
+    Copyright 2020 The Newsreader Project Authors (http://github.com/productiontype/Newsreader)
+    License text: zest/vendor/fonts/newsreader/LICENSE
+- Source Serif 4 — @fontsource-variable/source-serif-4@5.3.1 — OFL-1.1
+    Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'. The npm package's LICENSE names
+    only "Google Inc."; the upstream copyright is in github.com/adobe-fonts/source-serif.
+    License text: zest/vendor/fonts/source-serif-4/LICENSE
+- IBM Plex Serif — @fontsource/ibm-plex-serif@5.3.0 — OFL-1.1
+    Copyright 2020 IBM Corp. All rights reserved.
+    License text: zest/vendor/fonts/ibm-plex-serif/LICENSE
+- Spectral — @fontsource/spectral@5.3.0 — OFL-1.1
+    Copyright 2017 The Spectral Project Authors (https://github.com/productiontype/Spectral)
+    License text: zest/vendor/fonts/spectral/LICENSE
+- Lora — @fontsource-variable/lora@5.3.0 — OFL-1.1
+    Copyright 2011 The Lora Project Authors (https://github.com/cyrealtype/Lora-Cyrillic), with Reserved Font Name "Lora".
+    License text: zest/vendor/fonts/lora/LICENSE
+- Literata — @fontsource-variable/literata@5.3.0 — OFL-1.1
+    Copyright 2017 The Literata Project Authors (https://github.com/googlefonts/literata)
+    License text: zest/vendor/fonts/literata/LICENSE
+- Crimson Pro — @fontsource-variable/crimson-pro@5.3.0 — OFL-1.1
+    Copyright 2018 The Crimson Pro Project Authors (https://github.com/Fonthausen/CrimsonPro)
+    License text: zest/vendor/fonts/crimson-pro/LICENSE
+- Alegreya — @fontsource-variable/alegreya@5.3.0 — OFL-1.1
+    Copyright 2011 The Alegreya Project Authors (https://github.com/huertatipografica/Alegreya)
+    License text: zest/vendor/fonts/alegreya/LICENSE
+- Zilla Slab — @fontsource/zilla-slab@5.3.0 — OFL-1.1
+    Copyright 2017, The Mozilla Foundation
+    License text: zest/vendor/fonts/zilla-slab/LICENSE
+- Geist Mono — @fontsource-variable/geist-mono@5.3.0 — OFL-1.1
+    Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font.git)
+    License text: zest/vendor/fonts/geist-mono/LICENSE
+- JetBrains Mono — @fontsource-variable/jetbrains-mono@5.3.0 — OFL-1.1
+    Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+    License text: zest/vendor/fonts/jetbrains-mono/LICENSE
+- IBM Plex Mono — @fontsource/ibm-plex-mono@5.3.0 — OFL-1.1
+    Copyright 2017 IBM Corp. All rights reserved.
+    License text: zest/vendor/fonts/ibm-plex-mono/LICENSE
+- Fira Code — @fontsource-variable/fira-code@5.3.0 — OFL-1.1
+    Copyright 2014-2020 The Fira Code Project Authors (https://github.com/tonsky/FiraCode)
+    License text: zest/vendor/fonts/fira-code/LICENSE
+- Space Mono — @fontsource/space-mono@5.3.0 — OFL-1.1
+    Copyright 2016 The Space Mono Project Authors (https://github.com/googlefonts/spacemono)
+    License text: zest/vendor/fonts/space-mono/LICENSE
+
+
+3. Elsewhere in the app
+
+- Defuddle — Resources/Extraction/defuddle.js, MIT License; full text in
+  Resources/Extraction/defuddle-LICENSE.txt.

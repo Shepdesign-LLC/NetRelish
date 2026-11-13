@@ -9,7 +9,8 @@
 //
 // Both check modes also fail when Zest MD's DOMPurify <script> tag names a different version than the lock
 // (or names none), when an integrity hash in apps/md/index.html is not the sha384 of the vendored file it
-// stands for, and when zest/tests pins a different DOMPurify than the lock.
+// stands for, when zest/tests pins a different DOMPurify than the lock, and when the root NOTICE does not
+// name every vendored npm release.
 //
 // No dependencies: Node 20+ (global fetch, zlib). Output is deterministic: sorted paths, no timestamps.
 import { createHash } from 'node:crypto';
@@ -270,6 +271,14 @@ function checkMdTags(lock) {
   if (pinned !== versionOf('dompurify')) fail(`tests/package.json pins dompurify ${pinned}, VENDOR.lock.json pins ${versionOf('dompurify')}`);
 }
 
+// The root NOTICE names every vendored release as name@version, so a bump can't leave it behind.
+function checkNotice(lock) {
+  const file = path.join(ZEST, '..', 'NOTICE');
+  if (!fs.existsSync(file)) { fail('the root NOTICE is missing'); return; }
+  const notice = fs.readFileSync(file, 'utf8');
+  for (const key of Object.keys(lock.packages)) if (!notice.includes(key)) fail(`NOTICE does not name ${key}`);
+}
+
 // ---------- main ----------
 try {
   if (!CHECK) {
@@ -308,6 +317,7 @@ try {
       }
     }
     checkMdTags(lock);
+    checkNotice(lock);
     if (!problems.length) console.log(`vendor check: ${lock.files.length} files match VENDOR.lock.json${OFFLINE ? ' (offline: disk against the lock)' : ' and npm'}; Zest MD's tags name the vendored versions`);
   }
 } catch (e) {
