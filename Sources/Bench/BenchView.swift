@@ -208,9 +208,13 @@ struct TabPane: View {
 
 /// Manifest §8 Tabs: tabH, r2 top corners, surface active / transparent inactive, the lip
 /// on the active tab only, a pin glyph on pinned tabs, fg3 over the last 10% of shelf life.
+/// A tab can be dragged onto another tab to take its place, or onto a jar on the Shelf to
+/// move there; the tab it is over shows the drop mark (relish placement #9).
 struct TabStrip: View {
     @Bindable var workbench: Workbench
     let jar: Jar
+    /// The tab a dragged tab is over.
+    @State private var dropTarget: String?
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 2) {
@@ -218,7 +222,15 @@ struct TabStrip: View {
                 HStack(alignment: .bottom, spacing: 2) {
                     ForEach(workbench.tabs) { tab in
                         TabChip(tab: tab, jar: jar, isActive: tab.id == workbench.activeTabId, now: workbench.now,
-                                activate: { workbench.activateTab(tab) }, close: { workbench.closeTab(tab) }, pin: { workbench.togglePin(tab) })
+                                glyph: workbench.glyph(of: tab), isDropTarget: dropTarget == tab.id,
+                                activate: { workbench.activateTab(tab) }, close: { workbench.closeTab(tab) })
+                            .contextMenu { menu(for: tab) }
+                            .draggable(DragPayload.tab(tab.id).string)
+                            .dropDestination(for: String.self) { payloads, _ in
+                                workbench.drop(payloads, onTab: tab)
+                            } isTargeted: { over in
+                                if over { dropTarget = tab.id } else if dropTarget == tab.id { dropTarget = nil }
+                            }
                     }
                 }
             }
@@ -233,6 +245,50 @@ struct TabStrip: View {
         .background(NRColor.surface2)
         .overlay(alignment: .bottom) { Rectangle().fill(NRColor.hairline).frame(height: NRSpace.hairline) }
     }
+
+    @ViewBuilder private func menu(for tab: Tab) -> some View {
+        Button(tab.isPinned ? "Unpin" : "Pin") { workbench.togglePin(tab) }
+        Picker("Icon", selection: Binding(get: { workbench.glyph(of: tab) ?? TabGlyph.standard },
+                                          set: { workbench.setGlyph($0 == TabGlyph.standard ? nil : $0, for: tab) })) {
+            ForEach(TabGlyph.choices) { choice in
+                Label(choice.name, systemImage: choice.symbol).tag(choice.symbol)
+            }
+        }
+        .pickerStyle(.palette)
+        Divider()
+        Button("Copy Link") { workbench.copyLink(of: tab) }.disabled(tab.url?.isEmpty != false)
+        let others = workbench.jars.filter { $0.id != tab.jarId }
+        if !others.isEmpty {
+            Menu("Move to Jar") {
+                ForEach(others) { other in
+                    Button(other.name) { workbench.moveTab(tab, toJar: other.id) }
+                }
+            }
+        }
+        Divider()
+        Button("Close") { workbench.closeTab(tab) }
+        Button("Close Other Tabs") { workbench.closeOtherTabs(tab) }.disabled(workbench.tabs.count < 2)
+    }
+}
+
+/// The icons a tab's menu offers, as SF Symbols (manifest §7: system line icons for
+/// everything that isn't a jar). The first is what every tab wears until one is picked.
+struct TabGlyph: Identifiable {
+    let symbol: String
+    let name: String
+    var id: String { symbol }
+
+    static let standard = "globe"
+    static let choices: [TabGlyph] = [
+        TabGlyph(symbol: standard, name: "Website"),
+        TabGlyph(symbol: "envelope", name: "Mail"),
+        TabGlyph(symbol: "doc.text", name: "Document"),
+        TabGlyph(symbol: "photo", name: "Picture"),
+        TabGlyph(symbol: "key", name: "Sign-in"),
+        TabGlyph(symbol: "powerplug", name: "Plug-in"),
+        TabGlyph(symbol: "shippingbox", name: "Store"),
+        TabGlyph(symbol: "hammer", name: "Build"),
+    ]
 }
 
 struct TabChip: View {
@@ -240,9 +296,12 @@ struct TabChip: View {
     let jar: Jar
     let isActive: Bool
     let now: Date
+    /// The icon picked for this tab, as an SF Symbol name; nil for the standard one.
+    var glyph: String? = nil
+    /// A dragged tab is over this one and would take its place.
+    var isDropTarget = false
     let activate: () -> Void
     let close: () -> Void
-    let pin: () -> Void
     @State private var hovering = false
 
     private var fading: Bool { ShelfLife.isFading(tab, in: jar, now: now) }
@@ -252,8 +311,11 @@ struct TabChip: View {
         HStack(spacing: NRSpace.sp2) {
             if tab.isPinned {
                 Image(systemName: "pin.fill").font(.system(size: 10)).foregroundStyle(NRColor.fg2).help("Pinned — never sinks")
-            } else {
-                Image(systemName: "globe").font(.system(size: 11)).foregroundStyle(NRColor.fg3)
+            }
+            if let glyph {
+                Image(systemName: glyph).font(.system(size: 11)).foregroundStyle(NRColor.fg2)
+            } else if !tab.isPinned {
+                Image(systemName: TabGlyph.standard).font(.system(size: 11)).foregroundStyle(NRColor.fg3)
             }
             if !tab.isPinned {
                 Text(label)
@@ -272,13 +334,10 @@ struct TabChip: View {
         .background(isActive ? NRColor.surface : .clear,
                     in: UnevenRoundedRectangle(topLeadingRadius: NRRadius.r2, topTrailingRadius: NRRadius.r2))
         .overlay(alignment: .top) { if isActive { NRTabLip().padding(.horizontal, NRSpace.sp2) } }
+        .overlay(alignment: .leading) { if isDropTarget { NRDropMark().padding(.vertical, NRSpace.sp1) } }
         .contentShape(Rectangle())
         .onTapGesture(perform: activate)
         .onHover { hovering = $0 }
-        .contextMenu {
-            Button(tab.isPinned ? "Unpin" : "Pin", action: pin)
-            Button("Close", action: close)
-        }
         .animation(NRMotion.animation(duration: NRMotion.fast), value: fading)
     }
 }

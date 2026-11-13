@@ -53,6 +53,13 @@ struct SmartJarView: View {
             ForEach(workbench.brine) { item in
                 SmartJarRowView(title: item.title, detail: detail(item, "sank", item.updatedAt),
                                 jar: jar(item.sunkOriginJarId), action: "Restore") { workbench.restore(item) }
+                    // Drag a row onto a jar on the Shelf, or pick the jar here: it reopens there.
+                    .draggable(DragPayload.brine(item.id).string)
+                    .contextMenu {
+                        ForEach(workbench.jars) { target in
+                            Button("Restore to \(target.name)") { workbench.restore(item, into: target.id) }
+                        }
+                    }
             }
         case .today:
             ForEach(workbench.today) { item in

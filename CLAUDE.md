@@ -31,7 +31,7 @@ Native macOS browser with a pantry. Swift. Mac App Store. This file is the contr
 | Billing | StoreKit 2 in App Store build. Creem (merchant of record) in direct build, activated through a relay on netrelish.com that holds Creem's key (ADR 0027). |
 | Site | Separate repo `netrelish-site`. Astro until the WordPress cutover (week of Jan 4, 2027); then WordPress on WP Engine, laid out visually in a page builder (Bricks proposed), variables generated from `tokens.css`, brand checks on rendered pages (ADR 0016). |
 
-## Brand (locked — Brand Lock v1.2, full rules in `/design/DESIGN_MANIFEST.md`)
+## Brand (locked — Brand Lock v1.3, full rules in `/design/DESIGN_MANIFEST.md`)
 - `logo.svg` (app icon, titlebar) and `logo-cog.svg` (site, About window, onboarding). Never redrawn, recolored, or cropped.
 - Neutral base, system type, hairlines. The product is the hero; the brand is carried by the mark and the objects, not by color washes.
 - Relish (`--relish-500`, `#93E413`) is the single accent and appears **only** in the exhaustive placement list in the manifest. Anywhere else is a bug.
