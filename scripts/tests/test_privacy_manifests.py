@@ -57,14 +57,17 @@ STANDARD_DEFAULTS = re.compile(
     r"UserDefaults\.standard|UserDefaults\(\)|UserDefaults\s*=\s*\.standard|@AppStorage|NSUserDefaults")
 GROUP_DEFAULTS = re.compile(r"UserDefaults\(suiteName:")
 OTHER_CATEGORIES = {
+    # The date properties count only as API members (`.creationDate`, `values.contentModificationDate`,
+    # `.contentModificationDateKey`), so a model's own `var modificationDate` isn't flagged.
     "NSPrivacyAccessedAPICategoryFileTimestamp": re.compile(
-        r"\b(creationDate|modificationDate|contentModificationDate|fileModificationDate|"
-        r"fileCreationDate|attributesOfItem|getattrlist|NSFileCreationDate|NSFileModificationDate)\b"
-        r"|\b[fl]?stat\("),
+        r"\.(creationDate|modificationDate|contentModificationDate|contentAccessDate|"
+        r"attributeModificationDate|fileModificationDate|fileCreationDate)(Key)?\b"
+        r"|\b(attributesOfItem|NSFileCreationDate|NSFileModificationDate|f?getattrlist(bulk|at)?)\b"
+        r"|\b[fl]?stat(at)?\("),
     "NSPrivacyAccessedAPICategorySystemBootTime": re.compile(r"\b(systemUptime|mach_absolute_time)\b"),
     "NSPrivacyAccessedAPICategoryDiskSpace": re.compile(
         r"\b(volumeAvailableCapacity\w*|volumeTotalCapacity\w*|systemFreeSize|systemSize|"
-        r"attributesOfFileSystem|statv?fs)\b"),
+        r"attributesOfFileSystem|f?statv?fs)\b"),
     "NSPrivacyAccessedAPICategoryActiveKeyboards": re.compile(r"\bactiveInputModes\b"),
 }
 
@@ -166,9 +169,15 @@ class Manifests(unittest.TestCase):
         self.assertTrue(GROUP_DEFAULTS.search('UserDefaults(suiteName: "group")'))
         timestamps = OTHER_CATEGORIES["NSPrivacyAccessedAPICategoryFileTimestamp"]
         self.assertTrue(timestamps.search("let date = values.contentModificationDate"))
+        self.assertTrue(timestamps.search("let keys: [URLResourceKey] = [.contentModificationDateKey, .creationDateKey]"))
+        self.assertTrue(timestamps.search("attributes[.modificationDate] as? Date"))
         self.assertTrue(timestamps.search("try FileManager.default.attributesOfItem(atPath: p)"))
         self.assertTrue(timestamps.search("stat(path, &info)"))
+        self.assertTrue(timestamps.search("fstatat(fd, name, &info, 0)"))
+        self.assertTrue(timestamps.search("getattrlistbulk(fd, &list, buf, size, 0)"))
         self.assertFalse(timestamps.search("item.sealedAt = .now"))
+        self.assertFalse(timestamps.search("public var modificationDate: Date?"))
+        self.assertTrue(OTHER_CATEGORIES["NSPrivacyAccessedAPICategoryDiskSpace"].search("fstatfs(fd, &info)"))
         self.assertTrue(OTHER_CATEGORIES["NSPrivacyAccessedAPICategorySystemBootTime"].search(
             "ProcessInfo.processInfo.systemUptime"))
         self.assertTrue(OTHER_CATEGORIES["NSPrivacyAccessedAPICategoryDiskSpace"].search(
@@ -210,13 +219,16 @@ class InfoPlist(unittest.TestCase):
             "com.apple.security.device.camera": "NSCameraUsageDescription",
             "com.apple.security.device.audio-input": "NSMicrophoneUsageDescription",
             "com.apple.security.personal-information.location": "NSLocationUsageDescription",
-            "com.apple.security.personal-information.calendars": "NSCalendarsUsageDescription",
+            # Since macOS 14 calendar access is full or write-only, each with its own string.
+            "com.apple.security.personal-information.calendars": (
+                "NSCalendarsFullAccessUsageDescription", "NSCalendarsWriteOnlyAccessUsageDescription"),
             "com.apple.security.personal-information.photos-library": "NSPhotoLibraryUsageDescription",
         }
-        for entitlement, key in pairs.items():
+        for entitlement, keys in pairs.items():
+            keys = (keys,) if isinstance(keys, str) else keys
             with self.subTest(entitlement=entitlement):
-                self.assertEqual(bool(self.entitlements.get(entitlement)), key in self.info,
-                                 f"{entitlement} and {key} come together or not at all")
+                self.assertEqual(bool(self.entitlements.get(entitlement)), any(k in self.info for k in keys),
+                                 f"{entitlement} and {' or '.join(keys)} come together or not at all")
 
     def test_local_network_is_explained(self):
         self.assertTrue(self.info.get("NSLocalNetworkUsageDescription", "").strip())

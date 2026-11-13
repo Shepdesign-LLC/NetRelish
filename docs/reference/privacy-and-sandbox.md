@@ -77,5 +77,5 @@ The Share extension has the sandbox and the App Group only. Both builds use the 
 > ⚠️ **Camera, microphone and location come in pairs.** An entitlement without its purpose
 > string can get the app ended the first time it's used; a string without the entitlement
 > promises something the app can't do. The tests fail on either half alone
-> (`scripts/tests/test_privacy_manifests.py:205`). Adding them also means a per-jar
+> (`scripts/tests/test_privacy_manifests.py:214`). Adding them also means a per-jar
 > permission prompt, which is 1.1.
