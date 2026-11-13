@@ -97,3 +97,9 @@ Append-only. Newest entries at the bottom.
   throwaway stores. The page now says plainly what CI doesn't show (storage surviving a
   relaunch, IndexedDB) and that `zest/build.sh --app` is phase 2's, not yet written. Four
   new traps
+
+## [2026-11-13] rearranging and building-without-a-mac re-verified
+
+- The Zest review fixes grew Workbench's Zest block by nine lines, so rearranging's
+  Workbench citations below it moved by nine; nothing they describe changed. project.yml
+  changed only in a comment, so building-without-a-mac's `verified_at` moved alone
