@@ -25,8 +25,8 @@
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html,body{height:100%;margin:0}
-body{background:linear-gradient(180deg,var(--bgtop),var(--night) 420px);color:var(--ink);font:14px/1.5 var(--body);-webkit-font-smoothing:antialiased}
+html,body{min-height:100%;margin:0}
+body{background:linear-gradient(180deg,var(--bgtop),var(--night) 420px) no-repeat var(--night);color:var(--ink);font:14px/1.5 var(--body);-webkit-font-smoothing:antialiased}
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 input,select,textarea{font:inherit;color:var(--ink)}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:6px}
@@ -40,9 +40,16 @@ header .sp{flex:1}
 header a{color:var(--ink-2);text-decoration:none;font-size:13px}
 header a:hover{color:var(--ink)}
 
-.app{display:grid;grid-template-columns:300px 1fr 324px;min-height:calc(100dvh - 57px)}
+.app{display:grid;grid-template-columns:clamp(248px,20vw,300px) minmax(0,1fr) clamp(272px,22vw,324px);min-height:calc(100dvh - 57px)}
 @media(max-width:1100px){.app{display:flex;flex-direction:column;min-height:0}.stagewrap{order:-1;position:sticky;top:0;z-index:5}}
-.panel{padding:16px;border-right:1px solid var(--line);overflow-y:auto}
+/* desktop: the workspace is exactly the window. Each panel scrolls on its own and the stage is the visible area,
+   so the preview can be sized to it on both axes. Scoped to wide screens: on a phone the docked stage takes its height from the frame. */
+@media(min-width:1101px){
+  body{height:100dvh;display:flex;flex-direction:column}
+  header,footer{flex:none}
+  .app{flex:1;min-height:0;grid-template-rows:minmax(0,1fr)}
+}
+.panel{padding:16px;border-right:1px solid var(--line);overflow-y:auto;min-height:0}
 .panel.right{border-right:0;border-left:1px solid var(--line)}
 @media(max-width:1100px){.panel,.panel.right{border:0;border-top:1px solid var(--line)}}
 .sec{margin-bottom:22px}
@@ -92,18 +99,55 @@ header a:hover{color:var(--ink)}
 .tchip[aria-pressed="true"]{border-color:var(--acc);color:var(--acc)}
 .tchip small{color:var(--ink-3);font-size:10px;font-family:var(--mono);margin-left:5px}
 
-.stagewrap{display:flex;flex-direction:column;min-width:0;background:
+.stagewrap{display:flex;flex-direction:column;min-width:0;min-height:0;background:
   radial-gradient(900px 480px at 50% -10%,rgba(255,100,112,.08),transparent 60%)}
-.stagebar{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:12px;color:var(--ink-3)}
-.stagebar .fn{font-family:var(--mono);color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stagebar{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:12px;color:var(--ink-3);min-width:0}
+/* the filename: the end (target, scale, extension) never truncates; the start gives way first */
+.stagebar .fn{display:flex;min-width:0;font-family:var(--mono);color:var(--ink-2);white-space:nowrap}
+.stagebar .fn .fh{overflow:hidden;text-overflow:ellipsis;min-width:2ch}
+.stagebar .fn .ft{flex:none}
 .stagebar .sp{flex:1}
-.stage{flex:1;display:grid;place-items:center;padding:10px 26px 26px;min-height:0}
-.frame{position:relative;max-width:100%;box-shadow:0 30px 80px -24px rgba(0,0,0,.7),0 0 0 1px var(--line)}
+.stagebar label{display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap;flex:none}
+#dims{white-space:nowrap;flex:none}
+.fontnote{display:inline-flex;align-items:center;gap:6px;flex:none;white-space:nowrap}
+.fontnote::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--warn)}
+.zseg{display:inline-flex;flex:none;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.zseg button{padding:3px 9px;font-size:12px;color:var(--ink-2);transition:background var(--t),color var(--t)}
+.zseg button + button{border-left:1px solid var(--line)}
+.zseg button:hover{color:var(--ink)}
+.zseg button[aria-pressed="true"]{background:var(--pane-3);color:var(--acc)}
+#zoomPct{min-width:4ch;text-align:right;font-family:var(--mono);font-size:11.5px;color:var(--ink-2);flex:none}
+.stage{flex:1;display:grid;padding:10px 26px 26px;min-height:0}
+.frame{position:relative;margin:auto;max-width:100%;box-shadow:0 30px 80px -24px rgba(0,0,0,.7),0 0 0 1px var(--line)} /* auto margins centre it, and never push an oversized frame off the scrollable side */
 #stageSvg > svg{display:block;width:100%;height:auto} /* outer preview svg only — photoAt()'s nested viewport keeps its own dimensions */
 .safe{position:absolute;inset:0;pointer-events:none;display:none}
 .safe.on{display:block}
-.safe i{position:absolute;inset:6% 7%;border:1.5px dashed rgba(255,100,112,.65);border-radius:4px}
-.safe em{position:absolute;top:2%;left:7%;font:500 10px var(--mono);letter-spacing:.06em;color:var(--juice);font-style:normal}
+.safe i{position:absolute;border:1.5px dashed rgba(255,100,112,.8);border-radius:4px;box-shadow:0 0 0 1px rgba(255,255,255,.18)}
+/* the label rides on the rectangle: just above its top edge, or just inside when there is no room above */
+.safe em{position:absolute;left:-1px;bottom:100%;margin-bottom:3px;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.85);color:var(--acc-ink);
+  font:600 clamp(9px,1.4cqw,11px)/1.25 var(--body);letter-spacing:.01em;font-style:normal;white-space:nowrap}
+.safe.inside em{bottom:auto;top:3px;left:3px;margin:0}
+.zoomhint{display:none}
+@media(min-width:1101px){
+  /* the stage is a size container: the frame fits both axes, centred, and never grows past the image's real size */
+  .stage{container-type:size;padding:12px 32px 32px}
+  .frame{width:min(100cqw, calc(100cqh * var(--ar, 1.9)), var(--real, 100cqw));height:auto;aspect-ratio:var(--ar, 1.9)}
+  .stage[data-zoom="100"]{overflow:auto}
+  .stage[data-zoom="100"] .frame{width:var(--real);max-width:none}
+}
+@media(max-width:1100px){ .zseg,#zoomPct{display:none} }
+input[type=checkbox]{accent-color:var(--acc)}
+
+/* the full-size preview on phones: tap the docked frame */
+#pview{width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:var(--night);color:var(--ink)}
+#pview[open]{display:flex;flex-direction:column}
+#pview::backdrop{background:rgba(0,0,0,.7)}
+.pvhead{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 16px;border-bottom:1px solid var(--line);font-size:12px;color:var(--ink-3)}
+.pvhead .fn{flex:1;min-width:0;font-family:var(--mono);color:var(--ink-2);overflow-wrap:anywhere;line-height:1.35}
+#pvClose{width:44px;height:44px;padding:0;flex:none}
+.pvbody{flex:1;min-height:0;overflow:auto;display:grid;padding:16px;touch-action:pan-x pan-y pinch-zoom}
+#pvSvg{margin:auto;width:min(calc(100vw - 32px), calc((100dvh - 100px) * var(--ar, 1)));box-shadow:0 0 0 1px var(--line)}
+#pvSvg > svg{display:block;width:100%;height:auto}
 
 .alt textarea{min-height:64px}
 .alt.err textarea{border-color:var(--acc);animation:shake .3s}
@@ -153,19 +197,35 @@ footer .sp{flex:1}
   border:1px solid var(--line);border-radius:999px;padding:10px 18px;font-size:13px;opacity:0;pointer-events:none;
   transition:all 240ms var(--ease);box-shadow:0 18px 44px -16px rgba(0,0,0,.6);max-width:min(92vw,520px)}
 .toast.show{opacity:1;transform:translateX(-50%)}
+/* desktop: toasts sit at the foot of the right panel, beside Export, never over the preview */
+@media(min-width:1101px){
+  .toast{left:auto;right:16px;bottom:60px;transform:translateY(12px);border-radius:12px;max-width:calc(clamp(272px,22vw,324px) - 32px)}
+  .toast.show{transform:none}
+}
 @media(prefers-reduced-motion:reduce){*{transition-duration:1ms!important;animation:none!important}}
 
 /* ---- mobile (kept last so these win the cascade over the base component rules above) ---- */
 @media(max-width:1100px){
   html,body{height:auto;min-height:100%}
+  /* the docked stage is opaque with an edge, so the form scrolls under it, not through it */
+  .stagewrap{background:radial-gradient(900px 480px at 50% -10%,rgba(255,100,112,.08),transparent 60%),var(--night);
+    border-bottom:1px solid var(--line);box-shadow:0 12px 24px -16px rgba(0,0,0,.8)}
   .stage{padding:8px 16px 12px}
-  .stagebar{flex-wrap:nowrap} .stagebar label,#dims{white-space:nowrap}
+  .stagebar{flex-wrap:wrap;row-gap:2px;padding:6px 16px} .stagebar label,#dims{white-space:nowrap;flex:none}
+  /* the filename gets up to two lines and breaks after a hyphen, so all of it stays readable */
+  .stagebar .fn{display:block;max-height:28px;overflow:hidden;flex:1 1 0;white-space:normal;font-size:11px;line-height:14px;overflow-wrap:anywhere}
+  .stagebar .fn .fh,.stagebar .fn .ft{display:inline;overflow:visible}
+  .stagebar .sp{display:none} /* the filename takes all the room the toggle and the size leave */
+  .fontnote{font-size:11px}
+  .frame[role=button]{cursor:zoom-in;-webkit-tap-highlight-color:transparent}
+  .zoomhint{display:grid;place-items:center;position:absolute;right:5px;top:5px;width:22px;height:22px;border-radius:6px;background:rgba(18,6,7,.6);color:#fff;pointer-events:none}
+  .zoomhint svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   .sec.exportsec{position:sticky;bottom:0;z-index:4;background:var(--night,#120607);border-top:1px solid var(--line);margin-top:10px;padding-top:10px;padding-bottom:10px}
   .field input[type=text],.field input[type=number],.field select,.field textarea,#cAlt{font-size:16px} /* under 16px, iOS Safari focus-zooms the page */
   .lab{font-size:12.5px} .hint{font-size:12px} .tchip small{font-size:11px} .lcell small{font-size:11.5px} .req{font-size:11px}
   .disc > summary{font-size:13px} .disc > summary b{font-size:12.5px}
 }
-@media(max-width:640px){header .tag{display:none}}
+@media(max-width:640px){header .tag{display:none} .fontnote{order:9;flex-basis:100%}}
 @media(max-width:1100px) and (max-height:500px){
   /* landscape phones: two stickies would sandwich the controls into a negative band — unstick both */
   .stagewrap{position:static}
@@ -191,6 +251,7 @@ footer .sp{flex:1}
  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7Z"/><path d="M14 3v4h4"/></symbol>
  <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5Z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></symbol>
+ <symbol id="i-expand" viewBox="0 0 24 24"><path d="M14 4h6v6M10 20H4v-6M20 4l-6.5 6.5M4 20l6.5-6.5"/></symbol>
  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
 </defs></svg>
 
@@ -256,12 +317,16 @@ footer .sp{flex:1}
   <main class="stagewrap">
     <div class="stagebar">
       <span class="fn" id="fname">—</span>
+      <span class="fontnote" id="fontNote" hidden title="Brand fonts could not load, so the preview and the export use system type.">Brand fonts offline</span>
       <span class="sp"></span>
-      <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" id="safeTgl" checked> Safe zone</label>
+      <div class="zseg" id="zoomSeg" role="group" aria-label="Preview size"><button type="button" data-z="fit" aria-pressed="true" title="Fit the preview to the stage">Fit</button><button type="button" data-z="100" aria-pressed="false" title="Show the image at its real size">100%</button></div>
+      <span id="zoomPct" title="Preview scale"></span>
+      <label id="safeLab"><input type="checkbox" id="safeTgl" checked> Safe zone</label>
       <span id="dims"></span>
     </div>
-    <div class="stage"><div class="frame" id="frame"><div id="stageSvg"></div>
-      <div class="safe" id="safe"><em>SAFE ZONE — keep text inside</em><i></i></div>
+    <div class="stage" id="stage" data-zoom="fit"><div class="frame" id="frame"><div id="stageSvg"></div>
+      <div class="safe" id="safe"><i><em>Safe zone</em></i></div>
+      <span class="zoomhint" aria-hidden="true"><svg><use href="#i-expand"/></svg></span>
     </div></div>
   </main>
 
@@ -329,6 +394,10 @@ footer .sp{flex:1}
   <span>Fonts load from Google Fonts and nothing else is fetched.</span>
 </footer>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog id="pview" aria-label="Preview">
+  <div class="pvhead"><span class="fn" id="pvName"></span><span id="pvDims"></span><button type="button" class="btn" id="pvClose" aria-label="Close preview"><svg><use href="#i-x"/></svg></button></div>
+  <div class="pvbody"><div id="pvSvg"></div></div>
+</dialog>
 
 <script>
 /* zest-sound:start v1 */
@@ -435,7 +504,16 @@ const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [..
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const slug = s => String(s || '').toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'untitled';
 const snd = n => { try { window.ZestSound.play(n); } catch {} };   // tap · pop · drop · done · nope (the zest-sound kit above)
-let tT; const toast = (m, s) => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tT); tT = setTimeout(() => t.classList.remove('show'), 3200); if (s) snd(s); };
+let tT; const toast = (m, s) => {
+  if (/^Brand fonts could not load/.test(m)) { fontNote(); return; }   // a state, not an event: it shows as a quiet line in the stage bar, never over the card
+  const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tT); tT = setTimeout(() => t.classList.remove('show'), 3200); if (s) snd(s); };
+let fontsOffline = false;                 // a brand font failed to load this session
+function fontNote() { fontsOffline = true; paintFontNote(); }
+function paintFontNote() {                 // shown while the current brand's own fonts are the ones missing
+  let on = fontsOffline;
+  try { const b = brand(), bf = b.fonts || {}; on = on && ['head', 'body'].some(r => bf[r] && fam(b, r) === FALL[r]); } catch {}
+  const n = $('#fontNote'); if (n) n.hidden = !on;
+}
 
 /* ---------- bundled sample brands (zest-brand.json shape, spec §7.3) ---------- */
 /* Brands are untrusted input (imports and localStorage survive tampering).
@@ -474,16 +552,26 @@ const SAMPLES = [
 const FREE_BRANDS = 3;
 
 /* ---------- targets (spec §7.4) ---------- */
+/* safe: where the platform's own crop or controls cover the image, as pixel insets {t, r, b, l} at the target's own size.
+   Text inside the rectangle stays visible. why: one line for the toggle's tooltip. No safe, no zone, and the toggle hides. */
 const TARGETS = [
-  { id: 'og',        n: 'OG / Twitter', w: 1200, h: 630,  safe: true },
+  { id: 'og',        n: 'OG / Twitter', w: 1200, h: 630,  safe: { t: 40, r: 84, b: 40, l: 84 },   why: 'Some apps round or trim the edges of link cards.' },
   { id: 'blog',      n: 'Blog',         w: 1600, h: 900 },
   { id: 'blog-sm',   n: 'Blog small',   w: 1200, h: 675 },
   { id: 'square',    n: 'Square',       w: 1080, h: 1080 },
-  { id: 'portrait',  n: 'Portrait',     w: 1080, h: 1350 },
-  { id: 'story',     n: 'Story',        w: 1080, h: 1920 },
-  { id: 'pinterest', n: 'Pinterest',    w: 1000, h: 1500 },
+  { id: 'portrait',  n: 'Portrait',     w: 1080, h: 1350, safe: { t: 0, r: 34, b: 0, l: 34 },    why: 'The profile grid shows only the middle 3:4.' },
+  { id: 'story',     n: 'Story',        w: 1080, h: 1920, safe: { t: 250, r: 60, b: 340, l: 60 }, why: 'The top bar and the reply bar cover these edges.' },
+  { id: 'pinterest', n: 'Pinterest',    w: 1000, h: 1500, safe: { t: 150, r: 60, b: 150, l: 60 }, why: 'The Save button and the link sit over the top and bottom on hover.' },
   { id: 'custom',    n: 'Custom',       w: 0,    h: 0 },
 ];
+/* Pure: the safe zone of a target as pixel insets at W×H (scaled from the target's own size), or null when it has none.
+   The stage draws it; a layout can call it to keep text inside. */
+function safeInsets(targetId, W, H) {
+  const t = TARGETS.find(x => x.id === targetId);
+  if (!t || !t.safe || !t.w || !t.h) return null;
+  const sx = W / t.w, sy = H / t.h;
+  return { t: t.safe.t * sy, r: t.safe.r * sx, b: t.safe.b * sy, l: t.safe.l * sx };
+}
 
 /* ---------- state ---------- */
 const store = { get(k, d) { try { const v = localStorage.getItem('zestimage:' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
@@ -739,24 +827,68 @@ const scale = () => +$('#eScale').value;
 const filename = () => `${slug(brand().name)}-${slug(content().title)}-${S.target}${scale() === 2 ? '@2x' : ''}.${ext()}`;
 const altDefault = () => { const c = content(); return [c.kicker, c.title].filter(Boolean).join(' — '); };
 
+/* ---------- the stage: frame size, zoom, safe zone, the phone's full-size preview ---------- */
+const narrow = () => matchMedia('(max-width:1100px)').matches;
+let zoom = 'fit';                          // desktop only: 'fit' sizes the frame to the stage, '100' shows real pixels
+function paintZoom() {
+  const { w } = dims(), f = $('#frame');
+  $('#stage').dataset.zoom = narrow() ? 'fit' : zoom;
+  $$('#zoomSeg [data-z]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.z === zoom)));
+  const fw = f.getBoundingClientRect().width;
+  $('#zoomPct').textContent = fw ? Math.round(fw / w * 100) + '%' : '';
+  if (narrow()) { f.setAttribute('role', 'button'); f.tabIndex = 0; f.setAttribute('aria-label', 'Open a larger preview'); }
+  else { f.removeAttribute('role'); f.removeAttribute('tabindex'); f.removeAttribute('aria-label'); }
+}
+function paintSafe(w, h) {
+  const ins = safeInsets(S.target, w, h), lab = $('#safeLab'), sf = $('#safe');
+  lab.hidden = !ins;                       // no zone, no toggle: it never shows checked while doing nothing
+  lab.title = ins ? target().why || '' : '';
+  sf.classList.toggle('on', !!ins && $('#safeTgl').checked);
+  if (!ins) return;
+  $('#safe i').style.inset = `${ins.t / h * 100}% ${ins.r / w * 100}% ${ins.b / h * 100}% ${ins.l / w * 100}%`;
+  placeSafeLabel();
+}
+function placeSafeLabel() {                // above the dashed line when it fits there, just inside it when it does not
+  const sf = $('#safe'); if (!sf.classList.contains('on')) return;
+  sf.classList.remove('inside');
+  sf.classList.toggle('inside', $('#safe i').offsetTop < $('#safe em').offsetHeight + 4);
+}
+function openPreview() {
+  const { w, h } = dims(), d = $('#pview'), box = $('#pvSvg');
+  box.style.setProperty('--ar', w / h);
+  box.innerHTML = $('#stageSvg').innerHTML;
+  $('#pvName').textContent = filename(); $('#pvDims').textContent = `${w} × ${h}`;
+  if (!d.open) { d.showModal(); snd('tap'); }
+}
+new ResizeObserver(() => { paintZoom(); placeSafeLabel(); }).observe($('#frame'));
+
 /* ---------- render ---------- */
 function render() {
   const { w, h } = dims();
   const svg = compose(w, h);
   const host = $('#stageSvg'); host.innerHTML = svg;
   const f = $('#frame'); f.style.aspectRatio = `${w} / ${h}`;
-  if (matchMedia('(max-width:1100px)').matches) {
+  f.style.setProperty('--ar', w / h); f.style.setProperty('--real', w + 'px');
+  if (narrow()) {
     // compact docked preview: the sticky stage stays visible while editing. Height-first, but
     // never wider than the stage — the auto grid track grows to content, so max-width can't bind.
+    // A landscape phone does not dock (the stage scrolls with the page), so the frame can take most of the height.
     const avail = Math.max(120, f.parentElement.clientWidth - 32);
+    const cap = matchMedia('(max-height:500px)').matches ? innerHeight * 0.7 : Math.min(innerHeight * 0.26, 280);
     f.style.width = 'auto';
-    f.style.height = Math.round(Math.min(innerHeight * 0.26, 280, avail * h / w)) + 'px';
+    f.style.height = Math.round(Math.min(cap, avail * h / w, h)) + 'px';   // never past real size
   }
-  else { f.style.width = h > w ? 'auto' : 'min(100%, 880px)'; f.style.height = h > w ? 'min(62vh, 640px)' : 'auto'; }
-  $('#dims').textContent = `${w} × ${h}${scale() === 2 ? ' → ' + w * 2 + ' × ' + h * 2 : ''}`;
-  $('#fname').textContent = filename();
+  else f.style.width = f.style.height = '';   // desktop: CSS fits the frame to the stage (container units), capped at real size
+  $('#dims').textContent = `${w} × ${h}`;   // the 2× is in the filename and in Export's summary; the exported size is in the tooltip
+  $('#dims').title = `Exports at ${w * scale()} × ${h * scale()}`;
+  const name = filename(), cut = name.lastIndexOf('-' + S.target);   // the end (target, scale, extension) stays whole
+  $('#fname').innerHTML = `<span class="fh">${esc(name.slice(0, cut))}</span><span class="ft">${esc(name.slice(cut))}</span>`;
+  $('#fname').title = name;
   $('#exSum').textContent = $('#eFmt').selectedOptions[0].text + ' · ' + $('#eScale').selectedOptions[0].text;   // the closed disclosure still says what Export will make
-  $('#safe').classList.toggle('on', !!target().safe && $('#safeTgl').checked);
+  paintSafe(w, h);
+  paintZoom();
+  paintFontNote();
+  if ($('#pview').open) openPreview();
   if (!S.altTouched) $('#cAlt').value = altDefault();
   $('#exCount').textContent = S.exports.length ? `${S.exports.length} exported this session — the manifest lists them all.` : 'The manifest records every export so a rebrand can regenerate the set.';
 }
@@ -929,6 +1061,15 @@ $('#layoutGrid').addEventListener('click', e => { const b = e.target.closest('[d
 $('#targetGrid').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; S.target = b.dataset.t; save(); renderChoosers(); render(); snd('tap'); });
 $('#customRow').addEventListener('input', () => { S.custom = { w: +$('#cw').value, h: +$('#ch').value }; save(); render(); });
 $('#safeTgl').addEventListener('change', render);
+$('#zoomSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-z]'); if (!b || b.dataset.z === zoom) return;
+  zoom = b.dataset.z; paintZoom(); snd('tap');
+  const st = $('#stage'); st.scrollTop = 0; st.scrollLeft = Math.max(0, (st.scrollWidth - st.clientWidth) / 2);
+});
+$('#frame').addEventListener('click', () => { if (narrow()) openPreview(); });
+$('#frame').addEventListener('keydown', e => { if (narrow() && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openPreview(); } });
+$('#pvClose').addEventListener('click', () => $('#pview').close());
+$('#pview').addEventListener('close', () => { $('#pvSvg').innerHTML = ''; });
 $('#eFmt').addEventListener('change', render);
 $('#eScale').addEventListener('change', render);
 $('#bExport').addEventListener('click', exportImage);

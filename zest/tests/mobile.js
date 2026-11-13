@@ -116,6 +116,33 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   await im.tap('#exMenu summary'); await im.waitForTimeout(250);
   ok(await im.evaluate(() => document.querySelector('#exMenu').open && ['#bAlt', '#bManifest', '#bOg'].every(s => { const r = document.querySelector(s).getBoundingClientRect(); return r.height >= 44 && r.left >= 0 && r.right <= innerWidth; })) && await fits(im), 'image: More opens by tap; its three items are full-size targets inside the screen');
   ok(await im.evaluate(() => [...document.querySelectorAll('summary')].every(s => s.getBoundingClientRect().height >= 44)), 'image: every disclosure is a 44px tap target');
+  // scrolled deep into the form, the docked stage is still a solid surface: nothing under it shows through the bar or beside the frame
+  ok(await im.evaluate(() => {
+    const sw = document.querySelector('.stagewrap'), b = document.querySelector('.stagebar').getBoundingClientRect(), f = document.querySelector('#frame').getBoundingClientRect();
+    const pts = [[b.left + 4, b.top + b.height / 2], [b.right - 4, b.top + b.height / 2], [4, f.top + f.height / 2], [innerWidth - 4, f.top + f.height / 2]];
+    return scrollY > 300 && getComputedStyle(sw).backgroundColor !== 'rgba(0, 0, 0, 0)' && parseFloat(getComputedStyle(sw).borderBottomWidth) >= 1 && pts.every(([x, y]) => sw.contains(document.elementFromPoint(x, y)));
+  }), 'image: the docked stage is opaque with an edge — the form scrolls under it, not through it');
+  await im.tap('#exMenu summary'); await im.waitForTimeout(200);
+  ok(await im.evaluate(() => { const fn = document.querySelector('#fname'); return fn.textContent.endsWith('-og@2x.png') && fn.textContent.startsWith('shepdesign-') && fn.scrollHeight <= fn.clientHeight + 1 && fn.getBoundingClientRect().width >= 150; })
+    && !(await im.textContent('#dims')).includes('→'), 'image: the whole filename is readable in the stage bar, and the size there is short');
+  // a tall target docks small, so tapping the preview opens it full size
+  await im.evaluate(() => { document.querySelector('#targetGrid [data-t="story"]').click(); scrollTo(0, 0); }); await im.waitForTimeout(300);
+  const docked = await im.$eval('#frame', f => f.getBoundingClientRect().width);
+  await im.tap('#frame'); await im.waitForTimeout(300);
+  ok(await im.evaluate(d => { const v = document.querySelector('#pview'), s = document.querySelector('#pvSvg svg').getBoundingClientRect(), c = document.querySelector('#pvClose').getBoundingClientRect();
+    return v.open && s.width >= d * 2 && s.left >= 0 && s.right <= innerWidth && s.top >= 0 && s.bottom <= innerHeight && c.width >= 44 && c.height >= 44; }, docked),
+    `image: tapping the docked preview opens it full screen, inside the screen (${Math.round(docked)}px docked)`);
+  await im.tap('#pvClose'); await im.waitForTimeout(200);
+  const closedByButton = await im.$eval('#pview', v => !v.open);
+  await im.tap('#frame'); await im.waitForTimeout(250); await im.keyboard.press('Escape'); await im.waitForTimeout(200);
+  ok(closedByButton && await im.$eval('#pview', v => !v.open), 'image: the full-size preview closes with its button and with Esc');
+  ok(await im.evaluate(() => !document.querySelector('#safeLab').hidden && document.querySelector('#safe').classList.contains('on')), 'image: Story has a safe zone, and its toggle shows');
+  await im.evaluate(() => document.querySelector('#targetGrid [data-t="blog"]').click()); await im.waitForTimeout(200);
+  ok(await im.evaluate(() => document.querySelector('#safeLab').hidden && !document.querySelector('#safe').classList.contains('on')), 'image: Blog has none, so the toggle hides instead of showing checked and doing nothing');
+  await im.evaluate(() => document.querySelector('.pro').scrollIntoView({ block: 'center' })); await im.waitForTimeout(250);
+  await im.tap('.pro'); await im.waitForTimeout(400);
+  ok(await im.evaluate(() => { const t = document.querySelector('#toast'), r = t.getBoundingClientRect(), f = document.querySelector('#frame').getBoundingClientRect();
+    return t.classList.contains('show') && (r.bottom <= f.top || r.top >= f.bottom); }), 'image: a toast never covers the docked preview');
   await im.close();
 
   console.log('== store (dist /pricing/) at 390 ==');
@@ -142,6 +169,8 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
     const ex = document.querySelector('.sec.exportsec').getBoundingClientRect();
     return !(sw.bottom > ex.top && ex.bottom > sw.top); // the two never overlap: no sticky sandwich hiding controls
   }), 'image: landscape phones get no sticky sandwich');
+  await lp.evaluate(() => { document.querySelector('#targetGrid [data-t="story"]').click(); scrollTo(0, 0); }); await lp.waitForTimeout(300);
+  ok(await lp.evaluate(() => document.querySelector('#frame').getBoundingClientRect().height >= innerHeight * 0.6), `image: in landscape a tall target gets most of the height, not a postage stamp (${await lp.$eval('#frame', f => Math.round(f.getBoundingClientRect().height))}px, was 101)`);
   await land.close();
 
   await browser.close();
