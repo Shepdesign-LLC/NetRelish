@@ -10,7 +10,7 @@ sources:
   - code: Sources/Bench/BrineView.swift
   - code: Sources/UI/Components.swift
   - code: Tests/NetRelishTests/RearrangeTests.swift
-verified_at: 7d472f8
+verified_at: d0cdaeb
 ---
 
 # Rearranging
@@ -73,14 +73,15 @@ relish placement 9 in the manifest.
 
 > ⚠️ **`moveTab(_:toJar:)` clears `interactionState` deliberately.** History and form
 > state were made with the old jar's sign-ins. The same rule is in
-> `restore(_:into:)` (`Sources/App/Workbench.swift:1304`): a Brine row gets its history
+> `restore(_:into:)` (`Sources/App/Workbench.swift:1306`): a Brine row gets its history
 > back only in the jar it sank from. Both look like lost data. Both are the rule.
 
 > ⚠️ **Anything that awaits and then acts on a tab must check the tab's jar again.** A
 > move keeps the tab's id and address, so a check on those two alone passes for a tab that
 > is now somewhere else. Seal froze a page, came back, and closed the tab in the jar it
 > had just been moved to. `closeIfStillOn` (`Sources/App/Workbench.swift:1013`) now
-> requires the same jar as well.
+> requires the same jar as well, and so does `toggleReader` (`Sources/App/Workbench.swift:1182`),
+> which would otherwise lay the old jar's article over the tab in its new jar.
 
 > ⚠️ **`sortOrder` has gaps.** Closing or moving a tab does not renumber the strip. A new
 > tab takes `max + 1` (`Sources/App/Workbench.swift:579`), never the count of tabs. The

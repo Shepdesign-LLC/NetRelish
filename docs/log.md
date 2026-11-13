@@ -36,3 +36,7 @@ Append-only. Newest entries at the bottom.
 - Against `7d472f8` (a page left behind in another window). One trap added
 - `.claude/scripts/docs-lint.py`: `swift` added to the code extensions it checks citations
   for. This and the exclude list are the two local changes to the vendored linter
+
+## [2026-11-13] rearranging re-checked
+
+- Against `d0cdaeb` (Reader view and a moved tab). The await trap now names Reader view too
