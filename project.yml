@@ -83,6 +83,9 @@ targets:
       - path: Sources/Vault
       - path: Resources
         buildPhase: resources   # AppIcon.icns and defuddle.js land in Contents/Resources
+        # Resources/Zest (zest/build.sh --app, ADR 0015) is not in the app yet. It goes in as one
+        # folder reference, because its four index.html files would collide in a flat group.
+        excludes: ["Zest", "Zest/**"]
     dependencies:
       - target: Pantry
       - package: KeyboardShortcuts
