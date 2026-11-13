@@ -34,6 +34,15 @@ zest/
     store/            landing-page draft (index.html); the §10 pricing/terms/account pages are not built
   icons/              the four app icons: svg/, layers/, png/, mono/, fruits.json —
                       and showcase.html, which renders the family in a browser
+  vendor/             DOMPurify, KaTeX, Mermaid and the tools' fonts, pinned from npm;
+                      VENDOR.lock.json records each file (generated: scripts/vendor.mjs)
+  scripts/
+    vendor.mjs        fetches vendor/ from npm, writes the lock; --check for CI
+    vendor.config.json  what vendor.mjs fetches: each library and font family, pinned
+    offline-scan.mjs  offline gate 1: static scan of the app bundle
+    offline-allowlist.json  its exceptions (each with a reason) and the size budget
+  build.sh            dist/ for the web; --app writes ../Resources/Zest for NetRelish.app
+  tests/              Playwright suites, contrast sweeps, and offline.js (offline gate 2)
   infra/
     supabase/0001_init.sql   the Supabase schema from spec §5.1 (written, not deployed)
     fixtures/sample.sql.gz   MySQL dump for import testing — not part of the Zest
@@ -57,6 +66,48 @@ null origin, which breaks the service worker and any API call.
   `npx vercel dev` from `zest/` (`vercel dev` serves functions and the
   built `dist/`, but does not run the build itself). The Vercel project
   points at `zest/`; `vercel.json` carries the build and headers.
+
+## The app bundle (NetRelish.app)
+
+The free tools ship inside NetRelish.app, offline, in their own window
+(ADR 0015, moved into 1.0 on Nov 13). The app gets its own copy, generated and
+committed at the repo root:
+
+```
+cd zest
+node scripts/vendor.mjs --check     # vendor/ matches its lock and npm
+bash build.sh --app                 # writes ../Resources/Zest
+node scripts/offline-scan.mjs       # gate 1: no network address in a load position, no pricing or Upgrade
+cd tests && ZEST_CHROMIUM=… node offline.js   # gate 2: each tool with every outside request blocked
+```
+
+- **What `--app` copies.** The studio at `Resources/Zest/index.html`, the
+  tools at `mail/`, `md/` and `image/`, `vendor/` and the root `NOTICE`. It
+  leaves out the store, pricing, `api/`, and every file only the web uses:
+  `manifest.webmanifest`, `sw.js`, `zest.json`, `vercel.json`, READMEs,
+  `package.json`, and the icon sizes only the install manifest names. Same
+  input, same bytes. Never edit `Resources/Zest` by hand; rebuild it and
+  commit it with the change that caused it. `bash build.sh` with no argument
+  still builds `dist/` for the web, unchanged.
+- **Not in the app target yet.** `project.yml` excludes `Resources/Zest` from
+  the flat Resources group. The Zest window adds it as one folder reference.
+- **Vendored, pinned.** `vendor/` holds DOMPurify 3.4.17, KaTeX 0.16.11 and
+  Mermaid 11.17.2 (the releases Zest MD loads from cdnjs; each file's sha384
+  equals the integrity hash in `apps/md/index.html`), and 38 font families as
+  latin-subset woff2 from `@fontsource` / `@fontsource-variable`, only the
+  weights and styles the tools ask for, with `fonts/fonts.css` and
+  `fonts/fonts.json`. To bump one, change `scripts/vendor.config.json`, run
+  `node scripts/vendor.mjs`, update the tag or hash in `apps/md/index.html`
+  (and `tests/package.json` for DOMPurify), update `NOTICE`, rebuild with
+  `--app`, and commit all of it. `--check` fails if any of those disagree.
+- **Size.** 6.82 MB today: Mermaid 3.41 MB, fonts 2.00 MB, KaTeX 0.54 MB,
+  the four tools with NOTICE 0.84 MB. Proposed budget: 8 MB, in
+  `scripts/offline-allowlist.json`; the scan fails above it.
+- **The gates fail today, by design.** The tools still load Google Fonts and
+  cdnjs, and the studio and ZestImage still link to pricing. Switching them to
+  `vendor/` in the app is the next phase. Until then CI runs the gates in the
+  `app-bundle` job of `.github/workflows/zest-tests.yml` without failing the
+  PR; `ZEST_OFFLINE_ENFORCE: 'true'` there makes them block.
 
 ## Sound
 
@@ -103,8 +154,10 @@ Not done:
 
 Zest is a separate product line from the NetRelish browser — a web stack
 (Vercel, Supabase, Stripe; spec §8) staged in this repo until its own monorepo
-exists (`docs/adr/0008` in the repo root's `/docs`). Nothing here runs inside
-the browser app, and no Xcode target references this directory. The browser's
+exists (`docs/adr/0008` in the repo root's `/docs`). Its free tools also ship
+inside NetRelish.app, offline (ADR 0015; see "The app bundle" above): the app
+is to bundle the generated `Resources/Zest`, never this directory, and no Xcode
+target references `zest/`. The browser's
 privacy rule — CLAUDE.md non-negotiable 5, browsing data never leaves the
 device — is untouched by anything in it: Zest's endpoints belong to Zest's web
 apps, not to NetRelish.app.

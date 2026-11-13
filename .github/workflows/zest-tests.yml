@@ -2,10 +2,10 @@ name: Zest tests
 
 on:
   pull_request:
-    paths: ['zest/**', '.github/workflows/zest-tests.yml']
+    paths: ['zest/**', 'Resources/Zest/**', 'NOTICE', '.github/workflows/zest-tests.yml']
   push:
     branches: [main]
-    paths: ['zest/**', '.github/workflows/zest-tests.yml']
+    paths: ['zest/**', 'Resources/Zest/**', 'NOTICE', '.github/workflows/zest-tests.yml']
 
 # Tests only: npm and Playwright's packages run here, so the token can only read.
 permissions:
@@ -42,3 +42,65 @@ jobs:
           done
           exit 1
       - run: npm test
+
+  # The copy NetRelish.app bundles (ADR 0015): Resources/Zest, built by `bash zest/build.sh --app`.
+  # The vendor check is enforced now. The other three steps report but do not fail the PR until the
+  # tools stop loading Google Fonts and cdnjs and drop their pricing links in the app (phase 2);
+  # then set ZEST_OFFLINE_ENFORCE to 'true' below and every step here gates the merge.
+  app-bundle:
+    name: App bundle + offline gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ZEST_OFFLINE_ENFORCE: 'false'   # phase 2 flips this to 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          persist-credentials: false   # read-only job: leave no token in .git/config
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: zest/tests/package-lock.json
+      # Every vendored file against VENDOR.lock.json and a fresh fetch from npm; Zest MD's DOMPurify tag
+      # against the lock; NOTICE names every vendored release.
+      - name: Vendored libraries and fonts match the lock and npm
+        run: node zest/scripts/vendor.mjs --check
+      - name: Resources/Zest matches a fresh build --app
+        id: bundle
+        continue-on-error: ${{ env.ZEST_OFFLINE_ENFORCE != 'true' }}
+        run: |
+          bash zest/build.sh --app
+          STALE=$(git status --porcelain -- Resources/Zest)
+          [ -z "$STALE" ] || { echo "$STALE"; git diff --stat -- Resources/Zest; echo "::error file=Resources/Zest::stale: run bash zest/build.sh --app and commit Resources/Zest"; exit 1; }
+      - name: 'Offline gate 1: static scan'
+        id: scan
+        continue-on-error: ${{ env.ZEST_OFFLINE_ENFORCE != 'true' }}
+        run: node zest/scripts/offline-scan.mjs Resources/Zest
+      - run: npm ci
+        working-directory: zest/tests
+      - name: Install Chromium
+        working-directory: zest/tests
+        run: |
+          for attempt in 1 2 3; do
+            npx playwright install --with-deps chromium && exit 0
+            echo "Browser install failed (attempt $attempt of 3)"
+            sleep 15
+          done
+          exit 1
+      - name: 'Offline gate 2: every tool with the network blocked'
+        id: offline
+        continue-on-error: ${{ env.ZEST_OFFLINE_ENFORCE != 'true' }}
+        working-directory: zest/tests
+        run: node offline.js
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Zest app bundle (enforced: $ZEST_OFFLINE_ENFORCE)"
+            echo "| Step | Outcome |"
+            echo "|---|---|"
+            echo "| Resources/Zest matches build --app | ${{ steps.bundle.outcome }} |"
+            echo "| Offline gate 1: static scan | ${{ steps.scan.outcome }} |"
+            echo "| Offline gate 2: network blocked | ${{ steps.offline.outcome }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
