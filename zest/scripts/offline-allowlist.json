@@ -1,0 +1,24 @@
+{
+  "about": "Exceptions for scripts/offline-scan.mjs. Keep it small: every entry names what it lets through and why that is not a network load and not a price or upgrade prompt. A URL in a load position (src=, <link href>, url(), @import, fetch(, …) is never allowed, whatever this file says.",
+  "budgetBytes": 8388608,
+  "budgetWhy": "Proposed size budget for Resources/Zest (ADR 0015, risk 3): 8 MB. Measured at 6.81 MB on 2026-11-13, of which Mermaid is 3.41 MB and the fonts 2.00 MB; the headroom covers phase 2's in-app switches and a library bump, not a new library.",
+  "urls": [
+    { "match": "^http://www\\.w3\\.org/(2000/svg|1999/xhtml|1999/xlink|2000/xmlns/|1998/Math/MathML|XML/1998/namespace)$",
+      "why": "XML namespace names (xmlns): identifiers, never fetched" },
+    { "match": "^http://www\\.w3\\.org/TR/xhtml1/DTD/xhtml1-transitional\\.dtd$",
+      "why": "the DOCTYPE system identifier in ZestMail's exported email; browsers never fetch a DTD" },
+    { "match": "^https?://example\\.com([/.]|$)",
+      "why": "the RFC 2606 example domain: sample data in ZestMail's default brand and Zest MD's sample document" },
+    { "match": "^https://your-site\\.example/",
+      "why": "a placeholder in the Open Graph snippet ZestImage copies for the user's own site (.example is reserved)" },
+    { "match": "^https://shepdesign\\.com$",
+      "why": "the website field of ZestMail's sample brand, shown as a footer link in the email; a link is not a load" },
+    { "file": "^md/index\\.html$", "match": "^http://\\$\\{$",
+      "why": "linkify-it, inlined in Zest MD: prefixes a bare www. address with http:// to make a link's href; a link is not a load" },
+    { "match": "^https://github\\.com/highlightjs/highlight\\.js/",
+      "why": "comments in the copy of highlight.js inlined in Zest MD" },
+    { "file": "^vendor/", "match": ".",
+      "why": "library code pinned in VENDOR.lock.json: its URLs are documentation links, license banners and namespace names. A URL in a load position in vendor/ still fails" }
+  ],
+  "text": []
+}
