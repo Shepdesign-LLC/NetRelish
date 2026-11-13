@@ -10,7 +10,7 @@ sources:
   - code: Sources/Bench/BrineView.swift
   - code: Sources/UI/Components.swift
   - code: Tests/NetRelishTests/RearrangeTests.swift
-verified_at: 2c4c510
+verified_at: a1f0a77
 ---
 
 # Rearranging
@@ -23,17 +23,17 @@ and tested, see [[building-without-a-mac]].
 ## The split: views ask, the Workbench decides
 
 The views carry no rules. They call one of a handful of functions on `Workbench`, under
-`// MARK: Rearranging` (`Sources/App/Workbench.swift:645`), and those decide what moves
+`// MARK: Rearranging` (`Sources/App/Workbench.swift:690`), and those decide what moves
 and what is left behind. That is why the tests in
 `Tests/NetRelishTests/RearrangeTests.swift` drive the
 Workbench directly and never a view.
 
 | Gesture | View | Workbench |
 |---|---|---|
-| Slide a jar along the Shelf | `slideGesture` (`Sources/Shelf/ShelfView.swift:126`) | `moveJar(_:to:)` (`Sources/App/Workbench.swift:653`) |
+| Slide a jar along the Shelf | `slideGesture` (`Sources/Shelf/ShelfView.swift:126`) | `moveJar(_:to:)` (`Sources/App/Workbench.swift:698`) |
 | Move Up, Move Down, color | jar menu (`Sources/Shelf/ShelfView.swift:88`) | `moveJar(_:by:)`, `setTint` |
-| Tab onto a tab | `.draggable` + `.dropDestination` on `TabChip` | `drop(_:onTab:)` (`Sources/App/Workbench.swift:780`) |
-| Tab or Brine row onto a jar | `.dropDestination` on `JarRow` | `drop(_:onJar:)` (`Sources/App/Workbench.swift:761`) |
+| Tab onto a tab | `.draggable` + `.dropDestination` on `TabChip` | `drop(_:onTab:)` (`Sources/App/Workbench.swift:825`) |
+| Tab or Brine row onto a jar | `.dropDestination` on `JarRow` | `drop(_:onJar:)` (`Sources/App/Workbench.swift:806`) |
 | Tab menu | `menu(for:)` (`Sources/Bench/BenchView.swift:266`) | `togglePin`, `setGlyph`, `copyLink`, `moveTab(_:toJar:)`, `closeOtherTabs` |
 
 ## Two kinds of drag, on purpose
@@ -66,7 +66,7 @@ relish placement 9 in the manifest.
 
 > ⚠️ **A web view left behind in another window is still a live page.** Until that window
 > lets it go, it can navigate and report back by tab id. So `tabDidNavigate`
-> (`Sources/App/Workbench.swift:822`) is told which jar's web view is reporting and
+> (`Sources/App/Workbench.swift:867`) is told which jar's web view is reporting and
 > ignores one that isn't the tab's jar, and each window drops moved tabs' web views in
 > `forgetStale` (`Sources/Bench/BenchView.swift:67`) when the open tabs change. The same
 > function lets go of pages whose tab was closed in the other window. A new
@@ -74,23 +74,23 @@ relish placement 9 in the manifest.
 
 > ⚠️ **`moveTab(_:toJar:)` clears `interactionState` deliberately.** History and form
 > state were made with the old jar's sign-ins. The same rule is in
-> `restore(_:into:)` (`Sources/App/Workbench.swift:1306`): a Brine row gets its history
+> `restore(_:into:)` (`Sources/App/Workbench.swift:1352`): a Brine row gets its history
 > back only in the jar it sank from. Both look like lost data. Both are the rule.
 
 > ⚠️ **Anything that awaits and then acts on a tab must check the tab's jar again.** A
 > move keeps the tab's id and address, so a check on those two alone passes for a tab that
 > is now somewhere else. Seal froze a page, came back, and closed the tab in the jar it
-> had just been moved to. `closeIfStillOn` (`Sources/App/Workbench.swift:1013`) now
-> requires the same jar as well, and so does `toggleReader` (`Sources/App/Workbench.swift:1182`),
+> had just been moved to. `closeIfStillOn` (`Sources/App/Workbench.swift:1058`) now
+> requires the same jar as well, and so does `toggleReader` (`Sources/App/Workbench.swift:1227`),
 > which would otherwise lay the old jar's article over the tab in its new jar.
 
 > ⚠️ **`sortOrder` has gaps.** Closing or moving a tab does not renumber the strip. A new
-> tab takes `max + 1` (`Sources/App/Workbench.swift:579`), never the count of tabs. The
+> tab takes `max + 1` (`Sources/App/Workbench.swift:623`), never the count of tabs. The
 > count put new tabs in the middle of a strip that had lost its first tabs.
 
 > ⚠️ **Do not call `load()` after reordering jars.** `load()` resets the active jar from
 > the database, which throws the user out of Brine or any other smart jar. Use
-> `reloadJars()` (`Sources/App/Workbench.swift:648`), which re-reads the order and
+> `reloadJars()` (`Sources/App/Workbench.swift:693`), which re-reads the order and
 > nothing else.
 
 > ⚠️ **The jar slide is measured in `.global` space.** The row moves with the drag, so a
@@ -103,7 +103,7 @@ relish placement 9 in the manifest.
 
 > ⚠️ **Tab icons live in `UserDefaults`, not the Pantry**, because `Tab` has no field for
 > them (ADR 0028). They are pruned in `forgetGlyphsOfGoneTabs`
-> (`Sources/App/Workbench.swift:801`) against every open tab in the database. A test that
+> (`Sources/App/Workbench.swift:846`) against every open tab in the database. A test that
 > sets an icon must give its `Workbench` its own `UserDefaults`, or another test's
 > Workbench on a different Pantry prunes it.
 

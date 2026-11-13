@@ -79,3 +79,11 @@ Append-only. Newest entries at the bottom.
   as one commit stale. Each page's sources are byte for byte the same at its old
   `verified_at` and at `2c4c510` (checked with `git diff`), so `verified_at` moved alone.
   This will happen after every squash merge of a branch that touched a page's sources
+
+## [2026-11-13] zest-window added
+
+- A page for the Zest window host (ADR 0033 moved ADR 0015's Zest window into 1.0): the
+  zest:// scheme and its path rules, Zest's reserved store, the offline rule list, the stub,
+  where links go, and the gating of the page commands while the window is key. Ten traps,
+  among them the scheme handler's isolation, realpath over `resolvingSymlinksInPath`, and
+  `pageInFront` rather than `benchTab`
