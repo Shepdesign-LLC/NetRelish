@@ -233,9 +233,30 @@ import Testing
         #expect(navigated.url == "https://a.example/next")
 
         // And the other window lets the old page go, without touching a tab that stayed put.
-        otherWindow.forgetMoved(bench.allTabs)
+        otherWindow.forgetStale(bench.allTabs)
         #expect(otherWindow.existing(for: tab.id) == nil)
         #expect(otherWindow.existing(for: kept.id) === keptView)
+    }
+
+    @Test("A tab closed in one window lets go of its page in the other")
+    func aClosedTabLeavesNoPageBehind() throws {
+        let bench = try bench()
+        bench.newJar(name: "Ash", tint: nil, shelfLifeDays: 3)
+        let a = try #require(bench.newTab(url: "https://a.example/"))
+        let b = try #require(bench.newTab(url: "https://b.example/"))
+        let c = try #require(bench.newTab(url: "https://c.example/"))
+        // Only the window wired last hears `onTabsGone`. This is the other one.
+        let otherWindow = BenchWebViews()
+        _ = otherWindow.view(for: a)
+        _ = otherWindow.view(for: b)
+        let kept = otherWindow.view(for: c)
+
+        bench.closeOtherTabs(c)
+        otherWindow.forgetStale(bench.allTabs)
+
+        #expect(otherWindow.existing(for: a.id) == nil)
+        #expect(otherWindow.existing(for: b.id) == nil)
+        #expect(otherWindow.existing(for: c.id) === kept)
     }
 
     @Test("Reader view started on a tab that then moved jars doesn't show the old jar's article")

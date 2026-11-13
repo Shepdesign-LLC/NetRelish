@@ -60,14 +60,13 @@ final class BenchWebViews {
         byTab[tabId] = v
     }
 
-    /// Lets go of web views whose tab now lives in another jar. Every window runs this for
-    /// its own web views when the open tabs change, because only one window hears
-    /// `onTabsGone`; otherwise the page would stay open, signed in, on the jar the tab left.
-    func forgetMoved(_ tabs: [Tab]) {
+    /// Lets go of web views whose tab is closed, or now lives in another jar. Every window
+    /// runs this for its own web views when the open tabs change, because only one window
+    /// hears `onTabsGone`; otherwise a closed page would stay alive here, and a moved one
+    /// would stay open, signed in, on the jar its tab left. `tabs` is every open tab.
+    func forgetStale(_ tabs: [Tab]) {
         let jarOf = Dictionary(tabs.map { ($0.id, $0.jarId ?? "brine") }, uniquingKeysWith: { first, _ in first })
-        for (tabId, view) in byTab {
-            if let jar = jarOf[tabId], jar != view.jarId { byTab[tabId] = nil }
-        }
+        for (tabId, view) in byTab where jarOf[tabId] != view.jarId { byTab[tabId] = nil }
     }
 
     func existing(for tabId: String) -> JarWebView? { byTab[tabId] }
@@ -82,7 +81,7 @@ struct BenchView: View {
     var body: some View {
         ZStack { content }
             .onAppear { wire() }
-            .onChange(of: workbench.allTabs) { _, tabs in webViews.forgetMoved(tabs) }
+            .onChange(of: workbench.allTabs) { _, tabs in webViews.forgetStale(tabs) }
     }
 
     @ViewBuilder private var content: some View {
