@@ -32,7 +32,9 @@ let package = Package(
         .target(
             name: "PantryKit",
             dependencies: [.product(name: "GRDB", package: "GRDB.swift")],
-            path: "Sources/Pantry"
+            path: "Sources/Pantry",
+            // Required on iOS: ShareInbox reads the App Group's defaults (ADR 0032).
+            resources: [.copy("PrivacyInfo.xcprivacy")]
         ),
         .testTarget(
             name: "PantryKitTests",

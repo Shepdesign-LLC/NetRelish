@@ -83,5 +83,5 @@ xcrun notarytool log <submission-id> \
 | :-- | :-- |
 | `The signature does not include a secure timestamp` | built offline; signing needs network |
 | `The executable does not have the hardened runtime enabled` | Hardened Runtime off in the target's Signing & Capabilities |
-| App launches then dies instantly | JIT entitlement missing — WKWebView cannot start |
+| App launches then dies instantly | a privacy-protected resource (camera, microphone, location) used with no purpose string in Info.plist. WKWebView needs no JIT entitlement: the previews ship hardened without one |
 | `Team ID mismatch` | certificate belongs to a different team than `APPLE_TEAM_ID` |

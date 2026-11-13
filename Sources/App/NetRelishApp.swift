@@ -2,6 +2,7 @@
 // DEBUG-only Design Kit as a second Window scene (Window → Design Kit).
 
 import AppIntents
+import AppKit
 import GRDB
 import Pantry
 import SwiftUI
@@ -79,6 +80,12 @@ struct NetRelishApp: App {
             // Jars menu: ⌘1–9 switch jars (manifest §8 Shelf).
             CommandGroup(after: .appInfo) {
                 Button("NetRelish Pro…") { workbench.showingPro = true }
+            }
+            // App Review 5.1.1(i): the privacy policy, one click away for everyone, not only
+            // for someone who opens Pro (ADR 0032). It replaces the default Help item, which
+            // has no help book to open.
+            CommandGroup(replacing: .help) {
+                Button(ProText.privacy) { NSWorkspace.shared.open(ProText.privacyURL) }
             }
             CommandMenu("Jars") {
                 ForEach(Array(workbench.jars.prefix(9).enumerated()), id: \.element.id) { index, jar in

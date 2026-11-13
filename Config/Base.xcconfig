@@ -8,7 +8,8 @@
 NR_TIMESTAMP_URL = http:/$()/timestamp.digicert.com
 
 // License activation for the Direct build (ADR 0027): the relay on netrelish.com that holds
-// Creem's API key. Only the Direct build reads it; the App Store build uses StoreKit.
+// Creem's API key. Only the Direct build reads it; AppStore.xcconfig empties it, since that
+// build uses StoreKit.
 NR_LICENSE_ACTIVATION_URL = https:/$()/netrelish.com/api/license
 
 // A local Config.xcconfig (gitignored, see Config.xcconfig.example) overrides these, say to

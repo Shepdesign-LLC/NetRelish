@@ -3,7 +3,7 @@ name: CI
 # Runs on every push and PR. Five things must hold:
 #   1. generated files match their sources (Tokens.swift, Symbols.swift, Sources/Pantry/Models, NetRelish.xcodeproj and its plists),
 #      and the vendored defuddle.js matches its recorded checksum
-#   2. both product flavors build — AppStore and Direct (DIRECT_BUILD)
+#   2. both product flavors build — AppStore and Direct (DIRECT_BUILD) — and carry their privacy manifests
 #   3. the tests pass (hosted NetRelishTests + unhosted GeneratorTests)
 #   4. the non-negotiable-5 gate still enforces what it claims to
 #   5. the Pantry core builds, tests and iOS-compiles as the PantryKit package (ADR 0009)
@@ -91,6 +91,28 @@ jobs:
             -configuration "${{ matrix.configuration }}" -derivedDataPath "$DERIVED" \
             -destination 'platform=macOS' -onlyUsePackageVersionsFromResolvedFile \
             CODE_SIGNING_ALLOWED=NO -quiet build
+      - name: The built app carries its privacy answers (ADR 0032)
+        # scripts/tests checks what the manifests say; this checks each one landed in the bundle
+        # App Store Connect reads it from, and that only the Direct build knows a license address.
+        env:
+          CONFIGURATION: ${{ matrix.configuration }}
+          FLAVOR: ${{ matrix.flavor }}
+        run: |
+          APP="$DERIVED/Build/Products/$CONFIGURATION/NetRelish.app"
+          for MANIFEST in \
+            "$APP/Contents/Resources/PrivacyInfo.xcprivacy" \
+            "$APP/Contents/PlugIns/NetRelishShare.appex/Contents/Resources/PrivacyInfo.xcprivacy" \
+            "$APP/Contents/Frameworks/Pantry.framework/Resources/PrivacyInfo.xcprivacy"; do
+            [ -f "$MANIFEST" ] || { echo "::error::missing from the bundle: ${MANIFEST#"$APP/"}"; exit 1; }
+            plutil -lint "$MANIFEST"
+          done
+          RELAY=$(/usr/libexec/PlistBuddy -c "Print :NRLicenseActivationURL" "$APP/Contents/Info.plist" 2>/dev/null || true)
+          case "$FLAVOR:$RELAY" in
+            AppStore:) ;;
+            AppStore:*) echo "::error::the App Store build carries a license address: $RELAY"; exit 1 ;;
+            Direct:https://*) ;;
+            Direct:*) echo "::error::the Direct build has no https license address: '$RELAY'"; exit 1 ;;
+          esac
 
   test:
     name: Test

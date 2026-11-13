@@ -22,6 +22,8 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>
@@ -32,6 +34,8 @@
 	<string>$(NR_TIMESTAMP_URL)</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<true/>
 		<key>NSExceptionDomains</key>
 		<dict>
 			<key>timestamp.digicert.com</key>
@@ -47,6 +51,8 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Shepdesign LLC. Code MIT; the mark and the name are all rights reserved.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>A page you opened in NetRelish wants to reach a device on your network, like your router or printer.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>
