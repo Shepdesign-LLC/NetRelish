@@ -110,6 +110,7 @@
 		C1E0A7602076419BE0143A65 /* PageDiffTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E62DA08CCC33F51D240D052F /* PageDiffTests.swift */; };
 		C3DA889786980AB1E7A3AC3B /* Timestamp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F428DA942B7B067D9F7AA0D1 /* Timestamp.swift */; };
 		C5AA6F4B3034E848272B1087 /* ContactsImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAB6D003EE9A56DA7A350E31 /* ContactsImport.swift */; };
+		C7EBE2FE517571AE678FBD31 /* RearrangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12766DD8E384667551633BCF /* RearrangeTests.swift */; };
 		C80B7DD1C500A7282051CEA4 /* FormFillTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C8701B85E904123842490DA /* FormFillTests.swift */; };
 		C995251DFE082D9FDDC43ED9 /* ShareInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D2B029B0B3F6D38E4A33B8 /* ShareInbox.swift */; };
 		CD72776B669DF8E7757DA298 /* MeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9E93C49D40CA6F315D82D1 /* MeSettingsView.swift */; };
@@ -212,6 +213,7 @@
 		0BC546FDE3391574CD6970C8 /* NetRelishShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NetRelishShare.entitlements; sourceTree = "<group>"; };
 		0E7C64098202D9F54E20DBDD /* NetRelish.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NetRelish.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		10970A1A3F4299714E5859DD /* ProvenanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProvenanceTests.swift; sourceTree = "<group>"; };
+		12766DD8E384667551633BCF /* RearrangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RearrangeTests.swift; sourceTree = "<group>"; };
 		1348DA8E44DDB79358705C26 /* SealDemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SealDemo.swift; sourceTree = "<group>"; };
 		141FB6A827355E5480CE90CE /* IdentityFields.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityFields.swift; sourceTree = "<group>"; };
 		14523A88FA996CC27AD1768F /* ShareTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareTests.swift; sourceTree = "<group>"; };
@@ -454,6 +456,7 @@
 				4202F97AB8C354B96FD03F49 /* LicenseTests.swift */,
 				F90136E09BA2F6D18415C368 /* OKLCHTests.swift */,
 				2382FFC6AE4886B09524B28A /* ProTests.swift */,
+				12766DD8E384667551633BCF /* RearrangeTests.swift */,
 				EF0B24A1EE81659EB7BBA716 /* ShapeTests.swift */,
 				14523A88FA996CC27AD1768F /* ShareTests.swift */,
 				3E8A48ABA51BF12211284C9D /* ShortcutsTests.swift */,
@@ -968,6 +971,7 @@
 				33BF82DDE63475727CBC6DB1 /* PaletteSourceTests.swift in Sources */,
 				E2CD2A5E39D7B1745083EEFE /* ProTests.swift in Sources */,
 				881B955BE3B13687FB1EC08D /* ProofTests.swift in Sources */,
+				C7EBE2FE517571AE678FBD31 /* RearrangeTests.swift in Sources */,
 				2F0962B6C3B05D3F219EF56B /* SealPerformanceTests.swift in Sources */,
 				C125F033D5888A5FF838D821 /* SealTests.swift in Sources */,
 				491397EF23E823777A34F536 /* ShapeTests.swift in Sources */,
