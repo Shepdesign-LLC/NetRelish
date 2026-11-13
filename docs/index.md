@@ -28,6 +28,7 @@ Nothing here yet.
 
 ## subsystems
 
+- [[zest-sound]] -- the sound kit inlined in the four Zest web tools, the Sound toggle, and how its suite runs
 - [[rearranging]] -- right-click menus and drag on the Shelf and tab strip; what moves, what is left behind, and the multi-window trap
 
 ## decisions

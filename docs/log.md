@@ -21,3 +21,7 @@ Append-only. Newest entries at the bottom.
 - `release-commands:` left empty: releases run from a tag in GitHub Actions, not from a
   command an agent runs
 - The rest of the app has no page yet. Pages are added as work touches an area
+
+## [2026-11-13] zest-sound added
+
+- `subsystems/zest-sound.md`, written with the commit that added the kit (`27b385f`)
