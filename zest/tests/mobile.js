@@ -90,6 +90,10 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   ok(await im.evaluate(() => { const f = document.querySelector('#frame').getBoundingClientRect(); return f.bottom > 0 && f.top < innerHeight; }), 'image: docked preview stays visible while typing');
   ok(await im.evaluate(() => document.querySelector('#stageSvg svg').textContent.includes('Mobile')), 'image: typing updates the visible stage');
   ok(await im.evaluate(() => getComputedStyle(document.querySelector('#cTitle')).fontSize === '16px'), 'image: inputs at 16px (no iOS focus-zoom)');
+  await im.evaluate(() => document.querySelector('.sec.exportsec').scrollIntoView({ block: 'center' })); await im.waitForTimeout(300);
+  await im.tap('#exMenu summary'); await im.waitForTimeout(250);
+  ok(await im.evaluate(() => document.querySelector('#exMenu').open && ['#bAlt', '#bManifest', '#bOg'].every(s => { const r = document.querySelector(s).getBoundingClientRect(); return r.height >= 44 && r.left >= 0 && r.right <= innerWidth; })) && await fits(im), 'image: More opens by tap; its three items are full-size targets inside the screen');
+  ok(await im.evaluate(() => [...document.querySelectorAll('summary')].every(s => s.getBoundingClientRect().height >= 44)), 'image: every disclosure is a 44px tap target');
   await im.close();
 
   console.log('== store (dist /pricing/) at 390 ==');

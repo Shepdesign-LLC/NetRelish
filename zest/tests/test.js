@@ -163,6 +163,70 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   ok((await zi.$eval('#stageSvg', e => e.innerHTML)).includes('#5f7a0d'), 'ZestImage composes with the studio primary');
   ok(await zi.$eval('#tLogo', e => !e.hidden), 'ZestImage picked up the brand logo');
   ok(ziErrs.length === 0, 'ZestImage: no exceptions during handoff');
+
+  console.log('== 12b: ZestImage — fields follow the layout, one Export button, folded options ==');
+  // same page as the handoff: the imported brand is active, and it carries a logo
+  const ziShown = () => zi.$$eval('#cUsed [data-f]', els => els.map(e => e.dataset.f).join(' '));
+  const ziVis = sel => zi.$eval(sel, e => e.checkVisibility());   // false inside a closed <details> as well as under [hidden]
+  const ziToast = () => zi.$eval('#toast', e => e.textContent);
+  const ZI_FIELDS = { title: 'title byline', kicker: 'title kicker byline', split: 'title kicker byline', scrim: 'title kicker',
+    stat: 'title stat', quote: 'quote byline', series: 'title byline series', logo: 'byline' };
+  await zi.fill('#cTitle', 'Kept across layouts');
+  const ziSeen = {};
+  for (const k of Object.keys(ZI_FIELDS)) { await zi.click(`#layoutGrid [data-l="${k}"]`); ziSeen[k] = await ziShown(); }
+  ok(Object.keys(ZI_FIELDS).every(k => ziSeen[k] === ZI_FIELDS[k]), `ZestImage: each of the eight layouts shows only the fields it draws (${Object.keys(ZI_FIELDS).filter(k => ziSeen[k] !== ZI_FIELDS[k]).map(k => k + ': ' + ziSeen[k]).join('; ') || 'all match'})`);
+  ok(!(await ziVis('#cTitle')) && await zi.$eval('#cRest', d => !d.open && !d.hidden), 'ZestImage: Logo lockup hides Title; the fields it leaves out sit in a disclosure, closed');
+  await zi.focus('#cRest summary'); await zi.keyboard.press('Enter');
+  ok(await zi.$eval('#cRest', d => d.open) && await ziVis('#cTitle') && await zi.inputValue('#cTitle') === 'Kept across layouts', 'ZestImage: that disclosure opens by keyboard, and the hidden Title kept what was typed');
+  await zi.click('#layoutGrid [data-l="title"]');
+  ok(await ziShown() === 'title byline' && await zi.inputValue('#cTitle') === 'Kept across layouts' && (await zi.$eval('#stageSvg', e => e.textContent)).includes('Kept across'), 'ZestImage: switching back shows Title again with its value, and the stage draws it');
+
+  ok(await ziVis('#bExport') && await zi.$eval('#exMenu', d => !d.open) && !(await ziVis('#bAlt')) && !(await ziVis('#bManifest')) && !(await ziVis('#bOg')), 'ZestImage: one Export button; alt.txt, Manifest and the OG snippet wait behind More');
+  await zi.focus('#exMenu summary'); await zi.keyboard.press('Enter');
+  ok(await zi.$eval('#exMenu', d => d.open) && await ziVis('#bAlt') && await ziVis('#bManifest') && await ziVis('#bOg'), 'ZestImage: More opens by keyboard and lists all three');
+  await zi.keyboard.press('Tab'); await zi.keyboard.press('Escape');
+  ok(await zi.$eval('#exMenu', d => !d.open && document.activeElement === d.querySelector('summary')), 'ZestImage: Escape closes the menu and hands focus back to More');
+  await zi.click('#exMenu summary');
+  let zdl = zi.waitForEvent('download'); await zi.click('#bAlt'); let zf = await zdl;
+  ok(zf.suggestedFilename().endsWith('.alt.txt') && require('fs').readFileSync(await zf.path(), 'utf8') === await zi.inputValue('#cAlt') && await zi.$eval('#exMenu', d => !d.open), 'ZestImage: alt.txt still saves the alt text, one file, and choosing it closes the menu');
+  await zi.click('#exMenu summary');
+  zdl = zi.waitForEvent('download'); await zi.click('#bManifest'); zf = await zdl; await zi.waitForTimeout(150);
+  ok(JSON.parse(require('fs').readFileSync(await zf.path(), 'utf8')).tool === 'image' && (await ziToast()).includes('Manifest saved'), 'ZestImage: Manifest still saves, with its toast');
+  await zi.bringToFront(); await zi.click('#exMenu summary'); await zi.click('#bOg'); await zi.waitForTimeout(250);
+  ok((await zi.evaluate(() => navigator.clipboard.readText())).includes('og:image:alt') && (await ziToast()).includes('OG meta copied'), 'ZestImage: Copy OG meta snippet still copies, with its toast');
+
+  ok(await zi.$eval('#exOpts', d => !d.open) && !(await ziVis('#eFmt')) && !(await ziVis('#eScale')) && await zi.textContent('#exSum') === 'PNG · 2×', 'ZestImage: Format and Scale are folded away, and the summary says "PNG · 2×"');
+  await zi.focus('#exOpts summary'); await zi.keyboard.press('Space');
+  const ziOptsOpen = await zi.$eval('#exOpts', d => d.open) && await ziVis('#eFmt');
+  await zi.selectOption('#eFmt', 'webp'); await zi.selectOption('#eScale', '1');
+  ok(ziOptsOpen && await zi.textContent('#exSum') === 'WebP · 1×' && /-og\.webp$/.test(await zi.textContent('#fname')), 'ZestImage: they open by keyboard, and the summary and the filename follow the choice');
+  await zi.fill('#cAlt', '');
+  let ziLeak = 0; const ziCount = () => { ziLeak++; }; zi.on('download', ziCount);
+  await zi.click('#bExport'); await zi.waitForTimeout(500);
+  zi.off('download', ziCount);
+  ok(ziLeak === 0 && (await ziToast()).includes('Alt text first'), 'ZestImage: export without alt text is still blocked');
+  await zi.fill('#cAlt', 'A title card');
+  zdl = zi.waitForEvent('download'); await zi.click('#bExport'); zf = await zdl; await zi.waitForTimeout(250);
+  ok(zf.suggestedFilename() === await zi.textContent('#fname') && (await ziToast()).includes('under More'), 'ZestImage: Export saves the one image, in the format the summary named');
+
+  const ziProRows = () => zi.$$eval('#proList .pro', r => r.filter(e => e.checkVisibility()).length);
+  ok(await zi.$eval('#proList', d => d.open) && await ziProRows() === 6, 'ZestImage: the six Pro rows are one disclosure, open on load — all six visible without a click');
+  await zi.focus('#proList summary'); await zi.keyboard.press('Enter');
+  const ziProShut = await zi.$eval('#proList', d => !d.open) && await ziProRows() === 0;
+  await zi.keyboard.press('Enter');
+  ok(ziProShut && await zi.$eval('#proList', d => d.open) && await ziProRows() === 6, 'ZestImage: it closes and reopens by keyboard');
+  await zi.click('.pro[data-pro="svg"]'); await zi.waitForTimeout(150);
+  ok((await ziToast()).includes('stays free'), 'ZestImage: a Pro row still answers with the Pro toast');
+
+  ok(!(await ziVis('#dLogo')) && await ziVis('#bLogoReplace') && (await zi.textContent('#tLogo span')).includes("brand's logo"), 'ZestImage: with a brand logo, one line says it is in use — no drop zone');
+  await zi.click('#bLogoReplace');
+  const ziDropShown = await ziVis('#dLogo');
+  const otherPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  await zi.setInputFiles('#fLogo', { name: 'mine.png', mimeType: 'image/png', buffer: Buffer.from(otherPng, 'base64') }); await zi.waitForTimeout(300);
+  ok(ziDropShown && await zi.textContent('#tLogo span') === 'mine.png' && (await zi.$eval('#stageSvg', e => e.innerHTML)).includes(otherPng), 'ZestImage: Replace reveals the drop zone, and a dropped logo takes over');
+  await zi.click('#bLogoRemove'); await zi.waitForTimeout(200);
+  ok((await zi.$eval('#stageSvg', e => e.innerHTML)).includes(withLogo.logo) && !(await ziVis('#dLogo')) && await ziVis('#bLogoReplace'), 'ZestImage: removing the replacement falls back to the brand logo');
+  ok(ziErrs.length === 0, `ZestImage: no exceptions from the simplified controls${ziErrs.length ? ' — ' + ziErrs.join(' | ') : ''}`);
   await zi.close();
 
   console.log('== 13: persistence + pro + a11y bits ==');

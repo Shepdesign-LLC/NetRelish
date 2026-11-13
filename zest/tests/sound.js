@@ -30,7 +30,7 @@ const TOOLS = [
     ['choosing a layout', 'tap', pg => pg.click('#layoutGrid .lcell:nth-child(2)')],
     ['adding a photo', 'pop', pg => pg.setInputFiles('#fPhoto', { name: 'photo.png', mimeType: 'image/png', buffer: PNG })],
     ['removing the photo', 'drop', pg => pg.click('#tPhoto button')],
-    ['copying the OG snippet', 'done', pg => pg.click('#bOg')],
+    ['copying the OG snippet', 'done', async pg => { await pg.click('#exMenu summary'); await pg.click('#bOg'); }],   // the snippet sits behind More
     ['a Pro row', 'nope', pg => pg.click('.pro')],
   ] },
   { name: 'mail', dir: 'mail', url: 'http://localhost:8773/', toggle: '#btnSound', steps: [
