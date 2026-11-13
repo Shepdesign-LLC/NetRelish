@@ -45,3 +45,7 @@ Append-only. Newest entries at the bottom.
 
 - Against `3287635` (the studio, ZestImage and Zest MD simplified). The kit and how it is
   wired are unchanged. Two test traps added: fixed ports, and `offsetParent` inside `<details>`
+
+## [2026-11-13] zest-sound re-checked
+
+- Against `f859210` (ZestMail simplified; the studio's switch renamed Palette). Prose unchanged

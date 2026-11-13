@@ -83,7 +83,7 @@ In hand:
 - The studio's free core (`apps/zest`): OKLCH palettes with locks, pairings,
   custom fonts, exports, share links, WCAG audit
 - `zest-brand.json` schema (§7.3) and the full handoff: export from the
-  studio; import in ZestImage, ZestMail (Brand tab) and Zest MD (custom skin)
+  studio; import in ZestImage, ZestMail (Import…, in the Export menu or on the Brand tab) and Zest MD (custom skin)
 - The one-origin deploy topology in-repo (`build.sh` + `vercel.json` +
   shared `api/`): studio at `/` with the §11.5 tools row, tools at their
   paths, store at `/pricing`

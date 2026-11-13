@@ -82,7 +82,7 @@ Click any headline, paragraph, button label, card or footer note and type.
 |---|---|
 | **Block** | Fields for the selected block, the **Insert tag** menu, and **Save as module** |
 | **Brand** | Brand switcher and every brand setting (§3) |
-| **Message** | Subject, preheader, width, outer background, fallback fonts, dark-mode metadata, wrapper and attribute-mirroring toggles |
+| **Message** | Subject, preheader, width, outer background, fallback fonts, dark-mode metadata, wrapper and attribute-mirroring toggles (the last three under Compatibility; fallback fonts in Source mode only) |
 | **Lint** | Compatibility flags with explanations, plus stats |
 | **Claude** | Optional model assistance (§7) |
 
@@ -99,7 +99,7 @@ Select a block, click **Save as module**, name it. It appears under **My modules
 ### 2.7 Saving
 
 - **Save** (top bar) stores the design in this browser, under Saved designs on the left. Open with ↗, delete with ×.
-- **Export → Download design (.json)** gives you a portable file that includes the brand. **Import design** loads one. This is how a design moves between machines or people.
+- **Export → Download design (.json)** gives you a portable file that includes the brand. **Import…** loads one, and also takes a `zest-brand.json` from the Zest studio. This is how a design moves between machines or people.
 - The current canvas autosaves as a draft and comes back when you reopen the page.
 
 ---
@@ -203,7 +203,7 @@ The pill in the top bar is the summary: clean, *n* to review, or *n* blocking.
 | Download .html | Same, as a file named from the subject |
 | Copy plain-text version | Text twin: headings uppercased, links as `text (url)`, lists as dashes |
 | Open in Source | Compiled HTML into the Source pane |
-| Download / Import design (.json) | Portable design with brand |
+| Download design (.json) / Import… | Portable design with brand; Import… also takes a `zest-brand.json` |
 
 ---
 
@@ -238,7 +238,7 @@ npx vercel --prod
 Vercel → Project → Settings → Environment Variables:
 
 - `ANTHROPIC_API_KEY` — your key
-- `MAILPRESS_TOKEN` — any long random string; enter the same value under Claude → Proxy token so strangers can't spend your credits through the endpoint
+- `MAILPRESS_TOKEN` — any long random string; enter the same value under Claude → Connection and model → Proxy token so strangers can't spend your credits through the endpoint
 
 Leave the API key field empty and Route on Auto; hosted pages pick the proxy.
 
