@@ -244,7 +244,15 @@ def main() -> int:
         pos = {sha: i for i, (sha, _) in enumerate(order)}
 
         for name, sha, live in todo:
-            cut = pos.get(sha, len(order))
+            cut = pos.get(sha)
+            if cut is None:
+                # NetRelish: `pos` is keyed by git's `%h`, whose length git chooses and
+                # lengthens as the repository grows; verified_at is whatever was typed.
+                # A full id, or an abbreviation of another length, names the same commit
+                # (commits() already confirmed it is one and is unambiguous), so match
+                # it by prefix instead of counting the whole history against the page.
+                cut = next((i for i, (h, _) in enumerate(order)
+                            if h.startswith(sha) or sha.startswith(h)), len(order))
             n = sum(1 for _, files in order[:cut]
                     if any(f == s or f.startswith(s.rstrip("/") + "/") for f in files for s in live))
             if n:

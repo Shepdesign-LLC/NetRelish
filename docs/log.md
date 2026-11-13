@@ -59,3 +59,10 @@ Append-only. Newest entries at the bottom.
 
 - Against `b20ba68` (the Zest MD export menu no longer repeats the main button). The sound
   steps use the Markdown copy item, which stays. Prose unchanged
+
+## [2026-11-13] linter: a third local change
+
+- `.claude/scripts/docs-lint.py` matched `verified_at` to git's `%h` by exact text, so a full
+  commit id (or a longer abbreviation, once git lengthens `%h`) counted the whole history
+  against a page. It now matches by prefix. Checked with a 40-, 10- and 7-character id at
+  HEAD (not stale) and two older ids (1 and 7 commits, the same as `git log <id>..HEAD`)
