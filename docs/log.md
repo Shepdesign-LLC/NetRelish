@@ -54,3 +54,8 @@ Append-only. Newest entries at the bottom.
 
 - `rearranging` against `b55a895` (closed tabs' pages in another window). `zest-sound`
   against `da319b6` (a one-line README change)
+
+## [2026-11-13] zest-sound re-checked
+
+- Against `b20ba68` (the Zest MD export menu no longer repeats the main button). The sound
+  steps use the Markdown copy item, which stays. Prose unchanged

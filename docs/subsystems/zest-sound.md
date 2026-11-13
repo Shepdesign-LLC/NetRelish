@@ -11,7 +11,7 @@ sources:
   - code: zest/tests/sound.js
   - code: zest/tests/run.js
   - code: zest/README.md
-verified_at: da319b6
+verified_at: b20ba68
 ---
 
 # Zest sound
