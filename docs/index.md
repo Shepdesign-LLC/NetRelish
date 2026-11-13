@@ -42,6 +42,7 @@ Nothing here yet.
 ## operations
 
 - [[building-without-a-mac]] -- CI is the compiler: regenerating the Xcode project, generated files, and the checks that are not CI
+- [[releasing-a-preview]] -- cutting a signed, notarized preview, and what decides whether Pro is locked in it
 
 ## history
 
