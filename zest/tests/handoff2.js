@@ -28,11 +28,11 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   console.log('== ZestMail: Brand tab import ==');
   const ml = await ctx.newPage(); await block(ml);
   const mlErrs = []; ml.on('pageerror', e => mlErrs.push(e.message));
-  ml.on('dialog', d => d.accept());
+  const mlDialogs = []; ml.on('dialog', d => { mlDialogs.push(d.message()); d.accept(); });   // ZestMail asks nothing in a native dialog; one that opens is counted and fails below
   await ml.goto('http://localhost:8773', { waitUntil: 'domcontentloaded' }); await ml.waitForTimeout(700);
   const brandCount0 = await ml.$$eval('#brandSel option', o => o.length);
-  ok(await ml.$eval('#brandImport', b => b.offsetParent !== null || !!b.closest('.panel')), 'Import zest-brand.json button exists in the Brand panel');
-  await ml.setInputFiles('#brandFile', { name: 'pantry-zest-brand.json', mimeType: 'application/json', buffer: brandBuf });
+  ok(await ml.$eval('#brandImport', b => (b.offsetParent !== null || !!b.closest('.panel')) && b.tagName === 'BUTTON'), 'an Import… button exists in the Brand panel');
+  await ml.setInputFiles('#jsonFile', { name: 'pantry-zest-brand.json', mimeType: 'application/json', buffer: brandBuf });
   await ml.waitForTimeout(500);
   ok(await ml.$$eval('#brandSel option', o => o.length) === brandCount0 + 1, 'import created a new brand');
   ok(await ml.$eval('#brandSel', s => s.selectedOptions[0].textContent) === 'Pantry', 'new brand is selected and named Pantry');
@@ -44,7 +44,7 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   // update, not duplicate — and identity fields survive
   await ml.$eval('[data-bk="company"]', e => { e.value = 'Pantry LLC'; e.dispatchEvent(new Event('input', { bubbles: true })); });
   await ml.waitForTimeout(200);
-  await ml.setInputFiles('#brandFile', { name: 'pantry-zest-brand.json', mimeType: 'application/json', buffer: brandBuf });
+  await ml.setInputFiles('#jsonFile', { name: 'pantry-zest-brand.json', mimeType: 'application/json', buffer: brandBuf });
   await ml.waitForTimeout(500);
   ok(await ml.$$eval('#brandSel option', o => o.length) === brandCount0 + 1, 're-import updates, never duplicates');
   ok(await ml.$eval('[data-bk="company"]', e => e.value) === 'Pantry LLC', 'identity fields stay the user’s own');
@@ -66,17 +66,17 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   // round 1 regressions: style-attribute injection, serif classification, empty-canvas persistence, iframe drop
   const inj = JSON.parse(JSON.stringify(brand)); inj.name = 'Injection';
   inj.fonts = { head: 'Geist', body: '&#39;;background:url(https://evil.example/x)', mono: 'Geist Mono', googleFontsUrl: '', custom: [] };
-  await ml.setInputFiles('#brandFile', { name: 'i-zest-brand.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(inj)) });
+  await ml.setInputFiles('#jsonFile', { name: 'i-zest-brand.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(inj)) });
   await ml.waitForTimeout(400);
   const injStack = await ml.$eval('[data-bk="font"]', e => e.value);
   ok(!/[&#;:(){}"]/.test(injStack), `numeric char refs cannot reach style attributes (${injStack.slice(0, 48)})`);
   const news = JSON.parse(JSON.stringify(brand)); news.name = 'Serif Brand';
   news.fonts = { head: 'Fraunces', body: 'Newsreader', mono: 'Geist Mono', googleFontsUrl: '', custom: [] };
-  await ml.setInputFiles('#brandFile', { name: 'n-zest-brand.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(news)) });
+  await ml.setInputFiles('#jsonFile', { name: 'n-zest-brand.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(news)) });
   await ml.waitForTimeout(400);
   ok(/Newsreader.*Georgia/.test(await ml.$eval('[data-bk="font"]', e => e.value)), 'Newsreader classifies as serif (Georgia fallback)');
   await ml.click('#btnNew'); await ml.waitForTimeout(300);        // empty canvas: run() skips persist()
-  await ml.setInputFiles('#brandFile', { name: 'pantry-zest-brand.json', mimeType: 'application/json', buffer: brandBuf });
+  await ml.setInputFiles('#jsonFile', { name: 'pantry-zest-brand.json', mimeType: 'application/json', buffer: brandBuf });
   await ml.waitForTimeout(400);
   await ml.reload({ waitUntil: 'domcontentloaded' }); await ml.waitForTimeout(700);
   ok(await ml.$eval('#brandSel', s => s.selectedOptions[0].textContent) === 'Pantry', 'imported brand stays selected after reload on an empty canvas');
@@ -194,7 +194,107 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   await ml.$eval('#savedList [data-load]', e => e.click()); await ml.waitForTimeout(400);      // a stored design opened
   ok(await ml.evaluate(() => window.__pwned === undefined) && await ml.$$eval('[onerror]', n => n.length) === 0, 'stored modules and saved designs are checked before they reach the canvas');
   ok(mlErrs.length === 0, 'ZestMail: no exceptions (' + mlErrs.slice(0, 1).join('').slice(0, 80) + ')');
+  ok(mlDialogs.length === 0, 'ZestMail: no native dialog opened (' + mlDialogs.slice(0, 1).join('').slice(0, 60) + ')');
   await ml.close();
+
+  console.log('== ZestMail: one import, folded defaults, naming and Undo without a native dialog ==');
+  const zctx = await browser.newContext({ serviceWorkers: 'block' });   // its own storage: a first visit
+  const mz = await zctx.newPage(); await block(mz);
+  const mzErrs = [], mzDialogs = []; mz.on('pageerror', e => mzErrs.push(e.message)); mz.on('dialog', d => { mzDialogs.push(d.message()); d.dismiss(); });
+  await mz.goto('http://localhost:8773', { waitUntil: 'domcontentloaded' }); await mz.waitForTimeout(700);
+  const toastText = () => mz.$eval('#toast', e => e.textContent);
+  const stored = k => mz.evaluate(key => localStorage.getItem('mailpress:' + key), k);
+  const draft = async () => { await mz.waitForTimeout(350); return stored('draft'); };   // run() is debounced; the draft is what a reload would bring back
+  ok(await mz.evaluate(() => { const c = document.querySelector('.pane.center').getBoundingClientRect(), i = document.querySelector('#inspector').getBoundingClientRect(); return i.left >= c.right - 1 && Math.abs(i.top - c.top) < 2 && c.width > 400; }), 'desktop: the canvas sits between the library and the inspector');
+  // one import: a single file input, reached from the Export menu and from the Brand tab, and either file works from either place
+  ok(await mz.$$eval('input[type=file]', n => n.length === 1 && n[0].id === 'jsonFile'), 'there is one file input');
+  ok(/Import…/.test(await mz.$eval('#popExport [data-do="importjson"]', b => b.textContent)) && /design or brand/.test(await mz.$eval('#popExport [data-do="importjson"]', b => b.textContent)), 'the Export menu has one Import… item that says it takes a design or a brand');
+  const designBuf = Buffer.from(JSON.stringify({ name: 'From a file', subject: 'Hello', blocks: [{ type: 'text', props: { body: 'one' } }, { type: 'footer', props: {} }] }));
+  const viaMenu = async () => { await mz.click('#btnExport'); const fc = mz.waitForEvent('filechooser'); await mz.click('#popExport [data-do="importjson"]'); return fc; };
+  const viaBrandTab = async () => { await mz.click('#tabs button[data-t="brand"]'); const fc = mz.waitForEvent('filechooser'); await mz.click('#brandImport'); return fc; };
+  for (const [where, pick] of [['the Export menu', viaMenu], ['the Brand tab', viaBrandTab]]) {
+    let fc = await pick();
+    ok(await fc.element().evaluate(e => e.id) === 'jsonFile', `Import… from ${where} opens the one picker`);
+    await fc.setFiles({ name: 'pantry-zest-brand.json', mimeType: 'application/json', buffer: brandBuf }); await mz.waitForTimeout(450);
+    ok((await toastText()).includes('from zest-brand.json') && await mz.$eval('#brandSel', s => s.selectedOptions[0].textContent) === 'Pantry', `a brand file imports from ${where}`);
+    fc = await pick();
+    await fc.setFiles({ name: 'd.mailpress.json', mimeType: 'application/json', buffer: designBuf }); await mz.waitForTimeout(450);
+    ok((await toastText()).includes('Imported “From a file”') && await mz.$$eval('.cv-block', n => n.length) === 2, `a design file imports from ${where}`);
+  }
+  // Message tab: the three defaults are folded away, still on, and the compiler still gets them; Fallback fonts shows in Source only
+  await mz.click('#tabs button[data-t="message"]');
+  ok(await mz.$eval('#foldCompat', d => d.tagName === 'DETAILS' && !d.open && ['darkMeta', 'wrap', 'mirror'].every(id => d.querySelector('#' + id).checked)), 'Message: dark-mode meta, wrapper and mirroring sit in one fold, closed, all still on');
+  await mz.click('#viewSeg [data-w="600"]'); await mz.waitForTimeout(450);
+  ok(await mz.$eval('#frame', f => /supported-color-schemes/.test(f.srcdoc) && /class="container"/.test(f.srcdoc) && /<td[^>]* bgcolor="/.test(f.srcdoc)), 'the compiled email still carries the dark-mode meta, the wrapper and mirrored attributes');
+  await mz.click('#viewSeg [data-w="canvas"]');
+  await mz.focus('#foldCompat summary'); await mz.keyboard.press('Enter');
+  ok(await mz.$eval('#foldCompat', d => d.open), 'the fold opens from the keyboard');
+  await mz.focus('#wrap'); await mz.keyboard.press('Escape');
+  ok(await mz.$eval('#foldCompat', d => !d.open && document.activeElement === d.querySelector('summary')), 'Escape closes the fold and hands focus to its summary');
+  ok(await mz.$eval('#fontsField', f => getComputedStyle(f).display === 'none'), 'Fallback fonts is hidden in Build');
+  await mz.click('#modeSeg [data-m="source"]'); await mz.waitForTimeout(300);
+  ok(await mz.$eval('#fontsField', f => getComputedStyle(f).display !== 'none' && !f.closest('details')), 'Fallback fonts shows in Source');
+  await mz.click('#modeSeg [data-m="build"]'); await mz.waitForTimeout(300);
+  // Claude tab: the brief first, the four connection fields in a fold that is closed while the connection can work and opens when it cannot
+  await mz.click('#tabs button[data-t="claude"]');
+  ok(await mz.evaluate(() => { const b = document.querySelector('#brief'), f = document.querySelector('#claudeSetup'); return !!(b.compareDocumentPosition(f) & Node.DOCUMENT_POSITION_FOLLOWING) && ['apiKey', 'route', 'proxyToken', 'model'].every(id => f.querySelector('#' + id)); }), 'Claude: the brief comes first; key, route, proxy token and model sit in a fold below it');
+  ok(await mz.$eval('#claudeSetup', d => !d.open), 'the fold is closed while the connection can work (a served page uses the proxy route)');
+  await mz.$eval('#route', r => { r.value = 'direct'; r.dispatchEvent(new Event('change', { bubbles: true })); });
+  ok(await mz.$eval('#claudeSetup', d => d.open), 'Direct with no key: the fold opens by itself');
+  await mz.reload({ waitUntil: 'domcontentloaded' }); await mz.waitForTimeout(700);
+  ok(await mz.$eval('#claudeSetup', d => d.open), '… and is open on the next visit too');
+  await mz.$eval('#route', r => { r.value = 'auto'; r.dispatchEvent(new Event('change', { bubbles: true })); });
+  // naming: an inline field, prefilled as the prompt was; Enter saves, Escape cancels, focus goes back to the button
+  await mz.$eval('#tpl [data-tpl="newsletter"]', b => b.click()); await mz.waitForTimeout(400);
+  await mz.click('#tabs button[data-t="message"]'); await mz.fill('#subject', 'Spring issue');
+  await mz.click('#btnSave');
+  ok(await mz.evaluate(() => document.querySelector('#popName').dataset.open === 'true' && document.activeElement.id === 'nameInput' && document.activeElement.value === 'Newsletter' && document.querySelector('#nameLabel').textContent === 'Design name'), 'Save opens a name field in the page, prefilled with the design name and focused');
+  await mz.keyboard.type('Nope'); await mz.keyboard.press('Escape');
+  ok(await mz.evaluate(() => document.querySelector('#popName').dataset.open === 'false' && document.activeElement.id === 'btnSave') && (await stored('designs')) === null, 'Escape cancels: nothing saved, focus back on Save');
+  await mz.click('#btnSave'); await mz.keyboard.type('April letter'); await mz.keyboard.press('Enter'); await mz.waitForTimeout(200);
+  ok((await toastText()).includes('Saved “April letter”') && await mz.$eval('#savedList', l => l.textContent.includes('April letter')) && JSON.parse(await stored('designs'))[0].name === 'April letter', 'Enter saves the design under the typed name');
+  await mz.$eval('.cv-block', b => b.click()); await mz.waitForTimeout(250);
+  await mz.click('#btnModule');
+  ok(await mz.evaluate(() => document.querySelector('#nameLabel').textContent === 'Module name' && document.activeElement.value === 'Logo header — Pantry'), 'Save as module opens the same field, prefilled with the block and brand');
+  await mz.click('#nameSave'); await mz.waitForTimeout(200);
+  ok(await mz.$eval('#mods', e => e.textContent.includes('Logo header — Pantry')) && JSON.parse(await stored('modules')).length === 1, 'its Save button saves the module');
+  await mz.click('#btnModule'); await mz.click('#nameCancel');
+  ok(JSON.parse(await stored('modules')).length === 1 && await mz.evaluate(() => document.activeElement.id === 'btnModule'), 'Cancel saves nothing and hands focus back');
+  // ⌘K on canvas text asks for the address in the same field and links the selection
+  await mz.evaluate(() => { const ed = [...document.querySelectorAll('#canvas [data-edit][data-rich="1"]')].find(e => e.textContent.includes('The first version')); ed.focus(); const r = document.createRange(), t = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT).nextNode(); r.setStart(t, 0); r.setEnd(t, 2); getSelection().removeAllRanges(); getSelection().addRange(r); });
+  await mz.keyboard.press('Control+k');
+  ok(await mz.evaluate(() => document.querySelector('#popName').dataset.open === 'true' && document.activeElement.value === 'https://'), '⌘K opens the field for a link address');
+  await mz.keyboard.type('https://example.com/notes'); await mz.keyboard.press('Enter'); await mz.waitForTimeout(400);
+  ok(/\[Hi\]\(https:\/\/example\.com\/notes\)/.test(await stored('draft')), 'the selected text becomes the link');
+  await mz.keyboard.press('Escape'); await mz.waitForTimeout(200);
+  // Undo: each of the four actions happens at once, says so, and its Undo puts back exactly what was there
+  const draft0 = await draft();
+  await mz.$eval('#tpl [data-tpl="launch"]', b => b.click()); await mz.waitForTimeout(300);
+  ok((await toastText()).includes('Replaced the canvas with Product launch') && await mz.$eval('#toast button', b => b.textContent) === 'Undo' && (await draft()) !== draft0, 'a template replaces the canvas at once and offers Undo');
+  await mz.click('#toast button');
+  ok((await draft()) === draft0, 'Undo after a template restores the blocks, name and subject exactly');
+  await mz.click('#btnNew'); await mz.waitForTimeout(200);
+  ok((await toastText()).includes('Started a new design') && await mz.$$eval('.cv-block', n => n.length) === 0 && await mz.inputValue('#subject') === '', 'New clears the canvas at once and offers Undo');
+  await mz.click('#lib .lib-item'); await mz.waitForTimeout(200);       // an edit made after New, before Undo
+  await mz.click('#toast button');
+  ok((await draft()) === draft0 && await mz.inputValue('#subject') === 'Spring issue', 'Undo after New restores exactly what was there, even after a later edit');
+  await mz.click('#btnNew'); await mz.waitForTimeout(200);
+  await mz.keyboard.press('Control+z');
+  ok((await draft()) === draft0, '⌘Z is the same Undo while the toast is up');
+  const designs0 = await stored('designs');
+  await mz.click('#savedList [data-rm]'); await mz.waitForTimeout(200);
+  ok((await toastText()).includes('Deleted “April letter”') && await stored('designs') === '[]', 'deleting a saved design happens at once and offers Undo');
+  await mz.click('#toast button');
+  ok(await stored('designs') === designs0 && await mz.$eval('#savedList', l => l.textContent.includes('April letter')), 'Undo puts the saved design back exactly');
+  await mz.click('#tabs button[data-t="brand"]');
+  const brands0 = await stored('brands'), sel0 = await mz.$eval('#brandSel', s => s.value);
+  await mz.click('#brandDel'); await mz.waitForTimeout(200);
+  ok((await toastText()).includes('Deleted brand “Pantry”') && JSON.parse(await stored('brands')).length === JSON.parse(brands0).length - 1, 'deleting a brand happens at once and offers Undo');
+  await mz.click('#toast button'); await mz.waitForTimeout(200);
+  ok(await stored('brands') === brands0 && await mz.$eval('#brandSel', s => s.value) === sel0, 'Undo puts the brand back exactly, selected again');
+  ok(mzDialogs.length === 0, 'none of it opened a native dialog (' + mzDialogs.slice(0, 1).join('').slice(0, 60) + ')');
+  ok(mzErrs.length === 0, 'ZestMail: no exceptions in the simplified flows (' + mzErrs.slice(0, 1).join('').slice(0, 80) + ')');
+  await zctx.close();
 
   console.log('== Zest MD: custom-skin import ==');
   const md = await ctx.newPage(); await block(md);

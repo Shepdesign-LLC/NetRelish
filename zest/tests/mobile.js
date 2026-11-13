@@ -36,6 +36,25 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   await ml.evaluate(() => localStorage.clear()); await ml.reload({ waitUntil: 'domcontentloaded' }); await ml.waitForTimeout(600);
   ok(await fits(ml), 'mail: no layout-viewport blowout (was 983px)');
   ok(await inVp(ml, '#btnExport'), 'mail: Export is on screen and tappable');
+  // the toolbar is two rows on a phone: the most-used controls stay out, the rest sit in one More menu, and nothing is lost
+  const barH = () => ml.evaluate(() => Math.round(document.querySelector('.bar').getBoundingClientRect().height));
+  ok(await barH() <= 104, `mail: the toolbar is at most two rows at 390 (${await barH()}px, was 207)`);
+  ok((await Promise.all(['#btnLib', '#modeSeg', '#viewSeg', '#btnUndo', '#btnPanel', '#btnExport', '#btnMore'].map(s => inVp(ml, s)))).every(Boolean), 'mail: library, mode, views, Undo, panel, Export and More stay on the toolbar');
+  await ml.tap('#btnMore'); await ml.waitForTimeout(250);
+  ok(await ml.evaluate(() => document.querySelector('#btnMore').getAttribute('aria-expanded') === 'true' && ['#btnSave', '#btnNew', '#btnSound', '#sizePill', '#lintPill'].every(s => { const b = document.querySelector(s), r = b.getBoundingClientRect(), at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return b.closest('#popMore') && r.width > 0 && at && (at === b || b.contains(at)); })), 'mail: More holds Save, New, Sound and the two status pills, each hit-testable');
+  ok(await ml.evaluate(() => document.querySelectorAll('#btnSave, #btnNew, #btnSound, #btnUndo, #btnExport, #btnPanel, #btnLib, #modeSeg button, #viewSeg button').length === 13), 'mail: every toolbar action is still there, once');
+  const pressed = () => ml.$eval('#btnSound', b => b.getAttribute('aria-pressed'));
+  const snd0 = await pressed(); await ml.tap('#btnSound'); const snd1 = await pressed(); await ml.tap('#btnSound');
+  ok(snd0 === 'true' && snd1 === 'false' && await pressed() === 'true' && await ml.evaluate(() => document.querySelector('#popMore').dataset.open === 'true'), 'mail: Sound still toggles from inside More, and the menu stays open for it');
+  await ml.tap('#btnMore'); await ml.waitForTimeout(200);
+  ok(await ml.evaluate(() => document.querySelector('#popMore').dataset.open === 'false' && document.querySelector('#btnMore').getAttribute('aria-expanded') === 'false'), 'mail: More closes again');
+  for (const w of [360, 480]) {
+    await ml.setViewportSize({ width: w, height: 844 }); await ml.waitForTimeout(350);
+    ok(await barH() <= 104 && await ml.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `mail: two rows and no overflow at ${w} too (${await barH()}px)`);
+  }
+  await ml.setViewportSize({ width: 600, height: 844 }); await ml.waitForTimeout(350);
+  ok(await ml.evaluate(() => !document.querySelector('#popMore').contains(document.querySelector('#btnSave')) && ['#btnSave', '#btnNew', '#btnSound', '#sizePill', '#lintPill'].every(s => document.querySelector(s).getBoundingClientRect().width > 0) && getComputedStyle(document.querySelector('#btnMore')).display === 'none'), 'mail: above 480 the same controls are back on the toolbar and More is gone');
+  await ml.setViewportSize({ width: 390, height: 844 }); await ml.waitForTimeout(350);
   await ml.tap('#btnLib'); await ml.waitForTimeout(250);
   ok(await ml.evaluate(() => document.querySelector('.pane.left').dataset.open === 'true'), 'mail: library drawer opens');
   await ml.tap('#tpl button'); await ml.waitForTimeout(450);
