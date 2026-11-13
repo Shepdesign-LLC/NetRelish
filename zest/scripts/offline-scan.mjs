@@ -4,12 +4,17 @@
 //   node scripts/offline-scan.mjs [dir] [--json report.json]      dir defaults to ../Resources/Zest
 //
 // Fails on:
-//   load    an http(s)/ws(s) URL in a load position: src=, srcset=, href= on link/script/img/iframe/image/use,
-//           url(), @import, fetch(, XMLHttpRequest open, new Worker, importScripts, EventSource, WebSocket,
-//           import(), sendBeacon, serviceWorker.register, .src/.href/setAttribute('src'|'href') = …
-//           No allowlist entry can excuse one of these.
-//   url     any other http(s)/ws(s) URL that offline-allowlist.json does not name. A URL kept in a table or
-//           a template and loaded later is still a load; this is how those are caught.
+//   load    a network address in a load position: src=, every srcset candidate, srcdoc, href= on
+//           link/script/img/iframe/image/use, url(), image-set(), @import, fetch(, XMLHttpRequest open,
+//           new Worker, importScripts, EventSource, WebSocket, import(), sendBeacon, serviceWorker.register,
+//           new URL(…, base), .src/.href/setAttribute('src'|'href') = … A network address is an http(s)/ws(s)
+//           URL, written plainly or JSON-escaped (https:\/\/…), or a protocol-relative //host (a network
+//           load on the web, a broken one under zest:// in the app). No allowlist entry can excuse a load.
+//   url     any other http(s)/ws(s) URL, or a scheme string joined to something ('https:' + '//…'), that
+//           offline-allowlist.json does not name. A URL kept in a table or a template and loaded later is
+//           still a load; this is how those are caught. No entry passes a URL whose path ends in a resource
+//           extension (.png, .js, .css, .woff2, …) unless it names that one exact URL; a protocol-relative
+//           <a href> fails here too.
 //   text    the words "pricing" or "Upgrade" in user-visible text: HTML text, the attributes people read
 //           (title, aria-label, placeholder, alt, value, content, label), href values, and string literals in
 //           scripts (App Store rule 3.1.1). vendor/ is library code and is not read for text.
@@ -28,7 +33,15 @@ const jsonOut = jsonAt >= 0 ? argv.splice(jsonAt, 2)[1] : null;
 if (argv.length > 1 || (jsonAt >= 0 && !jsonOut)) { console.error('usage: node scripts/offline-scan.mjs [dir] [--json report.json]'); process.exit(2); }
 const ROOT = path.resolve(argv[0] || path.join(HERE, '..', '..', 'Resources', 'Zest'));
 const ALLOW = JSON.parse(fs.readFileSync(path.join(HERE, 'offline-allowlist.json'), 'utf8'));
-const urlRules = ALLOW.urls.map(r => ({ ...r, re: new RegExp(r.match), fileRe: r.file ? new RegExp(r.file) : null }));
+// An entry may pass a resource URL (a path ending in .png, .js, …) only by naming that one URL exactly.
+const LITERAL = /^\^(?:\\.|[^\\.*+?()[\]{}|^$])*\$$/;
+const urlRules = ALLOW.urls.map(r => {
+  if (r.allowResourcePath && !LITERAL.test(r.match)) {
+    console.error(`offline-allowlist.json: allowResourcePath needs a match that names one exact URL (^…$, no wildcards): ${r.match}`);
+    process.exit(2);
+  }
+  return { ...r, re: new RegExp(r.match), fileRe: r.file ? new RegExp(r.file) : null };
+});
 const textRules = (ALLOW.text || []).map(r => ({ ...r, re: new RegExp(r.match), fileRe: r.file ? new RegExp(r.file) : null }));
 
 if (!fs.existsSync(ROOT)) { console.error(`offline-scan: ${ROOT} does not exist (run bash zest/build.sh --app)`); process.exit(2); }
@@ -50,10 +63,26 @@ function walk(dir, acc = []) {
 }
 
 // ---------- URLs ----------
-const URL_RE = /(?:https?|wss?):\/\/(?:\$\{|[^\s"'`<>()\\{}]+)/gi;
+// A URL as written in source: plain, or JSON-escaped (https:\/\/host\/path), as minifiers and
+// JSON.stringify'd code write it. Matched text is unescaped before it is judged.
+const URL_RE = /(?:https?|wss?):\\?\/\\?\/(?:\$\{|(?:\\\/|[^\s"'`<>()\\{}])+)/gi;
+// A protocol-relative address: //host.tld… not preceded by a scheme, a word or another slash.
+const PROTO_REL_RE = /(?<![\w:\/\\.-])\\?\/\\?\/(?:[A-Za-z0-9-]+\.)+[A-Za-z][A-Za-z0-9-]*(?::\d+)?(?:(?:\\\/|[\/?#])(?:\\\/|[^\s"'`<>()\\{}])*)?/g;
+// A scheme string joined to something else: 'https:' + '//host', "http://" + rest.
+const CONCAT_RE = /(["'`])((?:https?|wss?):(?:\\?\/){0,2})\1\s*\+/gi;
 const HOSTISH = /^(?:\$\{|[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+|localhost|\[[0-9a-f:]+\])/i;
+const RESOURCE_EXT = /\.(?:png|jpe?g|gif|webp|avif|svg|ico|css|js|mjs|json|wasm|woff2?|ttf|otf)$/i;
 const LOAD_ATTR = /(?:^|[\s"'])(src|srcset|poster|data|background|xlink:href|href|action|formaction|ping|manifest|icon)\s*=\s*\\?["']?$/i;
 const LOAD_TAGS = new Set(['link', 'script', 'img', 'iframe', 'frame', 'image', 'use', 'feimage', 'base', 'embed', 'object', 'source', 'track', 'input', 'video', 'audio', 'form', 'button', 'body', 'table', 'td', 'html']);
+// Elements an attribute can sit on. A name outside this set after `<` is code (i<n, a<b), not a tag.
+const HTML_TAGS = new Set([...LOAD_TAGS, ...(
+  'a abbr address area article aside b bdi bdo blockquote br canvas caption center cite code col colgroup data ' +
+  'datalist dd del details dfn dialog div dl dt em fieldset figcaption figure font footer h1 h2 h3 h4 h5 h6 head ' +
+  'header hgroup hr i ins kbd label legend li main map mark menu meta meter nav noscript ol optgroup option output ' +
+  'p param picture pre progress q rp rt ruby s samp section select slot small span strong style sub summary sup ' +
+  'tbody template textarea tfoot th thead time title tr u ul var wbr svg g path rect circle ellipse line polyline ' +
+  'polygon text tspan textpath defs symbol pattern mask clippath lineargradient radialgradient stop filter ' +
+  'foreignobject marker math').split(' ')]);
 const LOAD_JS = [
   [/\bfetch\s*\(\s*["'`]$/, 'fetch('],
   [/\bimportScripts\s*\(\s*["'`]$/, 'importScripts('],
@@ -63,6 +92,7 @@ const LOAD_JS = [
   [/\bnew\s+(?:Shared)?Worker\s*\(\s*["'`]$/, 'new Worker('],
   [/\bnew\s+EventSource\s*\(\s*["'`]$/, 'new EventSource('],
   [/\bnew\s+WebSocket\s*\(\s*["'`]$/, 'new WebSocket('],
+  [/\bnew\s+URL\s*\([^()]*,\s*["'`]$/, 'new URL(…, base)'],
   [/\.open\s*\(\s*["'`][A-Za-z]+["'`]\s*,\s*["'`]$/, 'XMLHttpRequest open'],
   [/\.(?:src|href|srcset|action|data|poster)\s*=\s*["'`]$/, '.src/.href ='],
   [/setAttribute(?:NS)?\s*\([^)]*["'](?:src|href|srcset|xlink:href|action|data|poster)["']\s*,\s*["'`]$/, 'setAttribute(src|href)'],
@@ -71,38 +101,70 @@ const LOAD_JS = [
   [/;\s*url=$/i, 'meta refresh'],
 ];
 
+// The element whose attribute list `off` sits in, or null. The text between `<name` and `off` must parse as
+// attributes (name, name=value, ${…}), so a JS variable `data = '…'` or `i<n; src = '…'` is not mistaken for one.
+const TAG_ATTRS = /^<([A-Za-z][\w:-]*)(?:\s+(?:\$\{[^}]*\}|[^\s"'<>=\/`]+(?:\s*=\s*(?:\\?"[^"]*?\\?"|\\?'[^']*?\\?'|\$\{[^}]*\}|[^\s"'<>=`]+))?))*\s+[^\s"'<>=\/`]+\s*=\s*\\?["']?$/;
 function enclosingTag(text, off) {
   const lt = text.lastIndexOf('<', off);
-  if (lt < 0 || text.lastIndexOf('>', off) > lt) return null;
-  const m = text.slice(lt, lt + 40).match(/^<([A-Za-z][\w:-]*)/);
-  return m ? m[1].toLowerCase() : null;
+  if (lt < 0 || off - lt > 4000 || text.lastIndexOf('>', off) > lt) return null;
+  const m = text.slice(lt, off).match(TAG_ATTRS);
+  return m && HTML_TAGS.has(m[1].toLowerCase()) ? m[1].toLowerCase() : null;
 }
 
+const SRCDOC_OPEN = /\bsrcdoc\s*=\s*\\?(["'])(?:(?!\1)[^])*$/i;
 function classify(text, off) {
   const before = text.slice(Math.max(0, off - 240), off);
   for (const [re, what] of LOAD_JS) if (re.test(before)) return { load: true, what };
+  if (/\bsrcset\s*=\s*\\?["'][^"'<>]*$/i.test(before)) return { load: true, what: 'srcset candidate' };
+  if (/image-set\(\s*[^;{}]*$/i.test(before)) return { load: true, what: 'image-set()' };
+  if (SRCDOC_OPEN.test(text.slice(Math.max(0, off - 20000), off))) return { load: true, what: 'inside srcdoc (a document the frame loads)' };
   const attr = before.match(LOAD_ATTR);
-  if (attr) {
+  const tag = attr && enclosingTag(text, off);
+  if (tag) {
     const name = attr[1].toLowerCase();
-    const tag = enclosingTag(text, off);
     if (name === 'href' || name === 'xlink:href') {
-      if (tag && LOAD_TAGS.has(tag)) return { load: true, what: `<${tag} ${name}>` };
-      return { load: false, what: tag ? `<${tag} href> link` : 'href' };
+      if (LOAD_TAGS.has(tag)) return { load: true, what: `<${tag} ${name}>` };
+      return { load: false, what: `<${tag} href> link` };
     }
-    return { load: true, what: tag ? `<${tag} ${name}>` : `${name}=` };
+    // src, srcset and ping load from any element; data, poster, background, action and the rest only on
+    // the elements that fetch them (object, video, body/table/td, form/button/input, html).
+    if (name === 'src' || name === 'srcset' || name === 'ping' || LOAD_TAGS.has(tag)) return { load: true, what: `<${tag} ${name}>` };
+    return { load: false, what: `<${tag} ${name}>` };
   }
   return { load: false, what: '' };
 }
 
+const resourcePath = url => {
+  try { return RESOURCE_EXT.test(new URL(url.replace(/^ws(s?):/i, 'http$1:')).pathname); }
+  catch { return RESOURCE_EXT.test(url.split(/[?#]/)[0]); }
+};
+const reported = new Set();   // "file@offset" of every load already failed, so two scanners never report one twice
+function judge(rel, text, off, url, key = url) {
+  const c = classify(text, off);
+  if (c.load) { reported.add(`${rel}@${off}`); add(failures, 'load', rel, text, off, url, c.what); return; }
+  const ok = urlRules.find(r => r.re.test(key) && (!r.fileRe || r.fileRe.test(rel)) && (r.allowResourcePath || !resourcePath(key)));
+  if (ok) return;
+  const why = resourcePath(key) ? 'a resource address kept as a value: no allowlist entry passes one unless it names it exactly'
+    : c.what || 'a URL kept as a value; loaded later, or not allowlisted';
+  add(failures, 'url', rel, text, off, url, why);
+}
+
 function scanUrls(rel, text) {
   for (const m of text.matchAll(URL_RE)) {
-    const url = m[0].replace(/[.:]+$/, '');
+    const url = m[0].replace(/\\\//g, '/').replace(/&(?:quot|apos|#34|#39);[^]*$/i, '').replace(/[.:]+$/, '');
     const host = url.replace(/^[a-z]+:\/\//i, '');
-    if (!HOSTISH.test(host)) continue;   // "https://…", "http://" + x: text, not an address
+    if (!HOSTISH.test(host)) continue;   // "https://…", a regex like /^http:\/\//: text, not an address
+    judge(rel, text, m.index, url);
+  }
+  for (const m of text.matchAll(PROTO_REL_RE)) {
     const c = classify(text, m.index);
-    if (c.load) { add(failures, 'load', rel, text, m.index, url, c.what); continue; }
-    const ok = urlRules.find(r => r.re.test(url) && (!r.fileRe || r.fileRe.test(rel)));
-    if (!ok) add(failures, 'url', rel, text, m.index, url, c.what || 'a URL kept as a value; loaded later, or not allowlisted');
+    if (!c.load) continue;   // //host outside a load position is a comment or prose
+    reported.add(`${rel}@${m.index}`);
+    add(failures, 'load', rel, text, m.index, m[0].replace(/\\\//g, '/'), `${c.what}, protocol-relative`);
+  }
+  for (const m of text.matchAll(CONCAT_RE)) {
+    const scheme = m[2].replace(/\\\//g, '/').replace(/:\/*$/, '').toLowerCase();
+    judge(rel, text, m.index + 1, `${m[1]}${m[2]}${m[1]} + …`, `${scheme}://+`);
   }
 }
 
@@ -204,9 +266,18 @@ function scanText(rel, text, ext) {
 // ---------- local references (warnings) ----------
 function scanLocalRefs(file, rel, text) {
   const html = mask(text, /<script\b[^>]*>[\s\S]*?<\/script>/gi);
-  for (const m of html.matchAll(/<(link|script|img|iframe|a)\b[^>]*?\s(?:src|href)=["']([^"'#?]+)[^"']*["']/gi)) {
-    const ref = m[2];
-    if (/^[a-z][a-z0-9+.-]*:/i.test(ref) || ref.startsWith('//') || ref.includes('${')) continue;
+  for (const m of html.matchAll(/<(link|script|img|iframe|a)\b[^>]*?\s(?:src|href)=(["'])([^"'#?]*)[^"']*\2/gi)) {
+    const ref = m[3];
+    const at = m[0].match(/\s(?:src|href)=["']/);
+    const off = m.index + at.index + at[0].length;   // where the value starts
+    if (ref.startsWith('//')) {   // protocol-relative: a network address on the web, a broken one in the app
+      if (!reported.has(`${rel}@${off}`)) {
+        const tag = m[1].toLowerCase();
+        add(failures, tag === 'a' ? 'url' : 'load', rel, text, off, ref, `<${tag}> protocol-relative: a network address on the web, broken under zest://`);
+      }
+      continue;
+    }
+    if (!ref || /^[a-z][a-z0-9+.-]*:/i.test(ref) || ref.includes('${')) continue;
     let target = path.resolve(path.dirname(file), ref);
     if (ref.endsWith('/')) target = path.join(target, 'index.html');
     if (!target.startsWith(ROOT + path.sep) && target !== ROOT) { add(warnings, 'ref', rel, text, m.index, ref, 'points outside the folder'); continue; }
