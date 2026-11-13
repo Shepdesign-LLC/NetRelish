@@ -371,11 +371,17 @@ struct SavedCopyView: View {
     @Bindable var workbench: Workbench
     @State private var archive: Data?
     @State private var missing = false
+    /// Whether the copy on disk is still the one that was sealed (ADR 0030).
+    @State private var integrity: SealIntegrity = .unchecked
 
     var body: some View {
         VStack(spacing: 0) {
             header
             Rectangle().fill(NRColor.hairline).frame(height: NRSpace.hairline)
+            if integrity == .broken, !missing {
+                brokenSeal
+                Rectangle().fill(NRColor.hairline).frame(height: NRSpace.hairline)
+            }
             if missing {
                 EmptyBench(message: "We can’t find the saved copy of this page on this Mac.",
                            actionTitle: item.url == nil ? nil : "Open Live Page",
@@ -391,8 +397,27 @@ struct SavedCopyView: View {
         .background(NRColor.surface)
         .onExitCommand { workbench.savedCopy = nil }
         .task {
-            if let data = workbench.snapshotData(for: item) { archive = data } else { missing = true }
+            guard let data = workbench.snapshotData(for: item) else { missing = true; return }
+            // Checked every time the copy is opened, against the fingerprint kept in the Pantry.
+            integrity = Provenance.integrity(of: data, against: workbench.provenance(of: item))
+            archive = data
         }
+    }
+
+    /// Shown instead of silence when the copy no longer matches its fingerprint. The copy is
+    /// still shown underneath: the point is that the change can be seen, not that it is hidden.
+    private var brokenSeal: some View {
+        HStack(spacing: NRSpace.sp2) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(NRColor.danger)
+            Text("This saved copy has changed since it was sealed. It no longer matches its fingerprint.")
+                .font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg)
+            Spacer()
+        }
+        .padding(.horizontal, NRSpace.sp4)
+        .padding(.vertical, NRSpace.sp2)
+        .background(NRColor.surface2)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("broken-seal")
     }
 
     private var header: some View {
@@ -418,7 +443,8 @@ struct SavedCopyView: View {
 
     private var subtitle: String {
         let sealed = item.sealedAt.map { "Saved copy, sealed \($0.formatted(date: .abbreviated, time: .shortened))" } ?? "Saved copy"
-        return [sealed, item.domain].compactMap { $0 }.joined(separator: " · ")
+        return [sealed, item.domain, integrity == .intact ? "Unchanged since sealed" : nil]
+            .compactMap { $0 }.joined(separator: " · ")
     }
 }
 

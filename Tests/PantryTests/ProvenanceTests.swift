@@ -130,6 +130,20 @@ private struct AuthorityDown: Error {}
         #expect(Provenance(fingerprint: Fixture.fingerprint).digest.count == 32)
     }
 
+    @Test("A saved copy that has changed since it was sealed is told apart from one that hasn't")
+    func integrity() {
+        let recorded = Provenance(fingerprint: Fixture.fingerprint)
+        #expect(Provenance.integrity(of: Fixture.archive, against: recorded) == .intact)
+
+        var edited = Fixture.archive
+        edited[edited.startIndex] ^= 0x01                      // one bit of the page
+        #expect(Provenance.integrity(of: edited, against: recorded) == .broken)
+        #expect(Provenance.integrity(of: Fixture.archive + Data([0]), against: recorded) == .broken)
+        #expect(Provenance.integrity(of: Data(), against: recorded) == .broken)
+
+        #expect(Provenance.integrity(of: Fixture.archive, against: nil) == .unchecked)   // not fingerprinted yet
+    }
+
     @Test("Without an authority a sealed page is fingerprinted, and nothing else is asked")
     func fingerprintOnly() async throws {
         let store = try PantryStore(inMemory: ())

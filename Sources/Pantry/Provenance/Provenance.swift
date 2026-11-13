@@ -61,6 +61,26 @@ public struct Provenance: Sendable, Equatable {
     }
 }
 
+/// Whether a saved copy is still the page that was sealed. A sealed page is tamper-evident:
+/// its fingerprint is kept apart from the copy, so a copy that has changed since can be told.
+public enum SealIntegrity: String, Sendable, Equatable {
+    /// The saved copy's bytes still match its fingerprint.
+    case intact
+    /// They don't: the copy was changed, replaced or damaged after it was fingerprinted.
+    case broken
+    /// There is no fingerprint to check against yet.
+    case unchecked
+}
+
+extension Provenance {
+    /// Checks a saved copy against the provenance recorded for it. Nothing is repaired or
+    /// rewritten: a broken seal stays broken, and stays visible.
+    public static func integrity(of archive: Data, against recorded: Provenance?) -> SealIntegrity {
+        guard let recorded else { return .unchecked }
+        return fingerprint(of: archive) == recorded.fingerprint ? .intact : .broken
+    }
+}
+
 extension Item {
     /// The key inside `Item.meta` that holds provenance. Other keys in `meta` are left alone.
     public static let provenanceMetaKey = "provenance"
