@@ -17,7 +17,7 @@ sources:
   - code: Tests/NetRelishTests/Zest/ZestFilesTests.swift
   - code: Tests/NetRelishTests/Zest/ZestHostTests.swift
   - code: Tests/Fixtures/zest-fixture.html
-verified_at: eea2423
+verified_at: 1d9a0c4
 ---
 
 # The Zest window
