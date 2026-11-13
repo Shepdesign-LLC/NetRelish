@@ -39,7 +39,9 @@ DEFAULT_EXCLUDE_DIRS = [
 
 # Extensions treated as code citations. Kept wide because it varies by project;
 # non-existent paths are filtered out later.
-CODE_EXT = r"py|ts|tsx|js|jsx|go|rs|java|kt|rb|php|sh|sql|yml|yaml|toml|json|html|css|service|ini|mako"
+# NetRelish: `swift` added. Without it a citation like `Sources/App/Workbench.swift:653` never
+# matched, so the missing-file and past-end-of-file checks skipped the app's own language.
+CODE_EXT = r"swift|py|ts|tsx|js|jsx|go|rs|java|kt|rb|php|sh|sql|yml|yaml|toml|json|html|css|service|ini|mako"
 
 
 def strip_code(text: str) -> str:

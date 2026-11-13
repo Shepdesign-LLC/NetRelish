@@ -206,6 +206,38 @@ import Testing
         #expect(otherWindow.view(for: moved) === after)      // and it keeps the new one
     }
 
+    @Test("A page still open on the jar a tab left can't write its address onto the tab")
+    func aPageLeftBehindCannotRenameTheTab() throws {
+        let bench = try bench()
+        bench.newJar(name: "Birch", tint: nil, shelfLifeDays: 3)
+        bench.newJar(name: "Ash", tint: nil, shelfLifeDays: 3)
+        let tab = try #require(bench.newTab(url: "https://a.example/"))
+        let kept = try #require(bench.newTab(url: "https://kept.example/"))
+        let ash = try jar("Ash", in: bench)
+        let birch = try jar("Birch", in: bench)
+        let otherWindow = BenchWebViews()
+        _ = otherWindow.view(for: tab)
+        let keptView = otherWindow.view(for: kept)
+
+        bench.moveTab(tab, toJar: birch.id)
+        bench.activate(birch)
+
+        // The old page, still on Ash's store in the other window, navigates.
+        bench.tabDidNavigate(tab.id, fromJar: ash.id, url: URL(string: "https://a.example/account"), title: "Account")
+        let untouched = try stored(tab, in: bench)
+        #expect(untouched.url == "https://a.example/")
+
+        // The tab's own page in Birch is believed.
+        bench.tabDidNavigate(tab.id, fromJar: birch.id, url: URL(string: "https://a.example/next"), title: "Next")
+        let navigated = try stored(tab, in: bench)
+        #expect(navigated.url == "https://a.example/next")
+
+        // And the other window lets the old page go, without touching a tab that stayed put.
+        otherWindow.forgetMoved(bench.allTabs)
+        #expect(otherWindow.existing(for: tab.id) == nil)
+        #expect(otherWindow.existing(for: kept.id) === keptView)
+    }
+
     @Test("A Seal that finishes after its tab moved to another jar leaves the tab where it was put")
     func aSealDoesNotCloseAMovedTab() async throws {
         let bench = try bench()

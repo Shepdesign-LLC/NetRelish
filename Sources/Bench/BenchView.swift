@@ -60,6 +60,16 @@ final class BenchWebViews {
         byTab[tabId] = v
     }
 
+    /// Lets go of web views whose tab now lives in another jar. Every window runs this for
+    /// its own web views when the open tabs change, because only one window hears
+    /// `onTabsGone`; otherwise the page would stay open, signed in, on the jar the tab left.
+    func forgetMoved(_ tabs: [Tab]) {
+        let jarOf = Dictionary(tabs.map { ($0.id, $0.jarId ?? "brine") }, uniquingKeysWith: { first, _ in first })
+        for (tabId, view) in byTab {
+            if let jar = jarOf[tabId], jar != view.jarId { byTab[tabId] = nil }
+        }
+    }
+
     func existing(for tabId: String) -> JarWebView? { byTab[tabId] }
     func forget(_ tabId: String) { byTab[tabId] = nil }
 }
@@ -72,6 +82,7 @@ struct BenchView: View {
     var body: some View {
         ZStack { content }
             .onAppear { wire() }
+            .onChange(of: workbench.allTabs) { _, tabs in webViews.forgetMoved(tabs) }
     }
 
     @ViewBuilder private var content: some View {
@@ -166,7 +177,10 @@ struct TabPane: View {
         }
         .onAppear {
             address = web.url?.absoluteString ?? tab.url ?? ""
-            web.onNavigation = { [workbench] url, title in workbench.tabDidNavigate(tab.id, url: url, title: title) }
+            let jarId = web.jarId      // the view's own jar, so a page left behind by a move is told apart
+            web.onNavigation = { [workbench] url, title in
+                workbench.tabDidNavigate(tab.id, fromJar: jarId, url: url, title: title)
+            }
             if web.url == nil, tab.url == nil, !web.openedByPage { addressFocused = true }
         }
         .onChange(of: web.url) { _, new in if !addressFocused { address = new?.absoluteString ?? "" } }

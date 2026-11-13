@@ -815,7 +815,12 @@ final class Workbench {
     }
 
     /// Navigation happened in a tab: remember where it is and that it was just used.
-    func tabDidNavigate(_ tabId: String, url: URL?, title: String) {
+    ///
+    /// `fromJar` is the jar of the web view reporting. Every window keeps its own web views,
+    /// so a page can still be open on the store of a jar its tab has left; what that page
+    /// does must never be written onto the tab (non-negotiable 6).
+    func tabDidNavigate(_ tabId: String, fromJar jarId: String? = nil, url: URL?, title: String) {
+        if let jarId, let known = allTabs.first(where: { $0.id == tabId }), known.jarId != jarId { return }
         // A new page in the tab leaves Reader view; a late title for the same page doesn't.
         if let reader, reader.tabId == tabId, reader.url != url?.absoluteString { self.reader = nil }
         guard var tab = tabs.first(where: { $0.id == tabId }) else { return }
