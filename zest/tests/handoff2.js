@@ -383,7 +383,7 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   ok(await cssVar(md, '--paper') === '#f2f3f5' && await cssVar(md, '--doc-size') === '17px' && await cssVar(md, '--measure') === '70ch' && await cssVar(md, '--radius') === '8px', 'settings the app could not have saved fall back to the defaults');
   await md.evaluate(() => { const dt = new DataTransfer(); dt.items.add(new File(['# Export\n\ntext\n'], 'export.md', { type: 'text/markdown' })); document.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true })); });
   await md.waitForTimeout(500);
-  const htmlDl = md.waitForEvent('download'); await md.$eval('#popExport [data-do="html"]', b => b.click());
+  const htmlDl = md.waitForEvent('download'); await md.click('#btnExport');
   const exportedHead = fs.readFileSync(await (await htmlDl).path(), 'utf8').split('<article')[0];
   ok(exportedHead.includes('--doc-size:17px;--doc-lh:1.65;--measure:70ch') && !/onerror|<img/i.test(exportedHead), 'the exported file is styled with the checked values only');
   await md.evaluate(x => { const s = JSON.parse(localStorage.getItem('mdpress:settings')); s.theme = 'light' + x; s.skin = 'constructor'; localStorage.setItem('mdpress:settings', JSON.stringify(s)); }, X);
@@ -434,22 +434,21 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   await dropMd('drop.md', '# Dropped\n\ntext\n'); await bar.waitForTimeout(400);
   ok(await tabCount() === 2 && await bar.$eval('#doc h1', h => h.textContent.startsWith('Dropped')), 'empty state: its Paste button works, and a dropped file opens in either state');
 
-  // Export: one click on the main part is the Ctrl/⌘ S export; the caret part opens the same five-item menu
+  // Export: one click on the main part is the Ctrl/⌘ S export; the caret part holds the other four exports, and does not repeat it
   const grab = async act => { const d = bar.waitForEvent('download'); await act(); const got = await d; return { name: got.suggestedFilename(), body: fs.readFileSync(await got.path(), 'utf8') }; };
   const byClick = await grab(() => bar.click('#btnExport'));
   ok(await bar.$eval('#popExport', p => p.dataset.open !== 'true') && byClick.name === 'drop.html' && /<h1[^>]*>Dropped<\/h1>/.test(byClick.body), 'Export exports in one click, with no menu in between');
   const byKey = await grab(() => bar.keyboard.press('Control+s'));
-  const byMenu = await grab(async () => { await bar.click('#btnExportMenu'); await bar.click('#popExport [data-do="html"]'); });
-  ok(byClick.name === byKey.name && byClick.body === byKey.body && byClick.body === byMenu.body, 'the one-click export is the same file Ctrl/⌘ S and the menu item make');
+  ok(byClick.name === byKey.name && byClick.body === byKey.body, 'the one-click export is the same file Ctrl/⌘ S makes');
   const names = await bar.$$eval('#btnExport, #btnExportMenu', b => b.map(e => (e.getAttribute('aria-label') || e.textContent).trim()));
   ok(names.length === 2 && names.every(Boolean) && names[0] !== names[1], `the two parts have their own names (${names.join(' / ')})`);
   await bar.focus('#btnExportMenu'); await bar.keyboard.press('Enter');
   ok(await bar.$eval('#btnExportMenu', b => b.getAttribute('aria-expanded')) === 'true' && await shown(bar, '#popExport [data-do]')
-    && (await bar.$$eval('#popExport [data-do]', b => b.map(e => e.dataset.do).join())) === 'html,copyhtml,pdf,md,copymd', 'the caret opens the menu by keyboard, with all five exports');
+    && (await bar.$$eval('#popExport [data-do]', b => b.map(e => e.dataset.do).join())) === 'copyhtml,pdf,md,copymd', 'the caret opens the menu by keyboard, with the four other exports and no second HTML download');
   await bar.keyboard.press('Tab');
   const firstItem = await bar.evaluate(() => document.activeElement.dataset.do);
   await bar.keyboard.press('Escape');
-  ok(firstItem === 'html' && await gone(bar, '#popExport [data-do]') && await bar.evaluate(() => document.activeElement.id === 'btnExportMenu' && document.activeElement.getAttribute('aria-expanded') === 'false'), 'Tab reaches the menu, Escape closes it and hands focus back to the caret');
+  ok(firstItem === 'copyhtml' && await gone(bar, '#popExport [data-do]') && await bar.evaluate(() => document.activeElement.id === 'btnExportMenu' && document.activeElement.getAttribute('aria-expanded') === 'false'), 'Tab reaches the menu, Escape closes it and hands focus back to the caret');
 
   // Reader settings: the everyday controls on top, the rest behind one disclosure, Markdown handling in its own group
   await bar.click('#btnRead');

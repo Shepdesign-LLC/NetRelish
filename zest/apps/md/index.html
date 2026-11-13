@@ -379,7 +379,6 @@ button{cursor:pointer; background:none; border:0; padding:0}
     <!-- export menu -->
     <div class="pop" id="popExport">
       <div class="menu">
-        <button data-do="html">Download self-contained HTML <small>⌘S</small></button>
         <button data-do="copyhtml">Copy HTML fragment</button>
         <button data-do="pdf">Print / save as PDF <small>⌘P</small></button>
         <hr>
@@ -1101,7 +1100,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   }
   $('#btnRead').addEventListener('click', e => { e.stopPropagation(); togglePop('#popRead'); });
   $('#btnExportMenu').addEventListener('click', e => { e.stopPropagation(); togglePop('#popExport'); });
-  $('#btnExport').addEventListener('click', () => exportHtml());   // one click: the same export as Ctrl/⌘ S; the menu behind the caret holds all five
+  $('#btnExport').addEventListener('click', () => exportHtml());   // one click: the same export as Ctrl/⌘ S; the menu behind the caret holds the other four
   document.addEventListener('click', e => { if (!e.target.closest('.pop')) closePops(); });
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
@@ -1163,7 +1162,6 @@ ${copyScript}
     closePops(true);
     if (!f) { toast('Open a file first', 'nope'); return; }
     switch (b.dataset.do) {
-      case 'html': exportHtml(); break;
       case 'copyhtml': { const c = doc.cloneNode(true); $$('.anchor', c).forEach(a => a.remove()); copy(c.innerHTML.trim(), 'HTML copied'); break; }
       case 'pdf': window.print(); break;
       case 'md': download(f.name.replace(/\.(markdown|mdx|txt)$/i, '.md'), state.settings.cleanLLM ? cleanLLM(f.text) : f.text, 'text/markdown'); toast('Markdown exported'); break;
