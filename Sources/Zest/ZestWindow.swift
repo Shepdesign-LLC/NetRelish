@@ -74,7 +74,7 @@ struct ZestWindow: View {
     let workbench: Workbench
     @State private var model = ZestWindowModel()
     @Environment(\.openWindow) private var openWindow
-    private let rules = ZestRules.shared
+    private var rules: ZestRules { .shared }
 
     var body: some View {
         content

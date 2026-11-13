@@ -430,9 +430,10 @@ private func emptyRoot() throws -> URL {
 
         // The same page with no policy header (markup loaded straight in, on the zest origin):
         // only the rule list stands between it and the web.
-        web.loadHTMLString("<html><head><title>zest fixture</title></head><body></body></html>",
+        web.loadHTMLString("<html><head><title>zest unguarded</title></head><body></body></html>",
                            baseURL: URL(string: "zest://app/"))
-        for _ in 0..<100 where web.isLoading { try await Task.sleep(for: .milliseconds(50)) }
+        for _ in 0..<100 where web.title != "zest unguarded" { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(web.title == "zest unguarded")
         let unguarded = try await web.callAsyncJavaScript(attempt, in: nil, contentWorld: .page)
         #expect(unguarded as? String == "blocked")
         window.orderOut(nil)
