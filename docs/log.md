@@ -25,3 +25,8 @@ Append-only. Newest entries at the bottom.
 ## [2026-11-13] zest-sound added
 
 - `subsystems/zest-sound.md`, written with the commit that added the kit (`27b385f`)
+
+## [2026-11-13] rearranging re-checked
+
+- Against `5a2b9a6` (Seal and a moved tab; Close Other Tabs in one write). One trap added:
+  after an await, check the tab's jar again. Line citations moved with the code
