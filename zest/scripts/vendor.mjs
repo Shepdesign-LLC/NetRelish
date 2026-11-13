@@ -7,6 +7,10 @@
 //                                              and the files on disk; then the checks below
 //   node scripts/vendor.mjs --check --offline  no network: the files on disk against the lock; then the checks below
 //
+// Both check modes also check the copy the app ships: every file under Resources/Zest/vendor/ against the
+// lock's SHA-256 (nothing missing, nothing extra), and Resources/Zest/NOTICE byte for byte against the root
+// NOTICE. They do not check the tools' HTML in Resources/Zest against apps/; CI's rebuild-and-diff does.
+//
 // Both check modes also fail when Zest MD's DOMPurify <script> tag names a different version than the lock
 // (or names none), when an integrity hash in apps/md/index.html is not the sha384 of the vendored file it
 // stands for, when zest/tests pins a different DOMPurify than the lock, and when the root NOTICE does not
@@ -22,6 +26,7 @@ import { fileURLToPath } from 'node:url';
 const ZEST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const VENDOR = path.join(ZEST, 'vendor');
 const LOCK = path.join(VENDOR, 'VENDOR.lock.json');
+const BUNDLE = path.join(ZEST, '..', 'Resources', 'Zest');   // the copy NetRelish.app ships (build.sh --app)
 const CONFIG = JSON.parse(fs.readFileSync(path.join(ZEST, 'scripts', 'vendor.config.json'), 'utf8'));
 const REGISTRY = 'https://registry.npmjs.org';
 
@@ -218,16 +223,29 @@ function walk(dir, base = dir, acc = []) {
   return acc;
 }
 
-function checkDiskAgainstLock(lock) {
+// The files under `dir` against the lock: same set of paths, same SHA-256. `label` names the folder in messages.
+function checkDiskAgainstLock(lock, dir = VENDOR, label = 'vendor') {
   const listed = new Map(lock.files.map(f => [f.path, f]));
-  const onDisk = walk(VENDOR).filter(p => p !== 'VENDOR.lock.json');
+  const onDisk = walk(dir).filter(p => !(dir === VENDOR && p === 'VENDOR.lock.json'));
   for (const p of onDisk) {
     const rec = listed.get(p);
-    if (!rec) { fail(`vendor/${p} is on disk but not in VENDOR.lock.json`); continue; }
-    const got = sha256(fs.readFileSync(path.join(VENDOR, p)));
-    if (got !== rec.sha256) fail(`vendor/${p}: SHA-256 ${got} on disk, ${rec.sha256} in the lock`);
+    if (!rec) { fail(`${label}/${p} is on disk but not in VENDOR.lock.json`); continue; }
+    const got = sha256(fs.readFileSync(path.join(dir, p)));
+    if (got !== rec.sha256) fail(`${label}/${p}: SHA-256 ${got} on disk, ${rec.sha256} in the lock`);
   }
-  for (const p of listed.keys()) if (!onDisk.includes(p)) fail(`vendor/${p} is in VENDOR.lock.json but missing on disk`);
+  const have = new Set(onDisk);
+  for (const p of listed.keys()) if (!have.has(p)) fail(`${label}/${p} is in VENDOR.lock.json but missing on disk`);
+}
+
+// The copy the app ships: its vendor/ against the lock, its NOTICE against the root NOTICE.
+function checkBundle(lock) {
+  const label = 'Resources/Zest';
+  if (!fs.existsSync(path.join(BUNDLE, 'index.html'))) { fail(`${label} is missing: run bash zest/build.sh --app`); return; }
+  checkDiskAgainstLock(lock, path.join(BUNDLE, 'vendor'), `${label}/vendor`);
+  const notice = path.join(ZEST, '..', 'NOTICE');
+  const shipped = path.join(BUNDLE, 'NOTICE');
+  if (!fs.existsSync(shipped)) fail(`${label}/NOTICE is missing: run bash zest/build.sh --app`);
+  else if (fs.existsSync(notice) && !fs.readFileSync(shipped).equals(fs.readFileSync(notice))) fail(`${label}/NOTICE differs from the root NOTICE: run bash zest/build.sh --app`);
 }
 
 // Zest MD's tags name the files the app vendors: same versions, same bytes (by their sha384).
@@ -316,9 +334,10 @@ try {
         if (!problems.length) fail('VENDOR.lock.json differs from a fresh build (formatting or metadata): run node scripts/vendor.mjs');
       }
     }
+    checkBundle(lock);
     checkMdTags(lock);
     checkNotice(lock);
-    if (!problems.length) console.log(`vendor check: ${lock.files.length} files match VENDOR.lock.json${OFFLINE ? ' (offline: disk against the lock)' : ' and npm'}; Zest MD's tags name the vendored versions`);
+    if (!problems.length) console.log(`vendor check: ${lock.files.length} files in vendor/ and Resources/Zest/vendor/ match VENDOR.lock.json${OFFLINE ? ' (offline: disk against the lock)' : ' and npm'}; Resources/Zest/NOTICE is the root NOTICE; Zest MD's tags name the vendored versions`);
   }
 } catch (e) {
   if (e) fail(e.message || String(e));

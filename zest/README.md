@@ -75,8 +75,8 @@ committed at the repo root:
 
 ```
 cd zest
-node scripts/vendor.mjs --check     # vendor/ matches its lock and npm
-bash build.sh --app                 # writes ../Resources/Zest
+bash build.sh --app                 # writes ../Resources/Zest (ZEST_APP_OUT=<dir> to build elsewhere)
+node scripts/vendor.mjs --check     # vendor/ and Resources/Zest/vendor/ match the lock and npm
 node scripts/offline-scan.mjs       # gate 1: no network address in a load position, no pricing or Upgrade
 cd tests && ZEST_CHROMIUM=… node offline.js   # gate 2: each tool with every outside request blocked
 ```
@@ -85,8 +85,10 @@ cd tests && ZEST_CHROMIUM=… node offline.js   # gate 2: each tool with every o
   tools at `mail/`, `md/` and `image/`, `vendor/` and the root `NOTICE`. It
   leaves out the store, pricing, `api/`, and every file only the web uses:
   `manifest.webmanifest`, `sw.js`, `zest.json`, `vercel.json`, READMEs,
-  `package.json`, and the icon sizes only the install manifest names. Same
-  input, same bytes. Never edit `Resources/Zest` by hand; rebuild it and
+  `package.json`, and the icon sizes only the install manifest names. It
+  copies only the files git tracks, so a `.DS_Store` or a scratch file in
+  `apps/` never reaches the app (a new file must be `git add`ed before it
+  ships). Same input, same bytes. Never edit `Resources/Zest` by hand; rebuild it and
   commit it with the change that caused it. `bash build.sh` with no argument
   still builds `dist/` for the web, unchanged.
 - **Not in the app target yet.** `project.yml` excludes `Resources/Zest` from
@@ -99,15 +101,22 @@ cd tests && ZEST_CHROMIUM=… node offline.js   # gate 2: each tool with every o
   `fonts/fonts.json`. To bump one, change `scripts/vendor.config.json`, run
   `node scripts/vendor.mjs`, update the tag or hash in `apps/md/index.html`
   (and `tests/package.json` for DOMPurify), update `NOTICE`, rebuild with
-  `--app`, and commit all of it. `--check` fails if any of those disagree.
+  `--app`, and commit all of it. `--check` fails if `vendor/`, the lock and
+  npm disagree, if `Resources/Zest/vendor/` differs from the lock, if
+  `Resources/Zest/NOTICE` differs from `NOTICE`, if `NOTICE` misses a
+  release, or if Zest MD's tag, hashes or the tests' DOMPurify pin disagree
+  with the lock. It does not compare the tools' HTML in `Resources/Zest` with
+  `apps/`; CI does that by rebuilding into a temp folder and diffing.
 - **Size.** 6.82 MB today: Mermaid 3.41 MB, fonts 2.00 MB, KaTeX 0.54 MB,
   the four tools with NOTICE 0.84 MB. Proposed budget: 8 MB, in
   `scripts/offline-allowlist.json`; the scan fails above it.
 - **The gates fail today, by design.** The tools still load Google Fonts and
   cdnjs, and the studio and ZestImage still link to pricing. Switching them to
-  `vendor/` in the app is the next phase. Until then CI runs the gates in the
-  `app-bundle` job of `.github/workflows/zest-tests.yml` without failing the
-  PR; `ZEST_OFFLINE_ENFORCE: 'true'` there makes them block.
+  `vendor/` in the app is the next phase. CI's `app-bundle` job in
+  `.github/workflows/zest-tests.yml` reads the committed `Resources/Zest`
+  (never a rebuild of it): the vendor check blocks the PR now; the two gates
+  and the rebuild-and-diff report without blocking until
+  `ZEST_OFFLINE_ENFORCE: 'true'` there.
 
 ## Sound
 
