@@ -26,6 +26,9 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   await st.tap('.jump a[href="#exportsec"]'); await st.waitForTimeout(400);
   ok(await st.evaluate(() => { const s = document.querySelector('#exportsec').getBoundingClientRect(); const j = document.querySelector('.jump').getBoundingClientRect(); return s.top >= j.bottom - 2 && s.top < innerHeight; }), 'studio: jump targets land below the sticky bar, not under it');
   ok(await st.evaluate(() => getComputedStyle(document.querySelector('#pv')).pointerEvents === 'none'), 'studio: the preview no longer swallows touch pans');
+  ok(await st.evaluate(() => [...document.querySelectorAll('details.fold > summary')].every(s => s.getBoundingClientRect().height >= 36)), 'studio: every fold has a 36px tap target');
+  await st.tap('#sendFold > summary'); await st.waitForTimeout(300);
+  ok(await st.$eval('#sendFold', d => d.open) && await inVp(st, '[data-send="md"]') && await fits(st), 'studio: a fold opens by tap, its buttons on screen, still no blowout');
   await st.close();
 
   console.log('== mail at 390 ==');
@@ -33,6 +36,25 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   await ml.evaluate(() => localStorage.clear()); await ml.reload({ waitUntil: 'domcontentloaded' }); await ml.waitForTimeout(600);
   ok(await fits(ml), 'mail: no layout-viewport blowout (was 983px)');
   ok(await inVp(ml, '#btnExport'), 'mail: Export is on screen and tappable');
+  // the toolbar is two rows on a phone: the most-used controls stay out, the rest sit in one More menu, and nothing is lost
+  const barH = () => ml.evaluate(() => Math.round(document.querySelector('.bar').getBoundingClientRect().height));
+  ok(await barH() <= 104, `mail: the toolbar is at most two rows at 390 (${await barH()}px, was 207)`);
+  ok((await Promise.all(['#btnLib', '#modeSeg', '#viewSeg', '#btnUndo', '#btnPanel', '#btnExport', '#btnMore'].map(s => inVp(ml, s)))).every(Boolean), 'mail: library, mode, views, Undo, panel, Export and More stay on the toolbar');
+  await ml.tap('#btnMore'); await ml.waitForTimeout(250);
+  ok(await ml.evaluate(() => document.querySelector('#btnMore').getAttribute('aria-expanded') === 'true' && ['#btnSave', '#btnNew', '#btnSound', '#sizePill', '#lintPill'].every(s => { const b = document.querySelector(s), r = b.getBoundingClientRect(), at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return b.closest('#popMore') && r.width > 0 && at && (at === b || b.contains(at)); })), 'mail: More holds Save, New, Sound and the two status pills, each hit-testable');
+  ok(await ml.evaluate(() => document.querySelectorAll('#btnSave, #btnNew, #btnSound, #btnUndo, #btnExport, #btnPanel, #btnLib, #modeSeg button, #viewSeg button').length === 13), 'mail: every toolbar action is still there, once');
+  const pressed = () => ml.$eval('#btnSound', b => b.getAttribute('aria-pressed'));
+  const snd0 = await pressed(); await ml.tap('#btnSound'); const snd1 = await pressed(); await ml.tap('#btnSound');
+  ok(snd0 === 'true' && snd1 === 'false' && await pressed() === 'true' && await ml.evaluate(() => document.querySelector('#popMore').dataset.open === 'true'), 'mail: Sound still toggles from inside More, and the menu stays open for it');
+  await ml.tap('#btnMore'); await ml.waitForTimeout(200);
+  ok(await ml.evaluate(() => document.querySelector('#popMore').dataset.open === 'false' && document.querySelector('#btnMore').getAttribute('aria-expanded') === 'false'), 'mail: More closes again');
+  for (const w of [360, 480]) {
+    await ml.setViewportSize({ width: w, height: 844 }); await ml.waitForTimeout(350);
+    ok(await barH() <= 104 && await ml.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `mail: two rows and no overflow at ${w} too (${await barH()}px)`);
+  }
+  await ml.setViewportSize({ width: 600, height: 844 }); await ml.waitForTimeout(350);
+  ok(await ml.evaluate(() => !document.querySelector('#popMore').contains(document.querySelector('#btnSave')) && ['#btnSave', '#btnNew', '#btnSound', '#sizePill', '#lintPill'].every(s => document.querySelector(s).getBoundingClientRect().width > 0) && getComputedStyle(document.querySelector('#btnMore')).display === 'none'), 'mail: above 480 the same controls are back on the toolbar and More is gone');
+  await ml.setViewportSize({ width: 390, height: 844 }); await ml.waitForTimeout(350);
   await ml.tap('#btnLib'); await ml.waitForTimeout(250);
   ok(await ml.evaluate(() => document.querySelector('.pane.left').dataset.open === 'true'), 'mail: library drawer opens');
   await ml.tap('#tpl button'); await ml.waitForTimeout(450);
@@ -60,14 +82,19 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   console.log('== md at 390 ==');
   const md = await page('http://localhost:8774/');
   ok(await fits(md), 'md: empty state fits (was 501px)');
+  // the empty state carries Open and Paste, so the bar hides its own pair — except while the phone editor covers the empty state
+  const barPairHidden = await md.evaluate(() => document.querySelector('#btnOpen').hidden && document.querySelector('#btnPaste').hidden);
+  await md.tap('#btnEdit'); await md.waitForTimeout(300);
+  ok(barPairHidden && await inVp(md, '#btnOpen') && await inVp(md, '#btnPaste') && await fits(md), 'md: Open and Paste stay reachable when the editor covers the empty state');
+  await md.tap('#btnEdit'); await md.waitForTimeout(300);
   await md.tap('[data-act="sample"]'); await md.waitForTimeout(700);
   ok(await fits(md), 'md: document view fits (was 646px)');
-  ok(await inVp(md, '#btnExport'), 'md: Export is reachable');
+  ok(await inVp(md, '#btnExport') && await inVp(md, '#btnExportMenu'), 'md: Export is reachable, and so is its menu');
   await md.tap('#btnToc'); await md.waitForTimeout(350);
   ok(await md.evaluate(() => { const t = document.querySelector('.toc').getBoundingClientRect(); return t.left === 0 && t.width > 100; }), 'md: Contents opens as a drawer (was a silent no-op)');
   await md.tap('#toc a'); await md.waitForTimeout(400);
   ok(await md.evaluate(() => document.querySelector('#work').dataset.toc === 'false'), 'md: the drawer closes on selection');
-  await md.tap('#btnExport'); await md.waitForTimeout(250);
+  await md.tap('#btnExportMenu'); await md.waitForTimeout(250);
   ok(await md.evaluate(() => { const p = document.querySelector('#popExport').getBoundingClientRect(); return p.left >= 0 && p.right <= window.innerWidth && p.width > 200; }), 'md: export menu fits the viewport');
   ok(await md.evaluate(() => { const p = document.querySelector('#popExport').getBoundingClientRect(); const b = document.querySelector('.bar').getBoundingClientRect(); return p.top >= b.bottom; }), 'md: the menu anchors below the grown bar (bar-h stays live)');
   await md.tap('body', { position: { x: 10, y: 700 } }).catch(() => {});
@@ -85,6 +112,10 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   ok(await im.evaluate(() => { const f = document.querySelector('#frame').getBoundingClientRect(); return f.bottom > 0 && f.top < innerHeight; }), 'image: docked preview stays visible while typing');
   ok(await im.evaluate(() => document.querySelector('#stageSvg svg').textContent.includes('Mobile')), 'image: typing updates the visible stage');
   ok(await im.evaluate(() => getComputedStyle(document.querySelector('#cTitle')).fontSize === '16px'), 'image: inputs at 16px (no iOS focus-zoom)');
+  await im.evaluate(() => document.querySelector('.sec.exportsec').scrollIntoView({ block: 'center' })); await im.waitForTimeout(300);
+  await im.tap('#exMenu summary'); await im.waitForTimeout(250);
+  ok(await im.evaluate(() => document.querySelector('#exMenu').open && ['#bAlt', '#bManifest', '#bOg'].every(s => { const r = document.querySelector(s).getBoundingClientRect(); return r.height >= 44 && r.left >= 0 && r.right <= innerWidth; })) && await fits(im), 'image: More opens by tap; its three items are full-size targets inside the screen');
+  ok(await im.evaluate(() => [...document.querySelectorAll('summary')].every(s => s.getBoundingClientRect().height >= 44)), 'image: every disclosure is a 44px tap target');
   await im.close();
 
   console.log('== store (dist /pricing/) at 390 ==');

@@ -15,7 +15,7 @@ options:
   groupSortPosition: top
 
 # Two product flavors × debug/release. AppStore is StoreKit; Direct defines DIRECT_BUILD
-# (Developer ID, Pickle, direct license). Debug variants carry DEBUG for the Design Kit.
+# (Developer ID, Mason Jar, direct license). Debug variants carry DEBUG for the Design Kit.
 configs:
   Debug-AppStore: debug
   Debug-Direct: debug

@@ -10,7 +10,7 @@ Systems → Types (5) → Schemas (7) → Models (7) → Behaviors (7) → Compo
 
 **What it produces:** one root (`NetRelish`), six things it owns (`Item`, `Jar`, `Recipe`,
 `Step`, `Label`, `Batch`), five enums, seven method/event bodies, and four seed records.
-`Brine` is not a thing in the model — it is the Items whose `jar` is empty. `Pickle` is not
+`Brine` is not a thing in the model — it is the Items whose `jar` is empty. `MasonJar` (called Pickle before ADR 0029) is not
 in the model yet — it is v1.2 and Direct-build only; it gets added when that phase comes.
 
 ---

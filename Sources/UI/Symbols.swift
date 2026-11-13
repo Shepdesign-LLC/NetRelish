@@ -9,7 +9,7 @@ import SwiftUI
 public enum NRSymbol: String, CaseIterable, Sendable {
     case jar = "nr-jar"
     case jarSmart = "nr-jar-smart"
-    case jarPickle = "nr-jar-pickle"
+    case jarMason = "nr-jar-mason"
     case seal = "nr-seal"
     case lip = "nr-lip"
     case drip = "nr-drip"
@@ -40,7 +40,7 @@ public enum NRSymbol: String, CaseIterable, Sendable {
                 <path d="M6.5 8.5 V18 C6.5 20.2 7.8 21.5 10 21.5 H14 C16.2 21.5 17.5 20.2 17.5 18 V8.5 Z M9 11.5 H15 L12.8 14.5 V18 L11.2 17 V14.5 Z" fill="#000000" fill-rule="evenodd"/>
             </svg>
             """#
-        case .jarPickle:
+        case .jarMason:
             return #"""
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
             <rect x="7.5" y="2.5" width="9" height="3" rx="1" fill="none" stroke="#000000" stroke-width="1"/>

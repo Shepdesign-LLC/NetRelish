@@ -212,28 +212,28 @@ Every phase ends with a demo Ryan can run without opening Xcode. If it can't be 
 
 ---
 
-## 10 · Pickle — the developer jar (1.2)
+## 10 · Mason Jar — the developer jar (1.2)
 
-For the WordPress crowd. A pickle is a Jar with a local environment attached. Reference point: WP Engine's **Local** (localwp.com) and its plugin family — ACF, WP Migrate, WP Offload Media, Faust.js, Better Search Replace. Pickle isn't a Local clone; it's the browser those tools are missing.
+For the WordPress crowd. A Mason Jar is a jar with a local environment attached. Reference point: WP Engine's **Local** (localwp.com) and its plugin family — ACF, WP Migrate, WP Offload Media, Faust.js, Better Search Replace. Mason Jar isn't a Local clone; it's the browser those tools are missing.
 
 ### What it does
 1. **Spin up** — one click creates a WordPress + MariaDB stack on the Mac via **OrbStack** (preferred, fast, native) or Docker Desktop (fallback). Templates: WordPress latest · WordPress + Bricks · headless (Faust.js) · blank PHP.
-2. **Open in the bench** — `localhost:PORT` opens as a pinned tab in the pickle. Never sinks.
+2. **Open in the bench** — `localhost:PORT` opens as a pinned tab in the Mason Jar. Never sinks.
 3. **Sync to GitHub** — `wp-content/` is a git repo. Sign into GitHub once (OAuth device flow), pick or create a repo, and every save is a commit on a branch you name. Push/pull from the inspector.
-4. **Seal a pickle** — exports a `.pickle` bundle: DB dump + `wp-content` + compose file + provenance stamp. Reopen anywhere NetRelish runs.
+4. **Seal a Mason Jar** — exports a `.masonjar` bundle: DB dump + `wp-content` + compose file + provenance stamp. Reopen anywhere NetRelish runs.
 5. **Recipes still apply** — record "pull main, WP-CLI update, screenshot home" once, replay with ⌘R.
 
 ### Constraints
-- App Store sandbox can't launch containers directly. Pickle ships **only in the Developer ID build** (direct download). App Store build shows the tab and a "Get the direct build" link. Same license unlocks both.
+- App Store sandbox can't launch containers directly. Mason Jar ships **only in the Developer ID build** (direct download). App Store build shows the tab and a "Get the direct build" link. Same license unlocks both.
 - Talks to OrbStack/Docker over their local sockets; never bundles a runtime.
 - WP-CLI runs inside the container, not on the host.
 
 ### Schema addition (System Designer)
-New schema, `+` → `Pickle` → paste, restore `_id`, ✓:
+New schema, `+` → `MasonJar` → paste, restore `_id`, ✓:
 ```json
 {
   "_id": "PASTE-THE-EXISTING-ID-HERE",
-  "_name": "Pickle",
+  "_name": "MasonJar",
   "_inherit": ["Jar"],
   "runtime": "property",
   "template": "property",
@@ -246,40 +246,40 @@ New schema, `+` → `Pickle` → paste, restore `_id`, ✓:
   "spinUp": "method",
   "spinDown": "method",
   "sync": "method",
-  "sealPickle": "method",
+  "sealMasonJar": "method",
   "onReady": "event",
   "onSynced": "event"
 }
 ```
-Types to add first: `PickleRuntime` → `["orbstack", "docker"]` · `PickleTemplate` → `["wordpress", "wordpress-bricks", "headless-faust", "php"]` · `PickleStatus` → `["stopped", "starting", "running", "error"]`.
+Types to add first: `MasonJarRuntime` → `["orbstack", "docker"]` · `MasonJarTemplate` → `["wordpress", "wordpress-bricks", "headless-faust", "php"]` · `MasonJarStatus` → `["stopped", "starting", "running", "error"]`.
 
 Model override:
 ```json
 {
   "_id": "PASTE-THE-EXISTING-ID-HERE",
-  "_name": "Pickle",
+  "_name": "MasonJar",
   "_description": "A Jar with a local dev environment attached.",
-  "runtime":    { "type": "PickleRuntime",  "readOnly": false, "mandatory": true,  "default": "orbstack" },
-  "template":   { "type": "PickleTemplate", "readOnly": false, "mandatory": true,  "default": "wordpress" },
+  "runtime":    { "type": "MasonJarRuntime",  "readOnly": false, "mandatory": true,  "default": "orbstack" },
+  "template":   { "type": "MasonJarTemplate", "readOnly": false, "mandatory": true,  "default": "wordpress" },
   "port":       { "type": "number",         "readOnly": false, "mandatory": false, "default": 8080 },
   "siteUrl":    { "type": "string",         "readOnly": true,  "mandatory": false, "default": "" },
   "repo":       { "type": "string",         "readOnly": false, "mandatory": false, "default": "" },
   "branch":     { "type": "string",         "readOnly": false, "mandatory": false, "default": "main" },
-  "status":     { "type": "PickleStatus",   "readOnly": true,  "mandatory": true,  "default": "stopped" },
+  "status":     { "type": "MasonJarStatus",   "readOnly": true,  "mandatory": true,  "default": "stopped" },
   "lastSyncAt": { "type": "date",           "readOnly": true,  "mandatory": false, "default": "1970-01-01T00:00:00.000Z" },
-  "spinUp":     { "params": [], "result": "Pickle" },
-  "spinDown":   { "params": [], "result": "Pickle" },
-  "sync":       { "params": [ { "name": "message", "type": "string", "mandatory": false } ], "result": "Pickle" },
-  "sealPickle": { "params": [], "result": "Item" },
-  "onReady":    { "params": [ { "name": "pickle", "type": "Pickle" } ] },
-  "onSynced":   { "params": [ { "name": "pickle", "type": "Pickle" } ] }
+  "spinUp":     { "params": [], "result": "MasonJar" },
+  "spinDown":   { "params": [], "result": "MasonJar" },
+  "sync":       { "params": [ { "name": "message", "type": "string", "mandatory": false } ], "result": "MasonJar" },
+  "sealMasonJar": { "params": [], "result": "Item" },
+  "onReady":    { "params": [ { "name": "masonJar", "type": "MasonJar" } ] },
+  "onSynced":   { "params": [ { "name": "masonJar", "type": "MasonJar" } ] }
 }
 ```
-`Pickle` inherits `Jar`, so it keeps `items`, `defaultRecipe`, and the shelf — it's a jar first.
+`MasonJar` inherits `Jar`, so it keeps `items`, `defaultRecipe`, and the shelf — it's a jar first.
 
 ### Roadmap placement
-- **1.2 (Q1 2027):** Pickle with OrbStack + WordPress template + GitHub sync. Direct build only.
-- **1.3:** Docker fallback, headless/Faust template, `.pickle` bundles.
+- **1.2 (Q1 2027):** Mason Jar with OrbStack + WordPress template + GitHub sync. Direct build only.
+- **1.3:** Docker fallback, headless/Faust template, `.masonjar` bundles.
 
 ## 11 · Apple Intelligence — positioning (1.0)
 

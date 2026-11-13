@@ -23,6 +23,10 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   await page.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
   await page.goto('http://localhost:8771', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(800);
+  // four of the five folds are closed on every load: open one the way a person would before using what is inside it
+  const openFold = async sel => { if (!await page.$eval(sel, d => d.open)) await page.click(sel + ' > summary'); };
+  // what is really on screen: inside a closed <details> an element still has an offsetParent, so ask Playwright instead
+  const shown = async sel => { const out = []; for (const h of await page.$$(sel)) if (await h.isVisible()) out.push(h); return out; };
 
   console.log('== 1: structure ==');
   ok((await page.title()).includes('Zest'), 'title');
@@ -30,8 +34,34 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   ok(await page.$$eval('.pcell', r => r.length) === 12, '12 presets');
   ok(await page.$$eval('.pair', r => r.length) === 19, '19 pairings');
   ok(await page.$$eval('#ramp button', r => r.length) === 11, '11 ramp steps');
-  ok(await page.$$eval('.pro', r => r.length) === 6, '6 Pro rows visible');
+  ok(await page.$$eval('#proFold .pro', r => r.length) === 6 && await page.$$eval('.pro', r => r.length) === 6, '6 Pro rows, all in the one Pro fold');
   ok(await page.$$eval('.arow', r => r.length) === 14, '14 audit rows (7 × 2 modes)');
+
+  console.log('== 1b: folds — four closed on load and opened by keyboard; Pro open on load ==');
+  ok(await page.$eval('#tBase', e => e.value) === '16' && await page.$eval('#tRatio', e => e.value) === '1.25' && await page.$eval('#spUnit', e => e.value) === '4'
+    && await page.$eval('#spDensity', e => e.value) === 'comfortable' && await page.$eval('#btnSize', e => e.value) === 'md' && await page.$eval('#btnShape', e => e.value) === 'rounded',
+    'the folded controls keep their defaults (16 × 1.25, unit 4, comfortable, medium, rounded)');
+  const FOLDS = [['#slFold', 'OKLCH sliders', '#sH'], ['#scaleFold', 'Type scale', '#tRatio'], ['#spaceFold', 'Spacing and buttons', '#btnShape'],
+    ['#sendFold', 'Send to', '[data-send="mail"]'], ['#proFold', 'Pro', '.pro']];
+  ok(await page.$$eval('details', d => d.length) === FOLDS.length, 'five folds, no more');
+  const visiblePro = async () => (await shown('.pro')).length;
+  for (const [sel, name, inside] of FOLDS) {
+    const f = await page.$eval(sel, d => ({ tag: d.tagName, open: d.open, name: d.querySelector(':scope > summary').textContent.trim() }));
+    if (sel === '#proFold') {   // spec §4.3: never hide Pro from free users — this fold loads open
+      ok(f.tag === 'DETAILS' && f.open && f.name === name && await visiblePro() === 6 && await page.isVisible('#proFold + .hint'), 'Pro: a native fold with that name, open on load — six rows and the hint visible with no click');
+      await page.focus(sel + ' > summary'); await page.keyboard.press('Space');
+      ok(!await page.$eval(sel, d => d.open) && await visiblePro() === 0, 'Pro: Space on its summary closes it');
+      await page.keyboard.press('Enter');
+      ok(await page.$eval(sel, d => d.open) && await visiblePro() === 6, 'Pro: Enter opens it again');
+      continue;
+    }
+    ok(f.tag === 'DETAILS' && !f.open && f.name === name && !await page.isVisible(inside), `${name}: a native fold with that name, closed on load, its controls out of sight`);
+    await page.focus(sel + ' > summary'); await page.keyboard.press('Enter');
+    ok(await page.$eval(sel, d => d.open) && await page.isVisible(inside), `${name}: Enter on its summary opens it`);
+    await page.keyboard.press('Space');
+    ok(!await page.$eval(sel, d => d.open) && !await page.isVisible(inside), `${name}: Space closes it again`);
+  }
+  // every fold is now as the page loads it (Pro open, the other four closed): each section below opens what it needs
 
   console.log('== 2: role edit propagates ==');
   await page.fill('.role[data-role="primary"] .hex', '#0a7d4f');
@@ -48,10 +78,14 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
 
   console.log('== 3: oklch sliders ==');
   await page.click('.role[data-role="primary"]');
+  await openFold('#slFold');
   await page.$eval('#sH', e => { e.value = 300; e.dispatchEvent(new Event('input', { bubbles: true })); });
   await page.waitForTimeout(200);
   const p2 = await page.$eval('.role[data-role="primary"] .hex', e => e.value);
   ok(HEX.test(p2) && p2 !== '#0a7d4f', 'hue slider moved primary (' + p2 + ')');
+  await page.focus('#sL'); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(200);
+  const p3 = await page.$eval('.role[data-role="primary"] .hex', e => e.value);
+  ok(HEX.test(p3) && p3 !== p2, 'inside the fold the lightness slider works from the keyboard (' + p3 + ')');
 
   console.log('== 4: harmonies ==');
   for (const h of ['complementary', 'analogous', 'triadic', 'split', 'tetradic', 'mono']) {
@@ -79,13 +113,19 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   console.log('== 7: dark derivation ==');
   await page.click('#bDerive');
   await page.waitForTimeout(200);
+  const lightPaper = await page.$eval('.role[data-role="paper"] .hex', e => e.value);
   await page.click('#mDark');
   const darkPaper = await page.$eval('.role[data-role="paper"] .hex', e => e.value);
   ok(HEX.test(darkPaper) && parseInt(darkPaper.slice(1, 3), 16) < 80, 'derived dark paper is dark (' + darkPaper + ')');
-  await page.click('#pvDark'); await page.waitForTimeout(250);
+  await page.waitForTimeout(250);   // one switch: the same click moved the preview, with nothing else pressed
   doc = await page.$eval('#pv', e => e.srcdoc);
   ok(doc.includes('--paper:' + darkPaper), 'preview dark mode uses the dark paper');
-  await page.click('#mLight'); await page.click('#pvLight');
+  ok(await page.$$eval('button', b => b.filter(x => /^(Light|Dark)$/.test(x.textContent.trim())).map(x => x.id).join()) === 'mLight,mDark', 'one Light/Dark switch on the page, not two');
+  ok(await page.$eval('#mDark', e => e.getAttribute('aria-pressed')) === 'true' && await page.$eval('#mLight', e => e.getAttribute('aria-pressed')) === 'false'
+    && (await page.$eval('#pvLabel', e => e.textContent)) === 'Preview · Dark', 'the switch and the preview label both say Dark');
+  await page.click('#mLight'); await page.waitForTimeout(250);
+  doc = await page.$eval('#pv', e => e.srcdoc);
+  ok(doc.includes('--paper:' + lightPaper) && (await page.$eval('#pvLabel', e => e.textContent)) === 'Preview · Light', 'Light puts the role rows and the preview back on the light palette');
 
   console.log('== 8: exports ==');
   let dl = page.waitForEvent('download');
@@ -163,15 +203,83 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   ok((await zi.$eval('#stageSvg', e => e.innerHTML)).includes('#5f7a0d'), 'ZestImage composes with the studio primary');
   ok(await zi.$eval('#tLogo', e => !e.hidden), 'ZestImage picked up the brand logo');
   ok(ziErrs.length === 0, 'ZestImage: no exceptions during handoff');
+
+  console.log('== 12b: ZestImage — fields follow the layout, one Export button, folded options ==');
+  // same page as the handoff: the imported brand is active, and it carries a logo
+  const ziShown = () => zi.$$eval('#cUsed [data-f]', els => els.map(e => e.dataset.f).join(' '));
+  const ziVis = sel => zi.$eval(sel, e => e.checkVisibility());   // false inside a closed <details> as well as under [hidden]
+  const ziToast = () => zi.$eval('#toast', e => e.textContent);
+  const ZI_FIELDS = { title: 'title byline', kicker: 'title kicker byline', split: 'title kicker byline', scrim: 'title kicker',
+    stat: 'title stat', quote: 'quote byline', series: 'title byline series', logo: 'byline' };
+  await zi.fill('#cTitle', 'Kept across layouts');
+  const ziSeen = {};
+  for (const k of Object.keys(ZI_FIELDS)) { await zi.click(`#layoutGrid [data-l="${k}"]`); ziSeen[k] = await ziShown(); }
+  ok(Object.keys(ZI_FIELDS).every(k => ziSeen[k] === ZI_FIELDS[k]), `ZestImage: each of the eight layouts shows only the fields it draws (${Object.keys(ZI_FIELDS).filter(k => ziSeen[k] !== ZI_FIELDS[k]).map(k => k + ': ' + ziSeen[k]).join('; ') || 'all match'})`);
+  ok(!(await ziVis('#cTitle')) && await zi.$eval('#cRest', d => !d.open && !d.hidden), 'ZestImage: Logo lockup hides Title; the fields it leaves out sit in a disclosure, closed');
+  await zi.focus('#cRest summary'); await zi.keyboard.press('Enter');
+  ok(await zi.$eval('#cRest', d => d.open) && await ziVis('#cTitle') && await zi.inputValue('#cTitle') === 'Kept across layouts', 'ZestImage: that disclosure opens by keyboard, and the hidden Title kept what was typed');
+  await zi.click('#layoutGrid [data-l="title"]');
+  ok(await ziShown() === 'title byline' && await zi.inputValue('#cTitle') === 'Kept across layouts' && (await zi.$eval('#stageSvg', e => e.textContent)).includes('Kept across'), 'ZestImage: switching back shows Title again with its value, and the stage draws it');
+
+  ok(await ziVis('#bExport') && await zi.$eval('#exMenu', d => !d.open) && !(await ziVis('#bAlt')) && !(await ziVis('#bManifest')) && !(await ziVis('#bOg')), 'ZestImage: one Export button; alt.txt, Manifest and the OG snippet wait behind More');
+  await zi.focus('#exMenu summary'); await zi.keyboard.press('Enter');
+  ok(await zi.$eval('#exMenu', d => d.open) && await ziVis('#bAlt') && await ziVis('#bManifest') && await ziVis('#bOg'), 'ZestImage: More opens by keyboard and lists all three');
+  await zi.keyboard.press('Tab'); await zi.keyboard.press('Escape');
+  ok(await zi.$eval('#exMenu', d => !d.open && document.activeElement === d.querySelector('summary')), 'ZestImage: Escape closes the menu and hands focus back to More');
+  await zi.click('#exMenu summary');
+  let zdl = zi.waitForEvent('download'); await zi.click('#bAlt'); let zf = await zdl;
+  ok(zf.suggestedFilename().endsWith('.alt.txt') && require('fs').readFileSync(await zf.path(), 'utf8') === await zi.inputValue('#cAlt') && await zi.$eval('#exMenu', d => !d.open), 'ZestImage: alt.txt still saves the alt text, one file, and choosing it closes the menu');
+  await zi.click('#exMenu summary');
+  zdl = zi.waitForEvent('download'); await zi.click('#bManifest'); zf = await zdl; await zi.waitForTimeout(150);
+  ok(JSON.parse(require('fs').readFileSync(await zf.path(), 'utf8')).tool === 'image' && (await ziToast()).includes('Manifest saved'), 'ZestImage: Manifest still saves, with its toast');
+  await zi.bringToFront(); await zi.click('#exMenu summary'); await zi.click('#bOg'); await zi.waitForTimeout(250);
+  ok((await zi.evaluate(() => navigator.clipboard.readText())).includes('og:image:alt') && (await ziToast()).includes('OG meta copied'), 'ZestImage: Copy OG meta snippet still copies, with its toast');
+
+  ok(await zi.$eval('#exOpts', d => !d.open) && !(await ziVis('#eFmt')) && !(await ziVis('#eScale')) && await zi.textContent('#exSum') === 'PNG · 2×', 'ZestImage: Format and Scale are folded away, and the summary says "PNG · 2×"');
+  await zi.focus('#exOpts summary'); await zi.keyboard.press('Space');
+  const ziOptsOpen = await zi.$eval('#exOpts', d => d.open) && await ziVis('#eFmt');
+  await zi.selectOption('#eFmt', 'webp'); await zi.selectOption('#eScale', '1');
+  ok(ziOptsOpen && await zi.textContent('#exSum') === 'WebP · 1×' && /-og\.webp$/.test(await zi.textContent('#fname')), 'ZestImage: they open by keyboard, and the summary and the filename follow the choice');
+  await zi.fill('#cAlt', '');
+  let ziLeak = 0; const ziCount = () => { ziLeak++; }; zi.on('download', ziCount);
+  await zi.click('#bExport'); await zi.waitForTimeout(500);
+  zi.off('download', ziCount);
+  ok(ziLeak === 0 && (await ziToast()).includes('Alt text first'), 'ZestImage: export without alt text is still blocked');
+  await zi.fill('#cAlt', 'A title card');
+  zdl = zi.waitForEvent('download'); await zi.click('#bExport'); zf = await zdl; await zi.waitForTimeout(250);
+  ok(zf.suggestedFilename() === await zi.textContent('#fname') && (await ziToast()).includes('under More'), 'ZestImage: Export saves the one image, in the format the summary named');
+
+  const ziProRows = () => zi.$$eval('#proList .pro', r => r.filter(e => e.checkVisibility()).length);
+  ok(await zi.$eval('#proList', d => d.open) && await ziProRows() === 6, 'ZestImage: the six Pro rows are one disclosure, open on load — all six visible without a click');
+  await zi.focus('#proList summary'); await zi.keyboard.press('Enter');
+  const ziProShut = await zi.$eval('#proList', d => !d.open) && await ziProRows() === 0;
+  await zi.keyboard.press('Enter');
+  ok(ziProShut && await zi.$eval('#proList', d => d.open) && await ziProRows() === 6, 'ZestImage: it closes and reopens by keyboard');
+  await zi.click('.pro[data-pro="svg"]'); await zi.waitForTimeout(150);
+  ok((await ziToast()).includes('stays free'), 'ZestImage: a Pro row still answers with the Pro toast');
+
+  ok(!(await ziVis('#dLogo')) && await ziVis('#bLogoReplace') && (await zi.textContent('#tLogo span')).includes("brand's logo"), 'ZestImage: with a brand logo, one line says it is in use — no drop zone');
+  await zi.click('#bLogoReplace');
+  const ziDropShown = await ziVis('#dLogo');
+  const otherPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  await zi.setInputFiles('#fLogo', { name: 'mine.png', mimeType: 'image/png', buffer: Buffer.from(otherPng, 'base64') }); await zi.waitForTimeout(300);
+  ok(ziDropShown && await zi.textContent('#tLogo span') === 'mine.png' && (await zi.$eval('#stageSvg', e => e.innerHTML)).includes(otherPng), 'ZestImage: Replace reveals the drop zone, and a dropped logo takes over');
+  await zi.click('#bLogoRemove'); await zi.waitForTimeout(200);
+  ok((await zi.$eval('#stageSvg', e => e.innerHTML)).includes(withLogo.logo) && !(await ziVis('#dLogo')) && await ziVis('#bLogoReplace'), 'ZestImage: removing the replacement falls back to the brand logo');
+  ok(ziErrs.length === 0, `ZestImage: no exceptions from the simplified controls${ziErrs.length ? ' — ' + ziErrs.join(' | ') : ''}`);
   await zi.close();
 
   console.log('== 13: persistence + pro + a11y bits ==');
   // lock a role, reload: the lock must survive sanitizeBrand (spec: role-based swatches WITH locks)
   const inkLocked = await page.$eval('.role[data-role="ink"] [data-lock]', e => e.getAttribute('aria-pressed'));
   if (inkLocked !== 'true') { await page.click('.role[data-role="ink"] [data-lock]'); await page.waitForTimeout(150); }
+  await page.click('#proFold > summary');   // close Pro before the reload: it must come back open
+  const proClosed = !await page.$eval('#proFold', d => d.open);
   await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(600);
   ok(await page.inputValue('#bName') === 'RoundTrip', 'brand survives reload');
   ok(await page.$eval('.role[data-role="ink"] [data-lock]', e => e.getAttribute('aria-pressed')) === 'true', 'role lock survives reload');
+  ok(proClosed && await page.$eval('#proFold', d => d.open), 'a Pro fold closed by hand is open again after a reload');
+  ok((await shown('.pro')).length === 6, '6 Pro rows visible after the reload, with no click');
   await page.click('.pro');
   await page.waitForTimeout(200);
   ok((await page.$eval('#toast', e => e.textContent)).includes('stays free'), 'pro row: per-feature toast only');
@@ -192,6 +300,7 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   ok(lineRow && lineRow.out === '2.99:1', `display floors, never overstates (${lineRow && lineRow.out})`);
 
   console.log('== 15: round 2 — buttons in the interchange + keyboard import ==');
+  await openFold('#spaceFold');
   await page.selectOption('#btnSize', 'lg'); await page.selectOption('#btnShape', 'pill');
   dl = page.waitForEvent('download'); await page.click('#xBrand'); d = await dl;
   const withBtns = JSON.parse(require('fs').readFileSync(await d.path(), 'utf8'));
@@ -238,6 +347,35 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   ok((await page.$eval('#toast', e => e.textContent)).includes('updated'), 'replacement says what it did');
   const urlB = ((await page.$eval('#pv', e => e.srcdoc)).match(/font-family:'replace test';src:url\('(blob:[^']+)'\)/) || [])[1];
   ok(!!urlB && urlB !== urlA, 'preview @font-face now points at the new bytes');
+
+  console.log('== 18: folded controls — values reach the preview, the export and the next visit ==');
+  await openFold('#scaleFold'); await openFold('#spaceFold');
+  await page.selectOption('#tRatio', '1.5'); await page.fill('#tBase', '18');
+  await page.selectOption('#spUnit', '8'); await page.selectOption('#spDensity', 'spacious');
+  await page.waitForTimeout(300);
+  ok((await page.$eval('#pv', e => e.srcdoc)).includes('Type scale — 18px × 1.5'), 'type scale set inside its fold reaches the preview');
+  dl = page.waitForEvent('download'); await page.click('#xBrand'); d = await dl;
+  const folded = JSON.parse(fs2.readFileSync(await d.path(), 'utf8'));
+  ok(folded.type.base === 18 && folded.type.ratio === 1.5 && folded.spacing.unit === 8 && folded.spacing.density === 'spacious' && folded.buttons.size === 'lg' && folded.buttons.shape === 'pill',
+    'export carries the type scale, spacing and buttons set inside the folds');
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(700);
+  ok(await page.$$eval('details', d => d.filter(x => x.open).map(x => x.id).join()) === 'proFold', 'after a reload Pro is open and the other four folds are closed again');
+  ok(await page.$eval('#tBase', e => e.value) === '18' && await page.$eval('#tRatio', e => e.value) === '1.5' && await page.$eval('#spUnit', e => e.value) === '8'
+    && await page.$eval('#spDensity', e => e.value) === 'spacious' && await page.$eval('#btnSize', e => e.value) === 'lg' && await page.$eval('#btnShape', e => e.value) === 'pill',
+    'the folded values survive the reload');
+
+  console.log('== 19: Send to — one fold, three tools, the same file as the export ==');
+  dl = page.waitForEvent('download'); await page.click('#xBrand'); d = await dl;
+  const viaExport = fs2.readFileSync(await d.path(), 'utf8');
+  ok(!await page.isVisible('[data-send]'), 'the Send to buttons are folded away on load');
+  await openFold('#sendFold');
+  ok((await Promise.all((await shown('[data-send]')).map(h => h.getAttribute('data-send')))).join() === 'image,mail,md', 'open, it offers ZestImage, ZestMail and Zest MD');
+  for (const [tool, word] of [['image', 'ZestImage'], ['mail', 'ZestMail'], ['md', 'Zest MD']]) {
+    dl = page.waitForEvent('download'); await page.click(`[data-send="${tool}"]`); d = await dl;
+    await page.waitForTimeout(150);
+    ok(d.suggestedFilename() === 'imported-back-zest-brand.json' && fs2.readFileSync(await d.path(), 'utf8') === viaExport && (await page.$eval('#toast', e => e.textContent)).includes(word),
+      `Send to ${word}: the same zest-brand.json as the export, and a note on where ${word} imports it`);
+  }
 
   ok(errs.length === 0, 'no uncaught exceptions (' + errs.slice(0, 2).join('; ').slice(0, 100) + ')');
   await browser.close();

@@ -1,4 +1,4 @@
-# NetRelish Design Manifest — v1.2
+# NetRelish Design Manifest — v1.3
 
 The single source of truth for the brand and UI across macOS, iOS, and the marketing site. Brand Lock v1.1 is folded in here. Every screen is built from this document, `tokens.css`, and `symbols.svg`. Nothing drifts without a version bump and a changelog line at the bottom.
 
@@ -45,13 +45,14 @@ Relish may appear in exactly these places. Adding one is a manifest change.
 | 6 | Count badges (e.g. "412 preserved") | bg `--relish-100`, text `--relish-700` |
 | 7 | Focus ring | `--nr-focus` |
 | 8 | Site: hero CTA and the cog mark | `--relish-500` |
+| 9 | Drop mark — a `--lip-h` bar on the leading edge of the jar row or tab a drag would land on, **only while something is dragged over it** | `--relish-500` |
 
 Not relish: links (use `--nr-fg` underlined), selection (system), toolbar icons, sidebar text, scrollbars, toasts.
 
 ## 5 · Type
 
 - **Product**: system stack (`--font-ui`). Weights 400/500/600 only. Sizes from `--fs-*`. Line heights from `--lh-*`. Tabular numerals for counts and timers.
-- **Code / URLs / Pickle console**: `--font-mono`.
+- **Code / URLs / Mason Jar console**: `--font-mono`.
 - **Site hero only**: Bricolage Grotesque, wght 800 / wdth 100 / opsz 96, HarfBuzz kerning. Nowhere in the app.
 - **Voice**: headlines say what the product does ("The browser that preserves your work"). Pantry vocabulary is used as *nouns in the UI*, never as puns in headlines. Proof lines are numbers: "412 things preserved, none of them lost."
 
@@ -65,7 +66,7 @@ Not relish: links (use `--nr-fg` underlined), selection (system), toolbar icons,
 
 | id | Meaning | Rules |
 |---|---|---|
-| `#nr-jar` | A jar (project) | Wherever a jar is meant. Filled body, hairline shoulder. Variants: `#nr-jar-smart` (adds filter glyph), `#nr-jar-pickle` (adds `</>`). |
+| `#nr-jar` | A jar (project) | Wherever a jar is meant. Filled body, hairline shoulder. Variants: `#nr-jar-smart` (adds filter glyph), `#nr-jar-mason` (adds `</>`). |
 | `#nr-seal` | Seal action | Relish. |
 | `#nr-lip` | Active tab lip | Relish, `--lip-h` tall. |
 | `#nr-drip` | The drip | Two placements: the Seal animation (relish), and the jar fill when something lands in a jar (the jar's tint). Nowhere else. |
@@ -76,8 +77,8 @@ Not relish: links (use `--nr-fg` underlined), selection (system), toolbar icons,
 
 | Component | Spec |
 |---|---|
-| **Shelf** (jar rail) | `--shelf-w` wide, leading edge, `--nr-surface-2`. One `#nr-jar` per row, 40pt hit target, label under icon at `--fs-xs`. Active row: `--relish-100` tint + `--nr-fg` label. Smart jars at the bottom under a hairline. New Jar button last. ⌘1–9 / ⌃⌘1–4 (smart jars; ⌘⇧3/4 are macOS screenshot keys, ADR 0014). |
-| **Tabs** | `--tab-h`, `--r-2` top corners, `--nr-surface` active / transparent inactive. Active tab carries `#nr-lip`. Pinned tabs show a pin glyph and never sink. Sinking tabs fade to `--nr-fg-3` over the last 10% of shelf life. |
+| **Shelf** (jar rail) | `--shelf-w` wide, leading edge, `--nr-surface-2`. One `#nr-jar` per row, 40pt hit target, label under icon at `--fs-xs`. Active row: `--relish-100` tint + `--nr-fg` label. Smart jars at the bottom under a hairline. New Jar button last. ⌘1–9 / ⌃⌘1–4 (smart jars; ⌘⇧3/4 are macOS screenshot keys, ADR 0014). A jar reorders by sliding along the rail, and only along it; Move Up and Move Down in its menu do the same. A tab or a Brine row dragged onto a jar lands in that jar, and the row shows the drop mark. Right-click a jar: new tab, edit, color, move. |
+| **Tabs** | `--tab-h`, `--r-2` top corners, `--nr-surface` active / transparent inactive. Active tab carries `#nr-lip`. Pinned tabs show a pin glyph and never sink. Sinking tabs fade to `--nr-fg-3` over the last 10% of shelf life. Right-click a tab: pin, icon (a palette of SF Symbols), copy link, move to a jar, close. A tab dragged onto another takes its place and the target shows the drop mark; dragged onto a jar on the Shelf, it moves there. |
 | **Bench** | The web panes. Chrome is `--nr-surface`, hairline-separated. Nothing brand-colored touches the page. |
 | **Inspector** | `--inspector-w`, trailing edge, `--nr-surface-2`. Sections separated by hairlines, `--fs-sm` labels in `--nr-fg-2`. |
 | **Primary button** | Relish fill, `--relish-ink` text, `--r-1`, 600 weight. One per view. Hover `--relish-300`. |
@@ -115,6 +116,7 @@ Dark-green glass · gradient text in the product · relish backgrounds · a seco
 ---
 
 ## Changelog
+- **v1.3 (Nov 13 2026)** — relish placement 9, the drop mark: a `--lip-h` relish bar on whatever a drag would land on, shown only during the drag. Right-click menus and drag come to the Shelf and the tab strip (ADR 0028). Ryan asked for more relish on Nov 13; this is the one placement that work needs, proposed in its PR, and merging it is the decision. Pickle is now Mason Jar (ADR 0029): `#nr-jar-pickle` becomes `#nr-jar-mason`, and the drawing is unchanged.
 - **v1.2.1 (Nov 1 2026)** — smart jars move from ⌘⇧1–4 to ⌃⌘1–4: ⌘⇧3 and ⌘⇧4 are macOS's screenshot keys and never reach the app. Decided by Ryan (ADR 0014).
 - **v1.2 (Oct 21 2026)** — second drip approved: the jar fill plays a `#nr-drip` in the jar's tint when something lands in a jar; Seal keeps the relish drip. Decided by Ryan in the workstation prototype review (`docs/design/netrelish-workstation.html` implements it).
 - **v1.1.2 (Sept 21 2026)** — relish-100/300/700/ink take the Sept 15 Design Kit values, per the v1.1 note that the earlier file wins on values. relish-500 unchanged.

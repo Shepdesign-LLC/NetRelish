@@ -33,7 +33,7 @@ struct SymbolGrid: View {
     private func tint(for symbol: NRSymbol) -> Color {
         switch symbol {
         case .seal, .lip, .drip: NRColor.relish500
-        case .jar, .jarSmart, .jarPickle, .sink: NRColor.fg
+        case .jar, .jarSmart, .jarMason, .sink: NRColor.fg
         }
     }
 }
@@ -82,7 +82,7 @@ struct ShapeRow: View {
                 HStack(alignment: .bottom, spacing: NRSpace.sp4) {
                     NRJarGlyph(size: 24).foregroundStyle(NRColor.fg)
                     NRJarGlyph(.smart, size: 48).foregroundStyle(NRColor.fg)
-                    NRJarGlyph(.pickle, size: 96).foregroundStyle(NRColor.fg)
+                    NRJarGlyph(.mason, size: 96).foregroundStyle(NRColor.fg)
                 }
             }
         }

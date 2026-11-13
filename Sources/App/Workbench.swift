@@ -13,6 +13,33 @@ private let log = Logger(subsystem: "com.shepdesign.netrelish", category: "workb
 /// SwiftUI has its own `Tab`; in this app the word means the Pantry's.
 typealias Tab = Pantry.Tab
 
+/// What a drag inside the window carries: a tab from the strip, or a row from Brine. It rides
+/// as a plain string, so a drop reads it back with `init?(_:)`, and anything else dragged in
+/// (a link, some text from another app) reads as nil and is left alone.
+enum DragPayload: Equatable {
+    case tab(String)
+    case brine(String)
+
+    private static let prefix = "netrelish-drag"
+
+    var string: String {
+        switch self {
+        case .tab(let id): "\(Self.prefix):tab:\(id)"
+        case .brine(let id): "\(Self.prefix):brine:\(id)"
+        }
+    }
+
+    init?(_ string: String) {
+        let parts = string.split(separator: ":", maxSplits: 2).map(String.init)
+        guard parts.count == 3, parts[0] == Self.prefix, !parts[2].isEmpty else { return nil }
+        switch parts[1] {
+        case "tab": self = .tab(parts[2])
+        case "brine": self = .brine(parts[2])
+        default: return nil
+        }
+    }
+}
+
 /// The Shelf's smart jars, ⌃⌘1–4. None is a row: each is a query that fills itself, and
 /// nothing is ever moved into one (non-negotiable 2: Brine is a query, not a place).
 enum SmartJar: String, CaseIterable, Identifiable {
@@ -98,6 +125,12 @@ final class Workbench {
     /// tabs are still open, and their pages stay live.
     var onTabsGone: (([String]) -> Void)?
 
+    /// The icon the user gave a tab (right-click a tab), as an SF Symbol name, by tab id.
+    /// Kept in UserDefaults until `Tab` has a glyph of its own in the model (ADR 0028).
+    private(set) var tabGlyphs: [String: String] = [:]
+    private let defaults: UserDefaults
+    private static let tabGlyphsKey = "tab.glyphs"
+
     // MARK: Vault (the Me card)
 
     let vault: VaultStore
@@ -164,8 +197,9 @@ final class Workbench {
 
     init(store: PantryStore = .shared, vault: VaultStore = .live, inbox: ShareInbox? = nil,
          summarizer: (any Summarizer)? = nil, timestamps: (any TimestampAuthority)? = nil,
-         pro: ProStore = ProStore(unlocked: true)) {
+         pro: ProStore = ProStore(unlocked: true), defaults: UserDefaults = .standard) {
         self.store = store
+        self.defaults = defaults
         self.vault = vault
         self.inbox = inbox
         self.pro = pro
@@ -173,6 +207,7 @@ final class Workbench {
         self.timestampAuthority = timestamps
         let authority = pro.isUnlocked ? timestamps : nil
         self.provenanceWorker = ProvenanceWorker(store: store, authority: authority)
+        tabGlyphs = defaults.dictionary(forKey: Self.tabGlyphsKey) as? [String: String] ?? [:]
         load()
         if inbox != nil { watchInbox() }
         if summaries != nil {
@@ -404,6 +439,7 @@ final class Workbench {
             (try store.today(db), try store.sealed(db), try Tab.fetchAll(db))
         }) else { return }
         (todayItems, sealedItems, allTabs) = smart
+        forgetGlyphsOfGoneTabs()
     }
 
     private func loadTabs() {
@@ -538,7 +574,9 @@ final class Workbench {
         let target = jarId ?? (showingSmartJar ? jars.first?.id : activeJarId)
         guard let target, jars.contains(where: { $0.id == target }) else { return nil }
         if activeJarId != target { activate(jarId: target) }
-        var tab = Tab(interactionState: interactionState, isPinned: false, sortOrder: Double(tabs.count),
+        // After the last tab, wherever that is: closing or moving a tab leaves gaps in the order.
+        var tab = Tab(interactionState: interactionState, isPinned: false,
+                      sortOrder: (tabs.map(\.sortOrder).max() ?? -1) + 1,
                       title: nil, touchedAt: Date(), url: url, jarId: target)
         do {
             try store.write { db in try tab.insert(db) }
@@ -604,8 +642,185 @@ final class Workbench {
 
     func togglePinActiveTab() { if let benchTab { togglePin(benchTab) } }
 
+    // MARK: Rearranging (right-click and drag)
+
+    /// Re-reads the Shelf's order after a write here, without changing which jar is showing.
+    private func reloadJars() {
+        if let fresh = try? store.read({ db in try store.root(db).jars(db) }) { jars = fresh }
+    }
+
+    /// Moves a jar to `index` on the Shelf. A jar only ever moves along the Shelf.
+    func moveJar(_ jarId: String, to index: Int) {
+        var ids = jars.map(\.id)
+        guard let from = ids.firstIndex(of: jarId) else { return }
+        let to = min(max(index, 0), ids.count - 1)
+        guard to != from else { return }
+        ids.remove(at: from)
+        ids.insert(jarId, at: to)
+        let order = ids
+        do {
+            try store.write { db in
+                for (position, id) in order.enumerated() {
+                    guard var jar = try Jar.fetchOne(db, key: id) else { continue }
+                    jar.sortOrder = Double(position)
+                    try jar.update(db)
+                }
+            }
+            reloadJars()
+        } catch {
+            assertionFailure("Workbench.moveJar: \(error)")
+        }
+    }
+
+    /// Move Up and Move Down in a jar's menu: one place along the Shelf.
+    func moveJar(_ jar: Jar, by offset: Int) {
+        guard let from = jars.firstIndex(where: { $0.id == jar.id }) else { return }
+        moveJar(jar.id, to: from + offset)
+    }
+
+    /// Recolors a jar from its menu. The tint is the jar's own data (ADR 0005).
+    func setTint(_ tint: String, of jar: Jar) {
+        guard var fresh = jars.first(where: { $0.id == jar.id }), fresh.tint != tint else { return }
+        fresh.tint = tint
+        do {
+            try store.write { db in try fresh.update(db) }
+            reloadJars()
+        } catch {
+            assertionFailure("Workbench.setTint: \(error)")
+        }
+    }
+
+    /// Drops a tab where another tab of the active jar is: it takes that place in the strip.
+    func moveTab(_ tabId: String, onto targetId: String) {
+        var ids = tabs.map(\.id)
+        guard tabId != targetId, let from = ids.firstIndex(of: tabId), let to = ids.firstIndex(of: targetId) else { return }
+        ids.remove(at: from)
+        ids.insert(tabId, at: to)
+        let order = ids
+        do {
+            try store.write { db in
+                for (position, id) in order.enumerated() {
+                    guard var tab = try Tab.fetchOne(db, key: id) else { continue }
+                    tab.sortOrder = Double(position)
+                    try tab.update(db)
+                }
+            }
+            loadTabs()
+        } catch {
+            assertionFailure("Workbench.moveTab: \(error)")
+        }
+    }
+
+    /// Moves a tab into another jar, at the end of its strip. Every jar keeps its own cookies
+    /// and sign-ins (non-negotiable 6), so the page can't come along as it is: the tab keeps
+    /// its address, lets go of its web view, and loads again in the new jar.
+    func moveTab(_ tab: Tab, toJar jarId: String) {
+        guard tab.jarId != jarId, jars.contains(where: { $0.id == jarId }),
+              var moved = try? store.read({ db in try Tab.fetchOne(db, key: tab.id) }) else { return }
+        moved.jarId = jarId
+        moved.interactionState = nil      // history and form state belong to the jar it left
+        moved.touchedAt = Date()          // its shelf life starts over in the new jar
+        do {
+            try store.write { db in
+                let last = try Tab.filter(Tab.Columns.jarId == jarId).fetchAll(db).map(\.sortOrder).max()
+                moved.sortOrder = (last ?? -1) + 1
+                try moved.update(db)
+            }
+            onTabsGone?([moved.id])       // the web view on the old jar's store
+            if reader?.tabId == moved.id { reader = nil }
+            openerOf[moved.id] = nil
+            loadTabs()                    // it has left this strip; the next tab comes forward
+        } catch {
+            assertionFailure("Workbench.moveTab(toJar:): \(error)")
+        }
+    }
+
+    /// Closes every unpinned tab in the active jar except this one.
+    /// One write and one reload, however many tabs go.
+    func closeOtherTabs(_ keep: Tab) {
+        let closing = tabs.filter { $0.id != keep.id && !$0.isPinned }
+        guard !closing.isEmpty else { return }
+        let ids = closing.map(\.id)
+        do {
+            try store.write { db in
+                for tab in closing { _ = try tab.delete(db) }
+            }
+            onTabsGone?(ids)
+            if let reading = reader?.tabId, ids.contains(reading) { reader = nil }
+            for id in ids { openerOf[id] = nil }
+            loadTabs()
+            if tabs.contains(where: { $0.id == keep.id }) { activateTab(keep) }
+        } catch {
+            assertionFailure("Workbench.closeOtherTabs: \(error)")
+        }
+    }
+
+    /// Something dragged was let go over a jar on the Shelf: a tab moves into that jar, a
+    /// Brine row is restored into it. False if it wasn't one of ours.
+    @discardableResult
+    func drop(_ payloads: [String], onJar jar: Jar) -> Bool {
+        var landed = false
+        for payload in payloads.compactMap(DragPayload.init) {
+            switch payload {
+            case .tab(let id):
+                guard let tab = allTabs.first(where: { $0.id == id }), tab.jarId != jar.id else { continue }
+                moveTab(tab, toJar: jar.id)
+                landed = true
+            case .brine(let id):
+                guard let item = brine.first(where: { $0.id == id }) else { continue }
+                restore(item, into: jar.id)
+                landed = true
+            }
+        }
+        return landed
+    }
+
+    /// A dragged tab was let go over another tab in the strip.
+    @discardableResult
+    func drop(_ payloads: [String], onTab target: Tab) -> Bool {
+        for case .tab(let id) in payloads.compactMap(DragPayload.init) where id != target.id {
+            guard tabs.contains(where: { $0.id == id }) else { continue }
+            moveTab(id, onto: target.id)
+            return true
+        }
+        return false
+    }
+
+    // MARK: Tab icons
+
+    func glyph(of tab: Tab) -> String? { tabGlyphs[tab.id] }
+
+    /// Gives a tab an icon (an SF Symbol name), or takes it back with nil.
+    func setGlyph(_ symbol: String?, for tab: Tab) {
+        guard tabGlyphs[tab.id] != symbol else { return }
+        tabGlyphs[tab.id] = symbol
+        defaults.set(tabGlyphs, forKey: Self.tabGlyphsKey)
+    }
+
+    /// A closed, sealed or sunk tab's icon has nothing left to sit on.
+    private func forgetGlyphsOfGoneTabs() {
+        guard !tabGlyphs.isEmpty else { return }
+        let open = Set(allTabs.map(\.id))
+        let kept = tabGlyphs.filter { open.contains($0.key) }
+        guard kept.count != tabGlyphs.count else { return }
+        tabGlyphs = kept
+        defaults.set(kept, forKey: Self.tabGlyphsKey)
+    }
+
+    /// Puts a tab's address on the clipboard.
+    func copyLink(of tab: Tab) {
+        guard let url = tab.url, !url.isEmpty else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(url, forType: .string)
+    }
+
     /// Navigation happened in a tab: remember where it is and that it was just used.
-    func tabDidNavigate(_ tabId: String, url: URL?, title: String) {
+    ///
+    /// `fromJar` is the jar of the web view reporting. Every window keeps its own web views,
+    /// so a page can still be open on the store of a jar its tab has left; what that page
+    /// does must never be written onto the tab (non-negotiable 6).
+    func tabDidNavigate(_ tabId: String, fromJar jarId: String? = nil, url: URL?, title: String) {
+        if let jarId, let known = allTabs.first(where: { $0.id == tabId }), known.jarId != jarId { return }
         // A new page in the tab leaves Reader view; a late title for the same page doesn't.
         if let reader, reader.tabId == tabId, reader.url != url?.absoluteString { self.reader = nil }
         guard var tab = tabs.first(where: { $0.id == tabId }) else { return }
@@ -797,7 +1012,9 @@ final class Workbench {
     /// the page it was on is sealed, and the page it's on now stays open.
     private func closeIfStillOn(_ tab: Tab) {
         let now = tabs.first { $0.id == tab.id } ?? (try? store.read { db in try Tab.fetchOne(db, key: tab.id) })
-        guard let now, now.url == tab.url else { return }
+        // Same page, same jar. A tab that navigated on, or was moved to another jar while the
+        // page was being frozen, is no longer the tab that was sealed, and stays open.
+        guard let now, now.url == tab.url, now.jarId == tab.jarId else { return }
         closeTab(now)
     }
 
@@ -973,7 +1190,9 @@ final class Workbench {
                 report("This page has no article to read")
                 return
             }
-            guard benchTab?.id == tab.id else { return }    // you moved on while it was reading
+            // You moved on while it was reading, or the tab moved to another jar: the article
+            // was read with the old jar's sign-ins and must not show over the new jar's page.
+            guard benchTab?.id == tab.id, benchTab?.jarId == tab.jarId else { return }
             // The page the article came from, which can be ahead of the tab's saved URL while
             // a heavy page is still loading.
             reader = ReaderState(tabId: tab.id, url: article.url ?? tab.url, article: article)
@@ -1080,8 +1299,14 @@ final class Workbench {
 
     /// Reopens a Brine item as a tab, with its scroll and history, in the jar it sank from
     /// (or the first jar). The item stays in Brine: closing is free, so is restoring.
-    func restore(_ item: Item) {
-        let target = item.sunkOriginJarId.flatMap { id in jars.first { $0.id == id }?.id } ?? jars.first?.id
-        newTab(url: item.url, interactionState: item.sunkInteractionState, in: target)
+    ///
+    /// With `jarId`, in that jar instead (dragged there, or picked from the row's menu). Its
+    /// scroll and history come along only into the jar it sank from: they were made with that
+    /// jar's sign-ins, and those never cross jars (non-negotiable 6).
+    func restore(_ item: Item, into jarId: String? = nil) {
+        let origin = item.sunkOriginJarId.flatMap { id in jars.first { $0.id == id }?.id }
+        let target = jarId.flatMap { id in jars.first { $0.id == id }?.id } ?? origin ?? jars.first?.id
+        let state = (jarId == nil || target == origin) ? item.sunkInteractionState : nil
+        newTab(url: item.url, interactionState: state, in: target)
     }
 }

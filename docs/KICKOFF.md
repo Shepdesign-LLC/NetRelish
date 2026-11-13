@@ -18,7 +18,7 @@ CLAUDE.md                      (repo root — replaces the existing one)
 ---
 
 ## 0 · Design system bridge (run this first, before any feature work)
-> Read `CLAUDE.md`, `/design/DESIGN_MANIFEST.md`, `/design/tokens.css`, and `/design/symbols.svg` (if `symbols.svg` is missing, author it from manifest §7: `#nr-jar`, `#nr-jar-smart`, `#nr-jar-pickle`, `#nr-seal`, `#nr-lip`, `#nr-drip`, `#nr-sink` as `<symbol>` elements using `currentColor`, hairline-weight, 24×24 viewBox). Before any feature work, build the design system as Swift:
+> Read `CLAUDE.md`, `/design/DESIGN_MANIFEST.md`, `/design/tokens.css`, and `/design/symbols.svg` (if `symbols.svg` is missing, author it from manifest §7: `#nr-jar`, `#nr-jar-smart`, `#nr-jar-mason`, `#nr-seal`, `#nr-lip`, `#nr-drip`, `#nr-sink` as `<symbol>` elements using `currentColor`, hairline-weight, 24×24 viewBox). Before any feature work, build the design system as Swift:
 > - `Sources/UI/Tokens.swift` — a code generator script at `/scripts/gen-tokens.swift` reads `tokens.css` and emits `NRColor`, `NRSpace`, `NRRadius`, `NRType`, `NRMotion` enums. OKLCH → Display P3 `Color` with light + dark via a dynamic `NSColor`. Every custom property maps to exactly one static. Run it; commit the output; add a CI step that fails if regenerated output differs from the committed file.
 > - `Sources/UI/Shapes.swift` — `Superellipse(n: 5)` as a reusable `Shape`; `JarShape` with superellipse shoulders per manifest §6.
 > - `Sources/UI/Symbols.swift` — loads each `symbols.svg` symbol and both logos as template `Image`s.
@@ -62,4 +62,4 @@ One prompt, one PR, one demo. P0 is five PRs (0–4). P1 is roughly six. P1 clos
 | Reader view (Defuddle body, ⌘⇧R) | P2 |
 | Content blocker (`WKContentRuleList`, EasyList, per-jar toggle) | P2 |
 | Notebook — `Highlight` schema, inline notes | 1.1 |
-| Pickle — local WP dev jar, OrbStack/Docker, GitHub OAuth | 1.2, direct build only |
+| Mason Jar — local WP dev jar, OrbStack/Docker, GitHub OAuth | 1.2, direct build only |

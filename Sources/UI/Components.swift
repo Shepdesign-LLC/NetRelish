@@ -1,5 +1,5 @@
 // Components.swift — the smallest reusable pieces of manifest §8: button styles,
-// the badge, the shelf-life bar, the tab lip, and the jar glyph. Hand-written.
+// the badge, the shelf-life bar, the tab lip, the drop mark, and the jar glyph. Hand-written.
 // Anything larger (Shelf, Tabs, Bench, Inspector) is P1 feature work.
 
 import SwiftUI
@@ -122,12 +122,26 @@ public struct NRTabLip: View {
     }
 }
 
+// MARK: - Drop mark (§8; relish placement #9)
+
+/// The `lipH`-wide relish bar on the leading edge of whatever a drag would land on — a jar
+/// on the Shelf, a tab in the strip — and only while something is being dragged over it.
+public struct NRDropMark: View {
+    public init() {}
+    public var body: some View {
+        RoundedRectangle(cornerRadius: NRSpace.lipH / 2)
+            .fill(NRColor.relish500)
+            .frame(width: NRSpace.lipH)
+            .accessibilityHidden(true)
+    }
+}
+
 // MARK: - Jar glyph
 
 /// `#nr-jar` drawn from shapes at any size: lid, superellipse shoulders, filled body.
 /// Prefer `NRSymbol.jar.image` at 24pt; use this when a jar must scale or animate.
 public struct NRJarGlyph: View {
-    public enum Variant { case plain, smart, pickle }
+    public enum Variant { case plain, smart, mason }
     public var variant: Variant
     public var size: CGFloat
 

@@ -168,6 +168,12 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .btn.primary:hover{background:var(--accent); color:var(--on-accent)}
 .btn svg{width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none}
 .btn.icon{width:32px; padding:0; justify-content:center}
+.btn[hidden]{display:none}
+/* split button: the main part acts in one click, the caret part opens the menu; the 1px gap is the divider */
+.split{display:inline-flex; gap:1px}
+.split .btn:first-child{border-radius:6px 0 0 6px}
+.split .btn.icon{width:28px; border-radius:0 6px 6px 0}
+@media (prefers-reduced-motion:no-preference){.btn:active{transform:translateY(1px)}} /* pressed feedback; none under reduced motion */
 .label{display:none}
 @media (min-width:1100px){.label{display:inline}}
 
@@ -201,6 +207,12 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .pop .menu button:hover{background:var(--paper); color:var(--ink)}
 .pop .menu button small{margin-left:auto; color:var(--ink-3); font-family:var(--mono); font-size:11px}
 .pop hr{border:0; border-top:1px solid var(--rule); margin:6px 0}
+/* disclosure inside a popover: the summary reads as a row, its chevron sits where a row's control does */
+.pop details > summary{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:6px 8px; border-radius:6px; color:var(--ink-2); cursor:pointer; list-style:none}
+.pop details > summary::-webkit-details-marker{display:none}
+.pop details > summary:hover{background:var(--paper); color:var(--ink)}
+.pop details > summary svg{width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none; transition:transform .18s ease}
+.pop details[open] > summary svg{transform:rotate(180deg)}
 
 /* workspace */
 .work{display:grid; grid-template-columns:0 0 1fr; min-height:0; transition:grid-template-columns .18s ease}
@@ -259,6 +271,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 }
 @media (pointer:coarse){
   .btn{height:40px} .btn.icon{width:40px}
+  .split .btn.icon{width:40px}
   .tab .x,.tab .lk{width:28px; height:28px}
   .tab .lk{opacity:1} /* no hover on touch — the lock must be visible to exist */
   .doc .copy{padding:8px 10px; font-size:12px}
@@ -280,10 +293,10 @@ button{cursor:pointer; background:none; border:0; padding:0}
     <div class="tabs" id="tabs" role="tablist"></div>
 
     <div class="group">
-      <button class="btn" id="btnOpen" title="Open Markdown files (Ctrl/⌘ O)">
+      <button class="btn" id="btnOpen" title="Open Markdown files (Ctrl/⌘ O)" hidden>
         <svg viewBox="0 0 24 24"><path d="M4 6h5l2 2h9v10H4z"/></svg><span class="label">Open</span>
       </button>
-      <button class="btn" id="btnPaste" title="Paste Markdown from clipboard">
+      <button class="btn" id="btnPaste" title="Paste Markdown from clipboard" hidden>
         <svg viewBox="0 0 24 24"><rect x="6" y="5" width="12" height="15" rx="2"/><path d="M9 5V3h6v2"/></svg><span class="label">Paste</span>
       </button>
       <button class="btn" id="btnEdit" aria-pressed="false" title="Toggle editor (Ctrl/⌘ E)">
@@ -295,18 +308,26 @@ button{cursor:pointer; background:none; border:0; padding:0}
     </div>
 
     <div class="group">
-      <button class="btn icon" id="btnRead" title="Reader settings">
+      <button class="btn icon" id="btnRead" title="Reader settings" aria-expanded="false" aria-controls="popRead">
         <svg viewBox="0 0 24 24"><path d="M5 19 12 4l7 15M8 13h8"/></svg>
       </button>
       <button class="btn icon" id="btnTheme" title="Theme: auto">
         <svg viewBox="0 0 24 24" id="themeIcon"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>
       </button>
+      <button type="button" class="btn icon" id="btnSound" data-zest-sound aria-pressed="true" aria-label="Sound" title="Short sounds when you copy, save, add or remove something">
+        <svg viewBox="0 0 24 24"><path d="M4 10v4h3l5 4V6l-5 4z"/><path d="M16 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg>
+      </button>
     </div>
 
     <div class="group">
-      <button class="btn primary" id="btnExport" title="Export">
-        <svg viewBox="0 0 24 24"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>Export
-      </button>
+      <div class="split">
+        <button class="btn primary" id="btnExport" title="Export HTML (Ctrl/⌘ S)">
+          <svg viewBox="0 0 24 24"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>Export
+        </button>
+        <button class="btn primary icon" id="btnExportMenu" aria-label="Export options" title="Export options" aria-expanded="false" aria-controls="popExport">
+          <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+      </div>
     </div>
 
     <!-- reader settings -->
@@ -328,24 +349,27 @@ button{cursor:pointer; background:none; border:0; padding:0}
       </div>
       <div class="head">Reading</div>
       <div class="row"><label>Mode</label>
-        <div class="seg" data-set="theme">
+        <div class="seg" data-set="theme" role="group" aria-label="Mode">
           <button data-v="auto">Auto</button>
           <button data-v="light">Light</button>
           <button data-v="dark">Dark</button>
         </div>
       </div>
-      <div class="row"><label>Typeface</label>
-        <div class="seg" data-set="font">
-          <button data-v="skin" aria-pressed="true">Skin</button>
-          <button data-v="sans" style="font-family:'Geist',sans-serif">Sans</button>
-          <button data-v="serif" style="font-family:'Newsreader',serif">Serif</button>
-          <button data-v="mono" style="font-family:'Geist Mono',monospace">Mono</button>
+      <div class="row"><label>Size</label><input type="range" data-set="size" min="14" max="26" step="1" value="17" aria-label="Size"></div>
+      <details id="moreRead">
+        <summary>Typeface and spacing<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+        <div class="row"><label>Typeface</label>
+          <div class="seg" data-set="font" role="group" aria-label="Typeface">
+            <button data-v="skin" aria-pressed="true">Skin</button>
+            <button data-v="sans" style="font-family:'Geist',sans-serif">Sans</button>
+            <button data-v="serif" style="font-family:'Newsreader',serif">Serif</button>
+            <button data-v="mono" style="font-family:'Geist Mono',monospace">Mono</button>
+          </div>
         </div>
-      </div>
-      <div class="row"><label>Size</label><input type="range" data-set="size" min="14" max="26" step="1" value="17"></div>
-      <div class="row"><label>Line height</label><input type="range" data-set="lh" min="1.3" max="2" step="0.05" value="1.65"></div>
-      <div class="row"><label>Width</label><input type="range" data-set="measure" min="50" max="110" step="2" value="70"></div>
-      <hr>
+        <div class="row"><label>Line height</label><input type="range" data-set="lh" min="1.3" max="2" step="0.05" value="1.65" aria-label="Line height"></div>
+        <div class="row"><label>Width</label><input type="range" data-set="measure" min="50" max="110" step="2" value="70" aria-label="Width"></div>
+      </details>
+      <div class="head">Markdown</div>
       <div class="row"><label for="cleanLLM">Clean LLM paste</label><input type="checkbox" id="cleanLLM" checked></div>
       <div class="row"><label for="rawHtml" title="Safe raw HTML: scripts, event handlers and frames are always stripped">Allow raw HTML</label><input type="checkbox" id="rawHtml" checked></div>
       <hr>
@@ -355,7 +379,6 @@ button{cursor:pointer; background:none; border:0; padding:0}
     <!-- export menu -->
     <div class="pop" id="popExport">
       <div class="menu">
-        <button data-do="html">Download self-contained HTML <small>⌘S</small></button>
         <button data-do="copyhtml">Copy HTML fragment</button>
         <button data-do="pdf">Print / save as PDF <small>⌘P</small></button>
         <hr>
@@ -412,11 +435,109 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.17/purify.min.js" integrity="sha384-P0JNneQf81HOl9VwNXK76cQ9VMD6Nfsnepxb0cCOg8+UzEdzgPHAPV4wVQrvYQSx" crossorigin="anonymous" onerror="__mdfail('the HTML sanitizer (DOMPurify)')"></script>
 
 <script>
+/* zest-sound:start v1 */
+/* Zest sound kit: short synthesized sounds for the things you do in a tool. No audio files, no network.
+   This block is inlined, byte for byte, in all four tools (studio, mail, md, image). To change it,
+   edit one copy, paste it over the other three and bump the version; tests/sound.js fails if they differ.
+     window.ZestSound = { play(name), muted, setMuted(bool) }   names: tap · pop · drop · done · nope
+   Any button carrying data-zest-sound is the mute toggle; the kit keeps its aria-pressed in step.
+   The choice lives in localStorage under one key, zest.sound = on | off, shared by every tool on the origin. */
+(function () {
+  'use strict';
+  var KEY = 'zest.sound', GESTURES = ['pointerdown', 'keydown', 'touchend', 'click'];
+  var AC = window.AudioContext || window.webkitAudioContext;
+  var ctx = null, armed = false, idle = 0, last = '', lastAt = 0;
+  function stored() { try { return localStorage.getItem(KEY) === 'off'; } catch (e) { return false; } }
+  var muted = stored();
+
+  // A sound is one or two notes: [wave, start Hz, end Hz, delay s, length s, peak gain].
+  // One family: soft sine and triangle blips around D, 35-180 ms, never louder than 0.07.
+  var SOUNDS = {
+    tap:  [['sine', 1175, 880, 0, 0.035, 0.05]],                                              // select, toggle, switch
+    pop:  [['sine', 440, 880, 0, 0.07, 0.07]],                                                // something was added
+    drop: [['sine', 587, 294, 0, 0.11, 0.07]],                                                // something left, or a drag landed
+    done: [['sine', 880, 880, 0, 0.07, 0.06], ['sine', 1319, 1319, 0.06, 0.12, 0.06]],        // copied, saved, exported
+    nope: [['triangle', 233, 208, 0, 0.06, 0.06], ['triangle', 208, 185, 0.08, 0.08, 0.06]]   // blocked, or it failed
+  };
+
+  function noop() {}
+  function resume() { try { return Promise.resolve(ctx.resume()); } catch (e) { return Promise.reject(e); } }
+  function rest() {            // an idle context is suspended, so an open tab does not hold the audio device
+    clearTimeout(idle);
+    idle = setTimeout(function () { try { if (ctx) Promise.resolve(ctx.suspend()).catch(noop); } catch (e) {} }, 20000);
+  }
+  function wake() {            // only reached once a real gesture has happened
+    if (!AC) return null;
+    try {
+      if (!ctx) ctx = new AC();
+      if (ctx.state !== 'running') resume().catch(noop);
+      rest();
+    } catch (e) { ctx = null; }
+    return ctx;
+  }
+  function sound(notes) {
+    var t0 = ctx.currentTime + 0.005;
+    notes.forEach(function (n) {
+      var osc = ctx.createOscillator(), amp = ctx.createGain(), t = t0 + n[3];
+      osc.type = n[0];
+      osc.frequency.setValueAtTime(n[1], t);
+      if (n[2] !== n[1]) osc.frequency.exponentialRampToValueAtTime(n[2], t + n[4]);
+      amp.gain.setValueAtTime(0.001, t);
+      amp.gain.exponentialRampToValueAtTime(n[5], t + 0.006);
+      amp.gain.exponentialRampToValueAtTime(0.001, t + n[4]);
+      osc.connect(amp); amp.connect(ctx.destination);
+      osc.start(t); osc.stop(t + n[4] + 0.02);
+    });
+    rest();
+  }
+  function play(name) {
+    var notes = SOUNDS[name], now = Date.now();
+    if (muted || !armed || !notes) return;          // silent until the first real gesture: nothing plays on load
+    if (name === last && now - lastAt < 60) return;  // one action, one sound
+    last = name; lastAt = now;
+    try {
+      if (!wake()) return;
+      if (ctx.state === 'running') sound(notes);
+      else resume().then(function () { if (!muted && Date.now() - now < 250) sound(notes); }, noop);
+    } catch (e) {}
+  }
+  function paint() {
+    var els = document.querySelectorAll('[data-zest-sound]');
+    for (var i = 0; i < els.length; i++) els[i].setAttribute('aria-pressed', String(!muted));
+  }
+  function setMuted(off) {
+    muted = !!off;
+    try { localStorage.setItem(KEY, muted ? 'off' : 'on'); } catch (e) {}
+    if (!muted && armed) wake();
+    paint();
+  }
+  function arm(e) {            // the audio context is made on the first real gesture, never before
+    if (!e.isTrusted) return;
+    armed = true;
+    GESTURES.forEach(function (g) { window.removeEventListener(g, arm, true); });
+    if (!muted) wake();
+  }
+  GESTURES.forEach(function (g) { window.addEventListener(g, arm, true); });
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest && e.target.closest('[data-zest-sound]');
+    if (!b) return;
+    setMuted(!muted);
+    play('tap');               // turning sound on answers with a tap; turning it off is silent
+  });
+  window.addEventListener('storage', function (e) { if (e.key === KEY || e.key === null) { muted = stored(); paint(); } });
+  document.addEventListener('DOMContentLoaded', paint);
+  paint();
+  window.ZestSound = { play: play, setMuted: setMuted, get muted() { return muted; } };
+})();
+/* zest-sound:end */
+</script>
+<script>
 (() => {
   'use strict';
   const PRODUCT = 'Zest MD';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const snd = n => { try { window.ZestSound.play(n); } catch {} };   // tap · pop · drop · done · nope (the zest-sound kit above)
   const has = { md: !!window.markdownit, hl: !!window.hljs, katex: !!window.renderMathInElement, mermaid: !!window.mermaid, pure: !!window.DOMPurify };
   /* on-demand vendors: fetched the first time a document needs them, then has.* flips and render() re-runs.
      Each file is listed with the sha384 of the release named in its URL; the browser refuses a file that
@@ -519,8 +640,17 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   /* ---------- render ---------- */
   const doc = $('#doc'), stage = $('#stage');
   let renderSeq = 0;
+  // Open and Paste sit on the empty state while it is on screen, so the toolbar pair hides until a document is open.
+  // On a phone the editor covers the empty state, so the pair stays in the bar there.
+  const phone = matchMedia('(max-width:760px)');
+  function syncOpenPaste() {
+    const emptyShown = !state.files[state.active] && !(state.settings.edit && phone.matches);
+    $('#btnOpen').hidden = $('#btnPaste').hidden = emptyShown;
+  }
+  phone.addEventListener('change', syncOpenPaste);
   async function render() {
     const file = state.files[state.active];
+    syncOpenPaste();
     if (!file) { renderEmpty(); buildToc(); return; }
     let text = file.text;
     if (state.settings.cleanLLM) text = cleanLLM(text);
@@ -589,8 +719,8 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   }
   doc.addEventListener('click', async e => {
     const b = e.target.closest('.copy'); if (!b) return;
-    try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = 'Copied'; b.classList.add('done'); setTimeout(() => { b.textContent = 'Copy'; b.classList.remove('done'); }, 1400); }
-    catch { toast('Copy blocked by the browser'); }
+    try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = 'Copied'; b.classList.add('done'); snd('done'); setTimeout(() => { b.textContent = 'Copy'; b.classList.remove('done'); }, 1400); }
+    catch { toast('Copy blocked by the browser', 'nope'); }
   });
 
   function renderEmpty() {
@@ -604,7 +734,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
           <button class="btn" data-act="paste">Paste Markdown</button>
           <button class="btn" data-act="sample">Try a sample</button>
         </div>
-        <div class="hint"><b>Shortcuts</b> — <kbd>⌘/Ctrl O</kbd> open, <kbd>⌘/Ctrl E</kbd> editor, <kbd>⌘/Ctrl S</kbd> export HTML, <kbd>⌘/Ctrl P</kbd> PDF. Drag several files in to open them as tabs; double-click a tab to lock it against accidental closing.</div>
+        <div class="hint"><b>Shortcuts</b> — <kbd>⌘/Ctrl O</kbd> open, <kbd>⌘/Ctrl E</kbd> editor, <kbd>⌘/Ctrl S</kbd> export HTML, <kbd>⌘/Ctrl P</kbd> PDF. Drag several files in to open them as tabs; click a tab's lock to keep it from closing by accident.</div>
       </div>`;
     document.title = PRODUCT + ' — Markdown reader & HTML exporter';
   }
@@ -650,15 +780,15 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   }
   function closeFile(i) {
     const f = state.files[i]; if (!f) return;
-    if (f.locked) { toast(`${f.name} is locked. Click the lock to unlock it first.`); return; }
-    state.files.splice(i, 1);
+    if (f.locked) { toast(`${f.name} is locked. Click the lock to unlock it first.`, 'nope'); return; }
+    state.files.splice(i, 1); snd('drop');
     if (state.active >= state.files.length) state.active = state.files.length - 1;
     renderTabs(); syncEditor(); render();
     toast(`Closed ${f.name}`, { label: 'Undo', fn() {
       const at = Math.min(i, state.files.length); state.files.splice(at, 0, f); state.active = at; renderTabs(); syncEditor(); render();
     } });
   }
-  function toggleLock(i) { const f = state.files[i]; if (!f) return; f.locked = !f.locked; renderTabs(); toast(f.locked ? `${f.name} locked` : `${f.name} unlocked`); }
+  function toggleLock(i) { const f = state.files[i]; if (!f) return; f.locked = !f.locked; renderTabs(); toast(f.locked ? `${f.name} locked` : `${f.name} unlocked`, 'tap'); }
   const LOCK_OPEN = '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7"/></svg>';
   const LOCK_SHUT = '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
   function renderTabs() {
@@ -667,9 +797,8 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   tabs.addEventListener('click', e => {
     const l = e.target.closest('[data-lock]'); if (l) { toggleLock(+l.dataset.lock); return; }
     const x = e.target.closest('[data-close]'); if (x) { closeFile(+x.dataset.close); return; }
-    const t = e.target.closest('.tab'); if (t) { state.active = +t.dataset.i; renderTabs(); syncEditor(); render(); }
+    const t = e.target.closest('.tab'); if (t) { state.active = +t.dataset.i; renderTabs(); syncEditor(); render(); snd('tap'); }
   });
-  tabs.addEventListener('dblclick', e => { const t = e.target.closest('.tab'); if (t && !e.target.closest('button')) toggleLock(+t.dataset.i); });
   tabs.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const t = e.target.closest('.tab'); if (t) { e.preventDefault(); t.click(); } } });
 
   async function readFiles(list) {
@@ -678,14 +807,14 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     // a dropped zest-brand.json re-skins instead of opening as a document — the §7.3 interchange
     const jsonF = all.find(f => /\.json$/i.test(f.name));
     if (jsonF) {
-      try { const b = JSON.parse(await jsonF.text()); if (b && b.zest === 1) importZestBrand(b); else toast('Not a zest-brand.json.'); }
-      catch { toast('That file would not read as JSON.'); }
+      try { const b = JSON.parse(await jsonF.text()); if (b && b.zest === 1) importZestBrand(b); else toast('Not a zest-brand.json.', 'nope'); }
+      catch { toast('That file would not read as JSON.', 'nope'); }
       if (all.length === 1) return;
     }
     const files = all.filter(f => okExt.test(f.name) || /text\/(markdown|plain)/.test(f.type));
-    if (!files.length) { if (!jsonF) toast('Drop .md, .markdown or .txt files'); return; }
+    if (!files.length) { if (!jsonF) toast('Drop .md, .markdown or .txt files', 'nope'); return; }
     for (const f of files) addFile(f.name, await f.text(), true);
-    toast(files.length === 1 ? `Opened ${files[0].name}` : `Opened ${files.length} files`);
+    toast(files.length === 1 ? `Opened ${files[0].name}` : `Opened ${files.length} files`, 'pop');
   }
   const picker = $('#file');
   function openPicker() { picker.value = ''; picker.click(); }
@@ -694,8 +823,8 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   async function pasteClipboard() {
     try {
       const t = await navigator.clipboard.readText();
-      if (!t.trim()) { toast('Clipboard is empty'); return; }
-      addFile(`Pasted ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.md`, t);
+      if (!t.trim()) { toast('Clipboard is empty', 'nope'); return; }
+      addFile(`Pasted ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.md`, t); snd('pop');
     } catch { addFile('Untitled.md', ''); setEdit(true); toast('Clipboard blocked — paste into the editor instead'); $('#src').focus(); }
   }
 
@@ -709,7 +838,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   // paste into page when nothing is focused
   document.addEventListener('paste', e => {
     if (e.target.closest('textarea,input')) return;
-    const t = e.clipboardData.getData('text/plain'); if (t && t.trim()) { e.preventDefault(); addFile('Pasted.md', t); }
+    const t = e.clipboardData.getData('text/plain'); if (t && t.trim()) { e.preventDefault(); addFile('Pasted.md', t); snd('pop'); }
   });
 
   /* ---------- editor ---------- */
@@ -878,7 +1007,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     return FONT_CHOICES[slot].includes(k) ? k : { doc: 'geist', ui: 'geist', mono: 'geistMono' }[slot];
   }
   function importZestBrand(b) {
-    if (!b || b.zest !== 1 || !palOk(b.light)) { toast('Not a zest-brand.json.'); return false; }
+    if (!b || b.zest !== 1 || !palOk(b.light)) { toast('Not a zest-brand.json.', 'nope'); return false; }
     const name = String(b.name || 'Zest brand').replace(CTRL_RE, ' ').slice(0, 48).trim() || 'Zest brand';
     const light = brandTokens(b.light);
     // a missing or invalid dark palette falls back to this app's own other-mode derivation from the light roles
@@ -893,14 +1022,14 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     });
     state.settings.skin = 'custom';
     syncCustomPanel(); applySettings(); renderSkins(); render();
-    toast(`${name} imported — the custom skin carries both palettes.`);
+    toast(`${name} imported — the custom skin carries both palettes.`, 'pop');
     return true;
   }
   $('#btnImportBrand').addEventListener('click', () => $('#brandFile').click());
   $('#brandFile').addEventListener('change', async e => {
     const file = e.target.files[0]; e.target.value = '';
     if (!file) return;
-    try { importZestBrand(JSON.parse(await file.text())); } catch { toast('That file would not read as a zest-brand.json.'); }
+    try { importZestBrand(JSON.parse(await file.text())); } catch { toast('That file would not read as a zest-brand.json.', 'nope'); }
   });
   function renderSkins() {            // built with DOM APIs: a skin's name, font and colors are set as text and style properties, never parsed as markup
     const el = (tag, cls) => { const n = document.createElement(tag); if (cls) n.className = cls; return n; };
@@ -914,7 +1043,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
       return b;
     }));
   }
-  $('#skins').addEventListener('click', e => { const b = e.target.closest('.skin'); if (!b) return; state.settings.skin = b.dataset.skin; if (b.dataset.skin === 'custom') syncCustomPanel(); applySettings(); render(); });
+  $('#skins').addEventListener('click', e => { const b = e.target.closest('.skin'); if (!b) return; state.settings.skin = b.dataset.skin; if (b.dataset.skin === 'custom') syncCustomPanel(); applySettings(); render(); snd('tap'); });
   function applySettings() {
     const s = state.settings;
     if (!SKINS[s.skin] && s.skin !== 'custom') s.skin = 'press';
@@ -933,6 +1062,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     $('#themeIcon').innerHTML = { auto: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/>', light: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>', dark: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>' }[s.theme];
     $('#work').dataset.toc = s.toc; $('#work').dataset.edit = s.edit;
     $('#btnToc').setAttribute('aria-pressed', s.toc); $('#btnEdit').setAttribute('aria-pressed', s.edit);
+    syncOpenPaste();
     store.set('settings', s);
   }
   $('#popRead').addEventListener('input', e => {
@@ -951,19 +1081,33 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   $('#btnToc').addEventListener('click', () => { state.settings.toc = !state.settings.toc; applySettings(); });
   function setEdit(v) { state.settings.edit = v; applySettings(); if (v) src.focus(); }
   $('#btnEdit').addEventListener('click', () => setEdit(!state.settings.edit));
+  $$('#btnEdit, #btnToc, #btnTheme').forEach(b => b.addEventListener('click', () => snd('tap')));
   $('#btnOpen').addEventListener('click', openPicker);
   $('#btnPaste').addEventListener('click', pasteClipboard);
 
   /* ---------- popovers ---------- */
-  function togglePop(id, btn) {
-    const p = $(id), open = p.dataset.open !== 'true';
-    $$('.pop').forEach(x => x.dataset.open = 'false'); p.dataset.open = open;
-    if (btn) btn.setAttribute('aria-expanded', open);
+  const POP_BTN = { popRead: '#btnRead', popExport: '#btnExportMenu' };   // each popover's button carries its open state
+  function closePops(refocus) {
+    $$('.pop').forEach(p => {
+      const b = $(POP_BTN[p.id]);
+      if (refocus && p.dataset.open === 'true' && p.contains(document.activeElement)) b.focus();   // leaving by keyboard hands focus back to the button
+      p.dataset.open = 'false'; b.setAttribute('aria-expanded', 'false');
+    });
   }
-  $('#btnRead').addEventListener('click', e => { e.stopPropagation(); togglePop('#popRead', e.currentTarget); });
-  $('#btnExport').addEventListener('click', e => { e.stopPropagation(); togglePop('#popExport', e.currentTarget); });
-  document.addEventListener('click', e => { if (!e.target.closest('.pop')) $$('.pop').forEach(x => x.dataset.open = 'false'); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') $$('.pop').forEach(x => x.dataset.open = 'false'); });
+  function togglePop(id) {
+    const p = $(id), open = p.dataset.open !== 'true';
+    closePops(); p.dataset.open = open; $(POP_BTN[p.id]).setAttribute('aria-expanded', open);
+  }
+  $('#btnRead').addEventListener('click', e => { e.stopPropagation(); togglePop('#popRead'); });
+  $('#btnExportMenu').addEventListener('click', e => { e.stopPropagation(); togglePop('#popExport'); });
+  $('#btnExport').addEventListener('click', () => exportHtml());   // one click: the same export as Ctrl/⌘ S; the menu behind the caret holds the other four
+  document.addEventListener('click', e => { if (!e.target.closest('.pop')) closePops(); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    const d = e.target.closest && e.target.closest('.pop details[open]');
+    if (d) { d.open = false; $('summary', d).focus(); return; }   // Escape closes the disclosure first, then the popover
+    closePops(true);
+  });
 
   /* ---------- export ---------- */
   function currentTheme() {
@@ -971,7 +1115,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
   function exportHtml() {
-    const f = state.files[state.active]; if (!f) { toast('Open a file first'); return; }
+    const f = state.files[state.active]; if (!f) { toast('Open a file first', 'nope'); return; }
     const s = state.settings, title = document.title, mode = currentTheme();
     const sk = resolveSkin(s.skin), vals = sk[mode];
     const body = doc.cloneNode(true); $$('.anchor', body).forEach(a => a.remove());
@@ -1009,16 +1153,15 @@ ${copyScript}
     toast('HTML exported');
   }
   function download(name, content, type) {
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); snd('done');
   }
-  async function copy(text, msg) { try { await navigator.clipboard.writeText(text); toast(msg); } catch { toast('Copy blocked by the browser'); } }
+  async function copy(text, msg) { try { await navigator.clipboard.writeText(text); toast(msg, 'done'); } catch { toast('Copy blocked by the browser', 'nope'); } }
   $('#popExport').addEventListener('click', e => {
     const b = e.target.closest('[data-do]'); if (!b) return;
     const f = state.files[state.active];
-    $$('.pop').forEach(x => x.dataset.open = 'false');
-    if (!f) { toast('Open a file first'); return; }
+    closePops(true);
+    if (!f) { toast('Open a file first', 'nope'); return; }
     switch (b.dataset.do) {
-      case 'html': exportHtml(); break;
       case 'copyhtml': { const c = doc.cloneNode(true); $$('.anchor', c).forEach(a => a.remove()); copy(c.innerHTML.trim(), 'HTML copied'); break; }
       case 'pdf': window.print(); break;
       case 'md': download(f.name.replace(/\.(markdown|mdx|txt)$/i, '.md'), state.settings.cleanLLM ? cleanLLM(f.text) : f.text, 'text/markdown'); toast('Markdown exported'); break;
@@ -1043,6 +1186,7 @@ ${copyScript}
   /* ---------- toast ---------- */
   let toastT;
   function toast(msg, action) {
+    if (typeof action === 'string') { snd(action); action = null; }   // a string is a sound name; an object is the action button
     const t = $('#toast'); t.textContent = msg;
     if (action) { const b = document.createElement('button'); b.type = 'button'; b.textContent = action.label; b.onclick = () => { t.classList.remove('show'); action.fn(); }; t.appendChild(b); }
     t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), action ? 6000 : 2200);
@@ -1108,6 +1252,7 @@ flowchart LR
 
 <details><summary>Raw HTML works too</summary>Because it's Markdown, not a walled garden.</details>
 `);
+    snd('pop');
   }
 
   /* ---------- boot ---------- */

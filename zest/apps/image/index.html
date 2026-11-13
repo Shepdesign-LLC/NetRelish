@@ -62,7 +62,7 @@ header a:hover{color:var(--ink)}
 .btn.wide{width:100%}
 .btn.sm{height:28px;padding:0 10px;font-size:12px;border-radius:8px}
 .btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
-.btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.btn svg,.mitem svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .hint{font-size:11.5px;color:var(--ink-3);line-height:1.5;margin:6px 0 0}
 .hint b{color:var(--ink-2);font-weight:500}
 .hint code{font:10.5px var(--mono);background:var(--pane-2);padding:1px 4px;border-radius:4px}
@@ -114,6 +114,28 @@ header a:hover{color:var(--ink)}
 .pro svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.9;flex:none}
 .pro em{font-style:normal;margin-left:auto;font:600 9.5px var(--mono);letter-spacing:.07em;color:var(--acc);opacity:.8}
 
+/* disclosures and the export menu: native <details>, so the keyboard and the open state come from the browser */
+summary{list-style:none;cursor:pointer}
+summary::-webkit-details-marker{display:none}
+.disc > summary{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;color:var(--ink-2);transition:color var(--t)}
+.disc > summary:hover{color:var(--ink)}
+.disc > summary::before,.menu > summary::after{content:'';flex:none;width:6px;height:6px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(-45deg);transition:transform var(--t) var(--ease)}
+.disc > summary::before{margin:0 3px 0 2px}
+.disc[open] > summary::before{transform:rotate(45deg)}
+.disc > summary b{margin-left:auto;font:500 11.5px var(--mono);color:var(--ink)}
+.disc > summary + *{margin-top:6px}
+.exrow{position:relative}
+.exrow #bExport{width:calc(100% - 84px)}
+.menu > summary{position:absolute;top:0;right:0;width:76px} /* sits beside Export; the list opens in the flow below both, so nothing is clipped or covered */
+.menu > summary::after{transform:translateY(-2px) rotate(45deg)}
+.menu[open] > summary{border-color:var(--ink-3)}
+.menu[open] > summary::after{transform:translateY(2px) rotate(225deg)}
+.menulist{margin-top:8px;padding:4px;border:1px solid var(--line);border-radius:var(--r);background:var(--pane)}
+.mitem{display:flex;align-items:center;gap:9px;width:100%;padding:7px 9px;border-radius:7px;font-size:13px;text-align:left;transition:background var(--t)}
+.mitem:hover{background:var(--pane-3)}
+#exOpts{margin-top:6px}
+#cRestList{margin-top:9px}
+
 .drop{display:block;width:100%;border:1.5px dashed var(--line);border-radius:var(--r);padding:12px;text-align:center;font-size:12px;color:var(--ink-3);transition:all var(--t);cursor:pointer}
 .drop:hover,.drop.over{border-color:var(--acc);color:var(--ink-2)}
 .thumb{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:var(--r);border:1px solid var(--line-2);background:var(--pane);margin-top:8px}
@@ -121,6 +143,8 @@ header a:hover{color:var(--ink)}
 .thumb span{flex:1;font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .thumb button{color:var(--ink-3)} .thumb button:hover{color:var(--ink)}
 .thumb button svg{display:block;width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.thumb .btn{flex:none;color:var(--ink)}
+.thumb.line{margin-top:0;gap:8px} .thumb.line img{width:28px;height:28px} .thumb.line span{white-space:normal} /* the brand's own logo: one line in place of the drop zone (it wraps before it would cut the sentence) */
 input[type=range]{width:100%;accent-color:var(--acc)}
 
 footer{padding:14px 18px;border-top:1px solid var(--line);display:flex;gap:16px;align-items:center;font-size:12px;color:var(--ink-3);flex-wrap:wrap}
@@ -139,6 +163,7 @@ footer .sp{flex:1}
   .sec.exportsec{position:sticky;bottom:0;z-index:4;background:var(--night,#120607);border-top:1px solid var(--line);margin-top:10px;padding-top:10px;padding-bottom:10px}
   .field input[type=text],.field input[type=number],.field select,.field textarea,#cAlt{font-size:16px} /* under 16px, iOS Safari focus-zooms the page */
   .lab{font-size:12.5px} .hint{font-size:12px} .tchip small{font-size:11px} .lcell small{font-size:11.5px} .req{font-size:11px}
+  .disc > summary{font-size:13px} .disc > summary b{font-size:12.5px}
 }
 @media(max-width:640px){header .tag{display:none}}
 @media(max-width:1100px) and (max-height:500px){
@@ -148,6 +173,7 @@ footer .sp{flex:1}
 }
 @media(pointer:coarse){
   .btn{height:44px} .btn.sm{height:38px}
+  .disc > summary,.mitem{min-height:44px}
   .tchip{padding:10px 14px}
   .stagebar label{padding:10px 0}
   .stagebar input[type=checkbox]{width:20px;height:20px}
@@ -172,6 +198,7 @@ footer .sp{flex:1}
   <div class="brand"><img class="mark" src="icons/icon-112.png" alt="" aria-hidden="true">ZestImage</div>
   <span class="tag">Grapefruit · composed, not generated</span>
   <span class="sp"></span>
+  <div class="modes"><button type="button" class="btn sm" id="bSound" data-zest-sound aria-pressed="true" title="Short sounds when you copy, save, add or remove something">Sound</button></div>
   <a href="https://zest.netrelish.com" rel="noopener">Zest</a>
 </header>
 
@@ -191,23 +218,31 @@ footer .sp{flex:1}
       <p class="lab">Logo</p>
       <button type="button" class="drop" id="dLogo">Drop an SVG or PNG, or click</button>
       <input type="file" id="fLogo" accept="image/svg+xml,image/png" hidden>
-      <div class="thumb" id="tLogo" hidden><img alt=""><span></span><button title="Remove"><svg><use href="#i-x"/></svg></button></div>
-      <p class="hint">Stays on this machine. Layouts fall back to the brand name without it.</p>
+      <div class="thumb" id="tLogo" hidden><img alt=""><span></span><button type="button" class="btn sm" id="bLogoReplace" hidden>Replace</button><button type="button" id="bLogoRemove" title="Remove"><svg><use href="#i-x"/></svg></button></div>
+      <p class="hint" id="logoHint">Stays on this machine. Layouts fall back to the brand name without it.</p>
     </div>
     <div class="sec">
       <p class="lab">Content</p>
-      <div class="field"><label for="cTitle">Title</label><textarea id="cTitle" rows="2">Zest launches today</textarea></div>
-      <div class="field"><label for="cKicker">Kicker</label><input type="text" id="cKicker" value="Announcement"></div>
-      <div class="field"><label for="cByline">Byline</label><input type="text" id="cByline" value="Ryan Shepherd · netrelish.com"></div>
-      <div class="row2">
-        <div class="field"><label for="cStat">Stat</label><input type="text" id="cStat" value="4×"></div>
-        <div class="field"><label for="cStatLabel">Stat label</label><input type="text" id="cStatLabel" value="tools, one brand"></div>
+      <!-- every field starts here; renderFields() keeps the ones the layout draws and moves the rest, values intact, into #cRestList -->
+      <div id="cUsed">
+        <div class="field" data-f="title"><label for="cTitle">Title</label><textarea id="cTitle" rows="2">Zest launches today</textarea></div>
+        <div class="field" data-f="kicker"><label for="cKicker">Kicker</label><input type="text" id="cKicker" value="Announcement"></div>
+        <div class="field" data-f="byline"><label for="cByline">Byline</label><input type="text" id="cByline" value="Ryan Shepherd · netrelish.com"></div>
+        <div class="row2" data-f="stat">
+          <div class="field"><label for="cStat">Stat</label><input type="text" id="cStat" value="4×"></div>
+          <div class="field"><label for="cStatLabel">Stat label</label><input type="text" id="cStatLabel" value="tools, one brand"></div>
+        </div>
+        <div class="field" data-f="quote"><label for="cQuote">Quote</label><textarea id="cQuote" rows="2">It looks like us, not like AI.</textarea></div>
+        <div class="row2" data-f="series">
+          <div class="field"><label for="cSeriesN">Part</label><input type="number" id="cSeriesN" value="3" min="1"></div>
+          <div class="field"><label for="cSeriesOf">of</label><input type="number" id="cSeriesOf" value="7" min="1"></div>
+        </div>
       </div>
-      <div class="field"><label for="cQuote">Quote</label><textarea id="cQuote" rows="2">It looks like us, not like AI.</textarea></div>
-      <div class="row2">
-        <div class="field"><label for="cSeriesN">Part</label><input type="number" id="cSeriesN" value="3" min="1"></div>
-        <div class="field"><label for="cSeriesOf">of</label><input type="number" id="cSeriesOf" value="7" min="1"></div>
-      </div>
+      <details class="disc" id="cRest">
+        <summary>Not in this layout</summary>
+        <p class="hint">Kept as you switch layouts. The title still names the file.</p>
+        <div id="cRestList"></div>
+      </details>
     </div>
     <div class="sec">
       <p class="lab">Photo</p>
@@ -250,26 +285,39 @@ footer .sp{flex:1}
     </div>
     <div class="sec exportsec">
       <p class="lab">Export</p>
-      <div class="row2" style="margin-bottom:8px">
-        <div class="field"><label for="eFmt">Format</label><select id="eFmt"><option value="png">PNG</option><option value="webp">WebP</option></select></div>
-        <div class="field"><label for="eScale">Scale</label><select id="eScale"><option value="1">1×</option><option value="2" selected>2×</option></select></div>
+      <div class="exrow">
+        <button class="btn acc" id="bExport"><svg><use href="#i-down"/></svg>Export image</button><!-- its .sec is the sticky exportsec on mobile -->
+        <details class="menu" id="exMenu">
+          <summary class="btn">More</summary>
+          <div class="menulist">
+            <button type="button" class="mitem" id="bAlt"><svg><use href="#i-doc"/></svg>alt.txt</button>
+            <button type="button" class="mitem" id="bManifest"><svg><use href="#i-save"/></svg>Manifest</button>
+            <button type="button" class="mitem" id="bOg"><svg><use href="#i-copy"/></svg>Copy OG meta snippet</button>
+          </div>
+        </details>
       </div>
-      <button class="btn acc wide" id="bExport"><svg><use href="#i-down"/></svg>Export image</button><!-- its .sec is the sticky exportsec on mobile -->
-      <div class="row2" style="margin-top:8px">
-        <button class="btn sm" id="bAlt"><svg><use href="#i-doc"/></svg>alt.txt</button>
-        <button class="btn sm" id="bManifest"><svg><use href="#i-save"/></svg>Manifest</button>
-      </div>
-      <button class="btn sm wide" id="bOg" style="margin-top:8px"><svg><use href="#i-copy"/></svg>Copy OG meta snippet</button>
+      <details class="disc" id="exOpts">
+        <summary>Format and scale <b id="exSum">PNG · 2×</b></summary>
+        <div class="row2">
+          <div class="field"><label for="eFmt">Format</label><select id="eFmt"><option value="png">PNG</option><option value="webp">WebP</option></select></div>
+          <div class="field"><label for="eScale">Scale</label><select id="eScale"><option value="1">1×</option><option value="2" selected>2×</option></select></div>
+        </div>
+      </details>
       <p class="hint" id="exCount"></p>
     </div>
     <div class="sec">
       <p class="lab">Pro</p>
-      <button class="pro" data-pro="batch"><svg><use href="#i-lock"/></svg>Export every size from one title<em>PRO</em></button>
-      <button class="pro" data-pro="svg"><svg><use href="#i-lock"/></svg>SVG export — edit it later in Figma<em>PRO</em></button>
-      <button class="pro" data-pro="xmp"><svg><use href="#i-lock"/></svg>Write XMP/EXIF into the file<em>PRO</em></button>
-      <button class="pro" data-pro="s3"><svg><use href="#i-lock"/></svg>Upload — get a pasteable URL<em>PRO</em></button>
-      <button class="pro" data-pro="regen"><svg><use href="#i-lock"/></svg>Regenerate the set from a new brand version<em>PRO</em></button>
-      <button class="pro" data-pro="series"><svg><use href="#i-lock"/></svg>Series — one design, twelve titles<em>PRO</em></button>
+      <details class="disc" id="proList" open><!-- open on every load: the spec (§4.3) never hides Pro from free users. A person may close it -->
+        <summary>What Pro adds</summary>
+        <div>
+          <button class="pro" data-pro="batch"><svg><use href="#i-lock"/></svg>Export every size from one title<em>PRO</em></button>
+          <button class="pro" data-pro="svg"><svg><use href="#i-lock"/></svg>SVG export — edit it later in Figma<em>PRO</em></button>
+          <button class="pro" data-pro="xmp"><svg><use href="#i-lock"/></svg>Write XMP/EXIF into the file<em>PRO</em></button>
+          <button class="pro" data-pro="s3"><svg><use href="#i-lock"/></svg>Upload — get a pasteable URL<em>PRO</em></button>
+          <button class="pro" data-pro="regen"><svg><use href="#i-lock"/></svg>Regenerate the set from a new brand version<em>PRO</em></button>
+          <button class="pro" data-pro="series"><svg><use href="#i-lock"/></svg>Series — one design, twelve titles<em>PRO</em></button>
+        </div>
+      </details>
       <p class="hint">Pro arrives with Zest accounts. The local core stays free — that is the point.</p>
     </div>
   </aside>
@@ -283,13 +331,111 @@ footer .sp{flex:1}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
+/* zest-sound:start v1 */
+/* Zest sound kit: short synthesized sounds for the things you do in a tool. No audio files, no network.
+   This block is inlined, byte for byte, in all four tools (studio, mail, md, image). To change it,
+   edit one copy, paste it over the other three and bump the version; tests/sound.js fails if they differ.
+     window.ZestSound = { play(name), muted, setMuted(bool) }   names: tap · pop · drop · done · nope
+   Any button carrying data-zest-sound is the mute toggle; the kit keeps its aria-pressed in step.
+   The choice lives in localStorage under one key, zest.sound = on | off, shared by every tool on the origin. */
+(function () {
+  'use strict';
+  var KEY = 'zest.sound', GESTURES = ['pointerdown', 'keydown', 'touchend', 'click'];
+  var AC = window.AudioContext || window.webkitAudioContext;
+  var ctx = null, armed = false, idle = 0, last = '', lastAt = 0;
+  function stored() { try { return localStorage.getItem(KEY) === 'off'; } catch (e) { return false; } }
+  var muted = stored();
+
+  // A sound is one or two notes: [wave, start Hz, end Hz, delay s, length s, peak gain].
+  // One family: soft sine and triangle blips around D, 35-180 ms, never louder than 0.07.
+  var SOUNDS = {
+    tap:  [['sine', 1175, 880, 0, 0.035, 0.05]],                                              // select, toggle, switch
+    pop:  [['sine', 440, 880, 0, 0.07, 0.07]],                                                // something was added
+    drop: [['sine', 587, 294, 0, 0.11, 0.07]],                                                // something left, or a drag landed
+    done: [['sine', 880, 880, 0, 0.07, 0.06], ['sine', 1319, 1319, 0.06, 0.12, 0.06]],        // copied, saved, exported
+    nope: [['triangle', 233, 208, 0, 0.06, 0.06], ['triangle', 208, 185, 0.08, 0.08, 0.06]]   // blocked, or it failed
+  };
+
+  function noop() {}
+  function resume() { try { return Promise.resolve(ctx.resume()); } catch (e) { return Promise.reject(e); } }
+  function rest() {            // an idle context is suspended, so an open tab does not hold the audio device
+    clearTimeout(idle);
+    idle = setTimeout(function () { try { if (ctx) Promise.resolve(ctx.suspend()).catch(noop); } catch (e) {} }, 20000);
+  }
+  function wake() {            // only reached once a real gesture has happened
+    if (!AC) return null;
+    try {
+      if (!ctx) ctx = new AC();
+      if (ctx.state !== 'running') resume().catch(noop);
+      rest();
+    } catch (e) { ctx = null; }
+    return ctx;
+  }
+  function sound(notes) {
+    var t0 = ctx.currentTime + 0.005;
+    notes.forEach(function (n) {
+      var osc = ctx.createOscillator(), amp = ctx.createGain(), t = t0 + n[3];
+      osc.type = n[0];
+      osc.frequency.setValueAtTime(n[1], t);
+      if (n[2] !== n[1]) osc.frequency.exponentialRampToValueAtTime(n[2], t + n[4]);
+      amp.gain.setValueAtTime(0.001, t);
+      amp.gain.exponentialRampToValueAtTime(n[5], t + 0.006);
+      amp.gain.exponentialRampToValueAtTime(0.001, t + n[4]);
+      osc.connect(amp); amp.connect(ctx.destination);
+      osc.start(t); osc.stop(t + n[4] + 0.02);
+    });
+    rest();
+  }
+  function play(name) {
+    var notes = SOUNDS[name], now = Date.now();
+    if (muted || !armed || !notes) return;          // silent until the first real gesture: nothing plays on load
+    if (name === last && now - lastAt < 60) return;  // one action, one sound
+    last = name; lastAt = now;
+    try {
+      if (!wake()) return;
+      if (ctx.state === 'running') sound(notes);
+      else resume().then(function () { if (!muted && Date.now() - now < 250) sound(notes); }, noop);
+    } catch (e) {}
+  }
+  function paint() {
+    var els = document.querySelectorAll('[data-zest-sound]');
+    for (var i = 0; i < els.length; i++) els[i].setAttribute('aria-pressed', String(!muted));
+  }
+  function setMuted(off) {
+    muted = !!off;
+    try { localStorage.setItem(KEY, muted ? 'off' : 'on'); } catch (e) {}
+    if (!muted && armed) wake();
+    paint();
+  }
+  function arm(e) {            // the audio context is made on the first real gesture, never before
+    if (!e.isTrusted) return;
+    armed = true;
+    GESTURES.forEach(function (g) { window.removeEventListener(g, arm, true); });
+    if (!muted) wake();
+  }
+  GESTURES.forEach(function (g) { window.addEventListener(g, arm, true); });
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest && e.target.closest('[data-zest-sound]');
+    if (!b) return;
+    setMuted(!muted);
+    play('tap');               // turning sound on answers with a tap; turning it off is silent
+  });
+  window.addEventListener('storage', function (e) { if (e.key === KEY || e.key === null) { muted = stored(); paint(); } });
+  document.addEventListener('DOMContentLoaded', paint);
+  paint();
+  window.ZestSound = { play: play, setMuted: setMuted, get muted() { return muted; } };
+})();
+/* zest-sound:end */
+</script>
+<script>
 (() => {
 'use strict';
 const PRODUCT = 'ZestImage';
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const slug = s => String(s || '').toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'untitled';
-let tT; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tT); tT = setTimeout(() => t.classList.remove('show'), 3200); };
+const snd = n => { try { window.ZestSound.play(n); } catch {} };   // tap · pop · drop · done · nope (the zest-sound kit above)
+let tT; const toast = (m, s) => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tT); tT = setTimeout(() => t.classList.remove('show'), 3200); if (s) snd(s); };
 
 /* ---------- bundled sample brands (zest-brand.json shape, spec §7.3) ---------- */
 /* Brands are untrusted input (imports and localStorage survive tampering).
@@ -484,8 +630,10 @@ const brandLine = (b, t, x, y, size, anchor) =>
   `<text x="${x}" y="${y}" font-family="${fam(b, 'mono')}" font-size="${size}" letter-spacing="${size * 0.12}" fill="${t.muted}" text-anchor="${anchor || 'start'}">${esc(b.name.toUpperCase())}</text>`;
 
 /* ---------- the eight layouts (spec §7.4) — pure functions over tokens ---------- */
+/* f lists the Content fields a layout draws (the data-f names in the markup; stat is Stat + Stat label, series is Part + of).
+   Keep it in step with fn: renderFields() shows these and tucks the rest away. Quote card draws the title only when Quote is empty. */
 const LAYOUTS = {
-  title: { n: 'Title card', d: 'The headline, set properly', fn(b, t, c, W, H, ph) {
+  title: { n: 'Title card', d: 'The headline, set properly', f: ['title', 'byline'], fn(b, t, c, W, H, ph) {
     const M = W * 0.08, u = Math.min(W, H);
     const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, W - M * 2, H * 0.52, u * 0.16, u * 0.05, 1.08);
     const block = ti.lines.length * ti.size * 1.08, y0 = (H - block) / 2 + ti.size * 0.86;
@@ -495,7 +643,7 @@ const LAYOUTS = {
       ${c.byline ? `<text x="${M}" y="${H - M * 0.72}" font-family="${fam(b, 'body')}" font-size="${u * 0.032}" fill="${t.muted}">${esc(c.byline)}</text>` : ''}
       ${logoAt(S.logo, W - M - u * 0.26, H - M * 0.72 - u * 0.058, u * 0.065) || brandLine(b, t, W - M, H - M * 0.72, u * 0.026, 'end')}`;
   }},
-  kicker: { n: 'Kicker + title', d: 'Eyebrow in the accent', fn(b, t, c, W, H) {
+  kicker: { n: 'Kicker + title', d: 'Eyebrow in the accent', f: ['title', 'kicker', 'byline'], fn(b, t, c, W, H) {
     const M = W * 0.08, u = Math.min(W, H);
     const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, W - M * 2, H * 0.46, u * 0.145, u * 0.05, 1.1);
     const kY = H * 0.22;
@@ -506,7 +654,7 @@ const LAYOUTS = {
       ${c.byline ? `<text x="${M}" y="${H - M * 0.72}" font-family="${fam(b, 'body')}" font-size="${u * 0.03}" fill="${t.muted}">${esc(c.byline)}</text>` : ''}
       ${logoAt(S.logo, W - M - u * 0.26, H - M * 0.72 - u * 0.055, u * 0.06) || brandLine(b, t, W - M, H - M * 0.72, u * 0.025, 'end')}`;
   }},
-  split: { n: 'Split', d: 'Text left, photo right', fn(b, t, c, W, H, ph, id) {
+  split: { n: 'Split', d: 'Text left, photo right', f: ['title', 'kicker', 'byline'], fn(b, t, c, W, H, ph, id) {
     const pw = W * 0.44, M = W * 0.055, u = Math.min(W, H), tw = W - pw;
     const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, tw - M * 2, H * 0.5, u * 0.12, u * 0.045, 1.1);
     const block = ti.lines.length * ti.size * 1.1, y0 = (H - block) / 2 + ti.size * 0.86;
@@ -519,7 +667,7 @@ const LAYOUTS = {
       <text font-family="${fam(b, 'head')}" font-weight="800" font-size="${ti.size}" fill="${t.ink}" letter-spacing="${-ti.size * 0.02}">${tspans(ti.lines, M, y0, 1.1, ti.size)}</text>
       ${c.byline ? `<text x="${M}" y="${H - M}" font-family="${fam(b, 'body')}" font-size="${u * 0.028}" fill="${t.muted}">${esc(c.byline)}</text>` : ''}`;
   }},
-  scrim: { n: 'Photo + scrim', d: 'Title over your photo', fn(b, t, c, W, H, ph, id) {
+  scrim: { n: 'Photo + scrim', d: 'Title over your photo', f: ['title', 'kicker'], fn(b, t, c, W, H, ph, id) {
     const M = W * 0.07, u = Math.min(W, H);
     const fg = Math.abs(lum(t.ink) - lum(t.dark)) >= Math.abs(lum(t.paper) - lum(t.dark)) ? t.ink : t.paper;  // whichever contrasts with the scrim — mode alone lies when an import without dark tokens copied light into dark
     const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, W - M * 2, H * 0.34, u * 0.12, u * 0.045, 1.08);
@@ -532,7 +680,7 @@ const LAYOUTS = {
       <text font-family="${fam(b, 'head')}" font-weight="800" font-size="${ti.size}" fill="${fg}" letter-spacing="${-ti.size * 0.02}">${tspans(ti.lines, M, H - M - block + ti.size * 0.86, 1.08, ti.size)}</text>
       ${logoAt(S.logo, M, M, u * 0.06) || brandLine(b, t, M, M + u * 0.03, u * 0.026)}`;
   }},
-  stat: { n: 'Stat card', d: 'One big number', fn(b, t, c, W, H) {
+  stat: { n: 'Stat card', d: 'One big number', f: ['title', 'stat'], fn(b, t, c, W, H) {
     const M = W * 0.08, u = Math.min(W, H);
     const st = fitOne(c.stat || '0', fam(b, 'head'), 800, W - M * 2, u * 0.42, u * 0.1);
     return `<rect width="${W}" height="${H}" fill="${t.paper}"/>
@@ -541,7 +689,7 @@ const LAYOUTS = {
       ${c.statLabel ? `<text x="${M}" y="${H * 0.56 + u * 0.085}" font-family="${fam(b, 'body')}" font-weight="500" font-size="${u * 0.052}" fill="${t.ink}">${esc(c.statLabel)}</text>` : ''}
       ${logoAt(S.logo, W - M - u * 0.26, H - M * 0.8 - u * 0.055, u * 0.06) || brandLine(b, t, W - M, H - M * 0.8, u * 0.025, 'end')}`;
   }},
-  quote: { n: 'Quote card', d: 'Said out loud', fn(b, t, c, W, H) {
+  quote: { n: 'Quote card', d: 'Said out loud', f: ['quote', 'byline'], fn(b, t, c, W, H) {
     const M = W * 0.09, u = Math.min(W, H);
     const q = fit(c.quote || c.title || '—', fam(b, 'head'), 600, W - M * 2, H * 0.5, u * 0.105, u * 0.042, 1.22);
     const block = q.lines.length * q.size * 1.22, y0 = (H - block) / 2 + q.size * 0.8;
@@ -551,7 +699,7 @@ const LAYOUTS = {
       ${c.byline ? `<text x="${M}" y="${y0 + block + u * 0.015}" font-family="${fam(b, 'mono')}" font-size="${u * 0.03}" letter-spacing="${u * 0.003}" fill="${t.muted}">— ${esc(c.byline.toUpperCase())}</text>` : ''}
       ${brandLine(b, t, W - M, H - M * 0.7, u * 0.025, 'end')}`;
   }},
-  series: { n: 'Numbered series', d: 'Part N of M', fn(b, t, c, W, H) {
+  series: { n: 'Numbered series', d: 'Part N of M', f: ['title', 'byline', 'series'], fn(b, t, c, W, H) {
     const M = W * 0.08, u = Math.min(W, H);
     const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, W * 0.72 - M, H * 0.46, u * 0.13, u * 0.05, 1.1);
     const block = ti.lines.length * ti.size * 1.1, y0 = (H - block) / 2 + ti.size * 0.9;
@@ -562,7 +710,7 @@ const LAYOUTS = {
       <text font-family="${fam(b, 'head')}" font-weight="800" font-size="${ti.size}" fill="${t.ink}" letter-spacing="${-ti.size * 0.02}">${tspans(ti.lines, M, y0, 1.1, ti.size)}</text>
       ${c.byline ? `<text x="${M}" y="${H - M * 0.75}" font-family="${fam(b, 'body')}" font-size="${u * 0.029}" fill="${t.muted}">${esc(c.byline)}</text>` : ''}`;
   }},
-  logo: { n: 'Logo lockup', d: 'Just the brand', fn(b, t, c, W, H) {
+  logo: { n: 'Logo lockup', d: 'Just the brand', f: ['byline'], fn(b, t, c, W, H) {
     const u = Math.min(W, H);
     const nm = fitOne(b.name || 'Brand', fam(b, 'head'), 800, W * 0.8, u * 0.11, u * 0.04);
     const hasLogo = !!S.logo, ly = H / 2 - (hasLogo ? u * 0.16 : u * 0.05);
@@ -607,6 +755,7 @@ function render() {
   else { f.style.width = h > w ? 'auto' : 'min(100%, 880px)'; f.style.height = h > w ? 'min(62vh, 640px)' : 'auto'; }
   $('#dims').textContent = `${w} × ${h}${scale() === 2 ? ' → ' + w * 2 + ' × ' + h * 2 : ''}`;
   $('#fname').textContent = filename();
+  $('#exSum').textContent = $('#eFmt').selectedOptions[0].text + ' · ' + $('#eScale').selectedOptions[0].text;   // the closed disclosure still says what Export will make
   $('#safe').classList.toggle('on', !!target().safe && $('#safeTgl').checked);
   if (!S.altTouched) $('#cAlt').value = altDefault();
   $('#exCount').textContent = S.exports.length ? `${S.exports.length} exported this session — the manifest lists them all.` : 'The manifest records every export so a rebrand can regenerate the set.';
@@ -626,14 +775,30 @@ function renderBrands() {
   $('#mDark').setAttribute('aria-pressed', S.mode === 'dark');
 }
 let logoFromBrand = false;                 // a brand-supplied logo follows the brand; a hand-dropped one survives brand switches
+let logoOpen = false;                      // Replace was pressed: show the drop zone although the brand's logo is in use
+function useBrandLogo(bl) { S.logo = bl; S.logoName = brand().name + ' logo'; logoFromBrand = true; logoOpen = false; }
+function paintLogo() {
+  const line = logoFromBrand && !logoOpen;   // the brand's own logo, untouched: one line, no drop zone
+  $('#dLogo').hidden = $('#logoHint').hidden = line;
+  $('#tLogo').hidden = !S.logo; $('#tLogo').classList.toggle('line', line);
+  $('#bLogoReplace').hidden = !line; $('#bLogoRemove').hidden = line;
+  if (S.logo) { $('#tLogo img').src = S.logo; $('#tLogo span').textContent = line ? "Using the brand's logo." : S.logoName; }
+}
 function syncBrandLogo() {
   const bl = brand().logo || null;
-  if (bl) { S.logo = bl; S.logoName = brand().name + ' logo'; logoFromBrand = true; }
+  if (bl) useBrandLogo(bl);
   else if (logoFromBrand) { S.logo = null; S.logoName = ''; logoFromBrand = false; }
-  $('#tLogo').hidden = !S.logo;
-  if (S.logo) { $('#tLogo img').src = S.logo; $('#tLogo span').textContent = S.logoName; }
+  paintLogo();
+}
+const FIELDS = $$('#cUsed [data-f]');      // moved, never rebuilt, so what was typed stays
+function renderFields() {
+  const draws = LAYOUTS[S.layout].f;
+  for (const name of draws) $('#cUsed').append(FIELDS.find(el => el.dataset.f === name));   // in the order the layout lists them
+  for (const el of FIELDS) if (!draws.includes(el.dataset.f)) $('#cRestList').append(el);
+  $('#cRest').hidden = !$('#cRestList').children.length;
 }
 function renderChoosers() {
+  renderFields();
   $('#layoutGrid').innerHTML = Object.entries(LAYOUTS).map(([k, l]) =>
     `<button class="lcell" data-l="${k}" aria-pressed="${k === S.layout}"><b>${l.n}</b><small>${l.d}</small></button>`).join('');
   $('#targetGrid').innerHTML = TARGETS.map(t =>
@@ -650,6 +815,9 @@ const save = () => { store.set('brands', S.brands); store.set('brandIdx', S.bran
 let hostSave = null;
 if (window.claude && window.claude.use) claude.use('downloads').then(d => { hostSave = d; }).catch(() => {});
 async function download(name, blob) {             // resolves true only when the save was not cancelled
+  const ok = await saveFile(name, blob); if (ok) snd('done'); return ok;
+}
+async function saveFile(name, blob) {
   if (hostSave) {
     try { await hostSave.save({ filename: name, data: blob }); return true; }
     catch (e) { if (e && e.code === 'declined') return false; }
@@ -660,10 +828,10 @@ async function download(name, blob) {             // resolves true only when the
 let webpOK = null;
 function canWebp() { if (webpOK !== null) return webpOK; const c = document.createElement('canvas'); c.width = c.height = 2; webpOK = c.toDataURL('image/webp').startsWith('data:image/webp'); return webpOK; }
 async function exportImage() {
-  if (ext() === 'webp' && !canWebp()) { toast('This browser cannot encode WebP — exporting PNG instead.'); $('#eFmt').value = 'png'; }
+  if (ext() === 'webp' && !canWebp()) { toast('This browser cannot encode WebP — exporting PNG instead.'); $('#eFmt').value = 'png'; render(); }
   await loadBrandFonts(brand());   // settle fonts before composing, so the file matches the preview rather than a mid-load fallback (failed loads keep system type)
   const alt = $('#cAlt').value.trim();   // read + validate after the font wait, with the rest of the snapshot — edits made during the load must count
-  if (!alt) { const s = $('#altSec'); s.classList.add('err'); setTimeout(() => s.classList.remove('err'), 600); $('#cAlt').focus(); toast('Alt text first — someone will hear this image instead of seeing it.'); return; }
+  if (!alt) { const s = $('#altSec'); s.classList.add('err'); setTimeout(() => s.classList.remove('err'), 600); $('#cAlt').focus(); toast('Alt text first — someone will hear this image instead of seeing it.', 'nope'); return; }
   const { w, h } = dims(), k = scale(), fmt = ext() === 'webp' ? 'image/webp' : 'image/png';
   const svg = compose(w, h);
   // Snapshot everything editable AFTER the font wait and BEFORE the raster awaits — switching controls mid-export must not mislabel the file
@@ -682,8 +850,8 @@ async function exportImage() {
     if (!await download(name, blob)) { toast('Export cancelled — nothing saved or recorded.'); return; }
     S.exports.push(rec);
     render();
-    toast(`${name} — alt text and manifest are one click away.`);
-  } catch (err) { toast(PRODUCT + ': ' + err.message); }
+    toast(`${name} — alt text and the manifest are under More.`);
+  } catch (err) { toast(PRODUCT + ': ' + err.message, 'nope'); }
   finally { URL.revokeObjectURL(url); }
 }
 const ogSnippet = () => { const { w, h } = dims(), k = scale(), alt = esc($('#cAlt').value.trim() || altDefault());
@@ -701,16 +869,17 @@ $('#brandList').addEventListener('click', async e => {
     S.brands.splice(rel, 1);
     if (S.brandIdx === abs) S.brandIdx = 0;
     else if (S.brandIdx > abs) S.brandIdx--;
-    save(); renderBrands(); syncBrandLogo(); render(); toast(`${gone.name} removed.`);
+    save(); renderBrands(); syncBrandLogo(); render(); toast(`${gone.name} removed.`, 'drop');
     await loadBrandFonts(brand()); render();   // the replacement selection needs its fonts, same as choosing it by hand
     return;
   }
   const b = e.target.closest('[data-i]'); if (!b) return;
-  S.brandIdx = +b.dataset.i; save(); renderBrands(); syncBrandLogo(); render();
+  S.brandIdx = +b.dataset.i; save(); renderBrands(); syncBrandLogo(); render(); snd('tap');
   await loadBrandFonts(brand()); render();
 });
 $('#mLight').addEventListener('click', () => { S.mode = 'light'; save(); renderBrands(); render(); });
 $('#mDark').addEventListener('click', () => { S.mode = 'dark'; save(); renderBrands(); render(); });
+$$('#mLight, #mDark').forEach(b => b.addEventListener('click', () => snd('tap')));
 $('#bImport').addEventListener('click', () => $('#fBrand').click());
 $('#fBrand').addEventListener('change', e => { importBrand(e.target.files[0]); e.target.value = ''; });
 async function importBrand(file) {
@@ -719,14 +888,14 @@ async function importBrand(file) {
     const b = JSON.parse(await file.text());
     if (b.zest !== 1 || !b.name || !b.light) throw new Error('Not a zest-brand.json — export one from the Zest studio');
     const replaces = S.brands.some(x => x.name.toLowerCase() === String(b.name).slice(0, 48).toLowerCase());
-    if (!replaces && S.brands.length >= FREE_BRANDS) { toast(`Free holds ${FREE_BRANDS} saved brands — remove one (×), or unlimited brands arrive with Pro.`); return; }
+    if (!replaces && S.brands.length >= FREE_BRANDS) { toast(`Free holds ${FREE_BRANDS} saved brands — remove one (×), or unlimited brands arrive with Pro.`, 'nope'); return; }
     const clean = sanitizeBrand(b);
     const existing = S.brands.findIndex(x => x.name.toLowerCase() === clean.name.toLowerCase());
     if (existing >= 0) { S.brands[existing] = clean; S.brandIdx = SAMPLES.length + existing; }
     else { S.brands.push(clean); S.brandIdx = SAMPLES.length + S.brands.length - 1; }
-    save(); renderBrands(); syncBrandLogo(); render(); toast(`${clean.name} ${existing >= 0 ? 'updated' : 'imported'}.`);
+    save(); renderBrands(); syncBrandLogo(); render(); toast(`${clean.name} ${existing >= 0 ? 'updated' : 'imported'}.`, 'pop');
     await loadBrandFonts(clean); render();
-  } catch (err) { toast(err.message); }
+  } catch (err) { toast(err.message, 'nope'); }
 }
 function pickFile(drop, input, handler) {
   drop.addEventListener('click', () => input.click());
@@ -734,13 +903,20 @@ function pickFile(drop, input, handler) {
 }
 function readAsDataURL(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
 async function setLogo(f) { if (!f) return; S.logo = await readAsDataURL(f); S.logoName = f.name; logoFromBrand = false;
-  $('#tLogo').hidden = false; $('#tLogo img').src = S.logo; $('#tLogo span').textContent = f.name; render(); }
+  paintLogo(); render(); snd('pop'); }
 async function setPhoto(f) { if (!f) return; S.photo = await readAsDataURL(f); S.photoName = f.name;
-  $('#tPhoto').hidden = false; $('#tPhoto img').src = S.photo; $('#tPhoto span').textContent = f.name; $('#tintRow').hidden = false; render(); }
+  $('#tPhoto').hidden = false; $('#tPhoto img').src = S.photo; $('#tPhoto span').textContent = f.name; $('#tintRow').hidden = false; render(); snd('pop'); }
 pickFile($('#dLogo'), $('#fLogo'), setLogo);
-$('#tLogo button').addEventListener('click', () => { S.logo = null; S.logoName = ''; logoFromBrand = false; $('#tLogo').hidden = true; render(); });
+$('#bLogoReplace').addEventListener('click', () => { logoOpen = true; paintLogo(); $('#dLogo').focus(); snd('tap'); });
+$('#bLogoRemove').addEventListener('click', () => {
+  const bl = brand().logo || null;
+  if (bl && !logoFromBrand) useBrandLogo(bl);   // removing a logo you dropped goes back to the brand's own
+  else { S.logo = null; S.logoName = ''; logoFromBrand = false; }
+  paintLogo(); render(); snd('drop');
+  $(logoFromBrand ? '#bLogoReplace' : '#dLogo').focus();   // the button just pressed is gone; keep the keyboard in the section
+});
 pickFile($('#dPhoto'), $('#fPhoto'), setPhoto);
-$('#tPhoto button').addEventListener('click', () => { S.photo = null; $('#tPhoto').hidden = true; $('#tintRow').hidden = true; render(); });
+$('#tPhoto button').addEventListener('click', () => { S.photo = null; $('#tPhoto').hidden = true; $('#tintRow').hidden = true; render(); snd('drop'); });
 document.addEventListener('dragover', e => { e.preventDefault(); });
 document.addEventListener('drop', async e => {
   e.preventDefault(); const f = e.dataTransfer.files[0]; if (!f) return;
@@ -749,8 +925,8 @@ document.addEventListener('drop', async e => {
   if (e.target.closest && e.target.closest('#dLogo')) return setLogo(f);   // a drop on the Logo area is a logo
   setPhoto(f);
 });
-$('#layoutGrid').addEventListener('click', e => { const b = e.target.closest('[data-l]'); if (!b) return; S.layout = b.dataset.l; save(); renderChoosers(); render(); });
-$('#targetGrid').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; S.target = b.dataset.t; save(); renderChoosers(); render(); });
+$('#layoutGrid').addEventListener('click', e => { const b = e.target.closest('[data-l]'); if (!b) return; S.layout = b.dataset.l; save(); renderChoosers(); render(); snd('tap'); });
+$('#targetGrid').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; S.target = b.dataset.t; save(); renderChoosers(); render(); snd('tap'); });
 $('#customRow').addEventListener('input', () => { S.custom = { w: +$('#cw').value, h: +$('#ch').value }; save(); render(); });
 $('#safeTgl').addEventListener('change', render);
 $('#eFmt').addEventListener('change', render);
@@ -764,12 +940,20 @@ $('#bManifest').addEventListener('click', async () => {
   const saved = await download(`${slug(brand().name)}-zest-image.json`, new Blob([JSON.stringify(m, null, 2)], { type: 'application/json' }));
   toast(!saved ? 'Manifest save cancelled.' : S.exports.length ? 'Manifest saved — regenerate the whole set from it after a rebrand.' : 'Manifest saved — it fills as you export.'); });
 $('#bOg').addEventListener('click', async () => { const snip = ogSnippet();
-  try { await navigator.clipboard.writeText(snip); toast('OG meta copied — swap your-site.example for where the image is hosted.'); }
+  try { await navigator.clipboard.writeText(snip); toast('OG meta copied — swap your-site.example for where the image is hosted.', 'done'); }
   catch { const saved = await download(filename().replace(/\.(png|webp)$/, '') + '.og.txt', new Blob([snip], { type: 'text/plain' }));
     toast(saved ? 'Clipboard access was blocked — the snippet saved as a file instead.' : 'Cancelled — nothing saved.'); } });
 $$('.pro').forEach(p => p.addEventListener('click', () =>
-  toast('Pro arrives with Zest accounts — everything local stays free. zest.netrelish.com/pricing has the plan.')));
+  toast('Pro arrives with Zest accounts — everything local stays free. zest.netrelish.com/pricing has the plan.', 'nope')));
+/* The export menu is a native <details>: Enter or Space on More opens it. It closes on Escape,
+   on choosing an item and on a click anywhere else, and hands focus back to More when focus was inside. */
+const exMenu = $('#exMenu');
+const closeMenu = () => { if (!exMenu.open) return; const back = exMenu.contains(document.activeElement); exMenu.open = false; if (back) $('summary', exMenu).focus(); };
+$('.menulist', exMenu).addEventListener('click', e => { if (e.target.closest('.mitem')) closeMenu(); });   // runs after the item's own handler
+document.addEventListener('click', e => { if (!exMenu.contains(e.target)) closeMenu(); });
+$$('summary').forEach(s => s.addEventListener('click', () => snd('tap')));   // More and the three disclosures: opening or closing is a tap
 document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeMenu();
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'e') { e.preventDefault(); exportImage(); }
 });
 

@@ -27,11 +27,11 @@ Native macOS browser with a pantry. Swift. Mac App Store. This file is the contr
 | Storage | GRDB.swift over SQLite. FTS5 for text, sqlite-vec for embeddings. Migrations in `Sources/Pantry/Migrations/`. |
 | Intelligence | Foundation Models first. MLX Swift behind an opt-in flag. |
 | Extraction | Defuddle (MIT) injected at capture for `body`. Never SingleFile (AGPL). |
-| Distribution | Mac App Store (primary) + Developer ID (`Pickle` and direct license). One codebase, `#if DIRECT_BUILD`. |
+| Distribution | Mac App Store (primary) + Developer ID (`Mason Jar` and direct license). One codebase, `#if DIRECT_BUILD`. |
 | Billing | StoreKit 2 in App Store build. Creem (merchant of record) in direct build, activated through a relay on netrelish.com that holds Creem's key (ADR 0027). |
 | Site | Separate repo `netrelish-site`. Astro until the WordPress cutover (week of Jan 4, 2027); then WordPress on WP Engine, laid out visually in a page builder (Bricks proposed), variables generated from `tokens.css`, brand checks on rendered pages (ADR 0016). |
 
-## Brand (locked — Brand Lock v1.2, full rules in `/design/DESIGN_MANIFEST.md`)
+## Brand (locked — Brand Lock v1.3, full rules in `/design/DESIGN_MANIFEST.md`)
 - `logo.svg` (app icon, titlebar) and `logo-cog.svg` (site, About window, onboarding). Never redrawn, recolored, or cropped.
 - Neutral base, system type, hairlines. The product is the hero; the brand is carried by the mark and the objects, not by color washes.
 - Relish (`--relish-500`, `#93E413`) is the single accent and appears **only** in the exhaustive placement list in the manifest. Anywhere else is a bug.
@@ -40,7 +40,7 @@ Native macOS browser with a pantry. Swift. Mac App Store. This file is the contr
 - Never: dark-green glass surfaces, gradient text in the product, relish as a background, cheesy pantry puns in headlines.
 
 ## Vocabulary (use these words in code, UI, and commits)
-Pantry · Jar (project, has a shelf life; also a profile) · Brine (where idle tabs sink; pinned never sink) · Sunk · Seal · Recipe (recorded, replayed with ⌘R; each is an App Intent) · Shelf (the jar rail) · Bench (the web panes) · Inspector · Ask the Pantry · Pickle (a jar with a local dev environment; direct build only).
+Pantry · Jar (project, has a shelf life; also a profile) · Brine (where idle tabs sink; pinned never sink) · Sunk · Seal · Recipe (recorded, replayed with ⌘R; each is an App Intent) · Shelf (the jar rail) · Bench (the web panes) · Inspector · Ask the Pantry · Mason Jar (a jar with a local dev environment, and the switch that turns it on; direct build only; called Pickle before ADR 0029).
 
 ## Voice
 Every user-facing string follows `docs/voice/SHEPDESIGN-VOICE.md` (the house voice, shared with every Shepdesign product; this repo holds the canonical copy) and `docs/voice/NETRELISH.md` (this product's reader, banned words, fixed lines). US English only.
@@ -54,7 +54,7 @@ Every user-facing string follows `docs/voice/SHEPDESIGN-VOICE.md` (the house voi
 | `collection` `["T"]` | `[T]` via join or FK, with inverse |
 | `method` | `func` on the record; body mirrors the JS behavior in the bundle |
 | `event` | `AsyncStream<T>` on the record + `NotificationCenter` name |
-| `_inherit` | protocol conformance + shared columns; `Pickle: Jar` is table-per-hierarchy on `jars` with `kind` |
+| `_inherit` | protocol conformance + shared columns; `MasonJar: Jar` is table-per-hierarchy on `jars` with `kind` |
 
 ## Repo layout
 ```
@@ -64,7 +64,7 @@ Every user-facing string follows `docs/voice/SHEPDESIGN-VOICE.md` (the house voi
 /Sources/Bench/     WKWebView hosting, tabs, profiles, capture, seal
 /Sources/Shelf/     Jars, smart jars, tray
 /Sources/UI/        SwiftUI views; Tokens.swift + Symbols.swift GENERATED from /design — never hand-edited
-/Sources/Pickle/    DIRECT_BUILD only. OrbStack/Docker client, GitHub OAuth device flow
+/Sources/MasonJar/  DIRECT_BUILD only. OrbStack/Docker client, GitHub OAuth device flow
 /zest/              The Zest web tools. Their free core moves into the app, offline, in its own window, in 1.1 (ADR 0015)
 /Tests/
 ```
@@ -80,7 +80,7 @@ Every user-facing string follows `docs/voice/SHEPDESIGN-VOICE.md` (the house voi
 ## Roadmap anchors
 - 12-week native roadmap → Mac App Store v1.0, launch target **Dec 14, 2026**. P1 closes Oct 2.
 - Tiers: Free + Pro ($39/yr or $99 lifetime — "Buy once, use forever.").
-- Deferred: iPhone Duo companion (post-1.0), Notebook/highlights (1.1), Zest window with the free tools offline (1.1, ADR 0015), Pickle (1.2, direct build only).
+- Deferred: iPhone Duo companion (post-1.0), Notebook/highlights (1.1), Zest window with the free tools offline (1.1, ADR 0015), Mason Jar (1.2, direct build only).
 
 ## Retired (do not resurrect)
 Tauri, React, Vite, Rust core, the Tauri IPC layer, "not App Store", the dark-green glass UI from the September design export, gradient text outside the site hero, SingleFile.
