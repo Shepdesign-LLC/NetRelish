@@ -135,7 +135,7 @@ final class JarWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
             NSWorkspace.shared.open(url)
         case .ask(let url):
             decisionHandler(.cancel)
-            if clicked || mainFrame { askToOpen(url, from: webView) }
+            if clicked || mainFrame { Self.askToOpen(url, from: webView) }
         }
     }
 
@@ -163,8 +163,8 @@ final class JarWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     }
 
     /// Asks before leaving for another app. Nothing happens if no app on this Mac opens the
-    /// link, or if the window is already asking something.
-    private func askToOpen(_ url: URL, from webView: WKWebView) {
+    /// link, or if the window is already asking something. The Zest window asks the same way.
+    static func askToOpen(_ url: URL, from webView: WKWebView) {
         guard let window = webView.window, window.attachedSheet == nil,
               let app = NSWorkspace.shared.urlForApplication(toOpen: url) else { return }
         var name = FileManager.default.displayName(atPath: app.path)
@@ -189,7 +189,7 @@ final class JarWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
         // An app link with target=_blank shouldn't leave an empty tab behind.
         switch Self.handoff(navigationAction.request.url, clicked: navigationAction.navigationType == .linkActivated) {
         case .open(let url): NSWorkspace.shared.open(url); return nil
-        case .ask(let url): askToOpen(url, from: webView); return nil
+        case .ask(let url): Self.askToOpen(url, from: webView); return nil
         case .stay: break
         }
         if let child = onNewWindow?(configuration) { return child }
