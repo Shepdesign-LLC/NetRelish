@@ -10,7 +10,7 @@ sources:
   - code: Sources/Bench/BrineView.swift
   - code: Sources/UI/Components.swift
   - code: Tests/NetRelishTests/RearrangeTests.swift
-verified_at: b55a895
+verified_at: 2c4c510
 ---
 
 # Rearranging

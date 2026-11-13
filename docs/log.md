@@ -66,3 +66,16 @@ Append-only. Newest entries at the bottom.
   commit id (or a longer abbreviation, once git lengthens `%h`) counted the whole history
   against a page. It now matches by prefix. Checked with a 40-, 10- and 7-character id at
   HEAD (not stale) and two older ids (1 and 7 commits, the same as `git log <id>..HEAD`)
+
+## [2026-11-13] releasing-a-preview added
+
+- A page for cutting a preview, written while preparing 0.5.0: the order (notes, run, then
+  tag), and the three states of the license address. The Release workflow gained a
+  **Leave Pro unlocked** switch (ADR 0031)
+
+## [2026-11-13] three pages moved to the squash commit
+
+- Pull request 89 was squash-merged as `2c4c510`, so every page verified on its branch read
+  as one commit stale. Each page's sources are byte for byte the same at its old
+  `verified_at` and at `2c4c510` (checked with `git diff`), so `verified_at` moved alone.
+  This will happen after every squash merge of a branch that touched a page's sources

@@ -155,6 +155,7 @@ change this definition, fix the pathspec in
 | Right-click menus, drag, tab icons, anything under `// MARK: Rearranging` in the Workbench | [[rearranging]] |
 | The Zest sound kit, the Sound toggle, `zest/tests/sound.js` | [[zest-sound]] |
 | CI workflows, `project.yml`, the generator scripts, how generated files are checked | [[building-without-a-mac]] |
+| The Release workflow, release notes, the license address a release is built with | [[releasing-a-preview]] |
 
 The table grows with the wiki. An area with no row has no page yet.
 

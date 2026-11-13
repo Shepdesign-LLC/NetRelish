@@ -10,6 +10,10 @@ name: Release
 # version. That runs the same steps and tags main's commit itself, last, once the disk
 # image has passed Gatekeeper, so a run that fails leaves no tag behind.
 #
+# Started by hand, a release can also leave Pro unlocked ("pro_unlocked"): the app is built
+# with no license address, so it behaves as the previews before license keys did (ADR 0027,
+# ADR 0031). A pushed tag never does this. Either way the built app is checked for it.
+#
 # The notes come from docs/releases/<tag>.md, written by hand before tagging, and are
 # read as git objects of the released commit, never through the checkout: a symlink there
 # would otherwise publish whatever it points at on the runner (scripts/release_notes.py).
@@ -33,6 +37,10 @@ on:
       version:
         description: Version to release, like v0.4.0. Tags main's current commit.
         required: true
+      pro_unlocked:
+        description: Leave Pro unlocked. For previews until the store issues license keys (ADR 0031).
+        type: boolean
+        default: false
 
 # Nothing by default; each job asks for exactly what it needs.
 permissions: {}
@@ -178,8 +186,14 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           MARKETING: ${{ steps.version.outputs.marketing }}
+          PRO_UNLOCKED: ${{ inputs.pro_unlocked }}
         run: |
           xcodebuild -version
+          # A release started by hand with "Leave Pro unlocked" builds with no license address,
+          # which is what keeps a Direct build unlocked (ADR 0027). Anything else builds with
+          # the address in Config/Base.xcconfig.
+          LICENSE=()
+          if [ "$PRO_UNLOCKED" = "true" ]; then LICENSE=(NR_LICENSE_ACTIVATION_URL=); fi
           # -onlyUsePackageVersionsFromResolvedFile: the packages in a release are exactly the
           # revisions in the committed Package.resolved. A lockfile that is missing or no longer
           # satisfies project.yml fails the build here instead of resolving to something newer.
@@ -192,8 +206,21 @@ jobs:
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" PROVISIONING_PROFILE_SPECIFIER= \
             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
             OTHER_CODE_SIGN_FLAGS="--timestamp --keychain $KEYCHAIN" \
+            "${LICENSE[@]}" \
             -quiet build
           APP="$DERIVED/Build/Products/$CONFIGURATION/NetRelish.app"
+          # Check the app that was built, not the switch: Pro is unlocked only when asked for,
+          # and a build that sells Pro has a real https address to activate against.
+          RELAY=$(/usr/libexec/PlistBuddy -c "Print :NRLicenseActivationURL" "$APP/Contents/Info.plist" 2>/dev/null || true)
+          if [ "$PRO_UNLOCKED" = "true" ]; then
+            [ -z "$RELAY" ] || { echo "::error::asked for Pro unlocked, but the app was built with a license address"; exit 1; }
+            echo "::notice::Pro is unlocked in this build: it has no license address"
+          else
+            case "$RELAY" in
+              https://?*) ;;
+              *) echo "::error::this build would not be able to activate a license (address: '${RELAY:-none}'). To release with Pro unlocked, start it by hand with that switch on."; exit 1 ;;
+            esac
+          fi
           codesign --verify --deep --strict --verbose=2 "$APP"
           codesign -dv --verbose=4 "$APP" 2>&1 | tee "$RUNNER_TEMP/codesign.txt"
           grep -q "Authority=Developer ID Application" "$RUNNER_TEMP/codesign.txt" || { echo "::error::not signed with Developer ID"; exit 1; }
