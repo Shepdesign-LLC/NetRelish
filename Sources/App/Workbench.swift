@@ -152,42 +152,51 @@ final class Workbench {
 
     // MARK: Zest in front (ADR 0015, ADR 0033)
 
-    /// True while the Zest window, or a sheet or panel on it, is key. The commands that act on
-    /// the page in front (Seal, Capture, Reader, Fill from Me, Pin, Close Tab) stand down: the
-    /// page in front is a tool, and ⌘S in ZestMail must never seal a page in the main window.
+    /// True while the Zest window is the main window. The commands that act on the page in
+    /// front (Seal, Capture, Reader, Fill from Me, Pin, Close Tab) stand down: the page in
+    /// front is a tool, and ⌘S in ZestMail must never seal a page in the main window.
+    ///
+    /// Decided by main, not key: a tool's color picker (NSColorPanel, or WebKit's popover), an
+    /// alert or a save panel takes key while Zest stays main, because panels, popovers and
+    /// sheets never become main. Going by key would switch the gating off under them.
     private(set) var zestInFront = false
     /// The Zest window, once it has been shown. Weak: closing it lets it go.
     @ObservationIgnored weak var zestWindow: NSWindow?
+    /// The main window (the Shelf and the Bench), registered by `ContentView`, so a web link
+    /// from a tool brings that window forward and never Settings or the Design Kit. Weak.
+    @ObservationIgnored weak var mainWindow: NSWindow?
     /// The tab the page commands act on: the Bench's, unless Zest is in front.
     var pageInFront: Tab? { zestInFront ? nil : benchTab }
 
-    func zestKeyChanged(_ inFront: Bool) {
+    func setZestInFront(_ inFront: Bool) {
         if zestInFront != inFront { zestInFront = inFront }
     }
 
-    /// Whether `window` is the Zest window, or a sheet or panel attached to it (the open and
-    /// save panels, a tool's alert): those are Zest in front too.
+    /// Whether `window` is the Zest window, or a sheet attached to it.
     static func isZest(_ window: NSWindow?, zest: NSWindow?) -> Bool {
         guard let window, let zest else { return false }
         return window === zest || window.sheetParent === zest
     }
 
-    /// Any window became key, or stopped being key. A window becoming key decides; one
-    /// resigning only matters if it was Zest's (the app going to the background, the window
-    /// closing), and the next window to become key decides again.
-    func keyWindowChanged(_ window: NSWindow?, becameKey: Bool) {
+    /// A window became main, or stopped being main. A window becoming main decides; one
+    /// resigning only matters if it was Zest's (the window closing, or the app going to the
+    /// background), and the next window to become main decides again. A panel (the color
+    /// panel, an open or save panel) never becomes main; if one is ever said to, it changes
+    /// nothing.
+    func mainWindowChanged(_ window: NSWindow?, becameMain: Bool) {
         // Until a Zest window exists, Zest can't be in front, and nothing here may change that.
         guard zestWindow != nil else { return }
+        if becameMain, let window, window is NSPanel { return }
         let isZest = Self.isZest(window, zest: zestWindow)
-        if becameKey { zestKeyChanged(isZest) } else if isZest { zestKeyChanged(false) }
+        if becameMain { setZestInFront(isZest) } else if isZest { setZestInFront(false) }
     }
 
-    private func watchKeyWindow() {
-        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification] {
-            let becameKey = name == NSWindow.didBecomeKeyNotification
+    private func watchMainWindow() {
+        for name in [NSWindow.didBecomeMainNotification, NSWindow.didResignMainNotification] {
+            let becameMain = name == NSWindow.didBecomeMainNotification
             _ = NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
                 let window = note.object as? NSWindow
-                MainActor.assumeIsolated { self?.keyWindowChanged(window, becameKey: becameKey) }
+                MainActor.assumeIsolated { self?.mainWindowChanged(window, becameMain: becameMain) }
             }
         }
     }
@@ -271,7 +280,7 @@ final class Workbench {
         summarizeWaiting()   // anything sealed just before the last quit
         stampWaiting()
         pro.onChange = { [weak self] in self?.proChanged() }
-        watchKeyWindow()
+        watchMainWindow()
     }
 
     /// The last Pro flip being applied, so two quick flips land in order.

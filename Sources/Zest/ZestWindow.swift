@@ -12,7 +12,8 @@ import SwiftUI
 import WebKit
 
 /// The four tools and where each lives under zest://app/. The one table: the switcher, the
-/// URLs and the link routing all read it. Folder names come from `zest/build.sh --app`.
+/// URLs and the link routing all read it. The folder names are the ones phase 2's
+/// `zest/build.sh --app` will write (ADR 0033); today the folder holds only its README.
 enum ZestTool: String, CaseIterable, Identifiable {
     case studio, mail, md, image
 
@@ -111,21 +112,23 @@ struct ZestWindow: View {
         }
     }
 
-    /// The window is Zest's: the Workbench is told whenever it, or a sheet on it, is key, so
-    /// Seal, Capture and Fill from Me stand down while it's in front.
+    /// The window is Zest's: the Workbench is told whenever it is the main window, so Seal,
+    /// Capture and Fill from Me stand down while it's in front.
     private func watch(_ window: NSWindow?) {
         workbench.zestWindow = window
-        // It may already be key by the time the view lands in it; and a view leaving its
+        // It may already be main by the time the view lands in it; and a view leaving its
         // window means Zest is no longer in front at all.
-        workbench.zestKeyChanged(window?.isKeyWindow == true)
+        workbench.setZestInFront(window?.isMainWindow == true)
     }
 
     /// A web link from a tool: an ordinary page load in the active jar, with the main window
-    /// brought forward (or opened, if it was closed).
+    /// brought forward (or opened, if it was closed). The main window is the one `ContentView`
+    /// registered, never whichever window comes first: Settings or the Design Kit would
+    /// otherwise come forward with the page nowhere on screen.
     private static func openInActiveJar(_ url: URL, workbench: Workbench, openWindow: OpenWindowAction) {
         guard workbench.newTab(url: url.absoluteString) != nil else { return }
-        if let main = NSApp.windows.first(where: { $0 !== workbench.zestWindow && $0.isVisible && $0.canBecomeMain
-                                                   && $0.sheetParent == nil && !($0 is NSPanel) }) {
+        if let main = workbench.mainWindow, main.isVisible || main.isMiniaturized {
+            if main.isMiniaturized { main.deminiaturize(nil) }
             main.makeKeyAndOrderFront(nil)
         } else {
             openWindow(id: NetRelishApp.mainWindowId)
@@ -156,8 +159,9 @@ private struct ZestPane: NSViewRepresentable {
     }
 }
 
-/// Reports the window a view lands in, so the Zest window can be told apart from the others.
-private struct WindowReader: NSViewRepresentable {
+/// Reports the window a view lands in, so the Zest window and the main window can be told
+/// apart from the others.
+struct WindowReader: NSViewRepresentable {
     let onWindow: @MainActor (NSWindow?) -> Void
 
     func makeNSView(context: Context) -> ReaderView {

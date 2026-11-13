@@ -18,7 +18,7 @@ private let log = Logger(subsystem: "com.shepdesign.netrelish", category: "zest"
 /// function, so the rules are tested without a page.
 enum ZestRoute: Equatable {
     case allow                       // the tool's own files, or a frame's about:/data:/blob:
-    case download                    // a blob: or data: page, or a link marked download
+    case download                    // a blob: or data: page, or a local file marked download
     case openInJar(URL)              // a web link: a page in the active jar, main window
     case switchTool(ZestTool)        // a link to another tool: the switcher moves
     case handOff(JarWebView.Handoff) // a link for another app, as the Bench treats it
@@ -34,6 +34,8 @@ final class ZestWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     var openInJar: ((URL) -> Void)?
     /// Set by the Zest window: show another tool.
     var showTool: ((ZestTool) -> Void)?
+    /// Downloads this view has started, for tests: a link to the web must never become one.
+    private(set) var downloadsStarted = 0
 
     /// The stub, frozen and fixed on `window` so a page can't swap it. No methods: there is
     /// nothing to call until the bridge (ADR 0015, 1.2).
@@ -50,9 +52,12 @@ final class ZestWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     /// The configuration every Zest view is built on: Zest's data store (never a jar's,
     /// non-negotiable 6), the zest: scheme over `root`, the offline rule list, and the stub.
     /// The list is not optional: without it there is no configuration, so no view loads.
-    static func configuration(rules: WKContentRuleList, root: URL) -> WKWebViewConfiguration {
+    /// `dataStore` is for tests only, so they never write into, or wipe, the person's real
+    /// Zest store; the app always passes nil and gets Zest's.
+    static func configuration(rules: WKContentRuleList, root: URL,
+                              dataStore: WKWebsiteDataStore? = nil) -> WKWebViewConfiguration {
         let config = WKWebViewConfiguration()
-        config.websiteDataStore = ZestProfile.dataStore()
+        config.websiteDataStore = dataStore ?? ZestProfile.dataStore()
         config.setURLSchemeHandler(ZestSchemeHandler(root: root), forURLScheme: ZestFiles.scheme)
         config.userContentController.add(rules)
         config.userContentController.addUserScript(
@@ -62,9 +67,11 @@ final class ZestWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     }
 
     /// A tool's view, loading the tool. Built only once the rule list has compiled.
-    init(tool: ZestTool, rules: WKContentRuleList, root: URL) {
+    /// `dataStore` is for tests only, as in `configuration`.
+    init(tool: ZestTool, rules: WKContentRuleList, root: URL, dataStore: WKWebsiteDataStore? = nil) {
         self.tool = tool
-        webView = WKWebView(frame: .zero, configuration: Self.configuration(rules: rules, root: root))
+        webView = WKWebView(frame: .zero,
+                            configuration: Self.configuration(rules: rules, root: root, dataStore: dataStore))
         super.init()
         webView.navigationDelegate = self
         webView.uiDelegate = self
@@ -78,19 +85,27 @@ final class ZestWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     // MARK: Routing
 
     /// Where a navigation goes. `clicked` is a link the person clicked; `mainFrame` is the
-    /// tool's own page rather than a frame inside it.
-    static func route(_ url: URL?, mainFrame: Bool, clicked: Bool, from tool: ZestTool) -> ZestRoute {
+    /// tool's own page rather than a frame inside it; `download` is WebKit's
+    /// `shouldPerformDownload` (an `a[download]`, clicked or scripted).
+    ///
+    /// `download` is honored only for the tool's own files, blob: and data:. A download link
+    /// to the web is routed like any other web link: the active jar for a click, nothing
+    /// otherwise. Never a `WKDownload`: that is fetched by the network process on Zest's store,
+    /// where neither the rule list nor the policy header reaches (non-negotiable 5).
+    static func route(_ url: URL?, mainFrame: Bool, clicked: Bool, download: Bool = false,
+                      from tool: ZestTool) -> ZestRoute {
         guard let url, let scheme = url.scheme?.lowercased() else { return .cancel }
         switch scheme {
         case ZestFiles.scheme:
             guard url.host(percentEncoded: false)?.lowercased() == ZestFiles.host else { return .cancel }
+            if download { return .download }   // read from the bundle, never the web
             if mainFrame, clicked, let other = ZestTool(url: url), other != tool { return .switchTool(other) }
             return .allow
         case "about":
-            return .allow
+            return download ? .cancel : .allow
         case "blob", "data":
             // A tool's page replaced by a file is a download; a frame showing one is a preview.
-            return mainFrame ? .download : .allow
+            return (download || mainFrame) ? .download : .allow
         case "http", "https":
             return clicked ? .openInJar(url) : .cancel
         case "ws", "wss", "file", "javascript":
@@ -107,10 +122,11 @@ final class ZestWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
-        if navigationAction.shouldPerformDownload { decisionHandler(.download); return }
+        // Routed first, download or not: `route` decides which downloads are allowed at all.
         let clicked = navigationAction.navigationType == .linkActivated
         let mainFrame = navigationAction.targetFrame?.isMainFrame ?? true
-        switch Self.route(navigationAction.request.url, mainFrame: mainFrame, clicked: clicked, from: tool) {
+        switch Self.route(navigationAction.request.url, mainFrame: mainFrame, clicked: clicked,
+                          download: navigationAction.shouldPerformDownload, from: tool) {
         case .allow:
             decisionHandler(.allow)
         case .download:
@@ -139,10 +155,12 @@ final class ZestWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     }
 
     func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+        downloadsStarted += 1
         download.delegate = self
     }
 
     func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+        downloadsStarted += 1
         download.delegate = self
     }
 
@@ -189,6 +207,7 @@ final class ZestWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     /// A blob: or data: file opened as a window: saved through the panel instead.
     private func startDownload(_ url: URL) async {
         let download = await webView.startDownload(using: URLRequest(url: url))
+        downloadsStarted += 1
         download.delegate = self
     }
 

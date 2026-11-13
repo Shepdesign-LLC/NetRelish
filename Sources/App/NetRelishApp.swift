@@ -167,6 +167,9 @@ struct ContentView: View {
         .navigationSubtitle("\(workbench.itemCount) \(workbench.itemCount == 1 ? "item" : "items")")
         .task { await workbench.observe() }
         .task { await workbench.runSweep() }
+        // Registers this window as the main one, so a web link from Zest brings it forward.
+        // A view leaving its window says nil, which is ignored: the reference is weak.
+        .background(WindowReader { window in if let window { workbench.mainWindow = window } })
         .sheet(isPresented: $workbench.showPalette) {
             PaletteView(workbench: workbench)
         }

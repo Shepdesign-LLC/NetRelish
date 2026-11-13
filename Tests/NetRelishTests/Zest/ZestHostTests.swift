@@ -39,15 +39,27 @@ private func emptyRoot() throws -> URL {
         #expect(JarProfile.storeIdentifier(for: "read-later").uuid.6 >> 4 == 5)
     }
 
-    @Test("No jar id maps to Zest's store, not even one that spells it")
+    @Test("No jar id maps to Zest's store, and no two jars share one, not even ones that spell it")
     func noJarCollides() {
         let zest = JarProfile.zestStoreIdentifier
-        var ids = ["read-later", "reference", "brine", "zest", "Zest", "", "jar:" + zest.uuidString,
-                   zest.uuidString, zest.uuidString.lowercased()]
+        var ids = ["read-later", "reference", "brine", "zest", "Zest", "",
+                   zest.uuidString, zest.uuidString.lowercased(),
+                   // Strings that once hashed onto the moved jar's store, or might look like it.
+                   "jar:" + zest.uuidString, "jar:" + zest.uuidString.lowercased(),
+                   "zest:" + zest.uuidString, zest.uuidString + " "]
         for _ in 0..<2000 { ids.append(UUID().uuidString) }
         for i in 0..<2000 { ids.append("jar-\(i)") }
+        // Two spellings of one UUID are one jar; anything else is a different jar.
+        var owner: [UUID: String] = [:]
         for id in ids {
-            #expect(JarProfile.storeIdentifier(for: id) != zest, "jar id \(id) maps to Zest's store")
+            let store = JarProfile.storeIdentifier(for: id)
+            #expect(store != zest, "jar id \(id) maps to Zest's store")
+            let jar = UUID(uuidString: id)?.uuidString ?? id
+            if let other = owner[store] {
+                #expect(other == jar, "jar ids '\(other)' and '\(id)' share a store")
+            } else {
+                owner[store] = jar
+            }
         }
     }
 
@@ -56,7 +68,9 @@ private func emptyRoot() throws -> URL {
         let spelled = JarProfile.zestStoreIdentifier.uuidString
         let first = JarProfile.storeIdentifier(for: spelled)
         #expect(first == JarProfile.storeIdentifier(for: spelled))
+        #expect(first == JarProfile.storeIdentifier(for: spelled.lowercased()))   // one jar, one store
         #expect(first != JarProfile.zestStoreIdentifier)
+        #expect(first != JarProfile.storeIdentifier(for: "jar:" + spelled))
         // Every other UUID jar id still maps to itself, as it always has.
         let other = UUID()
         #expect(JarProfile.storeIdentifier(for: other.uuidString) == other)
@@ -171,6 +185,9 @@ private func emptyRoot() throws -> URL {
         window.contentView = web.webView
         web.webView.loadHTMLString("<html><head><title>jar page</title></head><body>hi</body></html>", baseURL: nil)
         for _ in 0..<100 where web.webView.title != "jar page" { try await Task.sleep(for: .milliseconds(50)) }
+        // The page must have loaded: the empty first document has no user scripts, so probing
+        // it would pass whatever the jar's configuration carries.
+        try #require(web.webView.title == "jar page", "the jar page never loaded")
         let seen = try await web.webView.evaluateJavaScript("typeof window.netrelish")
         #expect(seen as? String == "undefined")
         window.orderOut(nil)
@@ -181,8 +198,9 @@ private func emptyRoot() throws -> URL {
 
 @Suite("Zest routing") @MainActor struct ZestRoutingTests {
 
-    private func route(_ url: String, mainFrame: Bool = true, clicked: Bool = true, from tool: ZestTool = .mail) -> ZestRoute {
-        ZestWebView.route(URL(string: url), mainFrame: mainFrame, clicked: clicked, from: tool)
+    private func route(_ url: String, mainFrame: Bool = true, clicked: Bool = true, download: Bool = false,
+                       from tool: ZestTool = .mail) -> ZestRoute {
+        ZestWebView.route(URL(string: url), mainFrame: mainFrame, clicked: clicked, download: download, from: tool)
     }
 
     @Test("A tool's own files load; a link to another tool moves the switcher")
@@ -212,6 +230,26 @@ private func emptyRoot() throws -> URL {
         #expect(route("data:text/plain,hi", clicked: false) == .download)
         #expect(route("blob:zest://app/3f2a", mainFrame: false) == .allow)
         #expect(route("about:srcdoc", mainFrame: false) == .allow)
+    }
+
+    @Test("A link marked download saves only the tool's own files, blob: and data:")
+    func downloadLinks() {
+        #expect(route("blob:zest://app/3f2a", mainFrame: false, download: true) == .download)
+        #expect(route("data:text/plain,hi", clicked: false, download: true) == .download)
+        #expect(route("zest://app/mail/sample.html", download: true) == .download)
+        #expect(route("zest://elsewhere/x", download: true) == .cancel)
+        #expect(route("about:blank", download: true) == .cancel)
+    }
+
+    @Test("A download link to the web is never a download: a click opens it in the jar, a script gets nothing")
+    func webDownloadLinks() {
+        let leak = "https://example.com/x?d=what-the-tool-holds"
+        #expect(route(leak, download: true) == .openInJar(URL(string: leak)!))
+        #expect(route(leak, clicked: false, download: true) == .cancel)
+        #expect(route(leak, mainFrame: false, clicked: false, download: true) == .cancel)
+        #expect(route("http://example.com/x", clicked: false, download: true) == .cancel)
+        #expect(route("wss://example.com/x", download: true) == .cancel)
+        #expect(route("file:///etc/passwd", download: true) == .cancel)
     }
 
     @Test("Links for other apps follow the Bench's handoff rules")
@@ -256,10 +294,10 @@ private func emptyRoot() throws -> URL {
     func pageInFront() throws {
         let bench = try bench()
         #expect(bench.pageInFront != nil)
-        bench.zestKeyChanged(true)
+        bench.setZestInFront(true)
         #expect(bench.pageInFront == nil)
         #expect(bench.benchTab != nil)
-        bench.zestKeyChanged(false)
+        bench.setZestInFront(false)
         #expect(bench.pageInFront?.id == bench.activeTab?.id)
     }
 
@@ -270,7 +308,7 @@ private func emptyRoot() throws -> URL {
         bench.formFiller = { _, _ in filled += 1; return 1 }
         var read = 0
         bench.readerProvider = { _ in read += 1; return nil }
-        bench.zestKeyChanged(true)
+        bench.setZestInFront(true)
 
         #expect(await bench.sealActiveTab() == false)
         bench.captureActivePage()
@@ -289,7 +327,7 @@ private func emptyRoot() throws -> URL {
         await #expect(throws: ShortcutError.nothingOpen) { try await bench.sealFrontPage() }
 
         // Back in the main window, Seal works again.
-        bench.zestKeyChanged(false)
+        bench.setZestInFront(false)
         #expect(await bench.sealActiveTab() == true)
         #expect(try bench.store.read { db in try Item.fetchCount(db) } == 1)
     }
@@ -298,7 +336,7 @@ private func emptyRoot() throws -> URL {
     func paletteStandsDown() throws {
         let bench = try bench()
         #expect(PaletteSource.rows(for: "", workbench: bench).map(\.title).contains("Seal this page"))
-        bench.zestKeyChanged(true)
+        bench.setZestInFront(true)
         let titles = PaletteSource.rows(for: "", workbench: bench).map(\.title)
         #expect(!titles.contains("Seal this page"))
         #expect(!titles.contains("Capture this page"))
@@ -307,12 +345,6 @@ private func emptyRoot() throws -> URL {
 
     @Test("The Zest window, or a sheet on it, is Zest; any other window is not")
     func whichWindowIsZest() {
-        func window() -> NSWindow {
-            let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 200, height: 100), styleMask: .titled,
-                                  backing: .buffered, defer: true)
-            window.isReleasedWhenClosed = false
-            return window
-        }
         let zest = window(), main = window()
         #expect(Workbench.isZest(zest, zest: zest))
         #expect(!Workbench.isZest(main, zest: zest))
@@ -320,31 +352,66 @@ private func emptyRoot() throws -> URL {
         #expect(!Workbench.isZest(main, zest: nil))
     }
 
-    @Test("Key changes: Zest becoming key puts it in front; another window or Zest resigning takes it out")
-    func keyChanges() throws {
+    private func window() -> NSWindow {
+        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 200, height: 100), styleMask: .titled,
+                              backing: .buffered, defer: true)
+        window.isReleasedWhenClosed = false
+        return window
+    }
+
+    @Test("Main changes: Zest becoming main puts it in front; another window or Zest resigning takes it out")
+    func mainChanges() throws {
         let bench = try bench()
-        let zest = NSWindow(contentRect: .init(x: 0, y: 0, width: 200, height: 100), styleMask: .titled,
-                            backing: .buffered, defer: true)
-        zest.isReleasedWhenClosed = false
-        let main = NSWindow(contentRect: .init(x: 0, y: 0, width: 200, height: 100), styleMask: .titled,
-                            backing: .buffered, defer: true)
-        main.isReleasedWhenClosed = false
+        let zest = window(), main = window()
         bench.zestWindow = zest
 
-        bench.keyWindowChanged(zest, becameKey: true)
+        bench.mainWindowChanged(zest, becameMain: true)
         #expect(bench.zestInFront)
-        bench.keyWindowChanged(main, becameKey: false)   // another window resigning changes nothing
+        bench.mainWindowChanged(main, becameMain: false)   // another window resigning changes nothing
         #expect(bench.zestInFront)
-        bench.keyWindowChanged(zest, becameKey: false)   // the app went to the background
+        bench.mainWindowChanged(zest, becameMain: false)   // closed, or the app went to the background
         #expect(!bench.zestInFront)
-        bench.keyWindowChanged(zest, becameKey: true)
-        bench.keyWindowChanged(main, becameKey: true)    // the main window came forward
+        bench.mainWindowChanged(zest, becameMain: true)
+        bench.mainWindowChanged(main, becameMain: true)    // the main window came forward
         #expect(!bench.zestInFront)
+    }
+
+    @Test("A color panel or save panel taking key leaves Zest in front")
+    func panelsLeaveZestInFront() async throws {
+        let bench = try bench()
+        let zest = window()
+        bench.zestWindow = zest
+        bench.mainWindowChanged(zest, becameMain: true)
+        #expect(bench.zestInFront)
+
+        // A panel taking key posts no main change at all: Zest stays main.
+        let panel = NSPanel(contentRect: .init(x: 0, y: 0, width: 200, height: 100), styleMask: .titled,
+                            backing: .buffered, defer: true)
+        panel.isReleasedWhenClosed = false
+        #expect(!panel.canBecomeMain)
+        // And if one were ever said to become main, it still changes nothing.
+        bench.mainWindowChanged(panel, becameMain: true)
+        #expect(bench.zestInFront)
+        bench.mainWindowChanged(panel, becameMain: false)
+        #expect(bench.zestInFront)
+        #expect(bench.pageInFront == nil)
+        #expect(await bench.sealActiveTab() == false)
+    }
+
+    @Test("Before any Zest window exists, main changes leave the page commands alone")
+    func noZestWindowYet() throws {
+        let bench = try bench()
+        bench.mainWindowChanged(window(), becameMain: true)
+        #expect(!bench.zestInFront)
+        #expect(bench.pageInFront != nil)
     }
 }
 
-// MARK: In WebKit, through the real scheme handler (ADR 0015 risk 1)
+// MARK: In WebKit, through the real scheme handler (part of ADR 0015 risk 1)
 
+/// Every test here runs on a throwaway data store of its own, never Zest's real one: the tests
+/// are hosted in NetRelish.app, so Zest's store here is the person's own saved work.
+/// `ZestConfigurationTests` checks that the app's configuration uses Zest's store.
 @Suite("Zest host, in WebKit") @MainActor struct ZestHostIntegrationTests {
 
     /// A folder holding the fixture as its index.html, copied out of the test bundle.
@@ -358,19 +425,32 @@ private func emptyRoot() throws -> URL {
         return root
     }
 
-    /// A Zest web view, in a window (a WKWebView only loads while it's in one).
-    private func zestView(rules: WKContentRuleList, root: URL) -> (WKWebView, NSWindow) {
-        let web = WKWebView(frame: .init(x: 0, y: 0, width: 400, height: 300),
-                            configuration: ZestWebView.configuration(rules: rules, root: root))
+    /// A Zest web view on `store`, in a window (a WKWebView only loads while it's in one).
+    private func zestView(rules: WKContentRuleList, root: URL, store: UUID) -> (WKWebView, NSWindow) {
+        let config = ZestWebView.configuration(rules: rules, root: root,
+                                               dataStore: WKWebsiteDataStore(forIdentifier: store))
+        let web = WKWebView(frame: .init(x: 0, y: 0, width: 400, height: 300), configuration: config)
+        return (web, host(web))
+    }
+
+    private func host(_ web: WKWebView) -> NSWindow {
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 400, height: 300), styleMask: .borderless,
                               backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.contentView = web
-        return (web, window)
+        return window
     }
 
-    private func load(_ web: WKWebView, _ url: URL) async throws {
-        web.load(URLRequest(url: url))
+    /// Empties a test's store and removes it. Removing can fail while WebKit still holds the
+    /// store; what's left is then an empty store in the test host's container.
+    private func discard(_ store: UUID, windows: [NSWindow]) async {
+        for window in windows { window.contentView = nil; window.orderOut(nil) }
+        await WKWebsiteDataStore(forIdentifier: store)
+            .removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
+        try? await WKWebsiteDataStore.remove(forIdentifier: store)
+    }
+
+    private func waitForFixture(_ web: WKWebView, _ url: URL) async throws {
         for _ in 0..<200 {   // up to 10 s
             try await Task.sleep(for: .milliseconds(50))
             if !web.isLoading, web.title == "zest fixture" { return }
@@ -378,19 +458,28 @@ private func emptyRoot() throws -> URL {
         Issue.record("timed out loading \(url.absoluteString)")
     }
 
+    private func load(_ web: WKWebView, _ url: URL) async throws {
+        web.load(URLRequest(url: url))
+        try await waitForFixture(web, url)
+    }
+
     private func string(_ web: WKWebView, _ script: String) async throws -> String {
         let result = try await web.evaluateJavaScript(script)
         return result as? String ?? "<not a string>"
     }
 
-    @Test("localStorage on zest:// persists across two web views on Zest's store")
-    func storagePersists() async throws {
+    /// Only that the store is shared between views in one process. Whether WebKit writes
+    /// zest:// storage to disk, so it survives a relaunch, and whether IndexedDB works there,
+    /// this can't see: both are open checks for phase 2 and the pull request's demo.
+    @Test("localStorage on zest:// is shared between two views on one store, in one process")
+    func storageShared() async throws {
         let rules = try await compiledRules()
         let root = try fixtureRoot()
+        let store = UUID()
         let key = "zest-host-\(UUID().uuidString)"
         let url = try #require(URL(string: "zest://app/index.html?key=\(key)&write=1"))
 
-        let (first, firstWindow) = zestView(rules: rules, root: root)
+        let (first, firstWindow) = zestView(rules: rules, root: root, store: store)
         try await load(first, url)
         #expect(try await string(first, "window.fixtureFound") == "null")
         #expect(try await string(first, "String(localStorage.getItem('\(key)'))") == "kept")
@@ -399,8 +488,8 @@ private func emptyRoot() throws -> URL {
         let secure = try await string(first, "String(window.isSecureContext)")
         print("Zest host: isSecureContext on zest:// is \(secure)")
 
-        // A second view, on its own configuration, reading without writing.
-        let (second, secondWindow) = zestView(rules: rules, root: root)
+        // A second view, on its own configuration over the same store, reading without writing.
+        let (second, secondWindow) = zestView(rules: rules, root: root, store: store)
         try await load(second, try #require(URL(string: "zest://app/index.html?key=\(key)")))
         var seen = ""
         for _ in 0..<40 {   // up to 2 s for the write to reach the storage process
@@ -410,16 +499,14 @@ private func emptyRoot() throws -> URL {
         }
         #expect(seen == "kept", "the second Zest view didn't see the first one's localStorage")
 
-        await first.configuration.websiteDataStore.removeData(ofTypes: [WKWebsiteDataTypeLocalStorage],
-                                                              modifiedSince: .distantPast)
-        firstWindow.orderOut(nil)
-        secondWindow.orderOut(nil)
+        await discard(store, windows: [firstWindow, secondWindow])
     }
 
     @Test("A fetch to the web is blocked, with the policy header and by the rule list alone")
     func fetchIsBlocked() async throws {
         let rules = try await compiledRules()
-        let (web, window) = zestView(rules: rules, root: try fixtureRoot())
+        let store = UUID()
+        let (web, window) = zestView(rules: rules, root: try fixtureRoot(), store: store)
         try await load(web, try #require(URL(string: "zest://app/")))
         let attempt = """
         try { await fetch('https://example.com/', {mode: 'no-cors', cache: 'no-store'}); return 'reached'; }
@@ -436,13 +523,49 @@ private func emptyRoot() throws -> URL {
         #expect(web.title == "zest unguarded")
         let unguarded = try await web.callAsyncJavaScript(attempt, in: nil, contentWorld: .page)
         #expect(unguarded as? String == "blocked")
-        window.orderOut(nil)
+        await discard(store, windows: [window])
+    }
+
+    @Test("A download link to the web, clicked by a script, starts no download and fetches nothing")
+    func webDownloadLinkIsNoDownload() async throws {
+        let rules = try await compiledRules()
+        let root = try fixtureRoot()
+        let store = UUID()
+        // The real Zest view, with its navigation delegate: the studio's page is the fixture.
+        let zest = ZestWebView(tool: .studio, rules: rules, root: root,
+                               dataStore: WKWebsiteDataStore(forIdentifier: store))
+        var openedInJar: [URL] = []
+        zest.openInJar = { openedInJar.append($0) }
+        let window = host(zest.webView)
+        try await waitForFixture(zest.webView, ZestTool.studio.url)
+
+        let leak = "https://example.com/zest-download-probe?d=what-the-tool-holds"
+        _ = try await zest.webView.evaluateJavaScript("""
+        (() => {
+          const a = document.createElement('a');
+          a.href = '\(leak)';
+          a.download = 'probe.txt';
+          document.body.appendChild(a);
+          a.click();
+          return 'clicked';
+        })()
+        """)
+        try await Task.sleep(for: .seconds(1))   // time for a policy decision and a download to start
+
+        #expect(zest.downloadsStarted == 0, "a download link to the web became a WKDownload")
+        #expect(zest.webView.title == "zest fixture")          // the tool's page stayed put
+        #expect(zest.webView.url?.scheme == ZestFiles.scheme)
+        // A scripted click may or may not count as a click to WebKit; either way, the only
+        // place the link may go is a page in the active jar.
+        #expect(openedInJar.allSatisfy { $0.absoluteString == leak })
+        await discard(store, windows: [window])
     }
 
     @Test("window.netrelish is there, frozen, and can't be replaced")
     func stubIsFrozen() async throws {
         let rules = try await compiledRules()
-        let (web, window) = zestView(rules: rules, root: try fixtureRoot())
+        let store = UUID()
+        let (web, window) = zestView(rules: rules, root: try fixtureRoot(), store: store)
         try await load(web, try #require(URL(string: "zest://app/")))
         let probe = """
         (() => {
@@ -458,16 +581,17 @@ private func emptyRoot() throws -> URL {
         })()
         """
         #expect(try await string(web, probe) == "true,true,false,app,0,undefined")
-        window.orderOut(nil)
+        await discard(store, windows: [window])
     }
 
     @Test("A missing file is the plain not-in-this-build page")
     func missingFile() async throws {
         let rules = try await compiledRules()
-        let (web, window) = zestView(rules: rules, root: try fixtureRoot())
+        let store = UUID()
+        let (web, window) = zestView(rules: rules, root: try fixtureRoot(), store: store)
         web.load(URLRequest(url: try #require(URL(string: "zest://app/nothing-here.html"))))
         for _ in 0..<100 where web.title != "Not in this build" { try await Task.sleep(for: .milliseconds(50)) }
         #expect(web.title == "Not in this build")
-        window.orderOut(nil)
+        await discard(store, windows: [window])
     }
 }

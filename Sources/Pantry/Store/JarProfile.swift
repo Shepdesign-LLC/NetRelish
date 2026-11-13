@@ -22,12 +22,19 @@ public enum JarProfile {
     /// Never change it: it is what keeps the tools' saved work across launches.
     public static let zestStoreIdentifier = UUID(uuidString: "3E8A1C57-0D2B-4F6A-9B1E-7C54A2F0D9E3")!
 
+    /// The namespace for that one move, used for nothing else. A separate namespace, so the
+    /// moved jar's store can't equal the store of a jar whose id is some other string: under
+    /// `namespace`, a jar id spelled "jar:" + the UUID would hash to the same place.
+    static let zestRemapNamespace = UUID(uuidString: "8951E795-7C66-4762-B2A9-6784696AC708")!
+
     /// The data-store identifier for a jar. Never `zestStoreIdentifier`.
     public static func storeIdentifier(for jarId: String) -> UUID {
         if let direct = UUID(uuidString: jarId) {
             // A jar id that spells Zest's identifier gets a derived one instead, so its
             // cookies can't land in Zest's store or Zest's storage in the jar (non-negotiable 6).
-            return direct == zestStoreIdentifier ? uuidV5(namespace: namespace, name: "jar:" + jarId) : direct
+            // Derived from the canonical spelling, so either case of the UUID opens one store.
+            guard direct == zestStoreIdentifier else { return direct }
+            return uuidV5(namespace: zestRemapNamespace, name: direct.uuidString)
         }
         return uuidV5(namespace: namespace, name: jarId)
     }
