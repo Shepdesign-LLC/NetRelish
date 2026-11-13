@@ -206,6 +206,28 @@ import Testing
         #expect(otherWindow.view(for: moved) === after)      // and it keeps the new one
     }
 
+    @Test("A Seal that finishes after its tab moved to another jar leaves the tab where it was put")
+    func aSealDoesNotCloseAMovedTab() async throws {
+        let bench = try bench()
+        bench.newJar(name: "Birch", tint: nil, shelfLifeDays: 3)
+        bench.newJar(name: "Ash", tint: nil, shelfLifeDays: 3)
+        let tab = try #require(bench.newTab(url: "https://a.example/"))
+        let ash = try jar("Ash", in: bench)
+        let birch = try jar("Birch", in: bench)
+        bench.sealProvider = { sealing in
+            bench.moveTab(sealing, toJar: birch.id)      // moved while the page is being frozen
+            return (Data("WEBARCHIVE".utf8), Extraction.Result(title: "A page", excerpt: "", body: "A page."))
+        }
+
+        let sealed = await bench.sealActiveTab()
+
+        #expect(sealed)
+        let item = try #require(try bench.store.read { db in try Item.fetchOne(db) })
+        #expect(item.jarId == ash.id)                    // the page was sealed where Seal was asked
+        let moved = try stored(tab, in: bench)           // and the tab is still open,
+        #expect(moved.jarId == birch.id)                 // in the jar it was moved to
+    }
+
     @Test("A new tab opens after the last one, even when tabs have left the strip")
     func newTabsGoLast() throws {
         let bench = try bench()

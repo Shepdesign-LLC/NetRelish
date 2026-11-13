@@ -736,9 +736,23 @@ final class Workbench {
     }
 
     /// Closes every unpinned tab in the active jar except this one.
+    /// One write and one reload, however many tabs go.
     func closeOtherTabs(_ keep: Tab) {
-        for tab in tabs where tab.id != keep.id && !tab.isPinned { closeTab(tab) }
-        if tabs.contains(where: { $0.id == keep.id }) { activateTab(keep) }
+        let closing = tabs.filter { $0.id != keep.id && !$0.isPinned }
+        guard !closing.isEmpty else { return }
+        let ids = closing.map(\.id)
+        do {
+            try store.write { db in
+                for tab in closing { _ = try tab.delete(db) }
+            }
+            onTabsGone?(ids)
+            if let reading = reader?.tabId, ids.contains(reading) { reader = nil }
+            for id in ids { openerOf[id] = nil }
+            loadTabs()
+            if tabs.contains(where: { $0.id == keep.id }) { activateTab(keep) }
+        } catch {
+            assertionFailure("Workbench.closeOtherTabs: \(error)")
+        }
     }
 
     /// Something dragged was let go over a jar on the Shelf: a tab moves into that jar, a
@@ -993,7 +1007,9 @@ final class Workbench {
     /// the page it was on is sealed, and the page it's on now stays open.
     private func closeIfStillOn(_ tab: Tab) {
         let now = tabs.first { $0.id == tab.id } ?? (try? store.read { db in try Tab.fetchOne(db, key: tab.id) })
-        guard let now, now.url == tab.url else { return }
+        // Same page, same jar. A tab that navigated on, or was moved to another jar while the
+        // page was being frozen, is no longer the tab that was sealed, and stays open.
+        guard let now, now.url == tab.url, now.jarId == tab.jarId else { return }
         closeTab(now)
     }
 

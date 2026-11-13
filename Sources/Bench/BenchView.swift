@@ -402,9 +402,14 @@ struct SavedCopyView: View {
         .onExitCommand { workbench.savedCopy = nil }
         .task {
             guard let data = workbench.snapshotData(for: item) else { missing = true; return }
-            // Checked every time the copy is opened, against the fingerprint kept in the Pantry.
-            integrity = Provenance.integrity(of: data, against: workbench.provenance(of: item))
             archive = data
+            // Checked every time the copy is opened, against the fingerprint kept in the Pantry.
+            // Hashing a large archive takes a moment, so it runs off the main actor and the
+            // page is already on screen when the answer arrives.
+            let recorded = workbench.provenance(of: item)
+            integrity = await Task.detached(priority: .userInitiated) {
+                Provenance.integrity(of: data, against: recorded)
+            }.value
         }
     }
 
