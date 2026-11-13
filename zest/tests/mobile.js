@@ -60,14 +60,19 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   console.log('== md at 390 ==');
   const md = await page('http://localhost:8774/');
   ok(await fits(md), 'md: empty state fits (was 501px)');
+  // the empty state carries Open and Paste, so the bar hides its own pair — except while the phone editor covers the empty state
+  const barPairHidden = await md.evaluate(() => document.querySelector('#btnOpen').hidden && document.querySelector('#btnPaste').hidden);
+  await md.tap('#btnEdit'); await md.waitForTimeout(300);
+  ok(barPairHidden && await inVp(md, '#btnOpen') && await inVp(md, '#btnPaste') && await fits(md), 'md: Open and Paste stay reachable when the editor covers the empty state');
+  await md.tap('#btnEdit'); await md.waitForTimeout(300);
   await md.tap('[data-act="sample"]'); await md.waitForTimeout(700);
   ok(await fits(md), 'md: document view fits (was 646px)');
-  ok(await inVp(md, '#btnExport'), 'md: Export is reachable');
+  ok(await inVp(md, '#btnExport') && await inVp(md, '#btnExportMenu'), 'md: Export is reachable, and so is its menu');
   await md.tap('#btnToc'); await md.waitForTimeout(350);
   ok(await md.evaluate(() => { const t = document.querySelector('.toc').getBoundingClientRect(); return t.left === 0 && t.width > 100; }), 'md: Contents opens as a drawer (was a silent no-op)');
   await md.tap('#toc a'); await md.waitForTimeout(400);
   ok(await md.evaluate(() => document.querySelector('#work').dataset.toc === 'false'), 'md: the drawer closes on selection');
-  await md.tap('#btnExport'); await md.waitForTimeout(250);
+  await md.tap('#btnExportMenu'); await md.waitForTimeout(250);
   ok(await md.evaluate(() => { const p = document.querySelector('#popExport').getBoundingClientRect(); return p.left >= 0 && p.right <= window.innerWidth && p.width > 200; }), 'md: export menu fits the viewport');
   ok(await md.evaluate(() => { const p = document.querySelector('#popExport').getBoundingClientRect(); const b = document.querySelector('.bar').getBoundingClientRect(); return p.top >= b.bottom; }), 'md: the menu anchors below the grown bar (bar-h stays live)');
   await md.tap('body', { position: { x: 10, y: 700 } }).catch(() => {});

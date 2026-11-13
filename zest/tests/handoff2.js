@@ -292,6 +292,120 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   ok(mdErrs.length === 0, 'Zest MD: no exceptions (' + mdErrs.slice(0, 1).join('').slice(0, 80) + ')');
   await md.close();
 
+  console.log('== Zest MD: a simpler bar ==');
+  {   // a block of its own, so its names cannot collide with the rest of the suite
+  // its own context: clean storage, and clipboard access for Paste
+  const barCtx = await browser.newContext({ serviceWorkers: 'block', permissions: ['clipboard-read', 'clipboard-write'] });
+  const bar = await barCtx.newPage(); await block(bar);
+  await bar.route(/cdnjs\.cloudflare\.com.*dompurify/i, r => r.fulfill({ contentType: 'text/javascript', headers: CORS, body: PURIFY }));
+  const barErrs = []; bar.on('pageerror', e => barErrs.push(e.message));
+  await bar.goto('http://localhost:8774', { waitUntil: 'domcontentloaded' }); await bar.waitForTimeout(700);
+  // checkVisibility() is false under display:none and inside a closed <details>, where a box can still be measured
+  const shown = (p, sel) => p.$$eval(sel, n => n.length > 0 && n.every(e => e.checkVisibility() && e.getBoundingClientRect().width > 0));
+  const gone = (p, sel) => p.$$eval(sel, n => n.length > 0 && n.every(e => !e.checkVisibility()));
+  const tabCount = () => bar.$$eval('#tabs .tab', n => n.length);
+  const dropMd = (name, text) => bar.evaluate(([n, t]) => { const dt = new DataTransfer(); dt.items.add(new File([t], n, { type: 'text/markdown' })); document.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true })); }, [name, text]);
+  const mdFile = (name, text) => ({ name, mimeType: 'text/markdown', buffer: Buffer.from(text) });
+  const saved = () => bar.evaluate(() => JSON.parse(localStorage.getItem('mdpress:settings')));
+  // Open and Paste: on the empty state while it shows, in the toolbar once a document is open
+  ok(await gone(bar, '#btnOpen, #btnPaste') && await shown(bar, '.empty-state [data-act="open"], .empty-state [data-act="paste"]'), 'empty state: Open and Paste are on the page, and the toolbar pair is hidden');
+  let chooser = bar.waitForEvent('filechooser'); await bar.keyboard.press('Control+o');
+  await (await chooser).setFiles(mdFile('one.md', '# One\n'));
+  await bar.waitForFunction(() => document.querySelectorAll('#tabs .tab').length === 1);
+  ok(await bar.$eval('#doc h1', h => h.textContent.startsWith('One')), 'empty state: Ctrl/⌘ O still opens a file');
+  ok(await shown(bar, '#btnOpen, #btnPaste') && await bar.$$eval('.empty-state', n => n.length) === 0, 'with a document open, the toolbar shows Open and Paste');
+  chooser = bar.waitForEvent('filechooser'); await bar.click('#btnOpen');
+  await (await chooser).setFiles(mdFile('two.md', '# Two\n'));
+  await bar.waitForFunction(() => document.querySelectorAll('#tabs .tab').length === 2);
+  chooser = bar.waitForEvent('filechooser'); await bar.keyboard.press('Control+o');
+  await (await chooser).setFiles(mdFile('three.md', '# Three\n'));
+  await bar.waitForFunction(() => document.querySelectorAll('#tabs .tab').length === 3);
+  ok(await bar.$eval('#doc h1', h => h.textContent.startsWith('Three')), 'with a document open, the toolbar Open and Ctrl/⌘ O both open a file');
+  await bar.evaluate(() => navigator.clipboard.writeText('# Pasted from the clipboard\n'));
+  await bar.click('#btnPaste'); await bar.waitForTimeout(300);
+  const viaButton = await tabCount();
+  await bar.keyboard.press('Control+v'); await bar.waitForTimeout(300);
+  ok(viaButton === 4 && await tabCount() === 5 && await bar.$eval('#doc h1', h => h.textContent.startsWith('Pasted from the clipboard')), 'with a document open, the toolbar Paste and Ctrl/⌘ V on the page each add a tab');
+  for (let i = 0; i < 5; i++) await bar.click('#tabs .tab .x');
+  ok(await tabCount() === 0 && await gone(bar, '#btnOpen, #btnPaste') && await shown(bar, '.empty-state [data-act="open"], .empty-state [data-act="paste"]'), 'closing the last tab brings the empty state back and hides the toolbar pair again');
+  await bar.keyboard.press('Control+v'); await bar.waitForTimeout(300);
+  ok(await tabCount() === 1, 'empty state: Ctrl/⌘ V on the page still opens a tab');
+  await bar.click('#tabs .tab .x'); await bar.click('.empty-state [data-act="paste"]'); await bar.waitForTimeout(300);
+  await dropMd('drop.md', '# Dropped\n\ntext\n'); await bar.waitForTimeout(400);
+  ok(await tabCount() === 2 && await bar.$eval('#doc h1', h => h.textContent.startsWith('Dropped')), 'empty state: its Paste button works, and a dropped file opens in either state');
+
+  // Export: one click on the main part is the Ctrl/⌘ S export; the caret part opens the same five-item menu
+  const grab = async act => { const d = bar.waitForEvent('download'); await act(); const got = await d; return { name: got.suggestedFilename(), body: fs.readFileSync(await got.path(), 'utf8') }; };
+  const byClick = await grab(() => bar.click('#btnExport'));
+  ok(await bar.$eval('#popExport', p => p.dataset.open !== 'true') && byClick.name === 'drop.html' && /<h1[^>]*>Dropped<\/h1>/.test(byClick.body), 'Export exports in one click, with no menu in between');
+  const byKey = await grab(() => bar.keyboard.press('Control+s'));
+  const byMenu = await grab(async () => { await bar.click('#btnExportMenu'); await bar.click('#popExport [data-do="html"]'); });
+  ok(byClick.name === byKey.name && byClick.body === byKey.body && byClick.body === byMenu.body, 'the one-click export is the same file Ctrl/⌘ S and the menu item make');
+  const names = await bar.$$eval('#btnExport, #btnExportMenu', b => b.map(e => (e.getAttribute('aria-label') || e.textContent).trim()));
+  ok(names.length === 2 && names.every(Boolean) && names[0] !== names[1], `the two parts have their own names (${names.join(' / ')})`);
+  await bar.focus('#btnExportMenu'); await bar.keyboard.press('Enter');
+  ok(await bar.$eval('#btnExportMenu', b => b.getAttribute('aria-expanded')) === 'true' && await shown(bar, '#popExport [data-do]')
+    && (await bar.$$eval('#popExport [data-do]', b => b.map(e => e.dataset.do).join())) === 'html,copyhtml,pdf,md,copymd', 'the caret opens the menu by keyboard, with all five exports');
+  await bar.keyboard.press('Tab');
+  const firstItem = await bar.evaluate(() => document.activeElement.dataset.do);
+  await bar.keyboard.press('Escape');
+  ok(firstItem === 'html' && await gone(bar, '#popExport [data-do]') && await bar.evaluate(() => document.activeElement.id === 'btnExportMenu' && document.activeElement.getAttribute('aria-expanded') === 'false'), 'Tab reaches the menu, Escape closes it and hands focus back to the caret');
+
+  // Reader settings: the everyday controls on top, the rest behind one disclosure, Markdown handling in its own group
+  await bar.click('#btnRead');
+  ok(await bar.$eval('#btnRead', b => b.getAttribute('aria-expanded')) === 'true' && await bar.$eval('#moreRead', d => d.open === false)
+    && await shown(bar, '#skins .skin, #popRead [data-set="theme"], #popRead [data-set="size"], #moreRead > summary, #cleanLLM, #rawHtml, #btnReset')
+    && await gone(bar, '#popRead [data-set="font"], #popRead [data-set="lh"], #popRead [data-set="measure"]'), 'Reader settings opens with the disclosure closed: skin, mode, size and the Markdown group show; typeface, line height and width wait behind it');
+  ok(await bar.$$eval('#popRead [data-set], #popRead [data-c], #popRead input[type=checkbox], #popRead button[id]', n => [...new Set(n.map(e => e.dataset.set || e.dataset.c || e.id))].sort().join())
+    === 'accent,btnFromSkin,btnImportBrand,btnReset,cleanLLM,doc,font,ink,lh,measure,mono,paper,radius,rawHtml,sheet,size,theme,ui', 'every reader setting is still there');
+  await bar.focus('#moreRead > summary'); await bar.keyboard.press('Enter');
+  ok(await bar.$eval('#moreRead', d => d.open) && await shown(bar, '#popRead [data-set="font"], #popRead [data-set="lh"], #popRead [data-set="measure"]'), 'the disclosure opens by keyboard');
+  const cssVarB = v => bar.evaluate(n => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), v);
+  const slide = (k, v) => bar.$eval(`#popRead [data-set="${k}"]`, (e, val) => { e.value = val; e.dispatchEvent(new Event('input', { bubbles: true })); }, v);
+  await bar.click('#popRead [data-set="font"] [data-v="serif"]'); await slide('lh', '1.9'); await slide('measure', '90'); await slide('size', '20');
+  ok((await cssVarB('--doc-font')).includes('Newsreader') && await cssVarB('--doc-lh') === '1.9' && await cssVarB('--measure') === '90ch' && await cssVarB('--doc-size') === '20px', 'typeface, line height, width and size still take effect from their new places');
+  await dropMd('raw.md', 'one\\ntwo\\nthree <em>kept</em>\n'); await bar.waitForTimeout(400);
+  const rawOn = await bar.$eval('#doc', d => ({ em: !!d.querySelector('em'), slash: d.textContent.includes('\\n') }));
+  await bar.click('#cleanLLM'); await bar.click('#rawHtml'); await bar.waitForTimeout(300);
+  const rawOff = await bar.$eval('#doc', d => ({ em: !!d.querySelector('em'), slash: d.textContent.includes('\\n') }));
+  ok(rawOn.em && !rawOn.slash && !rawOff.em && rawOff.slash, 'Clean LLM paste and Allow raw HTML still change how the document is read in');
+  await bar.keyboard.press('Escape');
+  const oneEsc = await bar.evaluate(() => ({ more: document.querySelector('#moreRead').open, pop: document.querySelector('#popRead').dataset.open }));
+  ok(oneEsc.more === true && oneEsc.pop === 'false' && await bar.evaluate(() => document.activeElement.id === 'btnRead'), 'Escape outside the disclosure closes the popover and hands focus back to its button');
+  await bar.click('#btnRead'); await bar.focus('#popRead [data-set="lh"]'); await bar.keyboard.press('Escape');
+  ok(await bar.evaluate(() => !document.querySelector('#moreRead').open && document.querySelector('#popRead').dataset.open === 'true' && document.activeElement.matches('#moreRead > summary')), 'Escape inside the open disclosure closes the disclosure first');
+  await bar.reload({ waitUntil: 'domcontentloaded' }); await bar.waitForTimeout(700);
+  let st2 = await saved();
+  ok(st2.font === 'serif' && st2.lh === 1.9 && st2.measure === 90 && st2.size === 20 && st2.cleanLLM === false && st2.rawHtml === false
+    && await bar.$eval('#popRead [data-set="lh"]', e => e.value) === '1.9' && await bar.$eval('#rawHtml', e => e.checked) === false && await bar.$eval('#moreRead', d => d.open === false), 'the moved settings persist across a reload, and the disclosure starts closed again');
+  await bar.$eval('#btnReset', b => b.click()); await bar.waitForTimeout(200);
+  ok(await cssVarB('--doc-lh') === '1.65' && await cssVarB('--measure') === '70ch' && await cssVarB('--doc-size') === '17px' && await bar.$eval('#popRead [data-set="font"] [data-v="skin"]', b => b.getAttribute('aria-pressed')) === 'true', 'Reset reader settings still restores the defaults');
+
+  // light and dark: the toolbar switch flips between the two, Mode adds Auto; they are one setting and stay in step
+  const themeNow = () => bar.evaluate(() => ({ set: document.documentElement.dataset.theme, scheme: document.documentElement.style.colorScheme, mode: document.querySelector('#popRead [data-set="theme"] [aria-pressed="true"]').dataset.v, tip: document.querySelector('#btnTheme').title }));
+  const t0 = await themeNow();
+  await bar.click('#btnTheme'); const t1 = await themeNow();
+  await bar.click('#btnTheme'); const t2 = await themeNow();
+  await bar.$eval('#popRead [data-set="theme"] [data-v="auto"]', b => b.click()); const t3 = await themeNow();
+  ok(t0.set === 'auto' && t0.mode === 'auto' && t1.scheme !== t0.scheme && t1.set === t1.scheme && t1.mode === t1.set && t2.scheme === t0.scheme && t2.mode === t2.set
+    && t3.set === 'auto' && t3.mode === 'auto' && /auto/.test(t3.tip) && t1.tip.includes(t1.set), `the toolbar switch changes the page on its first click (${t0.scheme} → ${t1.scheme}) and Mode follows it; Auto is still offered in Mode`);
+
+  // tab lock: the lock button and the refusal stay; a double-click on the tab no longer locks it
+  await dropMd('keep.md', '# Keep\n'); await bar.waitForTimeout(300);
+  const keep = '#tabs .tab[aria-selected="true"]';
+  await bar.dblclick(keep + ' span'); await bar.waitForTimeout(200);
+  const afterDbl = await bar.$eval(keep, t => t.dataset.locked);
+  await bar.click(keep + ' .lk'); await bar.waitForTimeout(200);
+  const afterLock = await bar.$eval(keep, t => t.dataset.locked);
+  const before = await tabCount();
+  await bar.$eval(keep + ' .x', b => b.click()); await bar.waitForTimeout(200);   // the close button is hidden on a locked tab; a scripted click still must be refused
+  ok(afterDbl === 'false' && afterLock === 'true' && await tabCount() === before && (await bar.$eval('#toast', t => t.textContent)).includes('is locked'), 'a tab locks from its lock button only, and a locked tab still refuses to close and says why');
+  await bar.click(keep + ' .lk'); await bar.waitForTimeout(200);
+  ok(await bar.$eval(keep, t => t.dataset.locked) === 'false', 'the lock button unlocks it again');
+  ok(barErrs.length === 0, 'Zest MD, simpler bar: no exceptions (' + barErrs.slice(0, 1).join('').slice(0, 80) + ')');
+  await barCtx.close();
+  }
+
   console.log('== Zest MD without the sanitizer: raw HTML fails closed ==');
   const mdOff = await ctx.newPage();
   await mdOff.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort());

@@ -41,10 +41,11 @@ const TOOLS = [
     ['removing the block', 'drop', pg => pg.click('.cv-block[aria-selected="true"] [data-act="del"]')],
   ] },
   { name: 'md', dir: 'md', url: 'http://localhost:8774/', toggle: '#btnSound', steps: [
-    ['exporting with nothing open', 'nope', async pg => { await pg.click('#btnExport'); await pg.click('#popExport [data-do="copymd"]'); }],
+    ['exporting with nothing open', 'nope', async pg => { await pg.click('#btnExportMenu'); await pg.click('#popExport [data-do="copymd"]'); }],
     ['opening the sample', 'pop', pg => pg.click('[data-act="sample"]')],
     ['opening Contents', 'tap', pg => pg.click('#btnToc')],
-    ['copying the Markdown', 'done', async pg => { await pg.click('#btnExport'); await pg.click('#popExport [data-do="copymd"]'); }],
+    ['copying the Markdown', 'done', async pg => { await pg.click('#btnExportMenu'); await pg.click('#popExport [data-do="copymd"]'); }],
+    ['exporting in one click', 'done', pg => pg.click('#btnExport')],
     ['closing the tab', 'drop', pg => pg.click('#tabs .tab .x')],
   ] },
 ];

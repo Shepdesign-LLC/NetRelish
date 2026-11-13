@@ -168,6 +168,11 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .btn.primary:hover{background:var(--accent); color:var(--on-accent)}
 .btn svg{width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none}
 .btn.icon{width:32px; padding:0; justify-content:center}
+.btn[hidden]{display:none}
+/* split button: the main part acts in one click, the caret part opens the menu; the 1px gap is the divider */
+.split{display:inline-flex; gap:1px}
+.split .btn:first-child{border-radius:6px 0 0 6px}
+.split .btn.icon{width:28px; border-radius:0 6px 6px 0}
 @media (prefers-reduced-motion:no-preference){.btn:active{transform:translateY(1px)}} /* pressed feedback; none under reduced motion */
 .label{display:none}
 @media (min-width:1100px){.label{display:inline}}
@@ -202,6 +207,12 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .pop .menu button:hover{background:var(--paper); color:var(--ink)}
 .pop .menu button small{margin-left:auto; color:var(--ink-3); font-family:var(--mono); font-size:11px}
 .pop hr{border:0; border-top:1px solid var(--rule); margin:6px 0}
+/* disclosure inside a popover: the summary reads as a row, its chevron sits where a row's control does */
+.pop details > summary{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:6px 8px; border-radius:6px; color:var(--ink-2); cursor:pointer; list-style:none}
+.pop details > summary::-webkit-details-marker{display:none}
+.pop details > summary:hover{background:var(--paper); color:var(--ink)}
+.pop details > summary svg{width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none; transition:transform .18s ease}
+.pop details[open] > summary svg{transform:rotate(180deg)}
 
 /* workspace */
 .work{display:grid; grid-template-columns:0 0 1fr; min-height:0; transition:grid-template-columns .18s ease}
@@ -260,6 +271,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 }
 @media (pointer:coarse){
   .btn{height:40px} .btn.icon{width:40px}
+  .split .btn.icon{width:40px}
   .tab .x,.tab .lk{width:28px; height:28px}
   .tab .lk{opacity:1} /* no hover on touch — the lock must be visible to exist */
   .doc .copy{padding:8px 10px; font-size:12px}
@@ -281,10 +293,10 @@ button{cursor:pointer; background:none; border:0; padding:0}
     <div class="tabs" id="tabs" role="tablist"></div>
 
     <div class="group">
-      <button class="btn" id="btnOpen" title="Open Markdown files (Ctrl/⌘ O)">
+      <button class="btn" id="btnOpen" title="Open Markdown files (Ctrl/⌘ O)" hidden>
         <svg viewBox="0 0 24 24"><path d="M4 6h5l2 2h9v10H4z"/></svg><span class="label">Open</span>
       </button>
-      <button class="btn" id="btnPaste" title="Paste Markdown from clipboard">
+      <button class="btn" id="btnPaste" title="Paste Markdown from clipboard" hidden>
         <svg viewBox="0 0 24 24"><rect x="6" y="5" width="12" height="15" rx="2"/><path d="M9 5V3h6v2"/></svg><span class="label">Paste</span>
       </button>
       <button class="btn" id="btnEdit" aria-pressed="false" title="Toggle editor (Ctrl/⌘ E)">
@@ -296,7 +308,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
     </div>
 
     <div class="group">
-      <button class="btn icon" id="btnRead" title="Reader settings">
+      <button class="btn icon" id="btnRead" title="Reader settings" aria-expanded="false" aria-controls="popRead">
         <svg viewBox="0 0 24 24"><path d="M5 19 12 4l7 15M8 13h8"/></svg>
       </button>
       <button class="btn icon" id="btnTheme" title="Theme: auto">
@@ -308,9 +320,14 @@ button{cursor:pointer; background:none; border:0; padding:0}
     </div>
 
     <div class="group">
-      <button class="btn primary" id="btnExport" title="Export">
-        <svg viewBox="0 0 24 24"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>Export
-      </button>
+      <div class="split">
+        <button class="btn primary" id="btnExport" title="Export HTML (Ctrl/⌘ S)">
+          <svg viewBox="0 0 24 24"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>Export
+        </button>
+        <button class="btn primary icon" id="btnExportMenu" aria-label="Export options" title="Export options" aria-expanded="false" aria-controls="popExport">
+          <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+      </div>
     </div>
 
     <!-- reader settings -->
@@ -332,24 +349,27 @@ button{cursor:pointer; background:none; border:0; padding:0}
       </div>
       <div class="head">Reading</div>
       <div class="row"><label>Mode</label>
-        <div class="seg" data-set="theme">
+        <div class="seg" data-set="theme" role="group" aria-label="Mode">
           <button data-v="auto">Auto</button>
           <button data-v="light">Light</button>
           <button data-v="dark">Dark</button>
         </div>
       </div>
-      <div class="row"><label>Typeface</label>
-        <div class="seg" data-set="font">
-          <button data-v="skin" aria-pressed="true">Skin</button>
-          <button data-v="sans" style="font-family:'Geist',sans-serif">Sans</button>
-          <button data-v="serif" style="font-family:'Newsreader',serif">Serif</button>
-          <button data-v="mono" style="font-family:'Geist Mono',monospace">Mono</button>
+      <div class="row"><label>Size</label><input type="range" data-set="size" min="14" max="26" step="1" value="17" aria-label="Size"></div>
+      <details id="moreRead">
+        <summary>Typeface and spacing<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+        <div class="row"><label>Typeface</label>
+          <div class="seg" data-set="font" role="group" aria-label="Typeface">
+            <button data-v="skin" aria-pressed="true">Skin</button>
+            <button data-v="sans" style="font-family:'Geist',sans-serif">Sans</button>
+            <button data-v="serif" style="font-family:'Newsreader',serif">Serif</button>
+            <button data-v="mono" style="font-family:'Geist Mono',monospace">Mono</button>
+          </div>
         </div>
-      </div>
-      <div class="row"><label>Size</label><input type="range" data-set="size" min="14" max="26" step="1" value="17"></div>
-      <div class="row"><label>Line height</label><input type="range" data-set="lh" min="1.3" max="2" step="0.05" value="1.65"></div>
-      <div class="row"><label>Width</label><input type="range" data-set="measure" min="50" max="110" step="2" value="70"></div>
-      <hr>
+        <div class="row"><label>Line height</label><input type="range" data-set="lh" min="1.3" max="2" step="0.05" value="1.65" aria-label="Line height"></div>
+        <div class="row"><label>Width</label><input type="range" data-set="measure" min="50" max="110" step="2" value="70" aria-label="Width"></div>
+      </details>
+      <div class="head">Markdown</div>
       <div class="row"><label for="cleanLLM">Clean LLM paste</label><input type="checkbox" id="cleanLLM" checked></div>
       <div class="row"><label for="rawHtml" title="Safe raw HTML: scripts, event handlers and frames are always stripped">Allow raw HTML</label><input type="checkbox" id="rawHtml" checked></div>
       <hr>
@@ -621,8 +641,17 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   /* ---------- render ---------- */
   const doc = $('#doc'), stage = $('#stage');
   let renderSeq = 0;
+  // Open and Paste sit on the empty state while it is on screen, so the toolbar pair hides until a document is open.
+  // On a phone the editor covers the empty state, so the pair stays in the bar there.
+  const phone = matchMedia('(max-width:760px)');
+  function syncOpenPaste() {
+    const emptyShown = !state.files[state.active] && !(state.settings.edit && phone.matches);
+    $('#btnOpen').hidden = $('#btnPaste').hidden = emptyShown;
+  }
+  phone.addEventListener('change', syncOpenPaste);
   async function render() {
     const file = state.files[state.active];
+    syncOpenPaste();
     if (!file) { renderEmpty(); buildToc(); return; }
     let text = file.text;
     if (state.settings.cleanLLM) text = cleanLLM(text);
@@ -706,7 +735,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
           <button class="btn" data-act="paste">Paste Markdown</button>
           <button class="btn" data-act="sample">Try a sample</button>
         </div>
-        <div class="hint"><b>Shortcuts</b> — <kbd>⌘/Ctrl O</kbd> open, <kbd>⌘/Ctrl E</kbd> editor, <kbd>⌘/Ctrl S</kbd> export HTML, <kbd>⌘/Ctrl P</kbd> PDF. Drag several files in to open them as tabs; double-click a tab to lock it against accidental closing.</div>
+        <div class="hint"><b>Shortcuts</b> — <kbd>⌘/Ctrl O</kbd> open, <kbd>⌘/Ctrl E</kbd> editor, <kbd>⌘/Ctrl S</kbd> export HTML, <kbd>⌘/Ctrl P</kbd> PDF. Drag several files in to open them as tabs; click a tab's lock to keep it from closing by accident.</div>
       </div>`;
     document.title = PRODUCT + ' — Markdown reader & HTML exporter';
   }
@@ -771,7 +800,6 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     const x = e.target.closest('[data-close]'); if (x) { closeFile(+x.dataset.close); return; }
     const t = e.target.closest('.tab'); if (t) { state.active = +t.dataset.i; renderTabs(); syncEditor(); render(); snd('tap'); }
   });
-  tabs.addEventListener('dblclick', e => { const t = e.target.closest('.tab'); if (t && !e.target.closest('button')) toggleLock(+t.dataset.i); });
   tabs.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const t = e.target.closest('.tab'); if (t) { e.preventDefault(); t.click(); } } });
 
   async function readFiles(list) {
@@ -1035,6 +1063,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
     $('#themeIcon').innerHTML = { auto: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/>', light: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>', dark: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>' }[s.theme];
     $('#work').dataset.toc = s.toc; $('#work').dataset.edit = s.edit;
     $('#btnToc').setAttribute('aria-pressed', s.toc); $('#btnEdit').setAttribute('aria-pressed', s.edit);
+    syncOpenPaste();
     store.set('settings', s);
   }
   $('#popRead').addEventListener('input', e => {
@@ -1058,15 +1087,28 @@ https://github.com/highlightjs/highlight.js/issues/2277`),B=g,O=w),N===void 0&&(
   $('#btnPaste').addEventListener('click', pasteClipboard);
 
   /* ---------- popovers ---------- */
-  function togglePop(id, btn) {
-    const p = $(id), open = p.dataset.open !== 'true';
-    $$('.pop').forEach(x => x.dataset.open = 'false'); p.dataset.open = open;
-    if (btn) btn.setAttribute('aria-expanded', open);
+  const POP_BTN = { popRead: '#btnRead', popExport: '#btnExportMenu' };   // each popover's button carries its open state
+  function closePops(refocus) {
+    $$('.pop').forEach(p => {
+      const b = $(POP_BTN[p.id]);
+      if (refocus && p.dataset.open === 'true' && p.contains(document.activeElement)) b.focus();   // leaving by keyboard hands focus back to the button
+      p.dataset.open = 'false'; b.setAttribute('aria-expanded', 'false');
+    });
   }
-  $('#btnRead').addEventListener('click', e => { e.stopPropagation(); togglePop('#popRead', e.currentTarget); });
-  $('#btnExport').addEventListener('click', e => { e.stopPropagation(); togglePop('#popExport', e.currentTarget); });
-  document.addEventListener('click', e => { if (!e.target.closest('.pop')) $$('.pop').forEach(x => x.dataset.open = 'false'); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') $$('.pop').forEach(x => x.dataset.open = 'false'); });
+  function togglePop(id) {
+    const p = $(id), open = p.dataset.open !== 'true';
+    closePops(); p.dataset.open = open; $(POP_BTN[p.id]).setAttribute('aria-expanded', open);
+  }
+  $('#btnRead').addEventListener('click', e => { e.stopPropagation(); togglePop('#popRead'); });
+  $('#btnExportMenu').addEventListener('click', e => { e.stopPropagation(); togglePop('#popExport'); });
+  $('#btnExport').addEventListener('click', () => exportHtml());   // one click: the same export as Ctrl/⌘ S; the menu behind the caret holds all five
+  document.addEventListener('click', e => { if (!e.target.closest('.pop')) closePops(); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    const d = e.target.closest && e.target.closest('.pop details[open]');
+    if (d) { d.open = false; $('summary', d).focus(); return; }   // Escape closes the disclosure first, then the popover
+    closePops(true);
+  });
 
   /* ---------- export ---------- */
   function currentTheme() {
@@ -1118,7 +1160,7 @@ ${copyScript}
   $('#popExport').addEventListener('click', e => {
     const b = e.target.closest('[data-do]'); if (!b) return;
     const f = state.files[state.active];
-    $$('.pop').forEach(x => x.dataset.open = 'false');
+    closePops(true);
     if (!f) { toast('Open a file first', 'nope'); return; }
     switch (b.dataset.do) {
       case 'html': exportHtml(); break;
