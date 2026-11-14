@@ -72,8 +72,9 @@ and tested only in CI ([[building-without-a-mac]]).
 > `MainActor.assumeIsolated`, which traps if WebKit ever calls from elsewhere; the task goes
 > in through a `nonisolated(unsafe)` local because it isn't Sendable. A `@MainActor` class
 > would have main-actor methods, which a nonisolated protocol requirement doesn't accept
-> under Swift 6. `WKDownloadDelegate` is conformed to with `@preconcurrency` for the same
-> reason, which costs only a warning if the SDK does mark it.
+> under Swift 6. `WKDownloadDelegate` is different: the SDK on CI marks it main-actor, so
+> it's conformed to plainly (`@preconcurrency` there drew a "has no effect" warning). The
+> compiled rule list in `ZestRules` is Sendable and needs no `nonisolated(unsafe)`.
 
 > ⚠️ **Never read a Zest file with `Data(contentsOf:)`.** The CodeQL query
 > `netrelish/remote-capable-url-read` has a baseline of zero, and a URL read is a hit. The
