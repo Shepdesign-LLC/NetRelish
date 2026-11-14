@@ -470,7 +470,7 @@ private func emptyRoot() throws -> URL {
 
     /// Only that the store is shared between views in one process. Whether WebKit writes
     /// zest:// storage to disk, so it survives a relaunch, and whether IndexedDB works there,
-    /// this can't see: both are open checks for phase 2 and the pull request's demo.
+    /// this can't see: both are checked by hand in the pull request's demo (ADR 0033 risk 3).
     @Test("localStorage on zest:// is shared between two views on one store, in one process")
     func storageShared() async throws {
         let rules = try await compiledRules()
@@ -484,7 +484,7 @@ private func emptyRoot() throws -> URL {
         #expect(try await string(first, "window.fixtureFound") == "null")
         #expect(try await string(first, "String(localStorage.getItem('\(key)'))") == "kept")
         #expect(try await string(first, "location.protocol") == "zest:")
-        // Not a pass or fail: what the clipboard and crypto APIs will see, for the phase-2 notes.
+        // Not a pass or fail: what the clipboard and crypto APIs see, for the demo notes.
         let secure = try await string(first, "String(window.isSecureContext)")
         print("Zest host: isSecureContext on zest:// is \(secure)")
 
@@ -593,5 +593,190 @@ private func emptyRoot() throws -> URL {
         for _ in 0..<100 where web.title != "Not in this build" { try await Task.sleep(for: .milliseconds(50)) }
         #expect(web.title == "Not in this build")
         await discard(store, windows: [window])
+    }
+}
+
+// MARK: The real bundle (Contents/Resources/Zest), through the real scheme handler
+
+/// One request to the scheme handler, answered without WebKit loading anything: the handler
+/// answers in full inside `start`, so the response is here when the call returns.
+private final class SchemeProbe: NSObject, WKURLSchemeTask {
+    let request: URLRequest
+    private(set) var response: HTTPURLResponse?
+    private(set) var body = Data()
+    private(set) var finished = false
+    private(set) var failed = false
+
+    init(_ url: URL, method: String = "GET") {
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        self.request = request
+    }
+
+    func didReceive(_ response: URLResponse) { self.response = response as? HTTPURLResponse }
+    func didReceive(_ data: Data) { body.append(data) }
+    func didFinish() { finished = true }
+    func didFailWithError(_ error: any Error) { failed = true }
+}
+
+/// The tools as they ship: the folder `zest/build.sh --app` writes, in the app hosting the
+/// tests. These read the bundle and never write to it, and the WebKit test runs on a
+/// throwaway store, never Zest's own.
+@Suite("Zest bundle") @MainActor struct ZestBundleTests {
+
+    /// Contents/Resources/Zest, with the studio at its root.
+    private func root() throws -> URL {
+        let root = try #require(ZestFiles.bundledRoot, "the app has no resources folder")
+        try #require(FileManager.default.fileExists(atPath: root.appending(path: "index.html").path(percentEncoded: false)),
+                     "Resources/Zest isn't in the app bundle")
+        return root
+    }
+
+    /// What the scheme handler answers for `url`, served from `root`.
+    private func serve(_ url: URL, from root: URL, method: String = "GET") -> SchemeProbe {
+        let probe = SchemeProbe(url, method: method)
+        ZestSchemeHandler(root: root).webView(WKWebView(frame: .zero), start: probe)
+        return probe
+    }
+
+    private func expectServed(_ probe: SchemeProbe, type: String, _ what: String) {
+        #expect(probe.finished && !probe.failed, "\(what) wasn't answered")
+        #expect(probe.response?.statusCode == 200, "\(what): status \(probe.response?.statusCode ?? 0)")
+        #expect(probe.response?.value(forHTTPHeaderField: "Content-Type") == type, "\(what) has the wrong type")
+        #expect(probe.response?.value(forHTTPHeaderField: "Content-Security-Policy") == ZestFiles.contentSecurityPolicy)
+        #expect(probe.response?.value(forHTTPHeaderField: "X-Content-Type-Options") == "nosniff")
+        #expect(probe.response?.value(forHTTPHeaderField: "Content-Length") == String(probe.body.count))
+        #expect(!probe.body.isEmpty, "\(what) is empty")
+    }
+
+    @Test("Each tool's URL serves its page from the bundle: 200, HTML, under the policy")
+    func toolsServe() throws {
+        let root = try root()
+        for tool in ZestTool.allCases {
+            let page = serve(tool.url, from: root)
+            expectServed(page, type: "text/html; charset=utf-8", tool.url.absoluteString)
+            #expect(String(decoding: page.body, as: UTF8.self).lowercased().contains("<html"), "\(tool) isn't a page")
+            // The folder's own URL is the same page.
+            let folder = try #require(URL(string: "zest://app/\(tool.folder)"))
+            #expect(serve(folder, from: root).body == page.body, "zest://app/\(tool.folder) isn't \(tool)'s page")
+        }
+    }
+
+    @Test("The vendored files the tools load resolve, with their types",
+          arguments: [
+              ("vendor/fonts/fonts.css", "text/css; charset=utf-8"),
+              ("vendor/fonts/fonts.json", "application/json; charset=utf-8"),
+              ("vendor/fonts/geist/geist-latin-wght-normal.woff2", "font/woff2"),
+              ("vendor/dompurify/purify.min.js", "text/javascript; charset=utf-8"),
+              ("vendor/katex/katex.min.css", "text/css; charset=utf-8"),
+              ("vendor/katex/katex.min.js", "text/javascript; charset=utf-8"),
+              ("vendor/katex/contrib/auto-render.min.js", "text/javascript; charset=utf-8"),
+              ("vendor/mermaid/mermaid.min.js", "text/javascript; charset=utf-8"),
+              ("NOTICE", "text/plain; charset=utf-8"),
+          ])
+    func vendorServes(_ path: String, _ type: String) throws {
+        let url = try #require(URL(string: "zest://app/\(path)"))
+        expectServed(serve(url, from: try root()), type: type, path)
+    }
+
+    @Test("Every file in the bundle is reachable, has a known type, and no name is hidden")
+    func everyFileHasAType() throws {
+        let root = try root()
+        let base = root.standardizedFileURL.pathComponents
+        let files = try #require(FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey]))
+        var count = 0
+        while let file = files.nextObject() as? URL {
+            guard try file.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true else { continue }
+            let components = Array(file.standardizedFileURL.pathComponents.dropFirst(base.count))
+            let path = components.joined(separator: "/")
+            count += 1
+            #expect(!components.contains { $0.hasPrefix(".") }, "\(path) is hidden, so zest:// refuses it")
+            #expect(ZestFiles.mimeType(forPath: path) != "application/octet-stream", "\(path) has no content type")
+            let encoded = components.map { $0.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? $0 }
+            let url = try #require(URL(string: "zest://app/" + encoded.joined(separator: "/")))
+            #expect(ZestFiles.components(for: url) == components, "\(path) doesn't map back to itself")
+            #expect(ZestFiles.file(for: components, in: root) != nil, "\(path) isn't served")
+        }
+        #expect(count > 100, "only \(count) files in Resources/Zest")
+    }
+
+    @Test("Help › Acknowledgments reads the notices from the bundle, and they name what the app carries")
+    func acknowledgments() throws {
+        _ = try root()
+        let notice = try #require(Acknowledgments.text(), "Help › Acknowledgments would be empty")
+        for name in ["DOMPurify", "KaTeX", "Mermaid", "Bricolage Grotesque", "Geist", "markdown-it",
+                     "highlight.js", "Defuddle", "GRDB.swift", "KeyboardShortcuts", "SIL Open Font License"] {
+            #expect(notice.contains(name), "NOTICE doesn't name \(name)")
+        }
+        #expect(Acknowledgments.text(at: nil) == nil)
+        #expect(Acknowledgments.text(at: FileManager.default.temporaryDirectory.appending(path: "no-notice-\(UUID().uuidString)")) == nil)
+    }
+
+    /// Records every Content-Security-Policy refusal, in every frame, on the top page, before
+    /// any page script runs. Test-only: the app's views carry only the stub.
+    private static let policyWatch = """
+    (() => {
+      let top; try { top = window.top; void top.document; } catch (e) { top = window; }
+      top.__zestRefused = top.__zestRefused || [];
+      document.addEventListener('securitypolicyviolation', e => {
+        top.__zestRefused.push(e.violatedDirective + ' ' + (e.blockedURI || 'inline'));
+      });
+    })();
+    """
+
+    @Test("Each tool runs from the bundle in WebKit with nothing refused, in the app's own type")
+    func toolsRunUnderThePolicy() async throws {
+        let rules = try await compiledRules()
+        let root = try root()
+        for tool in ZestTool.allCases {
+            let store = UUID()
+            let config = ZestWebView.configuration(rules: rules, root: root,
+                                                   dataStore: WKWebsiteDataStore(forIdentifier: store))
+            config.userContentController.addUserScript(
+                WKUserScript(source: Self.policyWatch, injectionTime: .atDocumentStart, forMainFrameOnly: false))
+            let web = WKWebView(frame: .init(x: 0, y: 0, width: 1180, height: 820), configuration: config)
+            let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1180, height: 820), styleMask: .borderless,
+                                  backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = web
+            web.load(URLRequest(url: tool.url))
+            for _ in 0..<300 {   // up to 15 s
+                try await Task.sleep(for: .milliseconds(50))
+                if !web.isLoading, try await web.evaluateJavaScript("document.readyState") as? String == "complete" { break }
+            }
+            #expect(web.url?.scheme == ZestFiles.scheme, "\(tool) left zest://")
+
+            let state = try await web.callAsyncJavaScript("""
+            await document.fonts.ready;
+            const loaded = [...document.fonts].filter(f => f.status === 'loaded').map(f => f.family.replace(/["']/g, ''));
+            return [document.documentElement.classList.contains('in-app'), loaded.includes('Geist')].join(',');
+            """, contentWorld: .page) as? String
+            #expect(state == "true,true", "\(tool): in-app switch, Geist loaded: \(state ?? "nil")")
+
+            if tool == .md {
+                // The sample has math and a diagram: KaTeX and Mermaid load from vendor/ under
+                // their sha384, and Mermaid draws with no eval.
+                _ = try await web.evaluateJavaScript("document.querySelector('[data-act=\"sample\"]').click(); 'ok'")
+                var drawn = ""
+                for _ in 0..<300 {   // up to 15 s
+                    try await Task.sleep(for: .milliseconds(50))
+                    drawn = try await web.evaluateJavaScript("""
+                    [!!window.DOMPurify, (window.__mdpressMissing || []).length === 0,
+                     !!document.querySelector('#doc .katex'), !!document.querySelector('#doc .diagram svg')].join(',')
+                    """) as? String ?? ""
+                    if drawn == "true,true,true,true" { break }
+                }
+                #expect(drawn == "true,true,true,true", "md: sanitizer, all files, math, diagram: \(drawn)")
+            }
+
+            let refused = try await web.evaluateJavaScript("(window.__zestRefused || []).join(' | ')") as? String
+            #expect(refused == "", "\(tool): the policy refused \(refused ?? "nil")")
+
+            window.contentView = nil
+            window.orderOut(nil)
+            await WKWebsiteDataStore(forIdentifier: store)
+                .removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
+            try? await WKWebsiteDataStore.remove(forIdentifier: store)
+        }
     }
 }

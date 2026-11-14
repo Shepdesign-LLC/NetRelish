@@ -12,8 +12,8 @@ import SwiftUI
 import WebKit
 
 /// The four tools and where each lives under zest://app/. The one table: the switcher, the
-/// URLs and the link routing all read it. The folder names are the ones phase 2's
-/// `zest/build.sh --app` will write (ADR 0033); today the folder holds only its README.
+/// URLs and the link routing all read it. The folder names are the ones `zest/build.sh --app`
+/// writes (ADR 0033): change both together. ZestBundleTests loads each from the bundle.
 enum ZestTool: String, CaseIterable, Identifiable {
     case studio, mail, md, image
 

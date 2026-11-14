@@ -12,6 +12,8 @@
 //     preview frame, ZestImage's brand faces), and Zest MD's sanitizer and math load from there too;
 //   - exports carry their fonts inside the file: no font host, no vendor/ path that breaks once saved;
 //   - no request leaves 127.0.0.1, and no page throws.
+//   - every file is served with the host's own headers (the Content-Security-Policy, nosniff and the table of
+//     content types in Sources/Zest/ZestFiles.swift), and nothing in any frame is refused by that policy;
 // Part 2 opens the web sources (run.js's ports 8771-8774) with the same stub: the run-time switch alone, before
 // build.sh --app strips anything, hides the same parts.
 //
@@ -25,10 +27,14 @@ const ROOT = path.resolve(process.env.ZEST_APP_ROOT || path.join(__dirname, '..'
 const LAUNCH = process.env.ZEST_CHROMIUM ? { executablePath: process.env.ZEST_CHROMIUM } : {};
 const shotsAt = process.argv.indexOf('--shots');
 const SHOTS = shotsAt > 0 ? path.resolve(process.argv[shotsAt + 1]) : null;
-const MIME = {
-  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
-  '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.txt': 'text/plain',
-};
+// The host's response headers, read from the Swift source so this suite and the app can't drift apart.
+const SWIFT = fs.readFileSync(path.join(__dirname, '..', '..', 'Sources', 'Zest', 'ZestFiles.swift'), 'utf8');
+const CSP = (((SWIFT.match(/static let contentSecurityPolicy = \[([\s\S]*?)\]\.joined\(separator: "; "\)/) || [])[1] || '')
+  .match(/"[^"]*"/g) || []).map(d => d.slice(1, -1)).join('; ');
+const APP_TYPES = Object.fromEntries([...(((SWIFT.match(/static let mimeTypes: \[String: String\] = \[([\s\S]*?)\n    \]/) || [])[1]) || '')
+  .matchAll(/"([a-z0-9]+)": "([^"]+)"/g)].map(m => ['.' + m[1], m[2]]));
+const HOST_HEADERS = file => ({ 'content-type': APP_TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream',
+  'content-security-policy': CSP, 'x-content-type-options': 'nosniff', 'cache-control': 'no-cache' });
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fail++; console.error('  FAIL ' + m); } };
 
@@ -37,6 +43,12 @@ const STUB = `(() => {
   if (window.top === window) Object.defineProperty(window, 'netrelish', { value: Object.freeze({ version: '0', host: 'app', network: false }), writable: false, configurable: false });
   window.__swCalls = 0;
   try { const sw = navigator.serviceWorker; if (sw) { const reg = sw.register.bind(sw); sw.register = (...a) => { window.__swCalls++; return reg(...a); }; } } catch {}
+})();`;
+// Every refusal by the policy, in any frame (the srcdoc previews too), kept on the top page.
+const POLICY_WATCH = `(() => {
+  let top; try { top = window.top; void top.document; } catch { top = window; }
+  top.__refused = top.__refused || [];
+  document.addEventListener('securitypolicyviolation', e => top.__refused.push(e.violatedDirective + ' ' + (e.blockedURI || 'inline')));
 })();`;
 // Words that sell, and the model host. "Crimson Pro" is a typeface, not a tier.
 const SELLS = /pricing|upgrade|\bpro\b|draft with|claude|anthropic/i;
@@ -50,7 +62,7 @@ function serve() {
       const file = path.join(ROOT, p);
       if (!file.startsWith(ROOT + path.sep) || !fs.existsSync(file)) { res.writeHead(404); return res.end('not found'); }
       if (fs.statSync(file).isDirectory()) { res.writeHead(301, { location: p + '/' }); return res.end(); }
-      res.writeHead(200, { 'content-type': MIME[path.extname(file)] || 'application/octet-stream' });
+      res.writeHead(200, HOST_HEADERS(file));
       fs.createReadStream(file).pipe(res);
     } catch { res.writeHead(400); res.end('bad request'); }
   });
@@ -78,6 +90,10 @@ const TOOLS = [
 
 (async () => {
   if (!fs.existsSync(path.join(ROOT, 'index.html'))) { console.error(`inapp: ${ROOT} is not built (bash zest/build.sh --app)`); process.exit(2); }
+  ok(/^default-src /.test(CSP) && /script-src [^;]*'unsafe-inline'/.test(CSP) && !/unsafe-eval/.test(CSP) && APP_TYPES['.woff2'] === 'font/woff2' && APP_TYPES['.js'],
+    `the host's policy and content types are read from ZestFiles.swift (${CSP.split('; ').length} directives, ${Object.keys(APP_TYPES).length} types)`);
+  const shipped = [...new Set(fs.readdirSync(ROOT, { recursive: true }).filter(f => fs.statSync(path.join(ROOT, f)).isFile() && path.extname(f)).map(f => path.extname(f).toLowerCase()))];
+  ok(shipped.every(e => APP_TYPES[e]), `the host has a content type for every extension in the app's copy (${shipped.sort().join(' ')})`);
   if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   const srv = await serve();
   const origin = `http://127.0.0.1:${srv.address().port}`;
@@ -89,8 +105,10 @@ const TOOLS = [
     const away = [];
     await ctx.route('**/*', r => { const u = r.request().url(); if (u.startsWith(origin + '/') || /^(data|blob):/.test(u)) return r.continue(); away.push(u); return r.abort('blockedbyclient'); });
     await ctx.addInitScript(STUB);
+    await ctx.addInitScript(POLICY_WATCH);
     const pg = await ctx.newPage();
     const errs = []; pg.on('pageerror', e => errs.push(e.message));
+    const refusedLog = []; pg.on('console', m => { if (/Content Security Policy|Refused to/i.test(m.text())) refusedLog.push(m.text()); });
     await pg.goto(origin + t.path, { waitUntil: 'load' }); await pg.waitForTimeout(900);
 
     ok(await pg.evaluate(() => document.documentElement.classList.contains('in-app') && window.ZEST_IN_APP === true), `${t.name}: the in-app switch is on`);
@@ -141,6 +159,8 @@ const TOOLS = [
       ok(!/vendor\/|fonts\.googleapis|cdnjs|<link[^>]+stylesheet/.test(html), 'md: the exported page loads nothing: no vendor/ path, no font host, no stylesheet link');
     }
     if (SHOTS) await pg.screenshot({ path: path.join(SHOTS, `${t.name}.png`) });
+    const refused = [...await pg.evaluate(() => window.__refused || []), ...refusedLog];
+    ok(refused.length === 0, `${t.name}: the host's Content-Security-Policy refuses nothing, in any frame${refused.length ? ' — ' + [...new Set(refused)].slice(0, 3).join(' | ') : ''}`);
     ok(away.length === 0, `${t.name}: no request left 127.0.0.1${away.length ? ' — ' + [...new Set(away)].slice(0, 3).join(', ') : ''}`);
     ok(errs.length === 0, `${t.name}: no page errors${errs.length ? ' — ' + errs.slice(0, 2).join(' | ') : ''}`);
     await ctx.close();

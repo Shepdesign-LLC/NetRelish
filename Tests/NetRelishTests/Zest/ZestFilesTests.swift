@@ -122,6 +122,10 @@ import Testing
               ("KaTeX.ttf", "font/ttf"),
               ("lib.wasm", "application/wasm"),
               ("ding.mp3", "audio/mpeg"),
+              ("README.md", "text/markdown; charset=utf-8"),
+              ("NOTICE", "text/plain; charset=utf-8"),
+              ("vendor/katex/LICENSE", "text/plain; charset=utf-8"),
+              ("notice", "application/octet-stream"),
               ("README", "application/octet-stream"),
               ("blob.bin", "application/octet-stream"),
           ])

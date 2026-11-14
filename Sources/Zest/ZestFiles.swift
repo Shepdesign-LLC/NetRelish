@@ -12,8 +12,9 @@ enum ZestFiles {
     static let scheme = "zest"
     static let host = "app"
 
-    /// The bundled tools: Contents/Resources/Zest, a folder reference. It will be generated
-    /// by `zest/build.sh --app` (phase 2, ADR 0033) and is never hand-edited.
+    /// The bundled tools: Contents/Resources/Zest, a folder reference. `zest/build.sh --app`
+    /// writes it from zest/apps and zest/vendor (ADR 0033), and CI rebuilds it and diffs it
+    /// against the committed copy, so it is never hand-edited.
     static var bundledRoot: URL? {
         Bundle.main.resourceURL?.appending(path: "Zest", directoryHint: .isDirectory)
     }
@@ -93,6 +94,8 @@ enum ZestFiles {
     // MARK: Types
 
     /// Content types by extension. Text is UTF-8. Anything not listed is served as bytes.
+    /// It covers every extension in Resources/Zest (ZestBundleTests walks the folder to hold
+    /// that), and the ones a tool might add later.
     static let mimeTypes: [String: String] = [
         "html": "text/html; charset=utf-8",
         "htm": "text/html; charset=utf-8",
@@ -127,8 +130,14 @@ enum ZestFiles {
         "pdf": "application/pdf",
     ]
 
+    /// Files with no extension that are text: the notices beside the vendored libraries
+    /// and fonts. Matched on the whole name, exactly as it is spelled in the bundle.
+    static let bareTextNames: Set<String> = ["NOTICE", "LICENSE"]
+
     static func mimeType(forPath path: String) -> String {
-        let ext = (path as NSString).pathExtension.lowercased()
+        let name = (path as NSString).lastPathComponent
+        let ext = (name as NSString).pathExtension.lowercased()
+        if ext.isEmpty, bareTextNames.contains(name) { return "text/plain; charset=utf-8" }
         return mimeTypes[ext] ?? "application/octet-stream"
     }
 
@@ -137,6 +146,17 @@ enum ZestFiles {
     /// The second layer under the content rule list: nothing on the web, in any directive.
     /// Only the tool's own origin, data: and blob:, plus the inline scripts and styles the
     /// single-file tools are made of.
+    ///
+    /// What the tools need, and where it is allowed: inline scripts, inline event handlers
+    /// and inline styles ('unsafe-inline'); the vendored fonts as files, and as data: faces
+    /// in ZestImage's SVG and the exports (font-src); data: and blob: images for previews and
+    /// exports (img-src); ZestMail's and the studio's srcdoc preview frames, which take this
+    /// policy from their parent and need no frame-src of their own; blob: and data: fetches
+    /// for exports (connect-src). There is no 'unsafe-eval' and no 'wasm-unsafe-eval': no
+    /// tool calls eval or new Function, KaTeX doesn't, and Mermaid's only Function(...) is
+    /// lodash's `Function("return this")()`, the fallback for a page with no `self`, which a
+    /// browser page never reaches. zest/tests/inapp.js serves the bundle under this exact
+    /// policy and fails on any violation; ZestBundleTests does the same in WebKit.
     static let contentSecurityPolicy = [
         "default-src 'self' zest:",
         "script-src 'self' zest: blob: 'unsafe-inline'",
