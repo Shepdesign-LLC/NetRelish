@@ -884,11 +884,28 @@ ${preheader}${content}
   /* In the app the web is out of reach (NN5), so an image at a web address can't show on the canvas or in the previews.
      There it is a placeholder its size, holding the URL and one line saying why. The exported email keeps the real <img>.
      Inline styles only: the previews are srcdoc frames without this page's CSS. */
-  const WEB_IMG = /<img\b[^>]*?\ssrc="(https?:\/\/[^"]*)"[^>]*>/gi;
-  const holdWebImages = html => !IN_APP ? html : html.replace(WEB_IMG, (tag, url) => {
-    const w = +((tag.match(/\swidth="(\d+)"/) || [])[1]) || 600;
-    return `<span class="web-img" title="${url}" style="display:inline-flex;vertical-align:top;align-items:center;justify-content:center;box-sizing:border-box;width:${w}px;max-width:100%;height:${Math.max(64, Math.round(w * .5))}px;padding:8px;overflow:hidden;border-radius:6px;background:repeating-linear-gradient(45deg,#f0f1f4,#f0f1f4 8px,#e6e8ee 8px,#e6e8ee 16px);color:#5f6879;font:12px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;text-align:center">Shows in the inbox. NetRelish doesn’t load images from the web.</span>`;
-  });
+  function holdWebImages(html, fragment = false) {
+    if (!IN_APP) return html;
+    // Parse once, then visit real images only: comments and raw-text elements must never be scanned as tags.
+    // Canvas rows need fragment parsing so their <tr>/<td> structure survives; previews keep head and body.
+    const parsed = fragment ? document.createElement('template') : new DOMParser().parseFromString(html, 'text/html');
+    if (fragment) parsed.innerHTML = html;
+    const root = fragment ? parsed.content : parsed;
+    for (const image of root.querySelectorAll('img')) {
+      const url = image.getAttribute('src') || '';
+      if (!/^https?:\/\//i.test(url)) continue;
+      const width = image.getAttribute('width') || '';
+      const w = (/^\d+$/.test(width) && Number.isFinite(+width) && +width) || 600;
+      const placeholder = image.ownerDocument.createElement('span');
+      placeholder.className = 'web-img';
+      placeholder.title = url;
+      placeholder.style.cssText = `display:inline-flex;vertical-align:top;align-items:center;justify-content:center;box-sizing:border-box;width:${w}px;max-width:100%;height:${Math.max(64, Math.round(w * .5))}px;padding:8px;overflow:hidden;border-radius:6px;background:repeating-linear-gradient(45deg,#f0f1f4,#f0f1f4 8px,#e6e8ee 8px,#e6e8ee 16px);color:#5f6879;font:12px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;text-align:center`;
+      placeholder.textContent = 'Shows in the inbox. NetRelish doesn’t load images from the web.';
+      image.replaceWith(placeholder);
+    }
+    if (fragment) return parsed.innerHTML;
+    return (parsed.doctype ? new XMLSerializer().serializeToString(parsed.doctype) + '\n' : '') + parsed.documentElement.outerHTML;
+  }
   const img = (src, alt, w, extra = '') => src ? `<img src="${esc(src)}" alt="${esc(alt)}" width="${w}" style="display:block;width:${w}px;max-width:100%;height:auto;border:0${extra}">` : `<!--ph:${w}--><div class="ph" style="width:${w}px;max-width:100%;height:${Math.round(w * .5)}px;border-radius:6px">Image ${w}px wide<br>set a URL in the inspector</div>`;
   const btn = (text, url, bg, color, r, full, font, k = 'cta') => `<table role="presentation" cellpadding="0" cellspacing="0" border="0" ${full ? 'width="100%"' : ''}><tr><td align="center" bgcolor="${bg}" style="background-color:${bg};border-radius:${r}px;mso-padding-alt:14px 26px"><a href="${esc(url)}" style="display:inline-block;padding:14px 26px;font-family:${font};font-size:16px;font-weight:600;line-height:1;color:${color};text-decoration:none;border-radius:${r}px;${full ? 'width:100%;box-sizing:border-box;' : ''}">${ed(k, esc(text))}</a></td></tr></table>`;
   const cell = (p, b, inner, extra = '') => `<tr><td align="${p.align || 'left'}" bgcolor="${col(p.bg || 'brand.sheet')}" style="background-color:${col(p.bg || 'brand.sheet')};padding:${p.pad ?? 24}px ${p.padX ?? 36}px;font-family:${b.font};${extra}">${inner}</td></tr>`;
@@ -1070,7 +1087,7 @@ ${preheader}${content}
         : `<div class="empty"><img src="icons/icon-112.png" alt=""><b>Empty canvas</b>Drag a block from the left, or pick a template.</div>`;
       syncSelection(); return;
     }
-    const rows = buildHTML(true).map(holdWebImages);
+    const rows = buildHTML(true).map(row => holdWebImages(row, true));
     canvas.innerHTML = state.blocks.map((bl, i) => `<div class="cv-block" data-id="${esc(bl.id)}" draggable="true" aria-selected="${bl.id === state.selected}"><span class="tag">${BLOCKS[bl.type].name}</span><span class="ptag">Hidden on phones</span><div class="tools"><button data-act="up" title="Move up">${ICON.up}</button><button data-act="down" title="Move down">${ICON.down}</button><button data-act="dup" title="Duplicate">${ICON.dup}</button><button data-act="del" title="Delete">${ICON.del}</button></div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:${b.font}"><tbody>${rows[i]}</tbody></table></div>`).join('');
     $$('.cv-block', canvas).forEach(x => { if (x.querySelector('.hide-mobile')) x.dataset.hiddenPhone = 'true'; });
     chipTags(canvas);
