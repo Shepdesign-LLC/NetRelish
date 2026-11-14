@@ -26,7 +26,7 @@ How the files get into the bundles is [[building-without-a-mac]].
 
 | Bundle | Manifest | UserDefaults reasons | Why |
 |---|---|---|---|
-| NetRelish.app | `Resources/PrivacyInfo.xcprivacy` | `CA92.1`, `1C8F.1` | Tab icons and the Panel (`Sources/App/Workbench.swift:1162`), the Direct build's revoked activations (`Sources/App/License.swift:102`); the App Group suite through Pantry |
+| NetRelish.app | `Resources/PrivacyInfo.xcprivacy` | `CA92.1`, `1C8F.1` | Tab icons and the Panel (`Sources/App/Workbench.swift:1165`), the Direct build's revoked activations (`Sources/App/License.swift:102`); the App Group suite through Pantry |
 | NetRelishShare.appex | `Sources/ShareExtension/PrivacyInfo.xcprivacy` | `1C8F.1` | Leaves shared pages in the App Group suite (`Sources/Pantry/Store/ShareInbox.swift:33`) |
 | Pantry.framework, PantryKit | `Sources/Pantry/PrivacyInfo.xcprivacy` | `1C8F.1` | ShareInbox, compiled into the framework; the package lists it as a resource (`Package.swift`) |
 
