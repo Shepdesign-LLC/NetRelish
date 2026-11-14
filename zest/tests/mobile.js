@@ -213,6 +213,10 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   ok(await im.evaluate(() => !document.querySelector('#safeLab').hidden && document.querySelector('#safe').classList.contains('on')), 'image: Story has a safe zone, and its toggle shows');
   await im.evaluate(() => document.querySelector('#targetGrid [data-t="blog"]').click()); await im.waitForTimeout(200);
   ok(await im.evaluate(() => document.querySelector('#safeLab').hidden && !document.querySelector('#safe').classList.contains('on')), 'image: Blog has none, so the toggle hides instead of showing checked and doing nothing');
+  await im.evaluate(() => document.querySelector('#targetGrid [data-t="og"]').click()); await im.waitForTimeout(250);
+  ok(await im.evaluate(() => { const em = document.querySelector('#safe em'), i = document.querySelector('#safe i').getBoundingClientRect(), r = em.getBoundingClientRect();
+    return document.querySelector('#safe').classList.contains('on') && (!em.checkVisibility() || r.bottom <= i.top + 0.5); }),
+    'image: on the small docked OG preview the Safe zone label never sits on the card: above the line, or hidden when there is no room');
   await im.evaluate(() => document.querySelector('.pro').scrollIntoView({ block: 'center' })); await im.waitForTimeout(250);
   await im.tap('.pro'); await im.waitForTimeout(400);
   ok(await im.evaluate(() => { const t = document.querySelector('#toast'), r = t.getBoundingClientRect(), f = document.querySelector('#frame').getBoundingClientRect();

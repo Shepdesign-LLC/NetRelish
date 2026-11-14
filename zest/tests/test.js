@@ -315,7 +315,7 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   await zsTarget('story'); const sz = await zsSafe();
   const near = (a, b) => Math.abs(a - b) < 1.5;
   ok(near(sz.i.top - sz.f.top, sz.f.height * 250 / 1920) && near(sz.f.bottom - sz.i.bottom, sz.f.height * 340 / 1920) && near(sz.i.left - sz.f.left, sz.f.width * 60 / 1080), 'ZestImage: Story draws its own zone — clear of the top bar (250px) and the reply bar (340px)');
-  ok(sz.em.left >= sz.f.left && sz.em.top >= sz.f.top && sz.fs >= 9 && (sz.inside ? sz.em.top >= sz.i.top : sz.em.bottom <= sz.i.top + 0.5), 'ZestImage: the zone label rides on the rectangle, inside the frame, and never sits across the dashed line');
+  ok(sz.em.left >= sz.f.left && sz.em.top >= sz.f.top && sz.fs >= 9 && !sz.inside && sz.em.bottom <= sz.i.top + 0.5, 'ZestImage: the zone label rides on the rectangle, inside the frame, and never sits across the dashed line');
   ok(await zs.$eval('#safeTgl', c => getComputedStyle(c).accentColor) === 'rgb(240, 82, 94)', 'ZestImage: the Safe zone checkbox wears the accent, not system blue');
   await zsTarget('og');
   ok(await zs.$eval('#fontNote', n => !n.hidden && n.checkVisibility()) && !(await zs.textContent('#toast')).includes('Brand fonts'), 'ZestImage: with the fonts blocked, a quiet line in the stage bar says so — no toast over the card');

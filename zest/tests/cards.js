@@ -6,7 +6,8 @@
 //   – it is at least 0.042 of the short side (about 11px when a 1200px card shows at 500px in a feed);
 //   – it reads against what it sits on (data-bg): 4.5:1, or 3:1 for bold type at 0.06 of the short side.
 // Decorative glyphs (data-deco: the tonal initial, the quote mark, the series numeral) may bleed and are skipped.
-// Plus: the layout picker draws a live thumbnail of every layout, logos are placed by their measured
+// Plus: on targets with a platform safe zone, the card's safe rect sits inside the zone the stage draws.
+// And: the layout picker draws a live thumbnail of every layout, logos are placed by their measured
 // aspect, and user text is escaped. Serve: image :8772.
 const { chromium } = require('playwright');
 const LAUNCH = process.env.ZEST_CHROMIUM ? { executablePath: process.env.ZEST_CHROMIUM } : {};
@@ -148,6 +149,29 @@ const COPY = {
   await pick('[data-t="story"]'); await pg.waitForTimeout(400);
   ok(await pg.evaluate(() => [...document.querySelectorAll('#layoutGrid .lthumb > svg')].every(s => s.getAttribute('viewBox') === '0 0 1080 1920')), 'thumbnails follow the target');
   ok(await pg.evaluate(() => document.querySelector('#layoutGrid [data-l="kicker"]').getAttribute('aria-pressed') === 'true'), 'the picked layout stays marked');
+
+  console.log('== the Safe zone overlay and the cards agree ==');
+  // The stage draws each target's zone from safeInsets(); compose() hands the same insets to G(). The card's own
+  // safe rect (data-safe, which the matrix above holds every line of type to) must sit inside the drawn zone.
+  await pick('#mLight');
+  const agree = [];
+  for (const tg of ['og', 'portrait', 'story', 'pinterest']) {
+    await setTarget(tg);
+    for (const l of LAYOUTS) {
+      await pick(`#layoutGrid [data-l="${l}"]`);
+      const a = await pg.evaluate(() => {
+        const svg = document.querySelector('#stageSvg svg'), [, , W] = svg.getAttribute('viewBox').split(' ').map(Number);
+        const [x0, y0, x1, y1] = svg.getAttribute('data-safe').split(' ').map(Number);
+        const f = document.querySelector('#frame').getBoundingClientRect(), i = document.querySelector('#safe i').getBoundingClientRect(), k = W / f.width;
+        const z = { l: (i.left - f.left) * k, t: (i.top - f.top) * k, r: (i.right - f.left) * k, b: (i.bottom - f.top) * k };
+        return { on: document.querySelector('#safe').classList.contains('on'), x0, y0, x1, y1, z, tol: 1.5 * k };
+      });
+      if (!a.on || a.x0 < a.z.l - a.tol || a.y0 < a.z.t - a.tol || a.x1 > a.z.r + a.tol || a.y1 > a.z.b + a.tol)
+        agree.push(`${l} ${tg}: card ${[a.x0, a.y0, a.x1, a.y1].map(Math.round)} vs zone ${[a.z.l, a.z.t, a.z.r, a.z.b].map(Math.round)}${a.on ? '' : ' (zone not drawn)'}`);
+      if (tg === 'story' && (Math.abs(a.y0 - 250) > 0.5 || Math.abs(a.y1 - 1580) > 0.5)) agree.push(`${l} story: type runs ${Math.round(a.y0)}–${Math.round(a.y1)}, not 250–1580`);
+    }
+  }
+  ok(agree.length === 0, `every card keeps its type inside the Safe zone the stage draws (OG, Portrait, Story, Pinterest × 8 layouts; Story clears the top 250px and bottom 340px)${agree.length ? '\n    ' + agree.slice(0, 8).join('\n    ') : ''}`);
 
   console.log('== user text is text ==');
   await pick('#layoutGrid [data-l="title"]');

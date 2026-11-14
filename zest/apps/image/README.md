@@ -66,15 +66,34 @@ sample brands.
 
 ## Ratios and targets (one click renders all)
 
-| Target | Size | Notes |
+| Target | Size | Safe zone (kept clear of type) |
 |---|---|---|
-| Open Graph / Twitter large | 1200×630 | Safe zone drawn on the canvas |
-| Blog featured | 1600×900 | Also 1200×675 |
-| Square | 1080×1080 | Instagram, LinkedIn |
-| Portrait | 1080×1350 | Instagram portrait |
-| Story / Reel | 1080×1920 | |
-| Pinterest | 1000×1500 | |
-| Custom | any | |
+| Open Graph / Twitter large | 1200×630 | 40px top and bottom, 84px sides: some apps round or trim link cards |
+| Blog featured | 1600×900 | none. Also 1200×675 |
+| Square | 1080×1080 | none. Instagram, LinkedIn |
+| Portrait | 1080×1350 | 34px sides: the profile grid shows the middle 3:4 |
+| Story / Reel | 1080×1920 | 250px top, 340px bottom, 60px sides: the top bar and reply bar |
+| Pinterest | 1000×1500 | 150px top and bottom, 60px sides: the hover buttons |
+| Custom | any | none |
+
+One function, `safeInsets(target, W, H)`, gives these numbers. The stage draws
+the dashed Safe zone from it, and every layout takes the same insets as its
+minimum margins, so type never sits where the platform covers it. The toggle
+only shows on targets that have a zone. `tests/cards.js` checks that every
+card's type sits inside the drawn zone.
+
+## The stage
+
+On a desktop the workspace is the window: the preview fits the stage in both
+directions, centered, and never grows past real size. **Fit · 100%** in the
+stage bar switches between that and real pixels (the stage scrolls), with the
+live scale beside it. The side panels scroll on their own. If brand fonts
+can't load, a quiet "Brand fonts offline" line sits in the stage bar instead
+of a message over the card.
+
+On a phone the preview docks at the top on a solid bar, with the whole
+filename readable. Tap it for a full-screen preview you can pinch; close it
+with its button or Esc. In landscape, tall targets such as Story stay large.
 
 ## Rendering
 

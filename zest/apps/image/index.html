@@ -124,10 +124,11 @@ header a:hover{color:var(--ink)}
 .safe{position:absolute;inset:0;pointer-events:none;display:none}
 .safe.on{display:block}
 .safe i{position:absolute;border:1.5px dashed rgba(255,100,112,.8);border-radius:4px;box-shadow:0 0 0 1px rgba(255,255,255,.18)}
-/* the label rides on the rectangle: just above its top edge, or just inside when there is no room above */
+/* the label rides on the rectangle, just above its top edge. With no room above (a small preview), it hides: inside the
+   line it would sit on the card's type, and the checked Safe zone toggle beside the preview already names the line */
 .safe em{position:absolute;left:-1px;bottom:100%;margin-bottom:3px;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.85);color:var(--acc-ink);
   font:600 clamp(9px,1.4cqw,11px)/1.25 var(--body);letter-spacing:.01em;font-style:normal;white-space:nowrap}
-.safe.inside em{bottom:auto;top:3px;left:3px;margin:0}
+.safe.inside em{display:none}
 .zoomhint{display:none}
 @media(min-width:1101px){
   /* the stage is a size container: the frame fits both axes, centred, and never grows past the image's real size */
@@ -1191,7 +1192,7 @@ function blobHref(dataUrl) {
 }
 function compose(W, H, o = {}) {
   const b = brand(), t = roles(b, S.mode), c = content(), id = ++svgN;
-  const ins = typeof safeInsets === 'function' ? safeInsets(S.target, W, H) : null;   // the target's own safe zone, when the stage knows one
+  const ins = safeInsets(S.target, W, H);   // the target's own safe zone: the same numbers the stage's overlay draws
   const g = G(W, H, ins);
   const k = { b, t, c, W, H, g, id, tint: S.tint,
     f: { head: fam(b, 'head'), body: fam(b, 'body'), mono: fam(b, 'mono') },
@@ -1229,7 +1230,7 @@ function paintSafe(w, h) {
   $('#safe i').style.inset = `${ins.t / h * 100}% ${ins.r / w * 100}% ${ins.b / h * 100}% ${ins.l / w * 100}%`;
   placeSafeLabel();
 }
-function placeSafeLabel() {                // above the dashed line when it fits there, just inside it when it does not
+function placeSafeLabel() {                // above the dashed line when it fits there, hidden when it does not
   const sf = $('#safe'); if (!sf.classList.contains('on')) return;
   sf.classList.remove('inside');
   sf.classList.toggle('inside', $('#safe i').offsetTop < $('#safe em').offsetHeight + 4);

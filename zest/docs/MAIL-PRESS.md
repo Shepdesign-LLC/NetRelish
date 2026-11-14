@@ -36,6 +36,10 @@ Both feed the same compiler and linter, and both export the same way.
 
 The centre pane is the email at your chosen width (Message tab → Width). Each block is selectable; the selected block gets a blue outline, a name tag, and four tools: move up, move down, duplicate, delete.
 
+**Zoom.** The canvas pane head has **Fit · 100% · 125% · 150%** and shows the live percentage. Fit sizes the email to the pane (never under 50% or over 125%), so on a 1280px laptop the email draws at about 105%, and larger on wide screens. The choice is remembered. The Desktop and Outlook previews use the same zoom, and the block tools stay the same size at every zoom. Zoom never changes the exported HTML.
+
+**On a phone** (700px wide or less) the canvas is the email at phone width, 1:1, with columns stacked the way a phone client shows them. Width is ignored there; the Message tab says so. Tapping text places the caret and nothing else; a **B · I · Link** bar sits above rich text while you type. Tapping a block's edge, or **Properties** in the block bar, opens the inspector as a sheet that scrolls the block above it. Close the sheet with X, a swipe down on its grabber or tabs, or a tap on canvas text. Block actions (move, duplicate, delete, Properties) sit in a bar above the sheet. The block library is a drawer below the toolbar on any screen up to 1100px.
+
 | Action | How |
 |---|---|
 | Add a block | Drag from the left panel onto the canvas, or click it to append |
@@ -147,7 +151,7 @@ How tags display:
 
 | Where | What you see |
 |---|---|
-| Canvas | The raw tag, e.g. `{{ visitor.first_name \| default: "there" }}` — so you can see and edit it |
+| Canvas | A chip named for the tag, e.g. **first name**. A chip is one piece: Backspace removes it whole, and a stray key can't land inside it. Hover shows the full tag, e.g. `{{ visitor.first_name \| default: "there" }}` |
 | Desktop / Mobile / Outlook preview | Sample values — "Jamie", `example.com/unsubscribe` — so the design reads like a real send |
 | Export | The raw tags, untouched, for Bento to render |
 
@@ -182,7 +186,7 @@ Paste into the left pane. The compiler:
 
 ## 6. Previews, lint, export
 
-**Views:** Canvas (build mode only), Desktop at 600px, Mobile at 375px, **Outlook** — a simulation that strips what Word's rendering engine drops (border-radius, box-shadow, background images, flex, web fonts) so you see the real degradation before a Windows user does.
+**Views:** Canvas (build mode only), Desktop (the email in a window at least 640px wide, so the 600px layout shows, not the phone one), Mobile at 375px, **Outlook** (the same window as Desktop, with Outlook's fixed-width table kept) — a simulation that strips what Word's rendering engine drops (border-radius, box-shadow, background images, flex, web fonts) so you see the real degradation before a Windows user does. Each preview frame is as tall as its email; the stage scrolls, as the canvas does.
 
 **Lint** flags with an explanation each, for example:
 
