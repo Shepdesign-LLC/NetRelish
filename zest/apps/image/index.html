@@ -812,6 +812,8 @@ function T(o, x, y, fill, bg, extra = {}) {
 const blockH = o => (o.lines.length - 1) * o.size * o.lh;              // first baseline → last baseline
 const capH = o => { setF(o.family, o.weight, o.size); return Math.max(capOf(o.family, o.weight).cap * o.size, o.lines[0] ? mctx.measureText(o.lines[0]).actualBoundingBoxAscent : 0); };   // the first line's own ink top, so a block set to a margin stays inside it
 const descH = o => capOf(o.family, o.weight).desc * o.size;
+const inkL = o => { setF(o.family, o.weight, o.size); return o.lines[0] ? mctx.measureText(o.lines[0]).actualBoundingBoxLeft : 0; };   // how far the first line's ink starts left of its origin: a big numeral set flush to a margin moves right by this much
+const inkExt = o => { setF(o.family, o.weight, o.size); const l = o.lines[0] || '', m = mctx.measureText(l); return Math.max(0, m.actualBoundingBoxLeft) + m.width + (o.ls || 0) * o.size * Math.max(0, [...l].length - 1); };   // the room a big line needs: its ink overhang (it moves right by that), its advance, and tracking counted between glyphs only — SVG draws a tightly tracked numeral wider than tw() expects
 
 /* ---------- geometry: one grid for every layout ---------- */
 /* u is the short side. Margins come from both sides of the canvas, never one, so a 3:1 banner keeps its
@@ -1101,6 +1103,10 @@ const LAYOUTS = {
     const { g, t, c, f, W, H } = k, u = g.u, out = [rect(0, 0, W, H, t.paper)];
     const field = t.dk ? t.tone : t.primary, numFill = onto(field, t.dk ? [t.primary, t.ink] : [t.onP], 3), onF = onto(field, t.dk ? [t.ink] : [t.onP]);
     const ink = onto(t.paper, [t.ink]), muted = onto(t.paper, [t.muted, t.ink]);
+    // a face whose big digits overhang their origin (Bricolage's 4) is moved right by that much, and fitted with that much less room
+    const numInk = (maxW, maxCap) => { let n = numO(maxW, maxCap);
+      for (let i = 0; i < 3; i++) { const ext = inkExt(n); if (ext <= maxW + 0.5) break; n = numO(maxW * maxW / ext, maxCap); }
+      return n; };
     const numO = (maxW, maxCap) => { const s = fitOne(c.stat || '0', { family: f.head, weight: f.hw(800), maxW, start: u * 0.78, min: u * 0.12, ls: -0.045 });
       const cap = capOf(f.head, f.hw(800)).cap; if (s.size * cap > maxCap) { const z = Math.max(u * 0.12, maxCap / cap); return fitOne(c.stat || '0', { family: f.head, weight: f.hw(800), maxW, start: z, min: Math.min(z, u * 0.12), ls: -0.045 }); } return s; };
     const ctx = (maxW, maxH) => fit((c.title || '').toUpperCase(), { family: f.mono, weight: 500, maxW, maxH, start: g.label, min: g.meta, lh: 1.32, ls: 0.06, maxLines: 5 });
@@ -1112,8 +1118,8 @@ const LAYOUTS = {
         const fw = Math.round(W * fr);
         o.push(rect(0, 0, fw, H, field), ladder(k, [6, 4, 2], fw, 0, u * 0.02, H, 'x'));
         const mk = mark(k, g.x0, g.y0 + g.meta * 0.8, { fill: onF, bg: field, h: u * 0.09, maxW: fw - g.x0 - u * 0.08 });
-        const nb = g.y1, n = numO(fw - g.x0 - u * 0.08, nb - (g.y0 + mk.h + g.gap));
-        o.push(mk.svg, T(n, g.x0 - n.size * 0.03, nb, numFill, field));
+        const nb = g.y1, n = numInk(fw - g.x0 - u * 0.08, nb - (g.y0 + mk.h + g.gap));
+        o.push(mk.svg, T(n, g.x0 + Math.max(0, inkL(n)), nb, numFill, field));
         const cx = fw + u * 0.06 + g.gap, cw = g.x1 - cx;
         let ctxB = g.y0;
         if (c.title) { const cc = ctx(cw, g.sh * 0.5); cut = cut || cc.cut; o.push(T(cc, cx, g.y0 + capH(cc), muted, t.paper)); ctxB = g.y0 + capH(cc) + blockH(cc) + descH(cc); }
@@ -1122,8 +1128,8 @@ const LAYOUTS = {
         const fh = Math.round(H * fr);
         o.push(rect(0, 0, W, fh, field), ladder(k, [6, 4, 2], 0, fh, u * 0.02, W, 'y'));
         const mk = mark(k, g.x0, g.y0 + g.meta * 0.8, { fill: onF, bg: field, h: u * 0.09, maxW: g.sw * 0.6 });
-        const nb = fh - u * 0.07, n = numO(g.sw, nb - (g.y0 + mk.h + g.gap));
-        o.push(mk.svg, T(n, g.x0 - n.size * 0.03, nb, numFill, field));
+        const nb = fh - u * 0.07, n = numInk(g.sw, nb - (g.y0 + mk.h + g.gap));
+        o.push(mk.svg, T(n, g.x0 + Math.max(0, inkL(n)), nb, numFill, field));
         const below = fh + u * 0.06 + g.gap;
         let used = below;
         if (c.statLabel) { const l = lab(g.sw, (g.y1 - below) * 0.5, u * 0.1); cut = cut || l.cut; o.push(T(l, g.x0, below + capH(l), ink, t.paper)); used = below + capH(l) + blockH(l) + g.gap; }
