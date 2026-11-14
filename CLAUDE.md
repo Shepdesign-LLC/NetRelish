@@ -31,16 +31,16 @@ Native macOS browser with a pantry. Swift. Mac App Store. This file is the contr
 | Billing | StoreKit 2 in App Store build. Creem (merchant of record) in direct build, activated through a relay on netrelish.com that holds Creem's key (ADR 0027). |
 | Site | Separate repo `netrelish-site`. Astro until the WordPress cutover (week of Jan 4, 2027); then WordPress on WP Engine, laid out visually in a page builder (Bricks proposed), variables generated from `tokens.css`, brand checks on rendered pages (ADR 0016). |
 
-## Brand (locked — Brand Lock v1.3, full rules in `/design/DESIGN_MANIFEST.md`)
+## Brand (locked — Brand Lock v2.0, full rules in `/design/DESIGN_MANIFEST.md`)
 - `logo.svg` (app icon, titlebar) and `logo-cog.svg` (site, About window, onboarding). Never redrawn, recolored, or cropped.
 - Neutral base, system type, hairlines. The product is the hero; the brand is carried by the mark and the objects, not by color washes.
-- Relish (`--relish-500`, `#93E413`) is the single accent and appears **only** in the exhaustive placement list in the manifest. Anywhere else is a bug.
+- Relish (`--relish-500`, `#93E413`) is the single accent and appears **only** in the exhaustive placement list in the manifest. Anywhere else is a bug. A jar's own color is the user's data and appears only where the manifest lists it.
 - Jar icons (`#nr-jar`) wherever a jar is meant. System line icons (SF Symbols) for everything else. No emoji in UI.
 - Two drips in the app: the Seal animation (relish), and the jar fill when something lands in a jar (the jar's tint). Nowhere else.
 - Never: dark-green glass surfaces, gradient text in the product, relish as a background, cheesy pantry puns in headlines.
 
 ## Vocabulary (use these words in code, UI, and commits)
-Pantry · Jar (project, has a shelf life; also a profile) · Brine (where idle tabs sink; pinned never sink) · Sunk · Seal · Recipe (recorded, replayed with ⌘R; each is an App Intent) · Shelf (the jar rail) · Bench (the web panes) · Inspector · Ask the Pantry · Mason Jar (a jar with a local dev environment, and the switch that turns it on; direct build only; called Pickle before ADR 0029).
+Pantry · Jar (project, has a shelf life; also a profile) · Brine (where idle tabs sink; pinned never sink) · Sunk · Seal · Recipe (recorded, replayed with ⌘R; each is an App Intent) · Shelf (the left column, always open) · Bench (the web panes) · Board (what a jar shows on the Bench: its open tabs and what it keeps) · Inspector · Ask the Pantry · Mason Jar (a jar with a local dev environment, and the switch that turns it on; direct build only; called Pickle before ADR 0029).
 
 ## Voice
 Every user-facing string follows `docs/voice/SHEPDESIGN-VOICE.md` (the house voice, shared with every Shepdesign product; this repo holds the canonical copy) and `docs/voice/NETRELISH.md` (this product's reader, banned words, fixed lines). US English only.

@@ -46,15 +46,15 @@ and tested only in CI ([[building-without-a-mac]]).
 | A tool's view | `Sources/Zest/ZestWebView.swift:72` | Every Zest web view's configuration: Zest's store, the scheme, the rule list, the frozen `window.netrelish` stub, and a script in every frame that takes the peer-connection (WebRTC) constructors away |
 | Where links go | `Sources/Zest/ZestWebView.swift:112` | A pure routing function: a clicked web link opens in the active jar, a link to another tool moves the switcher, blob: and data: pages download, other apps follow the Bench's handoff. It decides downloads too: only the tool's own files, blob: and data: are ever downloaded |
 | The window | `Sources/Zest/ZestWindow.swift:17` | The tool table, and the window with its segmented switcher; each tool's view is made on first use and kept |
-| Gating | `Sources/App/Workbench.swift:162` | While the Zest window is main, `pageInFront` is nil, and Seal, Capture, Reader, Fill from Me, Pin and Close Tab stand down |
+| Gating | `Sources/App/Workbench.swift:206` | While the Zest window is main, `pageInFront` is nil, and Seal, Capture, Reader, Fill from Me, Pin and Close Tab stand down |
 | Printing | `Sources/Zest/ZestWindow.swift:76` | File › Print… (⌘P) prints the tool in front through WebKit's print operation, Save as PDF included. It stands down while a jar's page is in front |
 | Acknowledgments | `Sources/App/Acknowledgments.swift:14` | Help › Acknowledgments: a small window with the bundle's copy of `NOTICE`, which lists every third-party library, font and Swift package in the app |
 
 ## What leaves a tool
 
 - A clicked http(s) link: a new tab in the active jar, in the main window, which is brought
-  forward or opened (`Sources/Zest/ZestWindow.swift:144`). The main window is the one
-  `ContentView` registers (`Sources/App/NetRelishApp.swift:191`), never Settings or the
+  forward or opened (`Sources/Zest/ZestWindow.swift:150`). The main window is the one
+  `ContentView` registers (`Sources/App/NetRelishApp.swift:207`), never Settings or the
   Design Kit. It is an ordinary page load, which non-negotiable 5 already allows.
 - A download (`a[download]` of the tool's own file, a blob: or data: page, a file WebKit
   can't show): the save panel, through `WKDownload` (`Sources/Zest/ZestWebView.swift:291`).
@@ -103,7 +103,7 @@ and tested only in CI ([[building-without-a-mac]]).
 > (`project.yml:89`). After changing either, the Xcode project is regenerated.
 
 > ⚠️ **`zestInFront` only changes once a Zest window has registered.** Any window becoming
-> main reaches every `Workbench`; without that guard (`Sources/App/Workbench.swift:190`), a
+> main reaches every `Workbench`; without that guard (`Sources/App/Workbench.swift:234`), a
 > test's window, or the app's own main window appearing, would switch gating off in the
 > middle of another test.
 

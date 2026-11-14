@@ -82,10 +82,10 @@ public enum NRSpace {
     public static let sp10: CGFloat = 40
     /// `--sp-12`
     public static let sp12: CGFloat = 48
-    /// `--shelf-w` — jar rail
-    public static let shelfW: CGFloat = 56
+    /// `--shelf-w` — the Shelf
+    public static let shelfW: CGFloat = 238
     /// `--inspector-w`
-    public static let inspectorW: CGFloat = 320
+    public static let inspectorW: CGFloat = 322
     /// `--tab-h`
     public static let tabH: CGFloat = 34
     /// `--lip-h` — relish tab lip, active tab only
@@ -196,8 +196,8 @@ public enum NRTokenCatalog {
         ScalarEntry(css: "--sp-8", swift: "sp8", value: "32px"),
         ScalarEntry(css: "--sp-10", swift: "sp10", value: "40px"),
         ScalarEntry(css: "--sp-12", swift: "sp12", value: "48px"),
-        ScalarEntry(css: "--shelf-w", swift: "shelfW", value: "56px"),
-        ScalarEntry(css: "--inspector-w", swift: "inspectorW", value: "320px"),
+        ScalarEntry(css: "--shelf-w", swift: "shelfW", value: "238px"),
+        ScalarEntry(css: "--inspector-w", swift: "inspectorW", value: "322px"),
         ScalarEntry(css: "--tab-h", swift: "tabH", value: "34px"),
         ScalarEntry(css: "--lip-h", swift: "lipH", value: "3px"),
         ScalarEntry(css: "--hairline", swift: "hairline", value: "1px"),

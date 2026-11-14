@@ -174,6 +174,29 @@ private func freshStore() throws -> PantryStore { try PantryStore(inMemory: ()) 
         #expect(titles == ["Second", "First"])
     }
 
+    @Test("What a jar keeps is its own items, most recently changed first, and each jar's count")
+    func kept() throws {
+        let store = try freshStore()
+        let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+        let (oak, pine) = try store.write { db -> (Jar, Jar) in
+            var oak = Jar(name: "Oak", sortOrder: 90)
+            var pine = Jar(name: "Pine", sortOrder: 91)
+            try oak.insert(db); try pine.insert(db)
+            var older = Item(state: .jarred, title: "Older", updatedAt: t0, jarId: oak.id)
+            var newer = Item(sealedAt: t0, state: .sealed, title: "Newer", updatedAt: t0.addingTimeInterval(60), jarId: oak.id)
+            var other = Item(state: .jarred, title: "Other", updatedAt: t0, jarId: pine.id)
+            var sunk = Item(title: "Sunk")
+            try older.insert(db); try newer.insert(db); try other.insert(db); try sunk.insert(db)
+            return (oak, pine)
+        }
+        let (titles, counts) = try store.read { db in
+            (try store.kept(db, inJar: oak.id).map(\.title), try store.keptCounts(db))
+        }
+        #expect(titles == ["Newer", "Older"])
+        #expect(counts[oak.id] == 2 && counts[pine.id] == 1)
+        #expect(counts.values.reduce(0, +) == 3)   // Brine belongs to no jar
+    }
+
     @Test("Sinking soon is the fading tabs, soonest first; pinned, fresh and forever tabs stay out")
     func sinkingSoon() throws {
         let store = try freshStore()

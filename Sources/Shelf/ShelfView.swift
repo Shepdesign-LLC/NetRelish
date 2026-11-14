@@ -1,20 +1,22 @@
-// ShelfView.swift — the jar rail (manifest §8 Shelf). shelfW wide on the leading edge,
-// surface2, one jar per row with its label under it, the active row tinted relish100
-// (relish placement #3). Smart jars sit at the bottom under a hairline — Brine, Today,
-// Sealed, Sinking soon, ⌃⌘1–4 — then New Jar last.
+// ShelfView.swift — the Shelf (manifest v2.0 §8, Workstation v5 spec §6.4). shelfW wide on
+// the leading edge and always open. Jars first, under their section label: one row each,
+// the jar drawn filled in its own color, its name, and how much is in it. The active row
+// takes a wash of the jar's color. Then the Pantry's smart jars (Today, Sealed, Sinking
+// soon; Brine lives in the bottom bar), then the Zest tools.
 //
-// A jar can be dragged, but only along the Shelf: it slides up and down the rail and
+// A jar can be dragged, but only along the Shelf: it slides up and down among the jars and
 // nowhere else. A tab or a Brine row dragged onto a jar lands in it, and the row shows the
-// drop mark (relish placement #9) while it would.
+// drop mark while it would.
 
 import Pantry
 import SwiftUI
 
 struct ShelfView: View {
     @Bindable var workbench: Workbench
+    @Environment(\.openWindow) private var openWindow
     @State private var showingNewJar = false
     @State private var editingJar: Jar?
-    /// The jar being slid along the rail: where it started and how far it has come.
+    /// The jar being slid along the Shelf: where it started and how far it has come.
     @State private var lifted: Lifted?
     /// The jar a dragged tab or Brine row is over.
     @State private var dropTarget: String?
@@ -29,47 +31,16 @@ struct ShelfView: View {
     private static let pitch = JarRow.height + NRSpace.sp1
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView(.vertical) {
-                VStack(spacing: NRSpace.sp1) {
-                    ForEach(Array(workbench.jars.enumerated()), id: \.element.id) { index, jar in
-                        JarRow(jar: jar, index: index, isActive: jar.id == workbench.activeJarId,
-                               isDropTarget: dropTarget == jar.id) {
-                            workbench.activate(jar)
-                        }
-                        .offset(y: slide(of: jar, at: index))
-                        .zIndex(lifted?.id == jar.id ? 1 : 0)
-                        .animation(lifted?.id == jar.id ? nil : NRMotion.animation(duration: NRMotion.fast), value: landing)
-                        .contextMenu { menu(for: jar, at: index) }
-                        .simultaneousGesture(TapGesture(count: 2).onEnded { editingJar = jar })
-                        .highPriorityGesture(slideGesture(for: jar, at: index))
-                        .dropDestination(for: String.self) { payloads, _ in
-                            workbench.drop(payloads, onJar: jar)
-                        } isTargeted: { over in
-                            if over { dropTarget = jar.id } else if dropTarget == jar.id { dropTarget = nil }
-                        }
-                    }
-                }
-                .padding(.vertical, NRSpace.sp2)
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: NRSpace.sp4) {
+                jars
+                pantry
+                zest
             }
-            Rectangle().fill(NRColor.hairline).frame(height: NRSpace.hairline)
-            VStack(spacing: NRSpace.sp1) {
-                ForEach(SmartJar.allCases) { smart in
-                    SmartJarRow(smart: smart, count: workbench.count(of: smart),
-                                isActive: workbench.activeSmartJar == smart) {
-                        workbench.activate(smart)
-                    }
-                }
-            }
-            .padding(.vertical, NRSpace.sp1)
-            Rectangle().fill(NRColor.hairline).frame(height: NRSpace.hairline)
-            Button { showingNewJar = true } label: {
-                Image(systemName: "plus").font(.system(size: 14, weight: .medium)).frame(width: 40, height: 40).contentShape(Rectangle())
-            }
-            .buttonStyle(.plain).foregroundStyle(NRColor.fg2).help("New Jar").accessibilityLabel("New Jar")
-            .padding(.vertical, NRSpace.sp1)
+            .padding(NRSpace.sp3)
         }
         .frame(width: NRSpace.shelfW)
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(NRColor.surface2)
         .overlay(alignment: .trailing) { Rectangle().fill(NRColor.hairline).frame(width: NRSpace.hairline) }
         .sheet(isPresented: $showingNewJar) {
@@ -80,6 +51,66 @@ struct ShelfView: View {
         }
         .onChange(of: workbench.jarToEdit) { _, jar in
             if let jar { editingJar = jar; workbench.jarToEdit = nil }
+        }
+    }
+
+    // MARK: Sections
+
+    private var jars: some View {
+        VStack(alignment: .leading, spacing: NRSpace.sp2) {
+            ShelfSectionLabel(title: "Jars", tile: { NRSymbol.jar.image.resizable() },
+                              action: "New Jar", actionSymbol: "plus") { showingNewJar = true }
+            VStack(spacing: NRSpace.sp1) {
+                ForEach(Array(workbench.jars.enumerated()), id: \.element.id) { index, jar in
+                    JarRow(jar: jar, index: index, count: workbench.count(in: jar), fill: workbench.fill(of: jar),
+                           isActive: jar.id == workbench.activeJarId, isDropTarget: dropTarget == jar.id) {
+                        workbench.showBoard(of: jar)
+                    }
+                    .offset(y: slide(of: jar, at: index))
+                    .zIndex(lifted?.id == jar.id ? 1 : 0)
+                    .animation(lifted?.id == jar.id ? nil : NRMotion.animation(duration: NRMotion.fast), value: landing)
+                    .contextMenu { menu(for: jar, at: index) }
+                    .simultaneousGesture(TapGesture(count: 2).onEnded { editingJar = jar })
+                    .highPriorityGesture(slideGesture(for: jar, at: index))
+                    .dropDestination(for: String.self) { payloads, _ in
+                        workbench.drop(payloads, onJar: jar)
+                    } isTargeted: { over in
+                        if over { dropTarget = jar.id } else if dropTarget == jar.id { dropTarget = nil }
+                    }
+                }
+            }
+        }
+    }
+
+    private var pantry: some View {
+        VStack(alignment: .leading, spacing: NRSpace.sp2) {
+            ShelfSectionLabel(title: "Pantry", tile: { NRSymbol.jarSmart.image.resizable() })
+            VStack(spacing: NRSpace.sp1) {
+                // Brine is the pill in the bottom bar; ⌃⌘1 still opens it.
+                ForEach(SmartJar.allCases.filter { $0 != .brine }) { smart in
+                    SmartJarRow(smart: smart, count: workbench.count(of: smart),
+                                isActive: workbench.activeSmartJar == smart) {
+                        workbench.activate(smart)
+                    }
+                }
+            }
+        }
+    }
+
+    private var zest: some View {
+        VStack(alignment: .leading, spacing: NRSpace.sp2) {
+            ShelfSectionLabel(title: "Zest", tile: { Image(systemName: "square.stack.3d.up.fill").resizable().scaledToFit() })
+            VStack(spacing: NRSpace.sp1) {
+                ForEach(ZestTool.allCases) { tool in
+                    ShelfRow(title: tool.shelfName, help: "Open \(tool.shelfName) in the Zest window") {
+                        Image(systemName: tool.shelfSymbol).font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(NRColor.relish700)
+                    } action: {
+                        workbench.zestToolRequest = tool
+                        openWindow(id: "zest")
+                    }
+                }
+            }
         }
     }
 
@@ -135,8 +166,8 @@ struct ShelfView: View {
     }
 }
 
-/// The colors a jar's menu offers. Any other color is still one click away in Edit Jar…;
-/// like every tint, these only ever paint the jar's own glyph (ADR 0005).
+/// The colors a jar's menu offers: the six jar colors of Workstation v5. Any other color is
+/// still one click away in Edit Jar…; a tint is the jar's own data (ADR 0005).
 struct JarTint: Identifiable {
     let name: String
     let oklch: OKLCH
@@ -144,54 +175,168 @@ struct JarTint: Identifiable {
     var css: String { oklch.css }
     var color: Color { oklch.color }
 
-    /// One lightness and chroma, six hues, so no jar shouts over another.
     static let presets: [JarTint] = [
-        JarTint(name: "Clay", oklch: OKLCH(l: 0.72, c: 0.14, h: 40)),
-        JarTint(name: "Honey", oklch: OKLCH(l: 0.72, c: 0.14, h: 85)),
-        JarTint(name: "Dill", oklch: OKLCH(l: 0.72, c: 0.14, h: 145)),
-        JarTint(name: "Brine", oklch: OKLCH(l: 0.72, c: 0.14, h: 200)),
-        JarTint(name: "Plum", oklch: OKLCH(l: 0.72, c: 0.14, h: 300)),
-        JarTint(name: "Beet", oklch: OKLCH(l: 0.72, c: 0.14, h: 350)),
+        JarTint(name: "Relish", oklch: OKLCH(l: 0.834, c: 0.224, h: 130.9)),
+        JarTint(name: "Amber", oklch: OKLCH(l: 0.749, c: 0.148, h: 78.2)),
+        JarTint(name: "Sky", oklch: OKLCH(l: 0.623, c: 0.188, h: 259.8)),
+        JarTint(name: "Rose", oklch: OKLCH(l: 0.657, c: 0.193, h: 20)),
+        JarTint(name: "Violet", oklch: OKLCH(l: 0.709, c: 0.159, h: 293.5)),
+        JarTint(name: "Teal", oklch: OKLCH(l: 0.785, c: 0.133, h: 181.9)),
     ]
 }
 
-/// One jar on the rail: the glyph in the jar's own tint (its data, not chrome), the name under it.
+extension Jar {
+    /// The jar's color and its shades; relish until the jar is given one.
+    var paint: JarPaint { JarPaint(css: tint) }
+}
+
+extension ZestTool {
+    /// The tool's name on the Shelf, as the Zest line spells it.
+    var shelfName: String {
+        switch self {
+        case .studio: "Zest"
+        case .mail: "ZestMail"
+        case .md: "Zest MD"
+        case .image: "ZestImage"
+        }
+    }
+
+    var shelfSymbol: String {
+        switch self {
+        case .studio: "paintpalette"
+        case .mail: "envelope"
+        case .md: "doc.text"
+        case .image: "photo"
+        }
+    }
+}
+
+/// A section's label on the Shelf: a tile in relish holding the section's glyph, the name,
+/// and, where the section can grow, one button on the trailing edge.
+struct ShelfSectionLabel<Tile: View>: View {
+    let title: String
+    @ViewBuilder let tile: Tile
+    var action: String? = nil
+    var actionSymbol: String = "plus"
+    var perform: (() -> Void)? = nil
+
+    init(title: String, @ViewBuilder tile: () -> Tile, action: String? = nil, actionSymbol: String = "plus",
+         perform: (() -> Void)? = nil) {
+        self.title = title
+        self.tile = tile()
+        self.action = action
+        self.actionSymbol = actionSymbol
+        self.perform = perform
+    }
+
+    var body: some View {
+        HStack(spacing: NRSpace.sp2) {
+            tile
+                .frame(width: 11, height: 11)
+                .foregroundStyle(NRColor.relishInk)
+                .frame(width: 18, height: 18)
+                .background(NRColor.relish500, in: RoundedRectangle(cornerRadius: 5))
+                .accessibilityHidden(true)
+            Text(title.uppercased())
+                .font(NRType.font(NRType.fsSm, weight: .semibold)).tracking(0.3)
+                .foregroundStyle(NRColor.fg2)
+            Spacer(minLength: 0)
+            if let action, let perform {
+                Button(action: perform) {
+                    Image(systemName: actionSymbol).font(.system(size: 11, weight: .semibold))
+                        .frame(width: 22, height: 22).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain).foregroundStyle(NRColor.fg2).help(action).accessibilityLabel(action)
+            }
+        }
+        .padding(.horizontal, NRSpace.sp2)
+        .frame(height: 36)
+        .background(NRColor.surface, in: RoundedRectangle(cornerRadius: NRRadius.r2))
+        .overlay(RoundedRectangle(cornerRadius: NRRadius.r2).strokeBorder(NRColor.hairline, lineWidth: NRSpace.hairline))
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// One row on the Shelf that isn't a jar: a glyph, a name, an optional trailing count.
+struct ShelfRow<Glyph: View>: View {
+    let title: String
+    var help: String
+    var isActive = false
+    var badge: String? = nil
+    @ViewBuilder let glyph: Glyph
+    let action: () -> Void
+
+    init(title: String, help: String, isActive: Bool = false, badge: String? = nil,
+         @ViewBuilder glyph: () -> Glyph, action: @escaping () -> Void) {
+        self.title = title
+        self.help = help
+        self.isActive = isActive
+        self.badge = badge
+        self.glyph = glyph()
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: NRSpace.sp3) {
+                glyph.frame(width: 24, height: 24)
+                Text(title).font(NRType.font(NRType.fsLg, weight: isActive ? .medium : .regular))
+                    .foregroundStyle(isActive ? NRColor.fg : NRColor.fg2).lineLimit(1)
+                Spacer(minLength: 0)
+                if let badge { NRBadge(badge) }
+            }
+            .padding(.horizontal, NRSpace.sp3)
+            .frame(height: JarRow.height)
+            .background(isActive ? NRColor.relish100 : .clear, in: RoundedRectangle(cornerRadius: NRRadius.r2))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+}
+
+/// One jar on the Shelf: the jar drawn filled in its own color (its data, not chrome), its
+/// name, and how much is in it. The active row takes a wash of that color.
 struct JarRow: View {
-    /// A row's height on the rail. The Shelf uses it to work out how far a jar slides.
+    /// A row's height on the Shelf. The Shelf uses it to work out how far a jar slides.
     static let height: CGFloat = 44
 
     let jar: Jar
     let index: Int
+    /// Open tabs plus what the jar keeps.
+    let count: Int
+    /// How full the jar is drawn, 0…1.
+    let fill: Double
     let isActive: Bool
     /// A dragged tab or Brine row is over this jar and would land in it.
     var isDropTarget = false
     let activate: () -> Void
 
-    private var tint: Color { jar.tint.flatMap(OKLCH.init)?.color ?? NRColor.fg2 }
-
     var body: some View {
         Button(action: activate) {
-            VStack(spacing: 2) {
-                NRSymbol.jar.image.resizable().frame(width: 20, height: 20)
-                    .foregroundStyle(isActive ? tint : tint.opacity(0.75))
-                Text(jar.name).font(NRType.font(NRType.fsXs)).lineLimit(1).truncationMode(.tail)
-                    .foregroundStyle(isActive ? NRColor.fg : NRColor.fg2)
+            HStack(spacing: NRSpace.sp3) {
+                NRFilledJar(paint: jar.paint, fill: fill, size: 20).frame(width: 24, height: 24)
+                Text(jar.name).font(NRType.font(NRType.fsLg, weight: isActive ? .medium : .regular))
+                    .foregroundStyle(isActive ? NRColor.fg : NRColor.fg2).lineLimit(1).truncationMode(.tail)
+                Spacer(minLength: 0)
+                Text("\(count)").font(NRType.font(NRType.fsSm)).monospacedDigit().foregroundStyle(NRColor.fg3)
             }
-            .frame(width: 48, height: Self.height)
-            .background(isActive ? NRColor.relish100 : .clear, in: RoundedRectangle(cornerRadius: NRRadius.r1))
-            .overlay(alignment: .leading) { if isDropTarget { NRDropMark() } }
+            .padding(.horizontal, NRSpace.sp3)
+            .frame(height: Self.height)
+            .background(isActive ? jar.paint.wash(0.16) : .clear, in: RoundedRectangle(cornerRadius: NRRadius.r2))
+            .overlay(alignment: .leading) { if isDropTarget { NRDropMark().padding(.vertical, NRSpace.sp1) } }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help(index < 9 ? "\(jar.name) — ⌘\(index + 1)" : jar.name)
-        .accessibilityLabel(jar.name)
+        .accessibilityLabel("\(jar.name), \(count) inside")
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 }
 
-/// A smart jar: `#nr-jar-smart`, neutral. Brine and Sinking soon carry a count badge
-/// (relish placement #6), because those are the two that ask for something; Today and
-/// Sealed only ever grow, so a number there is noise.
+/// A smart jar: `#nr-jar-smart`, neutral. Sinking soon carries a count badge, because it
+/// asks for something; Today and Sealed only ever grow, so a number there is noise.
 struct SmartJarRow: View {
     let smart: SmartJar
     let count: Int
@@ -199,27 +344,15 @@ struct SmartJarRow: View {
     let activate: () -> Void
 
     private var showsCount: Bool { smart == .brine || smart == .sinking }
-    /// The rail is 56pt wide; "Sinking soon" says "Sinking" there and in full everywhere else.
-    private var shelfLabel: String { smart == .sinking ? "Sinking" : smart.name }
 
     var body: some View {
-        Button(action: activate) {
-            VStack(spacing: 2) {
-                NRSymbol.jarSmart.image.resizable().frame(width: 20, height: 20)
-                    .foregroundStyle(isActive ? NRColor.fg : NRColor.fg2)
-                    .overlay(alignment: .topTrailing) {
-                        if showsCount, count > 0 { NRBadge("\(count)").offset(x: 10, y: -6) }
-                    }
-                Text(shelfLabel).font(NRType.font(NRType.fsXs)).lineLimit(1).minimumScaleFactor(0.85)
-                    .foregroundStyle(isActive ? NRColor.fg : NRColor.fg2)
-            }
-            .frame(width: 48, height: 44)
-            .background(isActive ? NRColor.relish100 : .clear, in: RoundedRectangle(cornerRadius: NRRadius.r1))
-            .contentShape(Rectangle())
+        ShelfRow(title: smart.name, help: "\(smart.name) — \(smart.shortcutLabel)", isActive: isActive,
+                 badge: showsCount && count > 0 ? "\(count)" : nil) {
+            NRSymbol.jarSmart.image.resizable().frame(width: 20, height: 20)
+                .foregroundStyle(isActive ? NRColor.fg : NRColor.fg2)
+        } action: {
+            activate()
         }
-        .buttonStyle(.plain)
-        .help("\(smart.name) — \(smart.shortcutLabel)")
         .accessibilityLabel(showsCount ? "\(smart.name), \(count)" : smart.name)
-        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 }

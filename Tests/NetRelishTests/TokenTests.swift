@@ -76,7 +76,7 @@ private func close(_ a: (Int, Int, Int), _ b: (Int, Int, Int), tol: Int) -> Bool
     @Test("Scalar tokens carry their CSS values")
     func scalars() {
         #expect(NRSpace.sp1 == 4 && NRSpace.sp12 == 48)
-        #expect(NRSpace.shelfW == 56 && NRSpace.inspectorW == 320 && NRSpace.tabH == 34 && NRSpace.lipH == 3 && NRSpace.hairline == 1)
+        #expect(NRSpace.shelfW == 238 && NRSpace.inspectorW == 322 && NRSpace.tabH == 34 && NRSpace.lipH == 3 && NRSpace.hairline == 1)
         #expect(NRRadius.r1 == 6 && NRRadius.r2 == 10 && NRRadius.r3 == 16 && NRRadius.rJar == 14)
         #expect(NRRadius.superellipseN == 5)
         #expect(NRType.fsXs == 11 && NRType.fs3xl == 40 && NRType.lhBody == 1.5)

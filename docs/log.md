@@ -138,3 +138,11 @@ Append-only. Newest entries at the bottom.
   NetRelishApp moved with the new lines
 - rearranging: Workbench grew by two lines above its Rearranging block (`printZest`), so its
   citations below line 164 moved by two; nothing they describe changed
+
+## [2026-11-14] the Workstation v5 window: citations moved
+
+- ADR 0034 rebuilt the main window (four rows, the wide Shelf, tabs in the title row, the
+  jar board), so `ShelfView`, `BenchView`, `Workbench`, `NetRelishApp` and `ZestWindow`
+  all grew. rearranging (15 citations), zest-window (4) and privacy-and-sandbox (2) had
+  their line numbers moved to the same lines' new places; nothing those lines do changed.
+  rearranging's one "rail" now reads "the list of jars"

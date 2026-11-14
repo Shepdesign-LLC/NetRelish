@@ -109,6 +109,12 @@ struct ZestWindow: View {
                 }
             }
             .background(WindowReader { window in watch(window) })
+            // A Zest row on the Shelf asks for its tool; the window may already be open.
+            .onChange(of: workbench.zestToolRequest, initial: true) { _, tool in
+                guard let tool else { return }
+                model.tool = tool
+                workbench.zestToolRequest = nil
+            }
             .onAppear {
                 rules.prepare()
                 model.openInJar = { [workbench, openWindow] url in

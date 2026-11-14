@@ -58,6 +58,12 @@ It is the **target** for layout, interaction, and copy. Its conflicts with
 each with a proposed default for Ryan to confirm. Start with
 `workstation-v5/README.md`.
 
+**Built (2026-11-14, ADR 0034):** the main window now has v5's layout and
+colors: four rows, the wide Shelf, tabs in the title row, the jar board, the
+Brine pill. Ryan chose the v5 look over the flat one that ADR 0010 rows 3 and
+4 had kept, so the manifest is v2.0. Notes, the Dev panel, capacity and the
+guides are not built; ADR 0034 says why for each.
+
 Client data was scrubbed on landing, here and in the older prototype above:
 real client names, domains, a contact, billing details and a login are now
 made-up ones. Earlier commits still hold the originals in git history.
