@@ -34,9 +34,9 @@ const COPY = {
   const pg = await ctx.newPage();
   const errs = []; pg.on('pageerror', e => errs.push(e.message));
   await pg.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
-  // The matrix is judged in the system type it was tuned against: the brand faces stay blocked here, as they were
-  // when they came from a font host. (The one-weight face check at the end loads the real faces from vendor/.)
-  await pg.route(/\/vendor\/fonts\//, r => r.abort());
+  // The matrix runs in the brand's own faces from vendor/ (what people see) by default. CARDS_FONTS=system blocks
+  // them, so the same matrix is judged in the system fallback too (CI's Ubuntu runner falls back to DejaVu Sans).
+  if (process.env.CARDS_FONTS === 'system') await pg.route(/\/vendor\/fonts\//, r => r.abort());
   await pg.goto(process.env.ZI_URL || 'http://localhost:8772/', { waitUntil: 'domcontentloaded' });
   await pg.evaluate(() => localStorage.clear()); await pg.reload({ waitUntil: 'domcontentloaded' }); await pg.waitForTimeout(500);
 

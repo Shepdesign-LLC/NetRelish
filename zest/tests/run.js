@@ -81,6 +81,13 @@ const APP_OUT = fs.mkdtempSync(path.join(os.tmpdir(), 'zest-app-'));
     console.log(`\n=== ${suite} ===`);
     const r = await runNode([path.join(__dirname, suite)]);
     if (r.code !== 0) failed++;
+    if (suite === 'cards.js') {        // the matrix again in the system fallback: brand faces can fail to load, and a wider fallback must not cut or overflow either
+      console.log(`\n=== cards.js (system type) ===`);
+      process.env.CARDS_FONTS = 'system';
+      const s = await runNode([path.join(__dirname, suite)]);
+      delete process.env.CARDS_FONTS;
+      if (s.code !== 0) failed++;
+    }
   }
 
   // Contrast sweeps. ZestImage is excluded: its body background is a gradient,
