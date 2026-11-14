@@ -79,3 +79,11 @@ Append-only. Newest entries at the bottom.
   as one commit stale. Each page's sources are byte for byte the same at its old
   `verified_at` and at `2c4c510` (checked with `git diff`), so `verified_at` moved alone.
   This will happen after every squash merge of a branch that touched a page's sources
+
+## [2026-11-13] privacy-and-sandbox added
+
+- A reference page for P5's sandbox and privacy review (ADR 0032): the three privacy
+  manifests and their reasons, the entitlements and what uses each, the Info.plist keys that
+  answer a question, and what a web page can ask for in 1.0. `building-without-a-mac` gained
+  a trap on where a `.xcprivacy` must live. `docs/notarization.md` lost a row that blamed a
+  JIT entitlement WKWebView doesn't need

@@ -38,6 +38,10 @@
 /Config/                                              @Shepdesign
 /NetRelish.entitlements                               @Shepdesign
 /Sources/ShareExtension/NetRelishShare.entitlements   @Shepdesign
+# What the App Store is told the app collects and why it calls what it calls (ADR 0032)
+/Resources/PrivacyInfo.xcprivacy                      @Shepdesign
+/Sources/ShareExtension/PrivacyInfo.xcprivacy         @Shepdesign
+/Sources/Pantry/PrivacyInfo.xcprivacy                 @Shepdesign
 
 # Third-party code that runs inside pages being captured, and its recorded checksum
 /Resources/Extraction/                                @Shepdesign

@@ -37,7 +37,7 @@ Decisions are recorded in `docs/adr/`, one file each, and are not wiki pages. No
 
 ## reference
 
-Nothing here yet.
+- [[privacy-and-sandbox]] -- what each bundle declares to macOS and App Store Connect (privacy manifests, entitlements, Info.plist answers), and what a web page can ask for
 
 ## operations
 

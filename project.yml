@@ -82,7 +82,9 @@ targets:
       - path: Sources/Bench
       - path: Sources/Vault
       - path: Resources
-        buildPhase: resources   # AppIcon.icns and defuddle.js land in Contents/Resources
+        # AppIcon.icns, defuddle.js and the app's PrivacyInfo.xcprivacy land in Contents/Resources,
+        # flat. Only the app's manifest goes here: the Share extension's sits in its own folder.
+        buildPhase: resources
     dependencies:
       - target: Pantry
       - package: KeyboardShortcuts
@@ -114,13 +116,22 @@ targets:
         NSPrincipalClass: NSApplication
         NSHighResolutionCapable: true
         NSContactsUsageDescription: "NetRelish copies your Contacts card into your Keychain once, so it can fill forms when you ask. It never reads Contacts again."
+        # A page you open can reach a device on your network (a router, a printer). macOS asks
+        # first and shows this line (ADR 0032).
+        NSLocalNetworkUsageDescription: "A page you opened in NetRelish wants to reach a device on your network, like your router or printer."
+        # Only system TLS and hashing: exempt from export filings, so App Store Connect doesn't
+        # ask on every upload (ADR 0032).
+        ITSAppUsesNonExemptEncryption: false
         # Pro provenance (ADR 0022): the RFC 3161 timestamp authority, from the build settings.
         NRTimestampURL: $(NR_TIMESTAMP_URL)
         # The Direct build's license relay (ADR 0027), from the build settings. https only.
         NRLicenseActivationURL: $(NR_LICENSE_ACTIVATION_URL)
         # DigiCert's timestamp service answers on http only. Only a fingerprint is sent, and the
         # signed reply is checked before it's kept (TimestampService), so this one host is excepted.
+        # Web content is excepted as a whole: NetRelish is a browser, and some sites are http
+        # only. URLSession (the timestamp and license calls) stays under ATS (ADR 0032).
         NSAppTransportSecurity:
+          NSAllowsArbitraryLoadsInWebContent: true
           NSExceptionDomains:
             timestamp.digicert.com:
               NSExceptionAllowsInsecureHTTPLoads: true
