@@ -60,8 +60,8 @@ if [ "${1:-}" = "--app" ]; then
 
 The four free Zest tools as NetRelish.app ships them: Studio at the root (`index.html`), then
 `mail/`, `md/` and `image/`, each with its own `index.html`, the fonts and libraries they use
-in `vendor/`, and the third-party notices in `NOTICE`. The Zest window (Window › Zest) serves
-this folder read-only on `zest://app/` (`Sources/Zest/`).
+in `vendor/`, and the third-party notices in `NOTICE`, which Help › Acknowledgments shows. The
+Zest window (Window › Zest) serves this folder read-only on `zest://app/` (`Sources/Zest/`).
 
 `bash zest/build.sh --app` writes it from the tools under `zest/apps/` and the pinned files
 under `zest/vendor/`, leaving out everything only the web has (the store, pricing, Pro

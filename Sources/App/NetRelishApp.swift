@@ -1,6 +1,6 @@
 // NetRelishApp.swift — the app. SwiftUI lifecycle, one main window, the Zest window
-// (Window › Zest, ADR 0033), and the DEBUG-only Design Kit as another Window scene
-// (Window → Design Kit).
+// (Window › Zest, ADR 0033), Help › Acknowledgments, and the DEBUG-only Design Kit as
+// another Window scene (Window → Design Kit).
 
 import AppIntents
 import GRDB
@@ -84,6 +84,10 @@ struct NetRelishApp: App {
             CommandGroup(after: .appInfo) {
                 Button("NetRelish Pro…") { workbench.showingPro = true }
             }
+            // Help › Acknowledgments: the third-party notices (NOTICE).
+            CommandGroup(after: .help) {
+                AcknowledgmentsCommand()
+            }
             CommandMenu("Jars") {
                 ForEach(Array(workbench.jars.prefix(9).enumerated()), id: \.element.id) { index, jar in
                     Button(jar.name) { workbench.activate(index: index) }
@@ -138,6 +142,13 @@ struct NetRelishApp: App {
             ZestWindow(workbench: workbench)
         }
         .defaultSize(width: 1180, height: 820)
+
+        // Help › Acknowledgments opens it; it keeps no item of its own in the Window menu.
+        Window("Acknowledgments", id: Acknowledgments.windowId) {
+            AcknowledgmentsView()
+        }
+        .defaultSize(width: 680, height: 720)
+        .commandsRemoved()
 
         #if DEBUG
         // A secondary `Window` scene gets its item in the Window menu from SwiftUI.
