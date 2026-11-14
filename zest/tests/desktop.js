@@ -16,7 +16,7 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
     const ctx = await browser.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', acceptDownloads: true });
     const pg = await ctx.newPage();
     const errs = []; pg.on('pageerror', e => errs.push(e.message));
-    await pg.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort());
+    await pg.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
     await pg.goto('http://localhost:8773/', { waitUntil: 'domcontentloaded' }); await pg.evaluate(() => localStorage.clear()); await pg.reload({ waitUntil: 'domcontentloaded' }); await pg.waitForTimeout(500);
     await pg.click('#tpl [data-tpl="newsletter"]'); await pg.waitForTimeout(400);
     const m = () => pg.evaluate(() => {
@@ -73,7 +73,7 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   ok(exports[1280] === exports[1920] && exports[1920] === exports[2560], 'the exported HTML is the same at every window size');
   {   // a short, wide desktop window: the zoom buttons it shows still work
     const sctx = await browser.newContext({ viewport: { width: 1366, height: 480 }, serviceWorkers: 'block' });
-    const sp = await sctx.newPage(); await sp.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort());
+    const sp = await sctx.newPage(); await sp.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
     await sp.goto('http://localhost:8773/', { waitUntil: 'domcontentloaded' }); await sp.evaluate(() => localStorage.clear()); await sp.reload({ waitUntil: 'domcontentloaded' }); await sp.waitForTimeout(500);
     await sp.click('#tpl [data-tpl="newsletter"]'); await sp.waitForTimeout(300);
     await sp.click('#zoomSeg [data-z="1.5"]'); await sp.waitForTimeout(250);
@@ -83,7 +83,7 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   {   // a custom platform's own tags are chips too: one piece on the canvas, read back exactly
     const cctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: 'block', acceptDownloads: true });
     const cp = await cctx.newPage(); const cerrs = []; cp.on('pageerror', e => cerrs.push(e.message));
-    await cp.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort());
+    await cp.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
     await cp.goto('http://localhost:8773/', { waitUntil: 'domcontentloaded' }); await cp.evaluate(() => localStorage.clear()); await cp.reload({ waitUntil: 'domcontentloaded' }); await cp.waitForTimeout(500);
     await cp.click('#tpl [data-tpl="newsletter"]'); await cp.waitForTimeout(300);
     await cp.click('.cv-block:nth-child(3) h2'); await cp.waitForTimeout(200);
@@ -104,7 +104,7 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   const nctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: 'block' });
   await nctx.addInitScript(() => { Object.defineProperty(window, 'localStorage', { get() { throw new Error('blocked'); } }); });
   const np = await nctx.newPage(); const nerrs = []; np.on('pageerror', e => nerrs.push(e.message));
-  await np.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort());
+  await np.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
   await np.goto('http://localhost:8773/', { waitUntil: 'domcontentloaded' }); await np.waitForTimeout(500);
   await np.click('#zoomSeg [data-z="1.5"]'); await np.waitForTimeout(200);
   ok(!nerrs.length && await np.evaluate(() => +document.querySelector('#canvasWrap').style.zoom === 1.5), 'with storage blocked the zoom still works');

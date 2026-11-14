@@ -8,7 +8,7 @@ const ORIGIN = 'http://localhost:8780';
 (async () => {
   const browser = await chromium.launch(LAUNCH);
   const ctx = await browser.newContext({ serviceWorkers: 'block' });
-  const block = p => p.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort());
+  const block = p => p.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
 
   console.log('== structure: every path serves its app ==');
   const get = async p => { const r = await fetch(ORIGIN + p, { redirect: 'manual' }); return r; };
@@ -22,6 +22,11 @@ const ORIGIN = 'http://localhost:8780';
   for (const p of ['/sw.js', '/md/sw.js', '/image/sw.js', '/icons/favicon.svg', '/mail/icons/favicon.svg', '/md/icons/favicon.svg', '/image/icons/favicon.svg', '/zest.json', '/mail/zest.json']) {
     ok((await get(p)).status === 200, `${p} present`);
   }
+  // the pinned fonts and libraries every page loads from this origin (ADR 0015: no font host or CDN on any surface)
+  for (const p of ['/vendor/fonts/fonts.css', '/vendor/fonts/fonts.json', '/vendor/fonts/geist/geist-latin-wght-normal.woff2', '/vendor/dompurify/purify.min.js', '/vendor/katex/katex.min.css', '/vendor/mermaid/mermaid.min.js']) {
+    ok((await get(p)).status === 200, `${p} present`);
+  }
+  ok((await get('/vendor/VENDOR.lock.json')).status === 404, 'the vendor lock is build metadata, not published');
   const swText = await (await get('/sw.js')).text();
   ok(swText.includes('siblingPath'), 'studio sw keeps its sibling-path guard (never serves its shell for /mail /md /image)');
   ok(/mail\|md\|image\|api\|pricing\|account\|changelog/.test(swText), 'the guard covers the store paths this topology creates (/pricing + future /account /changelog)');
@@ -70,7 +75,7 @@ const ORIGIN = 'http://localhost:8780';
   const live = await browser.newContext();                     // real service workers this time
   for (const [p, scopeEnd] of [['/', '/'], ['/md/', '/md/'], ['/image/', '/image/']]) {
     const pg = await live.newPage();
-    await pg.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort()); // live SWs, but still no live CDN
+    await pg.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort()); // live SWs, but still no live CDN
     await pg.goto(ORIGIN + p, { waitUntil: 'domcontentloaded' });
     const scope = await pg.evaluate(() => Promise.race([
       navigator.serviceWorker.ready.then(r => r.scope),

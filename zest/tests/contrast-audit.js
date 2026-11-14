@@ -7,7 +7,7 @@ const [,, url, scheme = 'light', label = 'app'] = process.argv;
   const browser = await chromium.launch(LAUNCH);
   const ctx = await browser.newContext({ serviceWorkers: 'block', colorScheme: scheme });
   const page = await ctx.newPage();
-  await page.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort());
+  await page.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
   await page.goto(url, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(800);
   const report = await page.evaluate(() => {

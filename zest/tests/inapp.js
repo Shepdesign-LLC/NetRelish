@@ -1,0 +1,185 @@
+// In-app suite (ADR 0015; App Review 3.1.1 and 2.5.2; NN5): the four tools as NetRelish.app runs them.
+//
+// Part 1 serves the app's copy (Resources/Zest, or ZEST_APP_ROOT) on 127.0.0.1 at a free port and injects the
+// host's frozen window.netrelish stub before any page script, in the main frame only, as the Zest window does.
+// For each tool it checks that
+//   - the in-app switch is on (html.in-app);
+//   - nothing sells: no pricing link or text, no Upgrade, no Pro badge, no drafting with a model, and none of
+//     those words or the model host anywhere in the shipped page;
+//   - no service worker is registered (register is never even called);
+//   - the cloud and Pro rows are shown greyed and disabled, with exactly one line saying why;
+//   - the type is the vendored faces, loaded from vendor/ on this origin (the UI's own faces, the studio's
+//     preview frame, ZestImage's brand faces), and Zest MD's sanitizer and math load from there too;
+//   - exports carry their fonts inside the file: no font host, no vendor/ path that breaks once saved;
+//   - no request leaves 127.0.0.1, and no page throws.
+// Part 2 opens the web sources (run.js's ports 8771-8774) with the same stub: the run-time switch alone, before
+// build.sh --app strips anything, hides the same parts.
+//
+//   node inapp.js [--shots <dir>]     also saves a 1180x820 screenshot of each tool in the app's copy
+const { chromium } = require('playwright');
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+
+const ROOT = path.resolve(process.env.ZEST_APP_ROOT || path.join(__dirname, '..', '..', 'Resources', 'Zest'));
+const LAUNCH = process.env.ZEST_CHROMIUM ? { executablePath: process.env.ZEST_CHROMIUM } : {};
+const shotsAt = process.argv.indexOf('--shots');
+const SHOTS = shotsAt > 0 ? path.resolve(process.argv[shotsAt + 1]) : null;
+const MIME = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
+  '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.txt': 'text/plain',
+};
+let pass = 0, fail = 0;
+const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fail++; console.error('  FAIL ' + m); } };
+
+// The host's stub (Sources/Zest): frozen, main frame only. The recorder notes any service-worker registration.
+const STUB = `(() => {
+  if (window.top === window) Object.defineProperty(window, 'netrelish', { value: Object.freeze({ version: '0', host: 'app', network: false }), writable: false, configurable: false });
+  window.__swCalls = 0;
+  try { const sw = navigator.serviceWorker; if (sw) { const reg = sw.register.bind(sw); sw.register = (...a) => { window.__swCalls++; return reg(...a); }; } } catch {}
+})();`;
+// Words that sell, and the model host. "Crimson Pro" is a typeface, not a tier.
+const SELLS = /pricing|upgrade|\bpro\b|draft with|claude|anthropic/i;
+const visibleText = () => document.body.innerText.replace(/Crimson Pro/g, '');
+
+function serve() {
+  const srv = http.createServer((req, res) => {
+    try {
+      let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+      if (p.endsWith('/')) p += 'index.html';
+      const file = path.join(ROOT, p);
+      if (!file.startsWith(ROOT + path.sep) || !fs.existsSync(file)) { res.writeHead(404); return res.end('not found'); }
+      if (fs.statSync(file).isDirectory()) { res.writeHead(301, { location: p + '/' }); return res.end(); }
+      res.writeHead(200, { 'content-type': MIME[path.extname(file)] || 'application/octet-stream' });
+      fs.createReadStream(file).pipe(res);
+    } catch { res.writeHead(400); res.end('bad request'); }
+  });
+  return new Promise(r => srv.listen(0, '127.0.0.1', () => r(srv)));
+}
+
+// Which faces loaded, and from where.
+const fontsState = () => document.fonts.ready.then(() => ({
+  loaded: [...document.fonts].filter(f => f.status === 'loaded').map(f => f.family.replace(/["']/g, '')),
+  files: performance.getEntriesByType('resource').map(e => e.name).filter(n => /\.woff2$/.test(n)),
+}));
+const greyed = () => {
+  const rows = [...document.querySelectorAll('.pro')];
+  const notes = [...document.querySelectorAll('.hint')].filter(h => h.checkVisibility() && /Zest account/.test(h.textContent));
+  return { rows: rows.length, disabled: rows.filter(b => b.disabled).length, shown: rows.filter(b => b.checkVisibility()).length,
+    dim: rows.filter(b => +getComputedStyle(b).opacity < 1).length, notes: notes.length, note: notes.map(n => n.textContent.trim()).join(' | ') };
+};
+
+const TOOLS = [
+  { name: 'studio', path: '/', ui: ['Geist', 'Bricolage Grotesque'], pro: true },
+  { name: 'mail', path: '/mail/', ui: ['Geist'] },
+  { name: 'md', path: '/md/', ui: ['Geist'] },
+  { name: 'image', path: '/image/', ui: ['Geist', 'Bricolage Grotesque'], pro: true },
+];
+
+(async () => {
+  if (!fs.existsSync(path.join(ROOT, 'index.html'))) { console.error(`inapp: ${ROOT} is not built (bash zest/build.sh --app)`); process.exit(2); }
+  if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
+  const srv = await serve();
+  const origin = `http://127.0.0.1:${srv.address().port}`;
+  const browser = await chromium.launch(LAUNCH);
+
+  for (const t of TOOLS) {
+    console.log(`== app copy: ${t.name} (${t.path}) ==`);
+    const ctx = await browser.newContext({ viewport: { width: 1180, height: 820 }, acceptDownloads: true });   // service workers allowed: one would register if asked
+    const away = [];
+    await ctx.route('**/*', r => { const u = r.request().url(); if (u.startsWith(origin + '/') || /^(data|blob):/.test(u)) return r.continue(); away.push(u); return r.abort('blockedbyclient'); });
+    await ctx.addInitScript(STUB);
+    const pg = await ctx.newPage();
+    const errs = []; pg.on('pageerror', e => errs.push(e.message));
+    await pg.goto(origin + t.path, { waitUntil: 'load' }); await pg.waitForTimeout(900);
+
+    ok(await pg.evaluate(() => document.documentElement.classList.contains('in-app') && window.ZEST_IN_APP === true), `${t.name}: the in-app switch is on`);
+    const src = fs.readFileSync(path.join(ROOT, t.path, 'index.html'), 'utf8');
+    ok(!/pricing|\bupgrade[sd]?\b|api\.anthropic\.com|api\/claude|serviceWorker\.register|manifest\.webmanifest|<em>PRO<\/em>/i.test(src), `${t.name}: the shipped page holds no pricing, Upgrade, Pro badge, model call, service worker or install manifest`);
+    const text = await pg.evaluate(visibleText);
+    ok(!SELLS.test(text), `${t.name}: nothing on screen sells or drafts with a model (${(text.match(SELLS) || ['none'])[0]})`);
+    ok(await pg.$$eval('a[href]', as => as.every(a => !/pricing|zest\.netrelish\.com|^https?:/i.test(a.getAttribute('href')))), `${t.name}: no link to pricing or to the web`);
+    ok(await pg.evaluate(() => window.__swCalls) === 0 && (await pg.evaluate(() => navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(r => r.length) : 0)) === 0, `${t.name}: no service worker is registered`);
+    if (t.pro) {
+      const g = await pg.evaluate(greyed);
+      ok(g.rows > 0 && g.disabled === g.rows && g.shown === g.rows && g.dim === g.rows, `${t.name}: the ${g.rows} cloud and Pro rows are shown, greyed and disabled`);
+      ok(g.notes === 1, `${t.name}: one line says why (${g.note})`);
+    }
+    if (t.name === 'mail') ok(await pg.$$eval('[data-t="claude"], #panelClaude, #btnDraft, #apiKey', n => n.length) === 0, 'mail: no drafting tab, panel, button or key field');
+
+    const fonts = await pg.evaluate(fontsState);
+    for (const fam of t.ui) ok(fonts.loaded.includes(fam), `${t.name}: ${fam} loads`);
+    ok(fonts.files.length > 0 && fonts.files.every(u => u.startsWith(origin + '/vendor/fonts/')), `${t.name}: every face comes from vendor/fonts on this origin (${fonts.files.length} file(s))`);
+
+    if (t.name === 'studio') {
+      const frame = pg.frames().find(f => f !== pg.mainFrame());
+      const pf = frame ? await frame.evaluate(fontsState) : { loaded: [] };
+      ok(pf.loaded.includes('Bricolage Grotesque') && pf.loaded.includes('Geist'), `studio: the preview frame sets the brand in its own faces (${[...new Set(pf.loaded)].join(', ')})`);
+      const [dl] = await Promise.all([pg.waitForEvent('download'), pg.click('#xFontface')]);
+      const css = fs.readFileSync(await dl.path(), 'utf8');
+      ok(/@font-face\{font-family:'Bricolage Grotesque'[^}]*data:font\/woff2;base64,/.test(css) && /font-family:'Geist'/.test(css) && !/@import|url\(\s*['"]?(https?:|\/\/)/.test(css), `studio: the @font-face export embeds the brand's faces and loads from no host (${Math.round(css.length / 1024)} KB)`);
+      const [db] = await Promise.all([pg.waitForEvent('download'), pg.click('#xBrand')]);
+      const brand = JSON.parse(fs.readFileSync(await db.path(), 'utf8'));
+      ok(brand.fonts && brand.fonts.googleFontsUrl === '' && !/https?:/.test(JSON.stringify(brand.fonts)), 'studio: the brand file names no font host');
+    }
+    if (t.name === 'image') {
+      await pg.waitForFunction(() => document.querySelector('#stageSvg text[data-role="title"]'), null, { timeout: 5000 }).catch(() => {});
+      const st = await pg.evaluate(() => ({ fam: (document.querySelector('#stageSvg text[data-role="title"]') || { getAttribute: () => '' }).getAttribute('font-family'), note: document.querySelector('#fontNote').hidden }));
+      ok(/^'[^']+'/.test(st.fam || '') && st.note, `image: the card is set in the brand's own face, read from vendor/ (${(st.fam || '').split(',')[0]})`);
+    }
+    if (t.name === 'md') {
+      ok(await pg.evaluate(() => !!window.DOMPurify && (window.__mdpressMissing || []).length === 0), 'md: the sanitizer loads from vendor/ and matches its hash');
+      await pg.click('[data-act="sample"]');
+      await pg.waitForFunction(() => document.querySelector('#doc .katex') && document.querySelector('#doc .diagram svg'), null, { timeout: 10000 }).catch(() => {});
+      ok(await pg.$$eval('#doc .katex', n => n.length) > 0, 'md: math renders (KaTeX from vendor/)');
+      ok(await pg.$$eval('#doc .diagram svg', n => n.length) > 0, 'md: the diagram renders (Mermaid from vendor/)');
+      const kf = await pg.evaluate(fontsState);
+      ok(kf.loaded.some(f => /^KaTeX_/.test(f)), 'md: KaTeX sets math in its own faces');
+      const [dl] = await Promise.all([pg.waitForEvent('download'), pg.click('#btnExport')]);
+      const html = fs.readFileSync(await dl.path(), 'utf8');
+      ok(/@font-face\{font-family:'Geist'[^}]*data:font\/woff2;base64,/.test(html) && /@font-face\{font-family:KaTeX_Main[^}]*data:font\/woff2;base64,/.test(html), `md: the exported page embeds its text and math faces (${Math.round(html.length / 1024)} KB)`);
+      ok(!/vendor\/|fonts\.googleapis|cdnjs|<link[^>]+stylesheet/.test(html), 'md: the exported page loads nothing: no vendor/ path, no font host, no stylesheet link');
+    }
+    if (SHOTS) await pg.screenshot({ path: path.join(SHOTS, `${t.name}.png`) });
+    ok(away.length === 0, `${t.name}: no request left 127.0.0.1${away.length ? ' — ' + [...new Set(away)].slice(0, 3).join(', ') : ''}`);
+    ok(errs.length === 0, `${t.name}: no page errors${errs.length ? ' — ' + errs.slice(0, 2).join(' | ') : ''}`);
+    await ctx.close();
+  }
+
+  // Part 2: the web sources, unstripped, with the stub. Served by run.js on fixed ports.
+  const WEB = [['studio', 'http://localhost:8771/', true], ['image', 'http://localhost:8772/', true], ['mail', 'http://localhost:8773/', false], ['md', 'http://localhost:8774/', false]];
+  for (const [name, url, pro] of WEB) {
+    console.log(`== web source with the stub: ${name} ==`);
+    const ctx = await browser.newContext({ viewport: { width: 1180, height: 820 } });
+    await ctx.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
+    await ctx.addInitScript(STUB);
+    const pg = await ctx.newPage();
+    const errs = []; pg.on('pageerror', e => errs.push(e.message));
+    await pg.goto(url, { waitUntil: 'load' }); await pg.waitForTimeout(700);
+    const text = await pg.evaluate(visibleText);
+    ok(!SELLS.test(text), `${name}: the switch alone hides everything that sells (${(text.match(SELLS) || ['none'])[0]})`);
+    ok(await pg.$$eval('a[href]', as => as.filter(a => a.checkVisibility()).every(a => !/pricing|^https?:/i.test(a.getAttribute('href')))), `${name}: no visible link to pricing or to the web`);
+    ok(await pg.evaluate(() => window.__swCalls) === 0, `${name}: register is never called`);
+    if (pro) { const g = await pg.evaluate(greyed); ok(g.rows > 0 && g.disabled === g.rows && g.notes === 1, `${name}: the ${g.rows} rows are greyed and disabled, with one line`); }
+    if (name === 'mail') ok(await pg.$$eval('[data-t="claude"], #panelClaude', n => n.length) === 0, 'mail: the drafting tab and panel are gone');
+    ok(errs.length === 0, `${name}: no page errors${errs.length ? ' — ' + errs.slice(0, 2).join(' | ') : ''}`);
+    await ctx.close();
+  }
+  // and without the stub, the web keeps what the web has
+  {
+    const ctx = await browser.newContext();
+    await ctx.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
+    const pg = await ctx.newPage();
+    await pg.goto('http://localhost:8771/', { waitUntil: 'load' }); await pg.waitForTimeout(400);
+    ok(await pg.evaluate(() => !document.documentElement.classList.contains('in-app')) && await pg.$eval('a[href="pricing/"]', a => a.checkVisibility()), 'web, no stub: the switch is off and the studio keeps its pricing link');
+    const ml = await ctx.newPage();
+    await ml.goto('http://localhost:8773/', { waitUntil: 'load' }); await ml.waitForTimeout(400);
+    ok(await ml.$eval('[data-t="claude"]', b => b.checkVisibility()), 'web, no stub: ZestMail keeps its drafting tab');
+    await ctx.close();
+  }
+
+  await browser.close();
+  srv.close();
+  console.log(`\nTALLY: ${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+})().catch(e => { console.error(e); process.exit(1); });

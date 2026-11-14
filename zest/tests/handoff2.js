@@ -10,7 +10,7 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
 (async () => {
   const browser = await chromium.launch(LAUNCH);
   const ctx = await browser.newContext({ serviceWorkers: 'block' });
-  const block = p => p.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort()); // no live CDN: every run sees the same page state, with or without egress
+  const block = p => p.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort()); // nothing off this machine: every run sees the same page state, with or without egress
 
   console.log('== studio: export the Pantry brand ==');
   const st = await ctx.newPage(); await block(st);
@@ -298,12 +298,11 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
 
   console.log('== Zest MD: custom-skin import ==');
   const md = await ctx.newPage(); await block(md);
-  // serve the pinned DOMPurify from node_modules (package.json pins the same version the app's cdnjs tag loads) so the
-  // sanitized-raw-HTML path is under test and the suite works offline; registered after block(),
-  // so this more specific route wins while the rest of cdnjs stays aborted
-  const PURIFY = fs.readFileSync(require.resolve('dompurify/dist/purify.min.js'));   // raw bytes: the script tag checks them against its integrity hash
-  const CORS = { 'access-control-allow-origin': '*' };                                // the tag is crossorigin="anonymous", as cdnjs itself answers
-  await md.route(/cdnjs\.cloudflare\.com.*dompurify/i, r => r.fulfill({ contentType: 'text/javascript', headers: CORS, body: PURIFY }));
+  // The sanitizer is the vendored file (zest/vendor/dompurify, served at /vendor/ beside the app as on every surface).
+  // It must be byte for byte the npm release tests/package.json pins, the version VENDOR.lock.json and the tag name.
+  const PURIFY = fs.readFileSync(require.resolve('dompurify/dist/purify.min.js'));
+  const VENDORED = fs.readFileSync(require('path').join(__dirname, '..', 'vendor', 'dompurify', 'purify.min.js'));
+  ok(PURIFY.equals(VENDORED), 'the vendored sanitizer is byte for byte the npm release the tests pin');
   const mdErrs = []; md.on('pageerror', e => mdErrs.push(e.message));
   await md.goto('http://localhost:8774', { waitUntil: 'domcontentloaded' }); await md.waitForTimeout(700);
   // the sanitizer tag is pinned by hash. The copy served here is the npm package at the version in package.json,
@@ -397,7 +396,6 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   // its own context: clean storage, and clipboard access for Paste
   const barCtx = await browser.newContext({ serviceWorkers: 'block', permissions: ['clipboard-read', 'clipboard-write'] });
   const bar = await barCtx.newPage(); await block(bar);
-  await bar.route(/cdnjs\.cloudflare\.com.*dompurify/i, r => r.fulfill({ contentType: 'text/javascript', headers: CORS, body: PURIFY }));
   const barErrs = []; bar.on('pageerror', e => barErrs.push(e.message));
   await bar.goto('http://localhost:8774', { waitUntil: 'domcontentloaded' }); await bar.waitForTimeout(700);
   // checkVisibility() is false under display:none and inside a closed <details>, where a box can still be measured
@@ -507,7 +505,8 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
 
   console.log('== Zest MD without the sanitizer: raw HTML fails closed ==');
   const mdOff = await ctx.newPage();
-  await mdOff.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort());
+  await mdOff.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
+  await mdOff.route(/\/vendor\/dompurify\//, r => r.abort());   // the sanitizer's own file, refused
   await mdOff.goto('http://localhost:8774', { waitUntil: 'domcontentloaded' }); await mdOff.waitForTimeout(600);
   await mdOff.evaluate(t => { const dt = new DataTransfer(); dt.items.add(new File([t], 'evil.md', { type: 'text/markdown' })); document.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true })); }, PAYLOAD);
   await mdOff.waitForTimeout(600);
@@ -525,9 +524,10 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
   const MD_SW = fs.readFileSync(require('path').join(__dirname, '..', 'apps', 'md', 'sw.js'), 'utf8');
   ok(/const VERSION = 'mdpress-v(\d+)'/.test(MD_SW) && +MD_SW.match(/const VERSION = 'mdpress-v(\d+)'/)[1] >= 5, 'Zest MD: the service worker version moved on, so installed copies fetch the fixed page');
   ok(/c\.put\(APP_INDEX, shell\)/.test(MD_SW), 'Zest MD: a visit refreshes the stored page that shared links are served from');
-  const vendorUrls = MD_SRC.match(/'https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/(?:KaTeX|mermaid)\/[^']+'/g) || [];
-  const vendorHashed = MD_SRC.match(/'https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/(?:KaTeX|mermaid)\/[^']+', 'sha384-[A-Za-z0-9+/]{64}'/g) || [];
+  const vendorUrls = MD_SRC.match(/'\.\.\/vendor\/(?:katex|mermaid)\/[^']+'/g) || [];
+  const vendorHashed = MD_SRC.match(/'\.\.\/vendor\/(?:katex|mermaid)\/[^']+', 'sha384-[A-Za-z0-9+/]{64}'/g) || [];
   ok(vendorUrls.length === 4 && vendorHashed.length === 4, `every on-demand file is listed with a sha384 (${vendorHashed.length} of ${vendorUrls.length})`);
+  ok(!/cdnjs|unpkg|jsdelivr|fonts\.googleapis|fonts\.gstatic/.test(MD_SRC), 'Zest MD names no CDN or font host: every library and face is vendored');
   // A stand-in for the library (the real one is 3.5 MB and not a test dependency). If it runs, it records how the app configures it.
   const STANDIN = 'window.__mermaidLevels=[];window.mermaid={initialize:function(c){window.__mermaidLevels.push(c&&c.securityLevel)},run:async function(){}};';
   const SRI = e => /^sha384-[A-Za-z0-9+/]{64}$/.test(e.integrity) && e.crossOrigin === 'anonymous';
@@ -536,22 +536,20 @@ const mixB = (a, b, t) => { const h = x => [parseInt(x.slice(1, 3), 16), parseIn
 
   // First the loader. The stand-in is served at the app's own Mermaid address: it is not the pinned release, so it must be refused.
   const mdM = await ctx.newPage(); await block(mdM);
-  await mdM.route(/cdnjs\.cloudflare\.com.*dompurify/i, r => r.fulfill({ contentType: 'text/javascript', headers: CORS, body: PURIFY }));
-  await mdM.route(/cdnjs\.cloudflare\.com.*mermaid/i, r => r.fulfill({ contentType: 'text/javascript', headers: CORS, body: STANDIN }));
+  await mdM.route(/\/vendor\/mermaid\/mermaid\.min\.js/, r => r.fulfill({ contentType: 'text/javascript', body: STANDIN }));
   const mdMErrs = []; mdM.on('pageerror', e => mdMErrs.push(e.message));
   await mdM.goto('http://localhost:8774', { waitUntil: 'domcontentloaded' }); await mdM.waitForTimeout(600);
   await dropMd(mdM, 'diagram.md', DIAGRAM); await mdM.waitForTimeout(800);                                  // the fence triggers the on-demand load
   ok(await mdM.$eval('script[src*="mermaid"]', SRI), 'the loader gives the Mermaid tag its integrity hash');
   ok(await mdM.evaluate(() => window.mermaid === undefined && window.__mermaidLevels === undefined), 'a file at the Mermaid address that is not the pinned release does not run');
   ok(await mdM.$$eval('#doc .mermaid', n => n.length) === 0 && await mdM.$$eval('#doc pre[data-lang^="mermaid"]', n => n.length) === 1, 'the diagram stays a plain code block when the library is refused');
-  await dropMd(mdM, 'math.md', '# Math\n\n$$x^2$$\n'); await mdM.waitForTimeout(600);                        // same loader, KaTeX (its address is blocked like the rest of the CDN)
+  await dropMd(mdM, 'math.md', '# Math\n\n$$x^2$$\n'); await mdM.waitForTimeout(600);                        // same loader, KaTeX (the vendored release, which loads)
   ok(await mdM.$eval('link[href*="katex.min.css"]', SRI) && await mdM.$eval('script[src*="katex.min.js"]', SRI), 'the loader gives the KaTeX stylesheet and script their integrity hashes');
   ok(mdMErrs.length === 0, 'Zest MD with a refused library: no exceptions (' + mdMErrs.slice(0, 1).join('').slice(0, 80) + ')');
   await mdM.close();
 
   // Then the configuration. The stand-in is defined before the page's own scripts run, as the loaded library would be.
   const mdS = await ctx.newPage(); await block(mdS);
-  await mdS.route(/cdnjs\.cloudflare\.com.*dompurify/i, r => r.fulfill({ contentType: 'text/javascript', headers: CORS, body: PURIFY }));
   await mdS.addInitScript(STANDIN);
   const mdSErrs = []; mdS.on('pageerror', e => mdSErrs.push(e.message));
   await mdS.goto('http://localhost:8774', { waitUntil: 'domcontentloaded' }); await mdS.waitForTimeout(600);

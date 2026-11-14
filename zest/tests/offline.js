@@ -9,8 +9,9 @@
 //
 //   node offline.js [--json report.json]        ZEST_APP_ROOT=<dir> serves another copy (default ../../Resources/Zest)
 //
-// Not in run.js's default list yet: until the tools stop loading Google Fonts and cdnjs (phase 2) it fails
-// by design. To register it, add 'offline.js' to ALL in run.js and run `bash build.sh --app` before the suites.
+// Each page gets the host's frozen window.netrelish stub in its main frame, as the Zest window injects it, so the
+// tools run with their in-app switch on. run.js builds the app's copy into a temp folder and runs this on it;
+// CI's app-bundle job runs it on the committed Resources/Zest.
 const { chromium } = require('playwright');
 const http = require('http');
 const fs = require('fs');
@@ -48,6 +49,7 @@ async function hintsIn(page) {
   }
   return out;
 }
+const STUB = `if (window.top === window) Object.defineProperty(window, 'netrelish', { value: Object.freeze({ version: '0', host: 'app', network: false }), writable: false, configurable: false });`;
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
 function serve() {
@@ -120,6 +122,7 @@ const TOOLS = [
       return route.abort('blockedbyclient');
     });
     await context.routeWebSocket(/.*/, ws => { blocked.push({ url: ws.url(), type: 'websocket', step }); ws.close(); });
+    await context.addInitScript(STUB);
     await context.addInitScript(HINT_WATCH);
     const page = await context.newPage();
     const hintsSeen = new Set();

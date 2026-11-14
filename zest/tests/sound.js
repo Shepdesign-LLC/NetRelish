@@ -13,7 +13,7 @@ const APPS = path.join(__dirname, '..', 'apps');
 const KEY = 'zest.sound';
 const KIT = /\/\* zest-sound:start v\d+ \*\/[\s\S]*?\/\* zest-sound:end \*\//g;
 const LOCAL = /^(https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/|data:|blob:|about:)/;
-const KNOWN_HOSTS = /^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com|cdnjs\.cloudflare\.com)\//;   // fonts and Zest MD's pinned libraries: there before sound, aborted here like every suite does
+// No known outside hosts any more: the fonts and Zest MD's pinned libraries are vendored and load from this machine.
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
 // Each step is a real click or key press, and the sound it must make.
@@ -90,7 +90,7 @@ const noStorage = () => { Object.defineProperty(window, 'localStorage', { get() 
     const errs = [], reqs = [];
     pg.on('pageerror', e => errs.push(e.message));
     pg.on('request', r => reqs.push(r.url()));
-    await pg.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort());
+    await pg.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
     await pg.goto(url, { waitUntil: 'domcontentloaded' }); await pg.waitForTimeout(600);
     return { ctx, pg, errs, reqs };
   };
@@ -156,9 +156,9 @@ const noStorage = () => { Object.defineProperty(window, 'localStorage', { get() 
     tg = await toggle(pg, t.toggle);
     ok(tg.pressed === 'true' && tg.stored === 'on', `${t.name}: on survives a reload`);
 
-    // nothing left the machine: every request is local, or one of the hosts the tools already used (aborted above)
+    // nothing left the machine: every request is local (fonts and libraries included, from vendor/)
     const away = [...new Set(reqs.filter(u => !LOCAL.test(u)))];
-    ok(away.every(u => KNOWN_HOSTS.test(u)), `${t.name}: no request to a new host (${away.filter(u => !KNOWN_HOSTS.test(u)).join(', ') || 'none'})`);
+    ok(away.length === 0, `${t.name}: no request leaves the machine (${away.join(', ') || 'none'})`);
     ok(!reqs.some(u => /\.(mp3|wav|ogg|m4a|aac|flac|opus)(\?|$)/i.test(u)), `${t.name}: no audio file is requested`);
     ok(errs.length === 0, `${t.name}: no uncaught exceptions${errs.length ? ' — ' + errs.join(' | ') : ''}`);
     await ctx.close();
@@ -188,7 +188,7 @@ const noStorage = () => { Object.defineProperty(window, 'localStorage', { get() 
   }
   // a second tab on the same origin follows the change without a reload
   const second = await one.ctx.newPage();
-  await second.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort());
+  await second.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
   await second.goto('http://localhost:8780/', { waitUntil: 'domcontentloaded' }); await second.waitForTimeout(500);
   await one.pg.click('#bSound'); await second.waitForTimeout(300);   // one.pg is on /image/: turn sound back on there
   ok(await second.$eval('#bSound', b => b.getAttribute('aria-pressed')) === 'true', 'an open studio tab follows a change made in another tool');
