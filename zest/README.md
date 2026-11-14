@@ -51,15 +51,18 @@ zest/
 
 ## Run locally
 
-Both shipped apps are single HTML files. Serve them over http; `file://` has a
-null origin, which breaks the service worker and any API call.
+Each tool is a single HTML file, but it loads its fonts and libraries from
+the shared `vendor/` folder (`vendor/` from the studio at `/`, `../vendor/`
+from the others), so serve the assembled topology, not one app's folder.
+Served on its own, a tool finds no `vendor/`: it falls back to system type,
+and Zest MD runs without its sanitizer, math and diagrams. Serve over http;
+`file://` has a null origin, which breaks the service worker and any API call.
 
-- **ZestMail** — `cd apps/mail && npx vercel dev` serves the app and
-  `/api/claude` on `http://localhost:3000`. Without the proxy:
-  `npx serve .` and use your own key via the app's Direct route.
-- **Zest MD** — `cd apps/md && npx serve .`. Static, no build step.
-- **ZestImage** — `cd apps/image && npx serve .`. Static, no build step.
-- **Zest (studio)** — `cd apps/zest && npx serve .`. Static, no build step.
+- **All four tools** — `cd zest && bash build.sh && npx serve dist`: the
+  studio at `/`, then `/mail`, `/md` and `/image`.
+- **ZestMail with the drafting proxy** — `bash build.sh`, then `npx vercel dev`
+  from `zest/` (below). Without the proxy, use your own key in the app's
+  Direct route.
 - **The whole topology** (§8/§11.5: studio at `/`, tools at `/mail` `/md`
   `/image`, store at `/pricing`, API at `/api`) — `cd zest && bash build.sh
   && npx serve dist`. For the API too, run `bash build.sh` first and then
@@ -98,11 +101,16 @@ cd tests && ZEST_CHROMIUM=… node offline.js   # gate 2: each tool with every o
   with `vendor/` copied to `dist/vendor/` (the lock stays out).
 - **One switch in each tool.** `IN_APP` is true on `zest:` or under the
   host's `window.netrelish` stub (`host: 'app'`); it sets `html.in-app`. In the
-  app the tools register no service worker, ZestMail has no drafting tab, and
-  the studio's and ZestImage's cloud and Pro rows stay in view, greyed and
-  disabled, under one line: "These need a Zest account, so the app leaves them
-  out." `.web-only` hides what the build did not strip; `.app-only` shows only
-  in the app.
+  app the tools register no service worker and ZestMail has no drafting tab.
+  The web's plan is not in the app at all: the studio's and ZestImage's Pro
+  sections (rows, badges, the account line) sit between web marks, ZestImage
+  keeps no cap on saved brands, and the studio has no Share link (a `zest://`
+  link opens nowhere else). An image at a web address shows as a placeholder
+  that says why, in ZestMail and Zest MD, and their exports keep the real
+  `<img>`. Zest MD's PDF is File › Print (⌘P) in the app. The first-run
+  defaults are placeholders (`Your brand`, `Your name · your-site.example`).
+  `.web-only` hides what the build did not strip; `.app-only` shows only in
+  the app.
 - **Not in the app target yet.** `project.yml` excludes `Resources/Zest` from
   the flat Resources group. The Zest window adds it as one folder reference.
 - **Vendored, pinned, on every surface.** Every page loads its fonts and
@@ -118,13 +126,14 @@ cd tests && ZEST_CHROMIUM=… node offline.js   # gate 2: each tool with every o
   `--app`, and commit all of it. `--check` fails if `vendor/`, the lock and
   npm disagree, if `Resources/Zest/vendor/` differs from the lock, if
   `Resources/Zest/NOTICE` differs from `NOTICE`, if `NOTICE` misses a
-  release, or if Zest MD's tag, hashes or the tests' DOMPurify pin disagree
-  with the lock. It does not compare the tools' HTML in `Resources/Zest` with
+  release, if Zest MD's tag, hashes or the tests' DOMPurify pin disagree
+  with the lock, or if Zest MD's inline renderer no longer hashes to its pin
+  (`inline` in `vendor.config.json`). It does not compare the tools' HTML in `Resources/Zest` with
   `apps/`; CI does that by rebuilding into a temp folder and diffing.
-- **Size.** 6.89 MB (7,225,942 bytes, 143 files) on 2026-11-14, 86% of
+- **Size.** 6.91 MB (7,250,832 bytes, 143 files) on 2026-11-14, 86% of
   the 8 MB budget in `scripts/offline-allowlist.json` (the scan fails above
-  it): Mermaid 3.41 MB, fonts 2.00 MB, KaTeX 0.54 MB, Zest MD 0.42 MB, the
-  studio with NOTICE and the README 0.16 MB, ZestMail 0.17 MB, ZestImage
+  it): Mermaid 3.41 MB, fonts 2.00 MB, KaTeX 0.54 MB, Zest MD 0.43 MB, the
+  studio with NOTICE and the README 0.18 MB, ZestMail 0.17 MB, ZestImage
   0.16 MB.
 - **Exports carry their own type.** The studio's `@font-face` export and Zest
   MD's HTML export embed the faces they name as `data:` URIs read from

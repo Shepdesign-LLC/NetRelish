@@ -8,11 +8,12 @@ greyed per ZEST-SPEC §4.3; they arrive with Zest accounts.
 
 ## Run locally
 
-```bash
-npx serve .          # any http server works; file:// blocks font loading
-```
+ZestImage loads its fonts from `../vendor/`, the folder `zest/build.sh` puts
+beside it: `cd zest && bash build.sh && npx serve dist`, then open `/image/`.
+Served on its own from this folder, it falls back to system type. `file://`
+blocks font loading.
 
-Brand fonts load from Google Fonts and degrade to system type offline.
+Brand fonts come from that folder too, never from a font host.
 Photos, logos and brands stay in this browser — nothing is uploaded.
 
 ---

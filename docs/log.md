@@ -119,3 +119,14 @@ Append-only. Newest entries at the bottom.
   described as generated, not to be generated), and the page cites no line below it, so
   `verified_at` moved alone. Help › Acknowledgments adds `Sources/App/Acknowledgments.swift`:
   the page's first trap applies, and the Xcode project is regenerated before merge
+
+## [2026-11-14] zest-window: review fixes; rearranging re-verified
+
+- zest-window: a Printing row (File › Print… for the tool in front), the tool's view now
+  takes WebRTC away in every frame, and two traps: the rule list and the policy don't stop
+  peer connections, and `window.print()` does nothing in the Zest window. The bundle is
+  7,250,832 bytes (6.91 MB), NOTICE having grown by the appendix of what mermaid.min.js
+  bundles; ADR 0033's size follows. Citations into ZestWebView, ZestWindow, Workbench and
+  NetRelishApp moved with the new lines
+- rearranging: Workbench grew by two lines above its Rearranging block (`printZest`), so its
+  citations below line 164 moved by two; nothing they describe changed

@@ -20,7 +20,7 @@ sources:
   - code: Tests/NetRelishTests/Zest/ZestFilesTests.swift
   - code: Tests/NetRelishTests/Zest/ZestHostTests.swift
   - code: Tests/Fixtures/zest-fixture.html
-verified_at: 36f74b2
+verified_at: 74b9df2
 ---
 
 # The Zest window
@@ -36,29 +36,31 @@ and tested only in CI ([[building-without-a-mac]]).
 
 | Piece | Where | What it does |
 |---|---|---|
-| The files | `Resources/Zest/` | Written by `zest/build.sh --app` and committed: Studio at the root, then `mail/`, `md/`, `image/`, the vendored libraries and fonts in `vendor/`, and `NOTICE`. 143 files, 7,228,672 bytes (6.89 MB) of an 8 MB budget. Added to the app as a folder reference (`project.yml:92`), so it lands as `Contents/Resources/Zest` with its folders kept. The tools' side is `zest/README.md` |
+| The files | `Resources/Zest/` | Written by `zest/build.sh --app` and committed: Studio at the root, then `mail/`, `md/`, `image/`, the vendored libraries and fonts in `vendor/`, and `NOTICE`. 143 files, 7,250,832 bytes (6.91 MB) of an 8 MB budget. Added to the app as a folder reference (`project.yml:92`), so it lands as `Contents/Resources/Zest` with its folders kept. The tools' side is `zest/README.md` |
 | The scheme | `Sources/Zest/ZestSchemeHandler.swift:27` | Serves `zest://app/…` from that folder, read-only, and answers every request before returning |
 | What a path may reach | `Sources/Zest/ZestFiles.swift:32`, `:64` | Pure functions: the URL's path becomes components, or nothing; the components become a file inside the folder, or nothing |
 | Content types | `Sources/Zest/ZestFiles.swift:99` | By extension, plus `NOTICE` and `LICENSE` as text; anything else is bytes |
 | The second layer | `Sources/Zest/ZestFiles.swift:160` | A Content-Security-Policy on every response, with no web origin in any directive and no `'unsafe-eval'`; the comment above it says what each tool needs from it |
-| The third layer | `Sources/Zest/ZestRules.swift:33` | A content rule list that blocks every http(s), ws(s) and file load, compiled once per launch |
+| The third layer | `Sources/Zest/ZestRules.swift:38` | A content rule list that blocks every http(s), ws(s) and file load, compiled once per launch. It sees URL loads only, so WebRTC is the next row's job |
 | Zest's store | `Sources/Pantry/Store/JarProfile.swift:23` | One fixed website data store, reserved beside the jars' derivation so no jar maps to it |
-| A tool's view | `Sources/Zest/ZestWebView.swift:57` | Every Zest web view's configuration: Zest's store, the scheme, the rule list, the frozen `window.netrelish` stub |
-| Where links go | `Sources/Zest/ZestWebView.swift:95` | A pure routing function: a clicked web link opens in the active jar, a link to another tool moves the switcher, blob: and data: pages download, other apps follow the Bench's handoff. It decides downloads too: only the tool's own files, blob: and data: are ever downloaded |
+| A tool's view | `Sources/Zest/ZestWebView.swift:72` | Every Zest web view's configuration: Zest's store, the scheme, the rule list, the frozen `window.netrelish` stub, and a script in every frame that takes the peer-connection (WebRTC) constructors away |
+| Where links go | `Sources/Zest/ZestWebView.swift:112` | A pure routing function: a clicked web link opens in the active jar, a link to another tool moves the switcher, blob: and data: pages download, other apps follow the Bench's handoff. It decides downloads too: only the tool's own files, blob: and data: are ever downloaded |
 | The window | `Sources/Zest/ZestWindow.swift:17` | The tool table, and the window with its segmented switcher; each tool's view is made on first use and kept |
 | Gating | `Sources/App/Workbench.swift:162` | While the Zest window is main, `pageInFront` is nil, and Seal, Capture, Reader, Fill from Me, Pin and Close Tab stand down |
+| Printing | `Sources/Zest/ZestWindow.swift:76` | File › Print… (⌘P) prints the tool in front through WebKit's print operation, Save as PDF included. It stands down while a jar's page is in front |
 | Acknowledgments | `Sources/App/Acknowledgments.swift:14` | Help › Acknowledgments: a small window with the bundle's copy of `NOTICE`, which lists every third-party library, font and Swift package in the app |
 
 ## What leaves a tool
 
 - A clicked http(s) link: a new tab in the active jar, in the main window, which is brought
-  forward or opened (`Sources/Zest/ZestWindow.swift:128`). The main window is the one
-  `ContentView` registers (`Sources/App/NetRelishApp.swift:183`), never Settings or the
+  forward or opened (`Sources/Zest/ZestWindow.swift:144`). The main window is the one
+  `ContentView` registers (`Sources/App/NetRelishApp.swift:191`), never Settings or the
   Design Kit. It is an ordinary page load, which non-negotiable 5 already allows.
 - A download (`a[download]` of the tool's own file, a blob: or data: page, a file WebKit
-  can't show): the save panel, through `WKDownload` (`Sources/Zest/ZestWebView.swift:274`).
+  can't show): the save panel, through `WKDownload` (`Sources/Zest/ZestWebView.swift:291`).
   An `a[download]` pointing at the web is a web link, not a download.
 - A file input: the open panel, as a sheet on the Zest window.
+- A print: File › Print… (⌘P), the print panel as a sheet on the Zest window.
 - Nothing else. A script that navigates to the web without a click is cancelled, and the
   rule list blocks what the policy might miss.
 
@@ -100,7 +102,7 @@ and tested only in CI ([[building-without-a-mac]]).
 > (`project.yml:89`). After changing either, the Xcode project is regenerated.
 
 > ⚠️ **`zestInFront` only changes once a Zest window has registered.** Any window becoming
-> main reaches every `Workbench`; without that guard (`Sources/App/Workbench.swift:188`), a
+> main reaches every `Workbench`; without that guard (`Sources/App/Workbench.swift:190`), a
 > test's window, or the app's own main window appearing, would switch gating off in the
 > middle of another test.
 
@@ -123,6 +125,19 @@ and tested only in CI ([[building-without-a-mac]]).
 > ⚠️ **The gating is `pageInFront`, not `benchTab`.** `benchTab` still drives what the main
 > window shows (the Panel, Reader view), and must not change when the Zest window comes
 > forward. A new command that acts on the page in front reads `pageInFront`.
+
+> ⚠️ **The rule list and the policy don't stop WebRTC.** A content rule list matches URL
+> loads, and no policy directive governs peer connections, so an `RTCPeerConnection` with a
+> STUN or TURN server would reach the network over UDP past both. `ZestWebView` adds a
+> script, in every frame at document start, that replaces the constructors with a fixed
+> `undefined`, and the static scan fails on any use of them in the tools. A jar's view keeps
+> them: WebRTC is part of the web a jar shows.
+
+> ⚠️ **`window.print()` does nothing in the Zest window** (unverified on a Mac: WebKit hands
+> it to a print callback that has no public API, and the host implements none). Printing is
+> File › Print… (⌘P), which `ZestWindowModel.printTool` runs on the tool in front; the print
+> view gets the web view's frame first, or it prints blank. Zest MD's own PDF item says to
+> press ⌘P in the app, and its ⌘P handler never takes the key, so the menu gets it.
 
 > ⚠️ **The stub is injected into the main frame only.** A tool's `srcdoc` preview frame
 > sees no `window.netrelish`. A tool that checks for the app should check the `zest:`
@@ -168,7 +183,8 @@ integration suite loads `Tests/Fixtures/zest-fixture.html` through the real sche
 each test on a throwaway store: it checks that two views on one store share localStorage in
 one process (part of ADR 0015 risk 1, not persistence across a relaunch), that a fetch to
 the web is blocked with and without the policy header, that a download link to the web
-clicked by a script starts no download, and that the stub is frozen.
+clicked by a script starts no download, that the stub is frozen, and that a Zest page has
+no peer connections and can't put them back (a jar's page keeps `RTCPeerConnection`).
 
 `ZestBundleTests` reads the real bundle in the app hosting the tests. Each tool's URL, and
 the vendored DOMPurify, KaTeX, Mermaid, fonts and `NOTICE`, are answered by the scheme

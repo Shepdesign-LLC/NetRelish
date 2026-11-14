@@ -15,7 +15,7 @@ ADR 0015 is the design, and it holds. This moves its timing and nothing else.
 |---|---|---|
 | ADR 0015, "Before Dec 14 vs after" | "Nothing Zest-related goes into the Dec 14 binary." | Superseded. The Zest window, the bundled tools, the rule list, the open and save panels, Seal gating and the root LICENSE are in 1.0. |
 | ADR 0015, the 1.1 row | 1.1 (Jan 2027): the Zest window and everything with it | Moved to 1.0. The 1.2 and 1.3+ rows are unchanged: the bridge, Finder file types, Save to jar and the Quick Look extension stay in 1.2. |
-| ADR 0015, the Dec 1–14 spike | A one-day spike on a branch never merged | Partly replaced by tests that run in CI on every pull request. `ZestHostIntegrationTests`: localStorage on `zest://` shared between two views in one process, the rule list blocking a fetch, a download link to the web starting no download, the frozen stub. `ZestBundleTests`: each tool's URL served from the real bundle with its type and the policy, and each tool running in WebKit from the bundle with nothing refused by the policy, Zest MD's math and diagram included. The bundle is 143 files, 7,228,672 bytes (6.89 MB). Still open for the pull request's demo: whether storage on `zest://` survives a relaunch (risk 1 itself), IndexedDB, the clipboard, saving through the save panel, and ZestImage's font embedding in WebKit. |
+| ADR 0015, the Dec 1–14 spike | A one-day spike on a branch never merged | Partly replaced by tests that run in CI on every pull request. `ZestHostIntegrationTests`: localStorage on `zest://` shared between two views in one process, the rule list blocking a fetch, a download link to the web starting no download, the frozen stub. `ZestBundleTests`: each tool's URL served from the real bundle with its type and the policy, and each tool running in WebKit from the bundle with nothing refused by the policy, Zest MD's math and diagram included. The bundle is 143 files, 7,250,832 bytes (6.91 MB). Still open for the pull request's demo: whether storage on `zest://` survives a relaunch (risk 1 itself), IndexedDB, the clipboard, saving through the save panel, and ZestImage's font embedding in WebKit. |
 | ADR 0012, scope of 1.0 | No Zest | Adds the Zest window. Nothing else in ADR 0012 moves. |
 | CLAUDE.md, Roadmap anchors and repo layout | Zest window deferred to 1.1 | In 1.0; `/Sources/Zest/` and `/Resources/Zest/` are listed. |
 | `docs/ROADMAP.md` | Zest under 1.1 | Zest under 1.0. |
@@ -88,6 +88,6 @@ ADR 0015's risks stand. Three are now on the calendar for 1.0 rather than 1.1:
    share localStorage; it can't show that WebKit writes it to disk. The pull request's demo
    checks it: write in a tool, quit, open NetRelish again, and the work is there; the same
    for IndexedDB. If it isn't, ADR 0015's answer holds: the 1.2 storage bridge moves forward.
-4. **Size.** The tools add 6.89 MB to the app, under the 8 MB budget in
+4. **Size.** The tools add 6.91 MB to the app, under the 8 MB budget in
    `zest/scripts/offline-allowlist.json`; Mermaid is 3.41 MB of it and the fonts 2.00 MB.
    The offline scan fails the merge past the budget.

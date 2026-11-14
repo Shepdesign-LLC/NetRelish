@@ -23,27 +23,16 @@ tag. `docs/MAIL-PRESS.md` §2.1 has the details.
 
 ## Run locally
 
-```bash
-npx vercel dev        # serves index.html and /api/claude on http://localhost:3000
-```
-
-or run the whole Zest topology from `zest/`: `bash build.sh`, then
-`npx vercel dev` there serves this app at `/mail` with the shared
-`/api/claude` — the production shape (`vercel dev` does not run the
-build itself).
-
-or, without the proxy (use your key in the app's Direct route):
-
-```bash
-npx serve .           # any http server works; file:// does not
-```
+ZestMail loads its fonts from `../vendor/`, the folder `zest/build.sh` puts
+beside it, so run it in the Zest topology, from `zest/`: `bash build.sh`, then
+`npx vercel dev` serves this app at `/mail` with the shared `/api/claude`, the
+production shape (`vercel dev` does not run the build itself). Without the
+proxy (use your key in the app's Direct route): `bash build.sh && npx serve dist`
+and open `/mail/`. `file://` does not work.
 
 ## Deploy
 
-```bash
-npx vercel --prod
-```
-
+It deploys as part of the Zest project, from `zest/` (see `zest/README.md`).
 Then in Vercel → Project → Settings → Environment Variables:
 
 - `ANTHROPIC_API_KEY` — your key

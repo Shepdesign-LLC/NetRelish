@@ -11,13 +11,15 @@ over. Import it from Settings → Custom skin → "Import zest-brand.json", or
 drop the file anywhere on the page. Hand-editing one of the four custom
 colors releases the explicit palettes back to derivation.
 
-## Deploy
+## Run and deploy
 
-```bash
-npx vercel --prod
-```
-
-Static site — no build step. `index.html` is the whole app; `sw.js` handles offline; `manifest.webmanifest` handles install and file handling.
+Zest MD loads its sanitizer (DOMPurify), math (KaTeX), diagrams (Mermaid) and
+fonts from `../vendor/`, the folder `zest/build.sh` puts beside it. Served on
+its own from this folder, none of those load. Run it the way it ships:
+`cd zest && bash build.sh && npx serve dist`, then open `/md/`. It deploys as
+part of the Zest project, from `zest/` (see `zest/README.md`), not from here.
+`index.html` is the whole app; `sw.js` handles offline; `manifest.webmanifest`
+handles install and file handling.
 
 ## Bump the cache
 
