@@ -165,7 +165,6 @@ input[type=checkbox]{accent-color:var(--acc)}
 .pro svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.9;flex:none}
 .pro em{font-style:normal;margin-left:auto;font:600 9.5px var(--mono);letter-spacing:.07em;color:var(--acc);opacity:.8}
 .in-app .web-only{display:none!important} html:not(.in-app) .app-only{display:none!important}
-.in-app .pro{cursor:default;opacity:.55} .in-app .pro:hover{color:var(--ink-3);border-color:var(--line)} .in-app .pro em{display:none}
 
 /* disclosures and the export menu: native <details>, so the keyboard and the open state come from the browser */
 summary{list-style:none;cursor:pointer}
@@ -383,22 +382,21 @@ footer .sp{flex:1}
       </details>
       <p class="hint" id="exCount"></p>
     </div>
-    <div class="sec">
-      <p class="lab"><span class="app-only">Not in this version</span><!-- web:start --><span class="web-only">Pro</span><!-- web:end --></p>
+    <!-- web:start --><div class="sec web-only">
+      <p class="lab">Pro</p>
       <details class="disc" id="proList" open><!-- open on every load: the spec (§4.3) never hides Pro from free users. A person may close it -->
-        <summary><span class="app-only">What the app leaves out</span><!-- web:start --><span class="web-only">What Pro adds</span><!-- web:end --></summary>
+        <summary>What Pro adds</summary>
         <div>
-          <button class="pro" data-pro="batch"><svg><use href="#i-lock"/></svg>Export every size from one title<!-- web:start --><em>PRO</em><!-- web:end --></button>
-          <button class="pro" data-pro="svg"><svg><use href="#i-lock"/></svg>SVG export — edit it later in Figma<!-- web:start --><em>PRO</em><!-- web:end --></button>
-          <button class="pro" data-pro="xmp"><svg><use href="#i-lock"/></svg>Write XMP/EXIF into the file<!-- web:start --><em>PRO</em><!-- web:end --></button>
-          <button class="pro" data-pro="s3"><svg><use href="#i-lock"/></svg>Upload — get a pasteable URL<!-- web:start --><em>PRO</em><!-- web:end --></button>
-          <button class="pro" data-pro="regen"><svg><use href="#i-lock"/></svg>Regenerate the set from a new brand version<!-- web:start --><em>PRO</em><!-- web:end --></button>
-          <button class="pro" data-pro="series"><svg><use href="#i-lock"/></svg>Series — one design, twelve titles<!-- web:start --><em>PRO</em><!-- web:end --></button>
+          <button class="pro" data-pro="batch"><svg><use href="#i-lock"/></svg>Export every size from one title<em>PRO</em></button>
+          <button class="pro" data-pro="svg"><svg><use href="#i-lock"/></svg>SVG export — edit it later in Figma<em>PRO</em></button>
+          <button class="pro" data-pro="xmp"><svg><use href="#i-lock"/></svg>Write XMP/EXIF into the file<em>PRO</em></button>
+          <button class="pro" data-pro="s3"><svg><use href="#i-lock"/></svg>Upload — get a pasteable URL<em>PRO</em></button>
+          <button class="pro" data-pro="regen"><svg><use href="#i-lock"/></svg>Regenerate the set from a new brand version<em>PRO</em></button>
+          <button class="pro" data-pro="series"><svg><use href="#i-lock"/></svg>Series — one design, twelve titles<em>PRO</em></button>
         </div>
       </details>
-      <p class="hint app-only" id="cloudNote">These need a Zest account, so the app leaves them out.</p>
-      <!-- web:start --><p class="hint web-only">Pro arrives with Zest accounts. The local core stays free — that is the point.</p><!-- web:end -->
-    </div>
+      <p class="hint">Pro arrives with Zest accounts. The local core stays free — that is the point.</p>
+    </div><!-- web:end -->
   </aside>
 </div>
 
@@ -516,6 +514,7 @@ footer .sp{flex:1}
 const PRODUCT = 'ZestImage';
 const IN_APP = window.ZEST_IN_APP === true;   // set in <head>: the copy inside NetRelish.app
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+if (IN_APP) $('#cByline').value = 'Your name · your-site.example';   // the web's sample byline is the maker's own; the app's is a placeholder
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const slug = s => String(s || '').toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'untitled';
 const snd = n => { try { window.ZestSound.play(n); } catch {} };   // tap · pop · drop · done · nope (the zest-sound kit above)
@@ -620,7 +619,7 @@ const SAMPLES = [
     dark:  { primary: '#b9e02f', ink: '#eef1ec', muted: '#9aa39f', paper: '#0d1013', sheet: '#161b20', line: '#262c2f', dark: '#0d1013' },
     radius: 10, type: { base: 16, ratio: 1.25 } },
 ].map(sanitizeBrand);   // the samples go through the same door as imports — and pick up their ramp there
-const FREE_BRANDS = 3;
+const FREE_BRANDS = IN_APP ? Infinity : 3;   // the web's free-tier cap. The app has no tiers, so no cap
 
 /* ---------- targets (spec §7.4) ---------- */
 /* safe: where the platform's own crop or controls cover the image, as pixel insets {t, r, b, l} at the target's own size.
@@ -1352,7 +1351,7 @@ function renderBrands() {
       <b>${esc(b.name)}</b><small>${yours ? 'yours' : 'sample'}</small></button>
       ${yours ? `<button class="bdel" data-del="${i}" aria-label="Remove ${esc(b.name)}" title="Remove ${esc(b.name)}">×</button>` : ''}</div>`;
   }).join('');
-  $('#brandCount').textContent = `${S.brands.length} of ${FREE_BRANDS} saved brands used.`;
+  $('#brandCount').textContent = IN_APP ? '' : `${S.brands.length} of ${FREE_BRANDS} saved brands used.`;
   $('#mLight').setAttribute('aria-pressed', S.mode === 'light');
   $('#mDark').setAttribute('aria-pressed', S.mode === 'dark');
 }
@@ -1567,8 +1566,7 @@ $('#bOg').addEventListener('click', async () => { const snip = ogSnippet();
   try { await navigator.clipboard.writeText(snip); toast('OG meta copied — swap your-site.example for where the image is hosted.', 'done'); }
   catch { const saved = await download(filename().replace(/\.(png|webp)$/, '') + '.og.txt', new Blob([snip], { type: 'text/plain' }));
     toast(saved ? 'Clipboard access was blocked — the snippet saved as a file instead.' : 'Cancelled — nothing saved.'); } });
-if (IN_APP) $$('.pro').forEach(p => { p.disabled = true; });   // shown, greyed, with the one line under them
-/* web:start */
+/* web:start */   /* Pro is the web's plan. The app's copy holds none of it (App Review 3.1.1); under the switch, .web-only hides it */
 $$('.pro').forEach(p => p.addEventListener('click', () =>
   toast('Pro arrives with Zest accounts — everything local stays free. zest.netrelish.com/pricing has the plan.', 'nope')));
 /* web:end */

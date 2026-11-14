@@ -15,9 +15,13 @@
 //           still a load; this is how those are caught. No entry passes a URL whose path ends in a resource
 //           extension (.png, .js, .css, .woff2, …) unless it names that one exact URL; a protocol-relative
 //           <a href> fails here too.
-//   text    the words "pricing" or "Upgrade" in user-visible text: HTML text, the attributes people read
-//           (title, aria-label, placeholder, alt, value, content, label), href values, and string literals in
-//           scripts (App Store rule 3.1.1). vendor/ is library code and is not read for text.
+//   text    the words "pricing" or "Upgrade", and the web's plan ("Pro", "Zest account", "Not in this version"),
+//           in user-visible text: HTML text, the attributes people read (title, aria-label, placeholder, alt,
+//           value, content, label), href values, and string literals in scripts; and a data-pro row in the
+//           markup (App Store rules 3.1.1 and 2.1). "Crimson Pro" is a typeface. vendor/ is library code and is
+//           not read for text.
+//   rtc     a peer connection (RTCPeerConnection, or a stun:/turn: server) in the tools' own files. WebRTC reaches
+//           the network over UDP with no URL load, so neither the rule list nor the policy header stops it.
 //   budget  the folder is larger than the budget in offline-allowlist.json.
 // Warns (does not fail) on a static src/href to a local file that is not in the folder.
 //
@@ -170,6 +174,7 @@ function scanUrls(rel, text) {
 
 // ---------- visible text ----------
 const WORDS = /\b(pricing|upgrade[sd]?)\b/gi;
+const PLAN_WORDS = /(?<!Crimson )\bPro\b|\bZest accounts?\b|\bNot in this version\b/g;   // the web's plan; the app has none
 const VISIBLE_ATTR = /\s(title|aria-label|placeholder|alt|value|content|label|href)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
 const mask = (s, re) => s.replace(re, x => x.replace(/[^\n]/g, ' '));   // keep offsets and line numbers
 
@@ -238,7 +243,7 @@ function visibleBits(fragment) {   // text and readable attribute values of an H
 }
 
 function scanWords(rel, text, s, off, where) {
-  for (const m of s.matchAll(WORDS)) {
+  for (const m of [...s.matchAll(WORDS), ...s.matchAll(PLAN_WORDS)]) {
     const at = off + m.index;
     const excerpt = s.slice(Math.max(0, m.index - 40), m.index + 40).replace(/\s+/g, ' ').trim();
     if (textRules.some(r => r.re.test(excerpt) && (!r.fileRe || r.fileRe.test(rel)))) continue;
@@ -261,6 +266,13 @@ function scanText(rel, text, ext) {
   html = mask(html, /<style\b[^>]*>[\s\S]*?<\/style>/gi);
   html = mask(html, /<!--[\s\S]*?-->/g);
   for (const b of visibleBits(html)) scanWords(rel, text, b.s, b.off, b.where === 'text' ? 'page text' : `attribute ${b.where}`);
+  for (const m of html.matchAll(/\sdata-pro\b/g)) add(failures, 'text', rel, text, m.index + 1, 'data-pro', 'a Pro row in the markup');
+}
+
+// ---------- WebRTC ----------
+const RTC = /\b(?:webkit)?RTC(?:PeerConnection|DataChannel|IceCandidate)\b|\b(?:stun|turns?):(?=[\w[\/])/g;
+function scanRtc(rel, text) {
+  for (const m of text.matchAll(RTC)) add(failures, 'rtc', rel, text, m.index, m[0], 'a peer connection reaches the network past the rule list and the policy');
 }
 
 // ---------- local references (warnings) ----------
@@ -297,6 +309,7 @@ for (const file of files) {
   scanUrls(rel, text);
   if (!rel.startsWith('vendor/')) {
     scanText(rel, text, ext);
+    scanRtc(rel, text);
     if (ext === '.html') scanLocalRefs(file, rel, text);
   }
 }
@@ -305,11 +318,11 @@ const mb = b => (b / 1048576).toFixed(2) + ' MB';
 if (budget && bytes > budget) failures.push({ kind: 'budget', file: '.', line: 0, what: mb(bytes), detail: `over the ${mb(budget)} budget in offline-allowlist.json` });
 
 console.log(`offline-scan: ${path.relative(process.cwd(), ROOT) || '.'} — ${files.length} files, ${mb(bytes)} (budget ${mb(budget)})`);
-const order = { load: 0, url: 1, text: 2, budget: 3 };
+const order = { load: 0, rtc: 1, url: 2, text: 3, budget: 4 };
 failures.sort((a, b) => order[a.kind] - order[b.kind] || (a.file < b.file ? -1 : a.file > b.file ? 1 : a.line - b.line));
 for (const f of failures) console.log(`  FAIL ${f.kind.padEnd(6)} ${f.file}:${f.line}  ${f.what.length > 110 ? f.what.slice(0, 107) + '...' : f.what}${f.detail ? '  [' + f.detail + ']' : ''}`);
 for (const w of warnings) console.log(`  warn ${w.kind.padEnd(6)} ${w.file}:${w.line}  ${w.what}  [${w.detail}]`);
 if (jsonOut) fs.writeFileSync(jsonOut, JSON.stringify({ root: ROOT, files: files.length, bytes, budget, failures, warnings }, null, 2) + '\n');
 const counts = Object.entries(failures.reduce((o, f) => (o[f.kind] = (o[f.kind] || 0) + 1, o), {})).map(([k, v]) => `${v} ${k}`).join(', ');
-console.log(failures.length ? `RESULT: ${failures.length} failure(s) — ${counts}` : 'RESULT: clean — no network address in a load position, nothing unlisted, no pricing or Upgrade text');
+console.log(failures.length ? `RESULT: ${failures.length} failure(s) — ${counts}` : 'RESULT: clean — no network address in a load position, no peer connection, nothing unlisted, no pricing, Upgrade or Pro text');
 process.exit(failures.length ? 1 : 0);
