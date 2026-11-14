@@ -69,6 +69,13 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   ok(await ml.evaluate(() => getComputedStyle(document.querySelector('.phone-note')).display !== 'none'), 'mail: the Message tab says Width is for desktop clients on a phone');
   // merge tags are chips: a stray tap cannot land inside one
   ok(await ml.evaluate(() => { const c = document.querySelector('#canvas .mtag'); return !!c && c.contentEditable === 'false' && c.dataset.tag === '{{ visitor.first_name | default: "there" }}'; }), 'mail: the merge tag on the canvas is a chip that cannot be typed into');
+  // a tap on the chip puts the caret after it, never a selection of it: the next key types beside the tag instead of replacing it
+  const chipAt = await ml.$eval('#canvas .mtag', e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  await ml.touchscreen.tap(chipAt.x, chipAt.y); await ml.waitForTimeout(300);
+  ok(await ml.evaluate(() => { const s = getSelection(); return s.isCollapsed && s.toString() === ''; }), 'mail: a tap on a merge-tag chip places the caret beside it (was: selected the whole chip)');
+  await ml.keyboard.type('X'); await ml.waitForTimeout(600);
+  ok((await ml.evaluate(() => JSON.parse(localStorage.getItem('mailpress:draft')).blocks[2].props.body)).includes('{{ visitor.first_name | default: "there" }}X'), 'mail: typing after a chip tap keeps the merge tag exactly (was: the key replaced it)');
+  await ml.evaluate(() => document.activeElement.blur()); await ml.waitForTimeout(150);
   // a tap on text places the caret and nothing else: no sheet over what is being typed
   const bodySel = '.cv-block:nth-child(3) [data-edit="body"]';
   await ml.tap(bodySel); await ml.waitForTimeout(350);
@@ -93,8 +100,9 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   ok((await ml.inputValue('#subject')) === 'mobile', 'mail: subject is typeable in the sheet');
   ok(await ml.evaluate(() => [...document.querySelectorAll('#inspector input:not([type=checkbox]):not([type=range]):not([type=color]), #inspector select, #inspector textarea, #src, #nameInput')].every(e => parseFloat(getComputedStyle(e).fontSize) >= 16)), 'mail: every field is 16px, so iOS does not zoom the page on focus');
   ok(await ml.evaluate(() => [...document.querySelectorAll('#panelMessage input[type=text], #panelMessage select')].filter(e => e.getClientRects().length).every(e => e.getBoundingClientRect().height >= 44)), 'mail: sheet fields are 44px touch targets');
-  ok(await ml.evaluate(() => { const bs = [...document.querySelectorAll('#blockBar button')]; return bs.length === 5 && bs.every(b => { const r = b.getBoundingClientRect(); return r.width >= 44 && r.height >= 44; }); }), 'mail: the block bar holds move, duplicate, delete and Properties, each 44px');
-  ok(await ml.evaluate(() => { const b = document.querySelector('#blockBar').getBoundingClientRect(), s = document.querySelector('#inspector').getBoundingClientRect(); return b.bottom <= s.top + 1; }), 'mail: the block bar sits above the sheet, off the block');
+  // with the sheet open the block's actions are the sheet's own top row (the sheet already is its properties), so nothing floats over the block
+  ok(await ml.evaluate(() => { const bar = document.querySelector('#blockBar'), bs = [...bar.querySelectorAll('button')].filter(b => b.getClientRects().length); return bar.closest('#inspector') && bs.length === 4 && bs.every(b => { const r = b.getBoundingClientRect(), at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return r.width >= 44 && r.height >= 44 && at && (at === b || b.contains(at)); }); }), 'mail: with the sheet open, move, duplicate and delete are the sheet\'s top row, each 44px and hit-testable');
+  ok(await ml.evaluate(() => { const b = document.querySelector('#blockBar').getBoundingClientRect(), s = document.querySelector('#inspector').getBoundingClientRect(); return b.top >= s.top - 1 && document.querySelector('#blockName').textContent.length > 2; }), 'mail: nothing floats over the block while the sheet is open (was a bar over the block\'s content)');
   // a toast while the sheet is open lands above it, never on its fields
   await ml.tap('#tabs button[data-t="block"]'); await ml.selectOption('#tagPick', { index: 1 }); await ml.waitForTimeout(300);
   ok(await ml.evaluate(() => { const t = document.querySelector('#toast'), r = t.getBoundingClientRect(), s = document.querySelector('#inspector').getBoundingClientRect(); return t.classList.contains('show') && r.bottom <= s.top + 1 && r.right <= innerWidth; }), 'mail: the toast sits above the open sheet');
@@ -112,6 +120,9 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   await ml.tap('#blockBar [data-act="props"]'); await ml.waitForTimeout(400);
   await ml.tap('#sheetClose'); await ml.waitForTimeout(250);
   ok(await ml.evaluate(() => document.querySelector('#inspector').dataset.open === 'false'), 'mail: the sheet closes from its X');
+  ok(await ml.evaluate(() => { const bar = document.querySelector('#blockBar'), t = document.querySelector('#toast');
+    t.textContent = 'Replaced the canvas with Newsletter'; t.classList.add('show'); const a = t.getBoundingClientRect(), b = bar.getBoundingClientRect(); t.classList.remove('show');
+    return !bar.closest('#inspector') && b.height > 0 && (a.bottom <= b.top || b.bottom <= a.top); }), 'mail: with a block selected and the sheet closed, a toast sits above the block bar, not on its buttons');
   // with the sheet open, Export must close it and every menu item must be hit-testable
   await ml.tap('#blockBar [data-act="props"]'); await ml.waitForTimeout(300);
   await ml.tap('#btnExport'); await ml.waitForTimeout(250);
@@ -125,9 +136,10 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   ok((await ml.$eval('#toast', t => t.textContent)).includes('Source is empty'), 'mail: an empty Source offers the canvas HTML');
   await ml.tap('#modeSeg button[data-m="build"]'); await ml.waitForTimeout(350);
   ok(await ml.evaluate(() => document.querySelector('#viewSeg [data-w="canvas"]').getAttribute('aria-pressed') === 'true' && getComputedStyle(document.querySelector('#canvasWrap')).display !== 'none'), 'mail: back in Build, the canvas comes back (was the Desktop preview)');
+  ok(await ml.evaluate(() => document.querySelector('.pane.left').dataset.open === 'false' && !document.querySelector('#toast').classList.contains('show')), 'mail: back in Build, the drawer Source opened closes and its toast goes (was left open over the canvas)');
   await ml.close();
 
-  for (const [w, h, what] of [[768, 1024, 'tablet'], [844, 390, 'landscape phone']]) {
+  for (const [w, h, what] of [[768, 1024, 'tablet'], [844, 390, 'landscape phone'], [375, 667, 'small phone'], [1024, 768, 'iPad landscape']]) {
     console.log(`== mail at ${w}x${h} (${what}) ==`);
     const c2 = await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, serviceWorkers: 'block' });
     const m2 = await c2.newPage();
@@ -145,11 +157,17 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
       const gutter = await m2.evaluate(() => { const st = document.querySelector('#stage').getBoundingClientRect(); return { x: st.left + 6, y: st.top + 60 }; });
       await m2.touchscreen.tap(gutter.x, gutter.y); await m2.waitForTimeout(300);
       ok(await m2.evaluate(() => document.querySelector('#inspector').dataset.open === 'false'), 'mail tablet: a tap on the stage beside the email closes the sheet');
-    } else {
+    } else if (what === 'landscape phone') {
       ok(await m2.evaluate(() => document.querySelector('.bar').getBoundingClientRect().height <= 60 && document.querySelector('#stage').getBoundingClientRect().height >= 300), 'mail landscape: one toolbar row and a stage of at least 300px (was 244)');
+    } else if (what === 'iPad landscape') {
+      ok(await m2.evaluate(() => { const b = document.querySelector('#btnExport'), r = b.getBoundingClientRect(), at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return innerWidth === 1024 && document.querySelector('.bar').scrollWidth <= innerWidth && r.right <= innerWidth && at && (at === b || b.contains(at)); }), 'mail iPad landscape: the toolbar wraps inside 1024px and Export is hit-testable (was a 1146px layout viewport, Export clipped)');
     }
     await m2.tap('.cv-block:nth-child(4)', { position: { x: 4, y: 4 } }); await m2.waitForTimeout(800);
     ok(await m2.evaluate(() => { const b = document.querySelector('.cv-block[aria-selected="true"]').getBoundingClientRect(), s = document.querySelector('#inspector').getBoundingClientRect(), st = document.querySelector('#stage').getBoundingClientRect(); const right = s.left > innerWidth / 3; return document.querySelector('#inspector').dataset.open === 'true' && b.top >= st.top - 1 && (right ? b.right <= s.left + 1 : b.top + 40 <= s.top); }), `mail ${what}: the sheet opens and the selected block stays in view beside or above it`);
+    // the canvas never drops below 100% to make room for the sheet: beside a docked sheet it becomes the 1:1 phone canvas
+    const px = await m2.evaluate(() => { const e = document.querySelector('[data-edit][data-rich="1"]'), w = document.querySelector('#canvasWrap'); return parseFloat(getComputedStyle(e).fontSize) * (+w.style.zoom || 1); });
+    ok(px >= 15, `mail ${what}: with the sheet open, canvas text still reads at ${px}px${what === 'landscape phone' ? ' (was 11.2px at 70%)' : ''}`);
+    if (what === 'small phone') ok(await m2.evaluate(() => { const st = document.querySelector('#stage').getBoundingClientRect(), s = document.querySelector('#inspector').getBoundingClientRect(); return s.top - st.top >= 200 && document.querySelector('#blockBar').closest('#inspector'); }), `mail small phone: the open sheet leaves at least 200px of the block in sight, with no bar over it (${await m2.evaluate(() => Math.round(document.querySelector('#inspector').getBoundingClientRect().top - document.querySelector('#stage').getBoundingClientRect().top))}px, was about 110)`);
     await c2.close();
   }
 

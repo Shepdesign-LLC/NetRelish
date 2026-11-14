@@ -108,7 +108,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .cv-block[aria-selected="true"] .tag{display:block}
 .cv-block .ptag{display:none} /* 'Hidden on phones': only on the phone canvas, for a block that carries .hide-mobile */
 /* merge tags are chips on the canvas: one piece, never half-typed into. The export keeps the raw tag */
-.canvas .mtag{display:inline-block; padding:0 5px; margin:0 1px; border:1px solid rgba(95,104,121,.45); border-radius:4px; font-size:.86em; line-height:1.35; color:#4b5363; background:rgba(95,104,121,.08); white-space:nowrap; vertical-align:baseline; cursor:default; user-select:all}
+.canvas .mtag{display:inline-block; padding:0 5px; margin:0 1px; border:1px solid rgba(95,104,121,.45); border-radius:4px; font-size:.86em; line-height:1.35; color:#4b5363; background:rgba(95,104,121,.08); white-space:nowrap; vertical-align:baseline; cursor:default}
 .cv-block.drop-before{box-shadow:inset 0 3px 0 var(--accent-ind), inset 0 4px 0 var(--ind-halo)} .cv-block.drop-after{box-shadow:inset 0 -3px 0 var(--accent-ind), inset 0 -4px 0 var(--ind-halo)}
 .canvas.drag-over{outline:2px dashed var(--accent-ind); outline-offset:-2px; box-shadow:0 0 0 2px var(--ind-halo), 0 20px 50px -20px rgba(10,14,24,.35)}
 .canvas [data-edit]{outline:0; cursor:text; border-radius:2px; transition:box-shadow .12s}
@@ -190,6 +190,8 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .btn.mobile-only,.btn.phone-only{display:none}
 .tabs .sheet-x{display:none; flex:0 0 auto; padding:10px 12px; color:var(--ink-3)}
 .tabs .sheet-x svg{width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round}
+.canvas-wrap[data-phone="true"] .stack{display:block !important; width:100% !important}
+.canvas-wrap[data-phone="true"] .hide-mobile{opacity:.45}
 /* ≤1100px: the inspector becomes a bottom sheet and the library a drawer under the toolbar, so the canvas gets the full width */
 @media (max-width:1100px){
   .bar{z-index:35} /* the export popover lives in the bar's stacking context and must paint above the sheet (z 30) */
@@ -223,9 +225,23 @@ button{cursor:pointer; background:none; border:0; padding:0}
   .work[data-sheet="open"] .stage{padding-bottom:calc(var(--sheet-h, 0px) + 84px)} /* and clear of the sheet */
   .work[data-sheet="open"] ~ .blockbar{bottom:calc(var(--sheet-h, 0px) + 8px)}
   body[data-sheet="open"] .toast{bottom:calc(var(--sheet-h, 0px) + 12px)} /* never over the sheet's fields */
+  body[data-bar="true"]:not([data-sheet="open"]) .toast{bottom:calc(70px + env(safe-area-inset-bottom, 0px))} /* nor over the block bar's buttons */
+  /* the sheet starts at a peek that keeps the block in sight; a swipe up on its grabber gives it more room */
+  .inspector[data-tall="true"]{max-height:min(80dvh, calc(100dvh - var(--bar-h, 52px) - 72px))}
+  /* with the sheet open the selected block's actions are the sheet's top row, so nothing floats over the block */
+  .inspector .blockbar[data-open="true"]{display:flex}
+  .inspector .blockbar{position:static; transform:none; flex:none; box-shadow:none; border-radius:0; max-width:none; background:transparent; color:var(--ink); padding:0 6px 0 14px; border-bottom:1px solid var(--rule); transition:none}
+  .inspector .blockbar b{flex:1}
+  .inspector .blockbar button{color:var(--ink-2)}
+  .inspector .blockbar button:active{background:var(--rule)}
+  .inspector .blockbar .props{display:none} /* the sheet already is the block's properties */
 }
-/* ≤1000px: the toolbar wraps to two rows instead of forcing a 983px layout viewport */
-@media (max-width:1000px){
+@media (max-width:1100px) and (orientation:portrait), (max-width:1100px) and (min-height:501px){
+  .inspector{max-height:min(45dvh, calc(100dvh - var(--bar-h, 52px) - 160px))}
+}
+@media (max-width:480px){ .blockbar .props .w{position:absolute; left:-9999px} .blockbar .props{width:44px; padding:0; justify-content:center; margin-left:4px} } /* the icon carries it; the block's name gets the room */
+/* ≤1100px: the toolbar wraps to two rows instead of forcing a wider layout viewport (a 1024 iPad in landscape too) */
+@media (max-width:1100px){
   .app{grid-template-rows:auto 1fr}
   .bar{flex-wrap:wrap; padding:6px 10px; row-gap:4px}
   .spacer{flex:0 0 100%; order:1; height:0}
@@ -241,8 +257,6 @@ button{cursor:pointer; background:none; border:0; padding:0}
   .group{padding:0 3px}
   .stage{padding:10px 8px}
   .canvas-wrap{padding:8px; border-radius:10px}
-  .canvas-wrap[data-phone="true"] .stack{display:block !important; width:100% !important}
-  .canvas-wrap[data-phone="true"] .hide-mobile{opacity:.45}
   .cv-block .ptag{position:absolute; top:6px; right:6px; z-index:2; font:500 11px/1 var(--ui); padding:4px 7px; border-radius:4px; background:var(--ink); color:var(--sheet)}
   .cv-block[data-hidden-phone="true"] .ptag{display:block}
   .zoom{display:none} /* the phone canvas is always 1:1 */
@@ -259,7 +273,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
   body[data-sheet="open"] .toast{bottom:22px; left:calc((100vw - min(360px,48vw)) / 2)}
   .pane.center > .pane-head{display:none}
 }
-@media (max-width:1000px) and (max-height:500px) and (orientation:landscape){
+@media (max-width:1100px) and (max-height:500px) and (orientation:landscape){
   .app{grid-template-rows:auto 1fr}
   .bar{flex-wrap:nowrap; padding:4px 8px; gap:4px}
   .spacer{flex:1 1 0; order:0; height:auto}
@@ -427,8 +441,8 @@ button{cursor:pointer; background:none; border:0; padding:0}
       </div>
     </aside>
   </div>
-  <div class="blockbar" id="blockBar" role="toolbar" aria-label="Selected block"><b id="blockName"></b><button type="button" data-act="up" aria-label="Move up"><svg viewBox="0 0 24 24"><path d="m6 14 6-6 6 6"/></svg></button><button type="button" data-act="down" aria-label="Move down"><svg viewBox="0 0 24 24"><path d="m6 10 6 6 6-6"/></svg></button><button type="button" data-act="dup" aria-label="Duplicate"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button><button type="button" data-act="del" aria-label="Delete"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3m-7 4v6m4-6v6M6 7l1 13h10l1-13"/></svg></button><button type="button" class="props" data-act="props"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Properties</button></div>
-  <div class="fmtbar" id="fmtBar" role="toolbar" aria-label="Format text"><button type="button" data-fmt="bold" aria-label="Bold"><b>B</b></button><button type="button" data-fmt="italic" aria-label="Italic"><i>I</i></button><button type="button" data-fmt="link">Link</button></div>
+  <div class="blockbar" id="blockBar" role="group" aria-label="Selected block"><b id="blockName"></b><button type="button" data-act="up" aria-label="Move up"><svg viewBox="0 0 24 24"><path d="m6 14 6-6 6 6"/></svg></button><button type="button" data-act="down" aria-label="Move down"><svg viewBox="0 0 24 24"><path d="m6 10 6 6 6-6"/></svg></button><button type="button" data-act="dup" aria-label="Duplicate"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button><button type="button" data-act="del" aria-label="Delete"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3m-7 4v6m4-6v6M6 7l1 13h10l1-13"/></svg></button><button type="button" class="props" data-act="props"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span class="w">Properties</span></button></div>
+  <div class="fmtbar" id="fmtBar" role="group" aria-label="Format text"><button type="button" data-fmt="bold" aria-label="Bold" aria-pressed="false"><b>B</b></button><button type="button" data-fmt="italic" aria-label="Italic" aria-pressed="false"><i>I</i></button><button type="button" data-fmt="link">Link</button></div>
 </div>
 <input type="file" id="jsonFile" class="sr" accept=".json,application/json" aria-label="Import a design or a zest-brand.json" tabindex="-1">
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -867,7 +881,10 @@ ${preheader}${content}
     }
     return out + s.slice(at);
   }
-  const md = (s, link) => mdLinks(esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>'), link).split(/\n{2,}/).map(p => `<p style="margin:0 0 14px">${p.replace(/\n/g, '<br>')}</p>`).join('').replace(/<p style="margin:0 0 14px">([\s\S]*)<\/p>$/, '<p style="margin:0">$1</p>');
+  // a custom platform's tags can carry markdown's own marks (*|FNAME|*): they are set aside before bold and italic, and put back as typed
+  const md = (s, link) => { const kept = [], own = TAG_MENU.map(([k]) => tag(k)).filter(v => v && /[*_]/.test(v)).map(esc);
+    let t = esc(s); for (const v of own) t = t.split(v).join('\u0001' + (kept.push(v) - 1) + '\u0001');
+    return mdLinks(t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>'), link).replace(/\u0001(\d+)\u0001/g, (_, i) => kept[i]).split(/\n{2,}/).map(p => `<p style="margin:0 0 14px">${p.replace(/\n/g, '<br>')}</p>`).join('').replace(/<p style="margin:0 0 14px">([\s\S]*)<\/p>$/, '<p style="margin:0">$1</p>'); };
   const img = (src, alt, w, extra = '') => src ? `<img src="${esc(src)}" alt="${esc(alt)}" width="${w}" style="display:block;width:${w}px;max-width:100%;height:auto;border:0${extra}">` : `<!--ph:${w}--><div class="ph" style="width:${w}px;max-width:100%;height:${Math.round(w * .5)}px;border-radius:6px">Image ${w}px wide<br>set a URL in the inspector</div>`;
   const btn = (text, url, bg, color, r, full, font, k = 'cta') => `<table role="presentation" cellpadding="0" cellspacing="0" border="0" ${full ? 'width="100%"' : ''}><tr><td align="center" bgcolor="${bg}" style="background-color:${bg};border-radius:${r}px;mso-padding-alt:14px 26px"><a href="${esc(url)}" style="display:inline-block;padding:14px 26px;font-family:${font};font-size:16px;font-weight:600;line-height:1;color:${color};text-decoration:none;border-radius:${r}px;${full ? 'width:100%;box-sizing:border-box;' : ''}">${ed(k, esc(text))}</a></td></tr></table>`;
   const cell = (p, b, inner, extra = '') => `<tr><td align="${p.align || 'left'}" bgcolor="${col(p.bg || 'brand.sheet')}" style="background-color:${col(p.bg || 'brand.sheet')};padding:${p.pad ?? 24}px ${p.padX ?? 36}px;font-family:${b.font};${extra}">${inner}</td></tr>`;
@@ -976,30 +993,58 @@ ${preheader}${content}
   const short = () => matchMedia('(max-height:500px) and (orientation:landscape)').matches;
   function stageAvail() { const st = $('#stage'), cs = getComputedStyle(st); return st.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight); }
   // Fit puts the email and its mat across the stage, between 50% and 125% (100% at most on a short landscape screen), in 5% steps
-  function fitZoom() { const w = +$('#width').value + MAT * 2; return Math.max(.5, Math.min(short() ? 1 : 1.25, Math.floor(stageAvail() / w * 20) / 20)); }
-  const zoomNow = () => state.zoom === 'fit' || short() ? fitZoom() : state.zoom;
+  const shortPhone = () => narrow() && short();        // a landscape phone or short tablet: its toolbar hides the zoom control
+  // Fit's ceiling: 125%, or 150% on a stage wider than 1500px, so a 2560 display does not leave the email a narrow slab
+  const fitCap = () => shortPhone() ? 1 : stageAvail() > 1500 ? 1.5 : 1.25;
+  function fitZoom() { const w = +$('#width').value + MAT * 2; return Math.max(.5, Math.min(fitCap(), Math.floor(stageAvail() / w * 20) / 20)); }
+  const zoomNow = () => state.zoom === 'fit' || shortPhone() ? fitZoom() : state.zoom;
+  // the phone canvas: on a phone, and on any narrow screen whose stage cannot hold the email at 100% (the docked sheet
+  // on a landscape phone): the email at the stage's width with its own phone rules, never shrunk under 100%
+  const phoneCanvas = () => phone() || (narrow() && stageAvail() < +$('#width').value + MAT * 2);
   function paintZoom() {
     $$('#zoomSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.z === String(state.zoom))));
-    $('#zoomVal').textContent = Math.round((phone() ? 1 : zoomNow()) * 100) + '%';
+    $('#zoomVal').textContent = state.zoom === 'fit' && !phoneCanvas() ? Math.round(zoomNow() * 100) + '%' : '';   // under 100–150% the pressed button already says it
   }
   // sizes and scales the canvas without touching its content: safe while a field on it is being edited
+  let lastZ = null;
   function fitCanvas() {
-    const wrap = $('#canvasWrap'), ph = phone(), z = ph ? 1 : zoomNow();
+    const wrap = $('#canvasWrap'), ph = phoneCanvas(), z = ph ? 1 : zoomNow();
     wrap.dataset.phone = String(ph);
     wrap.style.width = ph ? '' : $('#width').value + 'px';           // a phone shows the email at screen width; Width is for desktop clients
     wrap.style.background = $('#bg').value;
     wrap.style.zoom = z === 1 ? '' : z;
     wrap.style.setProperty('--fit', z);                                // the block tools and tag counter-zoom by this
     paintZoom();
+    if (z !== lastZ) { lastZ = z; centerStage(); }                      // a new zoom starts centered: an email wider than the stage overflows both sides evenly
+    keepTools();
+  }
+  function centerStage() { const st = $('#stage'); st.scrollLeft = Math.max(0, (st.scrollWidth - st.clientWidth) / 2); }
+  // the selected block's tools stay on screen when a zoomed email is wider than the stage: they slide in from the block's edge
+  function keepTools() {
+    const tl = canvas.querySelector('.cv-block[aria-selected="true"] .tools'); if (!tl) return;
+    tl.style.right = '';
+    if (narrow() || !tl.offsetWidth) return;
+    const st = $('#stage'), sr = st.getBoundingClientRect(), lim = sr.left + st.clientWidth - 8;
+    for (let i = 0, off = 6; i < 3; i++) {
+      const r = tl.getBoundingClientRect(), d = r.right - lim; if (d <= 0.5) break;
+      const before = r.right; off += d; tl.style.right = off + 'px';
+      const moved = before - tl.getBoundingClientRect().right; if (moved > 0.5 && Math.abs(moved - d) > 0.5) { off += d * (d / moved - 1); tl.style.right = off + 'px'; }
+    }
   }
   // a merge tag on the canvas becomes a chip: one piece the caret can't land inside, read back as the exact tag
-  const tagLabel = t => { const m = t.match(/\{\{\s*([\w.]+)/); const k = m ? m[1].split('.').pop() : 'tag'; return k.replace(/_url$/, '').replace(/_/g, ' '); };
+  const tagLabel = t => { const m = t.match(/\{\{\s*([\w.]+)/); if (!m) { const own = TAG_MENU.find(([k]) => tag(k) === t); return own ? own[1].replace(/ URL$/, '').toLowerCase() : 'tag'; } const k = m[1].split('.').pop(); return k.replace(/_url$/, '').replace(/_/g, ' '); };
+  const reEsc = v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  function tagPattern() {   // {{ … }} always; a custom platform's own tags as well (*|FNAME|*, %recipient.first%, …)
+    const own = TAG_MENU.map(([k]) => tag(k)).filter(v => v && v.length >= 3 && !/^\{\{/.test(v) && !/^https?:/i.test(v)).sort((a, b) => b.length - a.length).map(reEsc);   // under 3 characters a tag would chip ordinary text
+    return new RegExp(['\\{\\{[^}]+\\}\\}', ...own].join('|'), 'g');
+  }
   function chipTags(root) {
+    const pat = tagPattern();
     $$('[data-edit]', root).forEach(ed => {
       const walker = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT), hits = [];
-      while (walker.nextNode()) if (/\{\{[^}]+\}\}/.test(walker.currentNode.nodeValue)) hits.push(walker.currentNode);
+      while (walker.nextNode()) { pat.lastIndex = 0; if (pat.test(walker.currentNode.nodeValue)) hits.push(walker.currentNode); }
       hits.forEach(n => {
-        const frag = document.createDocumentFragment(), re = /\{\{[^}]+\}\}/g; let at = 0, m;
+        const frag = document.createDocumentFragment(), re = new RegExp(pat.source, 'g'); let at = 0, m;
         while ((m = re.exec(n.nodeValue))) {
           if (m.index > at) frag.appendChild(document.createTextNode(n.nodeValue.slice(at, m.index)));
           const c = document.createElement('span'); c.className = 'mtag'; c.contentEditable = 'false'; c.dataset.tag = m[0]; c.title = m[0]; c.textContent = tagLabel(m[0]);
@@ -1032,7 +1077,8 @@ ${preheader}${content}
   function syncSelection() {
     $$('.cv-block', canvas).forEach(x => x.setAttribute('aria-selected', String(x.dataset.id === state.selected)));
     const i = state.blocks.findIndex(x => x.id === state.selected), bar = $('#blockBar'), on = i > -1 && state.mode === 'build' && state.view === 'canvas';
-    bar.dataset.open = String(on); $('#work').dataset.sel = String(on);
+    bar.dataset.open = String(on); $('#work').dataset.sel = String(on); document.body.dataset.bar = String(on && narrow());
+    keepTools();
     if (!on) return;
     $('#blockName').textContent = BLOCKS[state.blocks[i].type].name;
     $('[data-act="up"]', bar).disabled = i === 0; $('[data-act="down"]', bar).disabled = i === state.blocks.length - 1;
@@ -1049,6 +1095,11 @@ ${preheader}${content}
     snd({ up: 'tap', down: 'tap', dup: 'pop', del: 'drop' }[act]);
     renderCanvas(); renderInspector(); run(); revealSelected();
   }
+  canvas.addEventListener('pointerup', e => {
+    const chip = e.target.closest && e.target.closest('.mtag'); if (!chip) return;
+    setTimeout(() => { const ed = chip.closest('[data-edit]'); if (!ed || !chip.isConnected) return; if (document.activeElement !== ed) ed.focus({ preventScroll: true });
+      const r = document.createRange(); r.setStartAfter(chip); r.collapse(true); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }, 0);
+  });
   canvas.addEventListener('click', e => {
     const act = e.target.closest('[data-act]'), blk = e.target.closest('.cv-block');
     if (e.target.closest('a')) e.preventDefault();
@@ -1078,6 +1129,7 @@ ${preheader}${content}
   function placeFmt() {
     if (!fmtEd || !fmtEd.isConnected || document.activeElement !== fmtEd) { fmtBar.dataset.open = 'false'; return; }
     fmtBar.dataset.open = 'true';
+    for (const c of ['bold', 'italic']) { let on = false; try { on = document.queryCommandState(c); } catch {} $(`[data-fmt="${c}"]`, fmtBar).setAttribute('aria-pressed', String(on)); }
     const r = fmtEd.getBoundingClientRect(), top0 = $('.bar').getBoundingClientRect().bottom + 6, h = fmtBar.offsetHeight, w = fmtBar.offsetWidth;
     let top = r.top - h - 8;
     if (top < top0) top = r.bottom + 8 + h < document.documentElement.clientHeight ? r.bottom + 8 : top0;   // no room above the text: below it, or under the toolbar
@@ -1092,7 +1144,7 @@ ${preheader}${content}
     fmtEd.focus(); document.execCommand(b.dataset.fmt); snd('tap');
   });
   canvas.addEventListener('focusout', () => setTimeout(() => { placeFmt(); if (!(document.activeElement && document.activeElement.closest && document.activeElement.closest('#canvas [data-edit]'))) $('#work').dataset.editing = 'false'; }, 0));
-  $('#stage').addEventListener('scroll', () => { if (fmtBar.dataset.open === 'true') placeFmt(); }, { passive: true });
+  $('#stage').addEventListener('scroll', () => { if (fmtBar.dataset.open === 'true') placeFmt(); keepTools(); }, { passive: true });
   document.addEventListener('selectionchange', () => { if (fmtBar.dataset.open === 'true') placeFmt(); });
   canvas.addEventListener('input', e => {
     const ed = e.target.closest('[data-edit]'); if (!ed) return;
@@ -1231,9 +1283,12 @@ ${preheader}${content}
   const docked = () => narrow() && matchMedia('(max-height:500px) and (orientation:landscape)').matches;   // the sheet docks on the right
   const measureSheet = () => root.style.setProperty('--sheet-h', insp.offsetHeight + 'px');
   // the sheet is open or closed in one place, so the stage, the block bar and the toast can make room for it
+  const blockBar = $('#blockBar'), barHome = blockBar.nextElementSibling;
   function setSheet(open) {
     insp.dataset.open = String(!!open);
     const v = open && narrow() ? 'open' : 'closed'; work.dataset.sheet = v; document.body.dataset.sheet = v;
+    if (v === 'open') { if (blockBar.parentElement !== insp) insp.insertBefore(blockBar, $('#tabs')); }   // the block's actions ride in the sheet, off the block
+    else { if (blockBar.parentElement === insp) barHome.before(blockBar); insp.dataset.tall = 'false'; }
     if (open && narrow()) { measureSheet(); libPane.dataset.open = 'false'; if (docked()) revealAfterFit = true; }
   }
   function showTab(t) { $$('#tabs button[data-t]').forEach(b => b.setAttribute('aria-selected', b.dataset.t === t)); $$('.panel').forEach(p => p.dataset.active = p.id === 'panel' + t[0].toUpperCase() + t.slice(1)); if (booted && narrow()) setSheet(true); }
@@ -1255,12 +1310,13 @@ ${preheader}${content}
   // the sheet closes from its X, a tap or a downward swipe on its grabber or tab row, a tap on the stage around the email,
   // or a tap into text on the canvas
   (() => {
-    let y0 = null, dy = 0, pid = null, dragged = false;
-    const down = e => { if (!narrow() || docked() || insp.dataset.open !== 'true' || (e.pointerType === 'mouse' && e.button !== 0)) return; y0 = e.clientY; dy = 0; pid = e.pointerId; dragged = false; if (e.currentTarget.id === 'sheetGrab') e.currentTarget.setPointerCapture(pid); };
-    const move = e => { if (y0 == null || e.pointerId !== pid) return; dy = Math.max(0, e.clientY - y0); if (dy > 8) { dragged = true; insp.style.transition = 'none'; insp.style.transform = `translateY(${dy}px)`; } };
+    let y0 = null, dy = 0, raw = 0, pid = null, dragged = false;
+    const down = e => { if (!narrow() || docked() || insp.dataset.open !== 'true' || (e.pointerType === 'mouse' && e.button !== 0)) return; y0 = e.clientY; dy = 0; raw = 0; pid = e.pointerId; dragged = false; if (e.currentTarget.id === 'sheetGrab') e.currentTarget.setPointerCapture(pid); };
+    const move = e => { if (y0 == null || e.pointerId !== pid) return; raw = e.clientY - y0; dy = Math.max(0, raw); if (raw < -8) dragged = true; if (dy > 8) { dragged = true; insp.style.transition = 'none'; insp.style.transform = `translateY(${dy}px)`; } };
     const up = e => {
       if (y0 == null || e.pointerId !== pid) return;
       const grab = e.currentTarget.id === 'sheetGrab'; y0 = null; insp.style.transition = ''; insp.style.transform = '';
+      if (grab && raw < -30) { insp.dataset.tall = 'true'; measureSheet(); return; }   // a swipe up on the grabber: more room for the fields
       if (dy > 60 || (grab && !dragged)) setSheet(false);   // a swipe past 60px, or a plain tap on the grabber
     };
     [$('#sheetGrab'), $('#tabs')].forEach(el => { el.addEventListener('pointerdown', down); el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', () => { y0 = null; insp.style.transition = ''; insp.style.transform = ''; }); });
@@ -1281,20 +1337,22 @@ ${preheader}${content}
      one. All three take the canvas zoom, and each frame is as tall as its email, so the stage scrolls the way it does on the canvas ---------- */
   function previewW() {
     if (state.view === '375') return 375;
-    const W = +$('#width').value, z = phone() ? 1 : zoomNow();
+    const W = +$('#width').value, z = phoneCanvas() ? 1 : zoomNow();
     return Math.max(W + MAT * 2, Math.min(760, Math.floor(stageAvail() / z)));
   }
   function sizeFrame() {
     try {
       const d = frame.contentDocument; if (!d || !d.documentElement) return;
       d.documentElement.style.overflow = 'hidden';
+      const st = $('#stage'), y = st.scrollTop, x = st.scrollLeft;     // collapsing the frame clamps the stage's scroll: keep where the reader was
       frame.style.height = '0px';                                       // measured at zero height, so the email's own length comes back
       frame.style.height = Math.max(160, d.documentElement.scrollHeight) + 'px';
+      st.scrollTop = y; st.scrollLeft = x;
     } catch {}
   }
   function fitPreview() {
     if (frame.style.display === 'none' || state.view === 'canvas') return;
-    const vw = previewW(), z = phone() ? Math.min(1, stageAvail() / vw) : zoomNow(), W = +$('#width').value;
+    const vw = previewW(), z = phoneCanvas() ? Math.min(1, stageAvail() / vw) : zoomNow(), W = +$('#width').value;
     frame.style.width = vw + 'px'; frame.style.zoom = z === 1 ? '' : z;
     sizeFrame();
     if (last) $('#centerNote').textContent = state.view === '375' ? '375px · compiled output' : `${W}px email in a ${vw}px window · ${state.view === 'outlook' ? 'Outlook simulation (Word engine approximation)' : 'compiled output'}`;
@@ -1340,14 +1398,16 @@ ${preheader}${content}
   $$('#panelMessage input, #panelMessage select').forEach(el => el.addEventListener('input', () => { renderCanvas(); schedule(); }));
 
   /* ---------- modes & views ---------- */
-  let viewBeforeSource = null;   // Source has no canvas view; going back to Build returns to the canvas if that is where Source took you from
+  let viewBeforeSource = null, libBySource = false;   // Source has no canvas view; going back to Build returns to the canvas if that is where Source took you from
   function setMode(m) {
     const canvasHTML = state.mode === 'build' && m === 'source' && last ? last.html : null;
     state.mode = m; $('#work').dataset.mode = m; $$('#modeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === m));
     $('#leftBuild').style.display = m === 'build' ? '' : 'none'; src.style.display = m === 'build' ? 'none' : '';
     $('#fontsField').style.display = m === 'build' ? 'none' : '';   // Build takes its fonts from the brand; the fallback stack only applies to pasted HTML
     $('#btnLib').setAttribute('aria-label', m === 'source' ? 'Source HTML' : 'Blocks and templates');
-    if (narrow() && m === 'source') openLib(); // the textarea lives in the drawer — Source mode must open it
+    if (narrow() && m === 'source') { openLib(); libBySource = true; } // the textarea lives in the drawer — Source mode must open it
+    else if (m === 'build' && libBySource) { libBySource = false; if (narrow()) libPane.dataset.open = 'false'; }   // and Build puts it away again
+    if (m === 'build') hideToast();
     $('#leftHead').innerHTML = (m === 'build' ? `<b>Blocks</b><span>${touchUI ? 'tap to add to the canvas' : 'drag onto the canvas'}</span>` : '<b>Source HTML</b><span>paste anything — yours, or what a model produced</span>') + '<div class="right"><button class="btn icon mobile-only" id="libClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>';
     $$('#viewSeg button')[0].style.display = m === 'build' ? '' : 'none';
     if (m === 'source' && state.view === 'canvas') { viewBeforeSource = 'canvas'; setView('600'); }
@@ -1591,8 +1651,9 @@ Rules: table-based layout for anything side-by-side (role="presentation", cellpa
 
   /* ---------- toast ---------- */
   let toastT, toastAct = null;   // toastAct: the action of the toast on screen, so ⌘Z can run it too
+  function hideToast() { const t = $('#toast'); t.classList.remove('show'); toastAct = null; const b = $('button', t); if (b) b.remove(); }   // a hidden toast keeps no button in the tab order
   function toast(msg, action) { if (typeof action === 'string') { snd(action); action = null; }   // a string is a sound name; an object is the action button
-    const t = $('#toast'), hide = () => { t.classList.remove('show'); toastAct = null; const b = $('button', t); if (b) b.remove(); };   // a hidden toast keeps no button in the tab order
+    const t = $('#toast'), hide = hideToast;
     t.textContent = ''; const m = document.createElement('span'); m.textContent = msg; t.appendChild(m); toastAct = action ? () => { hide(); snd('tap'); action.fn(); } : null;
     if (action) { const b = document.createElement('button'); b.type = 'button'; b.textContent = action.label; b.onclick = toastAct; t.appendChild(b); } t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(hide, action ? 6000 : 2400); }
 

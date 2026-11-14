@@ -13,7 +13,8 @@ Export → Import design menu, or by dropping the file anywhere on the page.
 ## The canvas
 
 On a desktop the email draws at a readable size: **Fit · 100% · 125% · 150%**
-in the canvas pane head (Fit fills the pane, up to 125%). The choice is
+in the canvas pane head (Fit fills the pane, up to 125%, or 150% on a pane
+wider than 1500px). The choice is
 remembered, the previews use the same zoom, and the exported HTML never
 changes with it. On a phone the canvas is the email at phone width, 1:1, with
 columns stacked; tap text to type, tap a block's edge or **Properties** for
