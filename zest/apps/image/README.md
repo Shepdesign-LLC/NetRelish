@@ -58,7 +58,12 @@ series:
   the short side, about 11px when a 1200px card shows in a feed.
 - **Parts.** A footer rail (brand mark and byline), a kicker chip with the
   brand's radius, the brand initial set tone-on-tone, and the logo placed by
-  its measured shape.
+  its measured shape, inside the safe zone like type.
+- **Logo color.** Under the logo, **Color: Auto · Original · One color**. Auto
+  keeps the logo's own colors and sets it in one color only where it would not
+  read: a dark wordmark on a Dark card or a deep field. A logo that fills its
+  box (a badge) keeps its colors. On Logo lockup a wide wordmark is the lockup
+  itself; a square mark sits on a white tile beside the name.
 
 The layout picker shows each one live, in the current brand, mode and target.
 `tests/cards.js` checks all eight across every target, both modes and both

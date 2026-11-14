@@ -6,9 +6,14 @@
 //   – it is at least 0.042 of the short side (about 11px when a 1200px card shows at 500px in a feed);
 //   – it reads against what it sits on (data-bg): 4.5:1, or 3:1 for bold type at 0.06 of the short side.
 // Decorative glyphs (data-deco: the tonal initial, the quote mark, the series numeral) may bleed and are skipped.
+// Every logo (<image data-logo>) sits inside the safe rect too, like type; photos are fields and may bleed.
+// On square and tall targets a short headline is at least 0.1 of the short side in every layout that sets one:
+// a decorative panel gives way before the headline shrinks to the floor.
 // Plus: on targets with a platform safe zone, the card's safe rect sits inside the zone the stage draws.
 // And: the layout picker draws a live thumbnail of every layout, logos are placed by their measured
-// aspect, and user text is escaped. Serve: image :8772.
+// aspect, a dark wordmark on a Dark card is set in one color that reads, a brand whose head face is
+// 400-only still gets it (the weighted request fails, the plain one is made), the thumbnails repaint once after
+// typing stops and not at all for a format change, and user text is escaped. Serve: image :8772.
 const { chromium } = require('playwright');
 const LAUNCH = process.env.ZEST_CHROMIUM ? { executablePath: process.env.ZEST_CHROMIUM } : {};
 let pass = 0, fail = 0;
@@ -76,11 +81,17 @@ const COPY = {
         else if (!vocab.has(w.toUpperCase()) && !vocab.has(norm(w))) bad.push(`${label} splits a word ("${w}")`);
       }
       const bg = t.getAttribute('data-bg'), fill = t.getAttribute('fill');
-      if (!bg || !/^#[0-9a-f]{3,6}$/i.test(bg)) bad.push(`${label} names no background`);
+      if (!bg || !/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(bg)) bad.push(`${label} names no background`);
       else { const need = weight >= 700 && size >= u * 0.06 ? 3 : 4.5, r = cr(fill, bg);
         if (r < need - 0.005) bad.push(`${label} ${fill} on ${bg} is ${r.toFixed(2)}:1, needs ${need}`); }
     }
     if (!svg.querySelector('text:not([data-deco])')) bad.push('no type on the card');
+    for (const im of svg.querySelectorAll('image[data-logo]')) {
+      const x = +im.getAttribute('x'), y = +im.getAttribute('y'), w = +im.getAttribute('width'), h = +im.getAttribute('height');
+      if (x < x0 - tol || y < y0 - tol || x + w > x1 + tol || y + h > y1 + tol) bad.push(`logo leaves the safe rect (${[x, y, x + w, y + h].map(Math.round)} vs ${[x0, y0, x1, y1].map(Math.round)})`);
+    }
+    const ti = svg.querySelector('text[data-role="title"]');
+    if (copy.cTitle.split(' ').length < 6 && W / H < 1.3 && ti && +ti.getAttribute('font-size') < u * 0.1 - 0.05) bad.push(`the headline is ${ti.getAttribute('font-size')}px, under 0.1u (${(u * 0.1).toFixed(1)}) — the panel should give way first`);
     return bad;
   }, copy);
 
@@ -136,18 +147,66 @@ const COPY = {
   ok(lg && Math.abs(lg.ar - 4) < 0.05, `a 4:1 logo is drawn 4:1, not boxed into a guess (${lg && lg.ar.toFixed(2)})`);
   ok(lg && Math.abs(lg.right - lg.x1) < 1, `a logo on the right of the rail ends on the right margin (${lg && lg.right.toFixed(1)} vs ${lg && lg.x1})`);
 
+  console.log('== a dark wordmark on a Dark card is set in one color ==');
+  const dark = await pg.evaluate(() => {   // a transparent 4:1 wordmark in near-black ink: the logo most brands actually have
+    const c = document.createElement('canvas'); c.width = 400; c.height = 100; const x = c.getContext('2d');
+    x.fillStyle = '#1d1d1f'; x.font = 'bold 72px sans-serif'; x.textBaseline = 'middle'; x.fillText('Wordmark', 8, 52);
+    return c.toDataURL('image/png').split(',')[1];
+  });
+  await pg.setInputFiles('#fLogo', { name: 'wordmark.png', mimeType: 'image/png', buffer: Buffer.from(dark, 'base64') });
+  await pg.waitForTimeout(400); await pick('#mDark');
+  const reads = async () => {
+    const out = [];
+    for (const l of LAYOUTS) {
+      await pick(`#layoutGrid [data-l="${l}"]`);
+      out.push(...await pg.evaluate(l => {
+        const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+        const L = h => { const [r, g, b] = hex(h).map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+        const cr = (a, b) => { const p = L(a), q = L(b); return (Math.max(p, q) + 0.05) / (Math.min(p, q) + 0.05); };
+        return [...document.querySelectorAll('#stageSvg image[data-logo]')].map(im => {
+          const ink = im.getAttribute('data-ink') || '#1d1d1f', bg = im.getAttribute('data-bg');
+          return { l, ink: !!im.getAttribute('data-ink'), filter: !!im.getAttribute('filter') && !!document.querySelector('#stageSvg ' + im.getAttribute('filter').slice(4, -1) + ' feFlood'), r: cr(ink, bg) };
+        });
+      }, l));
+    }
+    return out;
+  };
+  const dk = await reads();
+  ok(dk.length >= 7 && dk.every(d => d.r >= 3 && (!d.ink || d.filter)), `in Dark, the wordmark reads at 3:1 or better on every card — set in one color where its own ink would vanish (${dk.filter(d => d.ink).length} recolored; worst ${Math.min(...dk.map(d => d.r)).toFixed(2)}:1)`);
+  ok(await pg.$eval('#logoInk', e => !e.hidden && e.querySelector('[data-ink="auto"]').getAttribute('aria-pressed') === 'true'), 'the Logo color control shows with a logo, on Auto');
+  await pick('#logoInk [data-ink="original"]');
+  ok(await pg.evaluate(() => !document.querySelector('#stageSvg image[filter]')), 'Original keeps the logo in its own colors everywhere');
+  await pick('#logoInk [data-ink="auto"]'); await pick('#mLight');
+  await pg.setInputFiles('#fLogo', { name: 'wide.png', mimeType: 'image/png', buffer: Buffer.from(assets.logo, 'base64') });
+  await pg.waitForTimeout(300);
+
   console.log('== the layout picker shows the layouts ==');
-  await pg.waitForTimeout(400);
+  const thumbsAre = (fn, arg) => pg.waitForFunction(fn, arg, { timeout: 4000 }).then(() => true, () => false);
+  await thumbsAre(() => [...document.querySelectorAll('#layoutGrid .lthumb > svg')].length === 8 && [...document.querySelectorAll('#layoutGrid .lthumb > svg')].every(s => s.getAttribute('viewBox') === '0 0 1200 630'));
   const th = await pg.evaluate(() => [...document.querySelectorAll('#layoutGrid .lcell')].map(c => {
     const s = c.querySelector('.lthumb > svg'); return { l: c.dataset.l, ok: !!s && !!s.querySelector('rect') && s.getAttribute('viewBox') === '0 0 1200 630', name: c.querySelector('b').textContent };
   }));
   ok(th.length === 8 && th.every(t => t.ok && t.name), `all eight layouts show a live thumbnail in the current target, with their name (${th.filter(t => t.ok).length}/8)`);
   const thumbs = await pg.evaluate(() => [...document.querySelectorAll('#layoutGrid .lthumb')].map(e => e.innerHTML));
   ok(thumbs.every(h => h.includes('#1f4ed8') && !h.includes('@font-face') && !h.includes('data:image')), 'thumbnails use the brand, and stay light: no embedded fonts, no data URIs');
-  await pick('#mDark'); await pg.waitForTimeout(400);
-  ok(await pg.evaluate(() => [...document.querySelectorAll('#layoutGrid .lthumb')].every(e => e.innerHTML.includes('#8fb0ff'))), 'thumbnails follow the Light/Dark switch');
-  await pick('[data-t="story"]'); await pg.waitForTimeout(400);
-  ok(await pg.evaluate(() => [...document.querySelectorAll('#layoutGrid .lthumb > svg')].every(s => s.getAttribute('viewBox') === '0 0 1080 1920')), 'thumbnails follow the target');
+  await pick('#mDark');
+  ok(await thumbsAre(() => [...document.querySelectorAll('#layoutGrid .lthumb')].every(e => /#8fb0ff|#0f1420/.test(e.innerHTML))), 'thumbnails follow the Light/Dark switch (each wears the Dark primary or the Dark ground)');
+  await pick('[data-t="story"]');
+  ok(await thumbsAre(() => [...document.querySelectorAll('#layoutGrid .lthumb > svg')].every(s => s.getAttribute('viewBox') === '0 0 1080 1920')), 'thumbnails follow the target');
+  // they repaint once typing stops, not per key, and a redraw that changes nothing they show (format, scale) costs nothing
+  await pg.waitForTimeout(600);
+  await pg.evaluate(() => { window.__tp = 0; new MutationObserver(() => window.__tp++).observe(document.querySelector('#layoutGrid [data-l="title"] .lthumb'), { childList: true }); });
+  await pick('#layoutGrid [data-l="kicker"]'); await pg.waitForTimeout(600);
+  await pg.click('#cTitle'); await pg.keyboard.press('End');
+  for (const ch of ' and now') { await pg.keyboard.type(ch); await pg.waitForTimeout(90); }
+  await pg.waitForTimeout(900);
+  const typed = await pg.evaluate(() => window.__tp);
+  const sel = (id, v) => pg.evaluate(([id, v]) => { const e = document.getElementById(id); e.value = v; e.dispatchEvent(new Event('change', { bubbles: true })); }, [id, v]);
+  await sel('eFmt', 'webp'); await sel('eScale', '1'); await pg.waitForTimeout(900);
+  const fmt = await pg.evaluate(() => window.__tp) - typed;
+  await sel('eFmt', 'png'); await sel('eScale', '2');
+  ok(typed === 1 && fmt === 0, `thumbnails repaint once after 8 keystrokes (${typed}) and not for a format or scale change (${fmt})`);
+  await setCopy(COPY.short);
   ok(await pg.evaluate(() => document.querySelector('#layoutGrid [data-l="kicker"]').getAttribute('aria-pressed') === 'true'), 'the picked layout stays marked');
 
   console.log('== the Safe zone overlay and the cards agree ==');
@@ -179,6 +238,30 @@ const COPY = {
   await pg.waitForTimeout(400);
   const xs = await pg.evaluate(() => ({ el: document.querySelectorAll('#stageSvg img, #stageSvg script, #stageSvg g[onload], #layoutGrid img, #layoutGrid script').length, txt: document.querySelector('#stageSvg svg').textContent, zx: window.__zx }));
   ok(xs.el === 0 && !xs.zx && xs.txt.includes('<img') && xs.txt.includes('</tspan>'), 'titles and bylines are drawn as text, never as markup (stage and thumbnails)');
+
+  console.log('== a head face with one weight still loads ==');
+  // DM Serif Display has only 400: Google answers the weighted request with an HTTP 400 and no CORS header, so
+  // fetch() throws. The app must then ask again without weights, and set the face at the weight it got.
+  const fpg = await ctx.newPage(), asked = [];
+  fpg.on('pageerror', e => errs.push(e.message));
+  const ttf = require('fs').readFileSync(__dirname + '/fixtures/Caladea-Regular.ttf');
+  await fpg.route(/cdnjs\.cloudflare\.com/, r => r.abort());
+  await fpg.route(/fonts\.googleapis\.com/, r => {
+    const u = r.request().url(); asked.push(decodeURIComponent(u));
+    if (/:[a-z,]*wght@/.test(u)) return r.fulfill({ status: 400, body: 'Bad request' });
+    const fam = decodeURIComponent((u.match(/family=([^&:]+)/) || [])[1] || 'X').replace(/\+/g, ' ');
+    return r.fulfill({ status: 200, contentType: 'text/css', headers: { 'Access-Control-Allow-Origin': '*' },
+      body: `/* latin */\n@font-face { font-family: '${fam}'; font-style: normal; font-weight: 400; src: url(https://fonts.gstatic.com/s/x/v1/face.woff2) format('woff2'); unicode-range: U+0000-00FF; }` });
+  });
+  await fpg.route(/fonts\.gstatic\.com/, r => r.fulfill({ status: 200, contentType: 'font/ttf', headers: { 'Access-Control-Allow-Origin': '*' }, body: ttf }));
+  await fpg.goto(process.env.ZI_URL || 'http://localhost:8772/', { waitUntil: 'domcontentloaded' }); await fpg.waitForTimeout(400);
+  const serif = { zest: 1, name: 'Serif Press', fonts: { head: 'DM Serif Display' }, light: { primary: '#ffc928', ink: '#1d1d1f', muted: '#5c5c66', paper: '#fbf8f1', sheet: '#ffffff', line: '#e8e2d4', dark: '#1d1d1f' } };
+  await fpg.setInputFiles('#fBrand', { name: 'serif.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(serif)) });
+  await fpg.waitForFunction(() => { const t = document.querySelector('#stageSvg text[data-role="title"]'); return t && t.getAttribute('font-family').startsWith("'DM Serif Display'"); }, null, { timeout: 5000 }).catch(() => {});
+  const ff = await fpg.evaluate(() => { const t = document.querySelector('#stageSvg text[data-role="title"]'); return { fam: t.getAttribute('font-family'), w: t.getAttribute('font-weight'), note: document.querySelector('#fontNote').hidden }; });
+  ok(asked.some(u => /DM Serif Display:wght@/.test(u.replace(/\+/g, ' '))) && asked.some(u => /family=DM\+Serif\+Display&/.test(u)), `after the weighted request fails, the plain one is made (${asked.filter(u => /Serif/.test(u)).length} requests)`);
+  ok(ff.fam.startsWith("'DM Serif Display'") && ff.w === '400' && ff.note, `the headline is set in the brand's own face at the weight that loaded (${ff.fam.split(',')[0]} ${ff.w}), with no offline note`);
+  await fpg.close();
 
   ok(errs.length === 0, `no exceptions${errs.length ? ' — ' + errs.slice(0, 3).join(' | ') : ''}`);
   await browser.close();

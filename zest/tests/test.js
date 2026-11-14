@@ -203,6 +203,19 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   ok((await zi.$eval('#stageSvg', e => e.innerHTML)).includes('#5f7a0d'), 'ZestImage composes with the studio primary');
   ok(await zi.$eval('#tLogo', e => !e.hidden), 'ZestImage picked up the brand logo');
   ok(ziErrs.length === 0, 'ZestImage: no exceptions during handoff');
+  {   // five and seven hex digits are not colors: an imported brand carrying them falls back instead of drawing black and fooling the contrast guard
+    const zh = await ctx.newPage(); const zhErrs = []; zh.on('pageerror', e => zhErrs.push(e.message));
+    await zh.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+    await zh.goto('http://localhost:8772', { waitUntil: 'domcontentloaded' }); await zh.waitForTimeout(300);
+    const odd = { zest: 1, name: 'Odd Hex', light: { primary: '#12345', ink: '#1234567', muted: '#5c5c66', paper: '#fbf8f1', sheet: '#ffffff', line: '#e8e2d4', dark: '#1d1d1f' } };
+    await zh.setInputFiles('#fBrand', { name: 'odd-zest-brand.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(odd)) });
+    await zh.waitForTimeout(300);
+    const fills = await zh.$eval('#stageSvg', e => [...e.querySelectorAll('[fill], [data-bg], stop')].flatMap(n => [n.getAttribute('fill'), n.getAttribute('data-bg'), n.getAttribute('stop-color')]).filter(v => v && v.startsWith('#')));
+    ok(fills.length > 3 && fills.every(v => /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) && !fills.some(v => /^#12345/.test(v)), `ZestImage: 5- and 7-digit hex in an imported brand fall back to valid colors (${fills.length} fills checked)`);
+    await zh.locator('.bdel').last().click(); await zh.waitForTimeout(200);   // leave the saved brands as the later sections expect them
+    ok(zhErrs.length === 0, 'ZestImage: no exceptions importing odd hex');
+    await zh.close();
+  }
 
   console.log('== 12b: ZestImage — fields follow the layout, one Export button, folded options ==');
   // same page as the handoff: the imported brand is active, and it carries a logo
@@ -300,8 +313,8 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   const fitPct = await zsPct();
   ok(fitPct === Math.round(await zs.$eval('#frame', f => f.getBoundingClientRect().width) / 1200 * 100) + '%' && parseInt(fitPct) < 100, `ZestImage: the stage bar shows the live scale (${fitPct} at Fit)`);
   await zs.click('#zoomSeg [data-z="100"]'); await zs.waitForTimeout(200);
-  ok(await zs.$eval('#frame', f => Math.round(f.getBoundingClientRect().width)) === 1200 && await zsPct() === '100%' && await zs.$eval('#stage', s => s.scrollWidth > s.clientWidth && getComputedStyle(s).overflow === 'auto') && await zs.$eval('#zoomSeg [data-z="100"]', b => b.getAttribute('aria-pressed') === 'true'),
-    'ZestImage: 100% shows the image at real size, and the stage scrolls to reach all of it');
+  ok(await zs.$eval('#frame', f => Math.round(f.getBoundingClientRect().width)) === 1200 && await zsPct() === '' && await zs.$eval('#stage', s => s.scrollWidth > s.clientWidth && getComputedStyle(s).overflow === 'auto') && await zs.$eval('#zoomSeg [data-z="100"]', b => b.getAttribute('aria-pressed') === 'true'),
+    'ZestImage: 100% shows the image at real size, the stage scrolls to reach all of it, and the readout steps aside (the pressed 100% already says it)');
   await zs.click('#zoomSeg [data-z="fit"]'); await zs.waitForTimeout(200);
   ok(await zsPct() === fitPct && (await zsFit()).inStage, 'ZestImage: Fit brings it back inside the stage');
   // safe zones: drawn from each target's own pixel insets; no zone, no toggle
