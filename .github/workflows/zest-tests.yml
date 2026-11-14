@@ -1,11 +1,12 @@
 name: Zest tests
 
+# Sources/Zest is here because inapp.js runs every export under the host's policy and content types, read from ZestFiles.swift.
 on:
   pull_request:
-    paths: ['zest/**', 'Resources/Zest/**', 'NOTICE', '.github/workflows/zest-tests.yml']
+    paths: ['zest/**', 'Resources/Zest/**', 'Sources/Zest/**', 'NOTICE', '.github/workflows/zest-tests.yml']
   push:
     branches: [main]
-    paths: ['zest/**', 'Resources/Zest/**', 'NOTICE', '.github/workflows/zest-tests.yml']
+    paths: ['zest/**', 'Resources/Zest/**', 'Sources/Zest/**', 'NOTICE', '.github/workflows/zest-tests.yml']
 
 # Tests only: npm and Playwright's packages run here, so the token can only read.
 permissions:
