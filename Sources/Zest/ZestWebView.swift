@@ -288,7 +288,7 @@ final class ZestWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
 
 // MARK: Downloads
 
-extension ZestWebView: @preconcurrency WKDownloadDelegate {
+extension ZestWebView: WKDownloadDelegate {
     /// Exports: the native save panel, with the name the tool suggested. A file already
     /// there is replaced only after the panel has asked.
     func download(_ download: WKDownload, decideDestinationUsing response: URLResponse,

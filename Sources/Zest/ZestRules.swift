@@ -51,7 +51,7 @@ final class ZestRules {
             forIdentifier: Self.identifier, encodedContentRuleList: Self.json
         ) { [weak self] list, error in
             // WebKit calls back on the main thread.
-            nonisolated(unsafe) let compiled = list
+            let compiled = list
             let failure = error.map(errorKind)
             MainActor.assumeIsolated {
                 guard let self else { return }
