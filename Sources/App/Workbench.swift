@@ -150,6 +150,57 @@ final class Workbench {
     /// Capture, Seal, Fill and Pin act on this, never on a tab the user can't see.
     var benchTab: Tab? { savedCopy == nil && comparison == nil && !showingSmartJar ? activeTab : nil }
 
+    // MARK: Zest in front (ADR 0015, ADR 0033)
+
+    /// True while the Zest window is the main window. The commands that act on the page in
+    /// front (Seal, Capture, Reader, Fill from Me, Pin, Close Tab) stand down: the page in
+    /// front is a tool, and ⌘S in ZestMail must never seal a page in the main window.
+    ///
+    /// Decided by main, not key: a tool's color picker (NSColorPanel, or WebKit's popover), an
+    /// alert or a save panel takes key while Zest stays main, because panels, popovers and
+    /// sheets never become main. Going by key would switch the gating off under them.
+    private(set) var zestInFront = false
+    /// The Zest window, once it has been shown. Weak: closing it lets it go.
+    @ObservationIgnored weak var zestWindow: NSWindow?
+    /// The main window (the Shelf and the Bench), registered by `ContentView`, so a web link
+    /// from a tool brings that window forward and never Settings or the Design Kit. Weak.
+    @ObservationIgnored weak var mainWindow: NSWindow?
+    /// The tab the page commands act on: the Bench's, unless Zest is in front.
+    var pageInFront: Tab? { zestInFront ? nil : benchTab }
+
+    func setZestInFront(_ inFront: Bool) {
+        if zestInFront != inFront { zestInFront = inFront }
+    }
+
+    /// Whether `window` is the Zest window, or a sheet attached to it.
+    static func isZest(_ window: NSWindow?, zest: NSWindow?) -> Bool {
+        guard let window, let zest else { return false }
+        return window === zest || window.sheetParent === zest
+    }
+
+    /// A window became main, or stopped being main. A window becoming main decides; one
+    /// resigning only matters if it was Zest's (the window closing, or the app going to the
+    /// background), and the next window to become main decides again. A panel (the color
+    /// panel, an open or save panel) never becomes main; if one is ever said to, it changes
+    /// nothing.
+    func mainWindowChanged(_ window: NSWindow?, becameMain: Bool) {
+        // Until a Zest window exists, Zest can't be in front, and nothing here may change that.
+        guard zestWindow != nil else { return }
+        if becameMain, let window, window is NSPanel { return }
+        let isZest = Self.isZest(window, zest: zestWindow)
+        if becameMain { setZestInFront(isZest) } else if isZest { setZestInFront(false) }
+    }
+
+    private func watchMainWindow() {
+        for name in [NSWindow.didBecomeMainNotification, NSWindow.didResignMainNotification] {
+            let becameMain = name == NSWindow.didBecomeMainNotification
+            _ = NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                let window = note.object as? NSWindow
+                MainActor.assumeIsolated { self?.mainWindowChanged(window, becameMain: becameMain) }
+            }
+        }
+    }
+
     /// Today, re-checked against the clock, so the list empties at midnight on its own.
     var today: [Item] {
         let start = Calendar.current.startOfDay(for: now)
@@ -229,6 +280,7 @@ final class Workbench {
         summarizeWaiting()   // anything sealed just before the last quit
         stampWaiting()
         pro.onChange = { [weak self] in self?.proChanged() }
+        watchMainWindow()
     }
 
     /// The last Pro flip being applied, so two quick flips land in order.
@@ -388,8 +440,9 @@ final class Workbench {
     /// Bench → Fill from Me (⌘⇧F). The jar's own card wins over Me. Never runs on its own,
     /// and never into a page Reader view is covering: you'd be filling fields you can't see.
     func fillFromMe() {
+        guard !zestInFront else { return }
         if isReading { report("Go back to the page to fill a form"); return }
-        guard let tab = benchTab, let filler = formFiller else { return }
+        guard let tab = pageInFront, let filler = formFiller else { return }
         Task { @MainActor in
             do {
                 guard let identity = try vault.identity(for: tab.jarId), !identity.isEmpty else {
@@ -620,6 +673,7 @@ final class Workbench {
 
     /// ⌘W. With a saved copy showing, closes the copy, not the tab hidden behind it.
     func closeActiveTab() {
+        guard !zestInFront else { return }
         if comparison != nil { comparison = nil; return }
         if savedCopy != nil { savedCopy = nil; return }
         if let benchTab { closeTab(benchTab) }
@@ -640,7 +694,7 @@ final class Workbench {
         loadTabs()
     }
 
-    func togglePinActiveTab() { if let benchTab { togglePin(benchTab) } }
+    func togglePinActiveTab() { if let tab = pageInFront { togglePin(tab) } }
 
     // MARK: Rearranging (right-click and drag)
 
@@ -877,7 +931,7 @@ final class Workbench {
     /// happens behind it, so the gesture feels instant however heavy the page is.
     @discardableResult
     func sealActiveTab(into chosenJarId: String? = nil) async -> Bool {
-        guard let tab = benchTab, let jarId = chosenJarId ?? tab.jarId, let provider = sealProvider else {
+        guard let tab = pageInFront, let jarId = chosenJarId ?? tab.jarId, let provider = sealProvider else {
             report("Nothing to seal — open a page first")
             return false
         }
@@ -989,7 +1043,7 @@ final class Workbench {
     /// (no window, or a tab not shown yet), it's loaded off screen instead. Either way the tab
     /// closes, the way ⌘S closes it. Returns the sealed page's title.
     func sealFrontPage(into jarId: String? = nil) async throws -> String {
-        guard let tab = benchTab, let link = tab.url, let url = URL(string: link) else {
+        guard let tab = pageInFront, let link = tab.url, let url = URL(string: link) else {
             throw ShortcutError.nothingOpen
         }
         if let jarId, !jars.contains(where: { $0.id == jarId }) { throw ShortcutError.jarGone }
@@ -1180,8 +1234,9 @@ final class Workbench {
     /// ⌘⇧R. Shows the page's article alone in clean type, or goes back to the page. Pages
     /// with no article (a home page, a search) say so and stay as they are.
     func toggleReader() async {
+        guard !zestInFront else { return }
         if isReading { reader = nil; return }
-        guard let tab = benchTab, let provider = readerProvider else {
+        guard let tab = pageInFront, let provider = readerProvider else {
             report("Nothing to read — open a page first")
             return
         }
@@ -1214,7 +1269,7 @@ final class Workbench {
     /// no `sealedAt` — that's P2. The generated `capture` titles the item with its URL, so the
     /// tab's real title is written over it here.
     func captureActivePage() {
-        guard let tab = benchTab, let url = tab.url, !url.isEmpty else {
+        guard let tab = pageInFront, let url = tab.url, !url.isEmpty else {
             report("Nothing to capture — open a page first")
             return
         }

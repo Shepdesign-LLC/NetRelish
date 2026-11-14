@@ -15,9 +15,27 @@ public enum JarProfile {
     /// keeps "read-later" pointing at the same cookies forever.
     static let namespace = UUID(uuidString: "6B0F5C2A-9F3E-4F0E-8C3B-2A7D1E5F9C11")!
 
-    /// The data-store identifier for a jar.
+    /// The one website data store that is never a jar's: the Zest window's (ADR 0015, ADR 0033).
+    /// Reserved here, beside the jars' derivation, so no jar id can ever map to it. It is a
+    /// version-4 UUID and every derived id below is version 5, so the hash can't land on it;
+    /// a jar whose id is this UUID's own text is moved off it by `storeIdentifier(for:)`.
+    /// Never change it: it is what keeps the tools' saved work across launches.
+    public static let zestStoreIdentifier = UUID(uuidString: "3E8A1C57-0D2B-4F6A-9B1E-7C54A2F0D9E3")!
+
+    /// The namespace for that one move, used for nothing else. A separate namespace, so the
+    /// moved jar's store can't equal the store of a jar whose id is some other string: under
+    /// `namespace`, a jar id spelled "jar:" + the UUID would hash to the same place.
+    static let zestRemapNamespace = UUID(uuidString: "8951E795-7C66-4762-B2A9-6784696AC708")!
+
+    /// The data-store identifier for a jar. Never `zestStoreIdentifier`.
     public static func storeIdentifier(for jarId: String) -> UUID {
-        if let direct = UUID(uuidString: jarId) { return direct }
+        if let direct = UUID(uuidString: jarId) {
+            // A jar id that spells Zest's identifier gets a derived one instead, so its
+            // cookies can't land in Zest's store or Zest's storage in the jar (non-negotiable 6).
+            // Derived from the canonical spelling, so either case of the UUID opens one store.
+            guard direct == zestStoreIdentifier else { return direct }
+            return uuidV5(namespace: zestRemapNamespace, name: direct.uuidString)
+        }
         return uuidV5(namespace: namespace, name: jarId)
     }
 

@@ -11,7 +11,7 @@ sources:
   - code: scripts/gen-pantry.swift
   - code: design/symbols.svg
   - code: design/NetRelish.json
-verified_at: 2c4c510
+verified_at: a9ac3a1
 ---
 
 # Building without a Mac

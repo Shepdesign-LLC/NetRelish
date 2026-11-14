@@ -79,3 +79,27 @@ Append-only. Newest entries at the bottom.
   as one commit stale. Each page's sources are byte for byte the same at its old
   `verified_at` and at `2c4c510` (checked with `git diff`), so `verified_at` moved alone.
   This will happen after every squash merge of a branch that touched a page's sources
+
+## [2026-11-13] zest-window added
+
+- A page for the Zest window host (ADR 0033 moved ADR 0015's Zest window into 1.0): the
+  zest:// scheme and its path rules, Zest's reserved store, the offline rule list, the stub,
+  where links go, and the gating of the page commands while the window is key. Ten traps,
+  among them the scheme handler's isolation, realpath over `resolvingSymlinksInPath`, and
+  `pageInFront` rather than `benchTab`
+
+## [2026-11-13] zest-window: review fixes
+
+- A download link to the web is now routed as a web link, never a `WKDownload`; gating
+  follows the main window, so a color panel or save panel no longer switches it off; a web
+  link brings forward the registered main window, not the first window in the list; the
+  jar that spells Zest's UUID moves under a namespace of its own; the integration tests use
+  throwaway stores. The page now says plainly what CI doesn't show (storage surviving a
+  relaunch, IndexedDB) and that `zest/build.sh --app` is phase 2's, not yet written. Four
+  new traps
+
+## [2026-11-13] rearranging and building-without-a-mac re-verified
+
+- The Zest review fixes grew Workbench's Zest block by nine lines, so rearranging's
+  Workbench citations below it moved by nine; nothing they describe changed. project.yml
+  changed only in a comment, so building-without-a-mac's `verified_at` moved alone
