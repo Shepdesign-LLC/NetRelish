@@ -6,6 +6,7 @@
  * were approximations that rendered darker than the hexes (ADR 0001). The hexes are unchanged.
  * v1.1.2 (2026-09-21): relish-100/300/700/ink take the Sept 15 Design Kit values (the manifest says the
  * earlier file wins on values): #EFFCCB, #C4F26B, #4E9110, #1D3506; dark relish-100 #1F3308, dark ink #0D1206.
+ * v2.0 (2026-11-14): the Workstation v5 shell (ADR 0034). --shelf-w 56px → 238px, --inspector-w 320px → 322px.
  */
 
 :root {
@@ -46,8 +47,8 @@
   --superellipse-n: 5;   /* squircle exponent — mark, jar shoulders, app icon */
 
   /* ---------- Layout ---------- */
-  --shelf-w: 56px;       /* jar rail */
-  --inspector-w: 320px;
+  --shelf-w: 238px;      /* the Shelf */
+  --inspector-w: 322px;
   --tab-h: 34px;
   --lip-h: 3px;          /* relish tab lip, active tab only */
   --hairline: 1px;

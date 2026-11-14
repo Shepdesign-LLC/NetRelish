@@ -26,7 +26,7 @@ How the files get into the bundles is [[building-without-a-mac]].
 
 | Bundle | Manifest | UserDefaults reasons | Why |
 |---|---|---|---|
-| NetRelish.app | `Resources/PrivacyInfo.xcprivacy` | `CA92.1`, `1C8F.1` | Tab icons and the Panel (`Sources/App/Workbench.swift:1104`), the Direct build's revoked activations (`Sources/App/License.swift:102`); the App Group suite through Pantry |
+| NetRelish.app | `Resources/PrivacyInfo.xcprivacy` | `CA92.1`, `1C8F.1` | Tab icons and the Panel (`Sources/App/Workbench.swift:1162`), the Direct build's revoked activations (`Sources/App/License.swift:102`); the App Group suite through Pantry |
 | NetRelishShare.appex | `Sources/ShareExtension/PrivacyInfo.xcprivacy` | `1C8F.1` | Leaves shared pages in the App Group suite (`Sources/Pantry/Store/ShareInbox.swift:33`) |
 | Pantry.framework, PantryKit | `Sources/Pantry/PrivacyInfo.xcprivacy` | `1C8F.1` | ShareInbox, compiled into the framework; the package lists it as a resource (`Package.swift`) |
 
@@ -49,7 +49,7 @@ is used. `scripts/tests/test_privacy_manifests.py` sweeps each bundle's Swift fo
 |---|---|
 | `app-sandbox` | Everything. The Pantry, saved copies and each jar's website data live in the container |
 | `network.client` | Page loads, StoreKit, the timestamp authority, the Direct build's license relay |
-| `files.user-selected.read-write` | Export Proof's save panel (`Sources/App/Workbench.swift:326`) |
+| `files.user-selected.read-write` | Export Proof's save panel (`Sources/App/Workbench.swift:370`) |
 | `print` | File › Print… for the Zest tool in front: Zest MD's Print and Save as PDF (ADR 0033) |
 | `personal-information.addressbook` | Import from my card, once (ADR 0006); paired with `NSContactsUsageDescription` |
 | `application-groups` | The Share extension's hand-off (ShareInbox) |

@@ -262,6 +262,27 @@ public final class PantryStore: Sendable {
             .order(Item.Columns.sealedAt.desc, Item.Columns.createdAt.desc).fetchAll(db)
     }
 
+    /// What a jar keeps: every item in it, most recently changed first. A query, like the
+    /// smart jars: the jar board reads it, and nothing moves.
+    public func kept(_ db: Database, inJar jarId: String) throws -> [Item] {
+        try Item.filter(Item.Columns.jarId == jarId)
+            .order(Item.Columns.updatedAt.desc).fetchAll(db)
+    }
+
+    /// How many items each jar keeps, by jar id. A jar that keeps nothing is absent.
+    public func keptCounts(_ db: Database) throws -> [String: Int] {
+        let rows = try Row.fetchAll(db, sql: """
+            SELECT jarId, COUNT(*) FROM \(Item.databaseTableName) WHERE jarId IS NOT NULL GROUP BY jarId
+            """)
+        var counts: [String: Int] = [:]
+        for row in rows {
+            let jarId: String = row[0]
+            let count: Int = row[1]
+            counts[jarId] = count
+        }
+        return counts
+    }
+
     /// Sinking soon: open tabs, in any jar, in the last tenth of their shelf life.
     public func sinkingSoon(_ db: Database, now: Date = Date()) throws -> [Tab] {
         ShelfLife.sinkingSoon(try Tab.fetchAll(db), jars: try Jar.fetchAll(db), now: now)

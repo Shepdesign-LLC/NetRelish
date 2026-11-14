@@ -1,7 +1,7 @@
-// BenchView.swift — the web panes (manifest §8 Bench + Tabs). A tab strip at tabH, the
-// address bar, and the active tab's WKWebView. One web view per tab, each on its jar's
-// data store. When a smart jar is active, the Bench shows that jar's rows instead; when a
-// sealed item is opened, it shows that item's saved copy.
+// BenchView.swift — the web panes (manifest v2.0 §8 Bench + Tabs). The Bench shows the
+// active tab's WKWebView, one web view per tab, each on its jar's data store; or the jar's
+// board; or a smart jar's rows; or a sealed item's saved copy. The tab strip lives in the
+// window's title row and the address in the row under it (ShellRows.swift).
 
 import AppKit
 import Network
@@ -75,7 +75,9 @@ final class BenchWebViews {
 
 struct BenchView: View {
     @Bindable var workbench: Workbench
-    @State private var webViews = BenchWebViews()
+    /// This window's web views, owned by the window so the title and address rows reach the
+    /// page in front too.
+    let webViews: BenchWebViews
 
     /// One container, so the wiring runs whatever the Bench is showing first.
     var body: some View {
@@ -94,22 +96,21 @@ struct BenchView: View {
         } else if let smart = workbench.activeSmartJar {
             SmartJarView(smart: smart, workbench: workbench)
         } else if let jar = workbench.activeJar {
-            VStack(spacing: 0) {
-                TabStrip(workbench: workbench, jar: jar)
-                if let tab = workbench.activeTab {
-                    let web = webViews.view(for: tab)
-                    TabPane(tab: tab, web: web, workbench: workbench)
-                        .id(tab.id)
-                        .overlay(alignment: .topLeading) {
-                            SealDrip(trigger: workbench.sealTrigger)
-                                .padding(.leading, NRSpace.sp2)
-                                .padding(.top, 44)   // just under the address bar
-                        }
-                } else {
-                    EmptyBench(message: "No tabs in \(jar.name). Press ⌘T.")
-                }
+            // The page, or the jar's board: asked for, or all there is when no tab is open.
+            if !workbench.showingBoard, let tab = workbench.activeTab {
+                let web = webViews.view(for: tab)
+                TabPane(tab: tab, web: web, workbench: workbench)
+                    .id(tab.id)
+                    .overlay(alignment: .topLeading) {
+                        SealDrip(trigger: workbench.sealTrigger)
+                            .padding(.leading, NRSpace.sp2)
+                            .padding(.top, NRSpace.sp2)   // just under the address row
+                    }
+                    .background(NRColor.surface)
+            } else {
+                JarBoard(jar: jar, workbench: workbench)
+                    .id(jar.id)
             }
-            .background(NRColor.surface)
         } else {
             EmptyBench(message: "No jar yet. Make one on the Shelf.")
         }
@@ -148,18 +149,15 @@ struct BenchView: View {
     }
 }
 
-/// One tab's address bar and web view.
+/// One tab's page: its web view, or the reader over it. The address lives in the window's
+/// address row (`SearchRow`).
 struct TabPane: View {
     let tab: Tab
     let web: JarWebView
     @Bindable var workbench: Workbench
-    @State private var address = ""
-    @FocusState private var addressFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            addressBar
-            Rectangle().fill(NRColor.hairline).frame(height: NRSpace.hairline)
+        Group {
             if let reader = workbench.reader, reader.tabId == tab.id {
                 // The live page stays loaded behind the reader, so ⌘S still seals it.
                 ReaderHost(article: reader.article,
@@ -175,92 +173,71 @@ struct TabPane: View {
             }
         }
         .onAppear {
-            address = web.url?.absoluteString ?? tab.url ?? ""
             let jarId = web.jarId      // the view's own jar, so a page left behind by a move is told apart
             web.onNavigation = { [workbench] url, title in
                 workbench.tabDidNavigate(tab.id, fromJar: jarId, url: url, title: title)
             }
-            if web.url == nil, tab.url == nil, !web.openedByPage { addressFocused = true }
         }
-        .onChange(of: web.url) { _, new in if !addressFocused { address = new?.absoluteString ?? "" } }
-    }
-
-    private var reading: Bool { workbench.reader?.tabId == tab.id }
-
-    private var addressBar: some View {
-        HStack(spacing: NRSpace.sp2) {
-            Button { web.goBack() } label: { Image(systemName: "chevron.left") }.disabled(!web.canGoBack).help("Back")
-            Button { web.goForward() } label: { Image(systemName: "chevron.right") }.disabled(!web.canGoForward).help("Forward")
-            TextField("Address", text: $address)
-                .textFieldStyle(.plain)
-                .font(NRType.font(NRType.fsSm, design: NRType.fontMono))
-                .foregroundStyle(NRColor.fg)
-                .focused($addressFocused)
-                .onSubmit { web.load(address); addressFocused = false }
-                .padding(.horizontal, NRSpace.sp3)
-                .frame(height: 26)
-                .background(NRColor.surface2, in: RoundedRectangle(cornerRadius: NRRadius.r1))
-                .overlay(RoundedRectangle(cornerRadius: NRRadius.r1).strokeBorder(addressFocused ? NRColor.focus : .clear, lineWidth: 2))
-            if let status = workbench.fillStatus {
-                Text(status).font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2).lineLimit(1)
-                    .transition(.opacity).accessibilityIdentifier("fill-status")
-            }
-            Button { Task { await workbench.toggleReader() } } label: { Image(systemName: "doc.plaintext") }
-                .foregroundStyle(reading ? NRColor.fg : NRColor.fg2)
-                .help(reading ? "Back to the Page (⌘⇧R)" : "Reader View (⌘⇧R)")
-                .accessibilityLabel(reading ? "Back to the page" : "Reader view")
-            Button { web.isLoading ? web.webView.stopLoading() : web.reload() } label: {
-                Image(systemName: web.isLoading ? "xmark" : "arrow.clockwise")
-            }.help(web.isLoading ? "Stop" : "Reload")
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(NRColor.fg2)
-        .font(.system(size: 12, weight: .medium))
-        .padding(.horizontal, NRSpace.sp3)
-        .frame(height: 38)
-        .background(NRColor.surface)
-        .animation(.easeOut(duration: NRMotion.base), value: workbench.fillStatus)
     }
 }
 
-/// Manifest §8 Tabs: tabH, r2 top corners, surface active / transparent inactive, the lip
-/// on the active tab only, a pin glyph on pinned tabs, fg3 over the last 10% of shelf life.
-/// A tab can be dragged onto another tab to take its place, or onto a jar on the Shelf to
-/// move there; the tab it is over shows the drop mark (relish placement #9).
+/// The tab strip, in the window's title row (manifest v2.0 §8 Tabs, Workstation v5 spec
+/// §6.2). It leads with the jar's chip, which opens the jar's board. Every tab is a fixed
+/// width and always has a border, so a tab never blends into the chrome; the tab in front
+/// takes the jar's color on its border and along its bottom edge. A tab can be dragged onto
+/// another tab to take its place, or onto a jar on the Shelf to move there; the tab it is
+/// over shows the drop mark.
 struct TabStrip: View {
     @Bindable var workbench: Workbench
-    let jar: Jar
     /// The tab a dragged tab is over.
     @State private var dropTarget: String?
 
+    /// The strip is only as wide as its tabs, so the rest of the title row moves the window.
+    private var tabsWidth: CGFloat {
+        let widths = workbench.tabs.map { $0.isPinned ? NRShell.pinnedTabW : NRShell.tabW }
+        return widths.reduce(0, +) + CGFloat(max(0, widths.count - 1)) * NRShell.tabGap
+    }
+
     var body: some View {
-        HStack(alignment: .bottom, spacing: 2) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .bottom, spacing: 2) {
-                    ForEach(workbench.tabs) { tab in
-                        TabChip(tab: tab, jar: jar, isActive: tab.id == workbench.activeTabId, now: workbench.now,
-                                glyph: workbench.glyph(of: tab), isDropTarget: dropTarget == tab.id,
-                                activate: { workbench.activateTab(tab) }, close: { workbench.closeTab(tab) })
-                            .contextMenu { menu(for: tab) }
-                            .draggable(DragPayload.tab(tab.id).string)
-                            .dropDestination(for: String.self) { payloads, _ in
-                                workbench.drop(payloads, onTab: tab)
-                            } isTargeted: { over in
-                                if over { dropTarget = tab.id } else if dropTarget == tab.id { dropTarget = nil }
-                            }
+        HStack(spacing: NRShell.tabGap) {
+            if let jar = workbench.activeJar {
+                JarChip(jar: jar, fill: workbench.fill(of: jar), isFront: workbench.panelSubject == .jar(jar)) {
+                    workbench.showBoard()
+                }
+                .contextMenu {
+                    Button("New Tab in \(jar.name)") { workbench.newTab(in: jar.id) }
+                    Button("Edit Jar…") { workbench.requestEditActiveJar() }
+                }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: NRShell.tabGap) {
+                        ForEach(workbench.tabs) { tab in
+                            TabChip(tab: tab, jar: jar, isActive: tab.id == workbench.benchTab?.id, now: workbench.now,
+                                    glyph: workbench.glyph(of: tab), isDropTarget: dropTarget == tab.id,
+                                    activate: { workbench.activateTab(tab) }, close: { workbench.closeTab(tab) })
+                                .contextMenu { menu(for: tab) }
+                                .draggable(DragPayload.tab(tab.id).string)
+                                .dropDestination(for: String.self) { payloads, _ in
+                                    workbench.drop(payloads, onTab: tab)
+                                } isTargeted: { over in
+                                    if over { dropTarget = tab.id } else if dropTarget == tab.id { dropTarget = nil }
+                                }
+                        }
                     }
                 }
+                .frame(maxWidth: tabsWidth)
+                .layoutPriority(1)
+                Button { workbench.newTab() } label: {
+                    Image(systemName: "plus").font(.system(size: 12, weight: .medium))
+                        .frame(width: NRSpace.tabH, height: NRSpace.tabH).contentShape(Rectangle())
+                        .overlay(RoundedRectangle(cornerRadius: NRRadius.r2)
+                            .strokeBorder(NRColor.hairline, style: StrokeStyle(lineWidth: NRSpace.hairline, dash: [3, 3])))
+                }
+                .buttonStyle(.plain).foregroundStyle(NRColor.fg2).help("New Tab (⌘T)").accessibilityLabel("New Tab")
+            } else if let smart = workbench.activeSmartJar {
+                Text(smart.name).font(NRType.font(NRType.fsMd, weight: .semibold)).foregroundStyle(NRColor.fg2)
+                    .padding(.horizontal, NRSpace.sp3)
             }
-            Button { workbench.newTab() } label: {
-                Image(systemName: "plus").font(.system(size: 12, weight: .medium)).frame(width: 28, height: 28).contentShape(Rectangle())
-            }
-            .buttonStyle(.plain).foregroundStyle(NRColor.fg2).help("New Tab (⌘T)")
         }
-        .padding(.horizontal, NRSpace.sp2)
-        .padding(.top, NRSpace.sp2)
-        .frame(height: NRSpace.tabH + NRSpace.sp2)
-        .background(NRColor.surface2)
-        .overlay(alignment: .bottom) { Rectangle().fill(NRColor.hairline).frame(height: NRSpace.hairline) }
     }
 
     @ViewBuilder private func menu(for tab: Tab) -> some View {
@@ -288,6 +265,37 @@ struct TabStrip: View {
     }
 }
 
+/// The jar's chip at the head of the tab strip: the jar drawn at 19pt and its name, on a
+/// wash of the jar's color. It opens the jar's board, and is outlined while the board shows.
+struct JarChip: View {
+    let jar: Jar
+    let fill: Double
+    /// The board, not a page, is what the Bench shows.
+    let isFront: Bool
+    let open: () -> Void
+
+    var body: some View {
+        Button(action: open) {
+            HStack(spacing: NRSpace.sp2) {
+                NRFilledJar(paint: jar.paint, fill: fill, size: 16)
+                Text(jar.name).font(NRType.font(NRType.fsMd, weight: .semibold)).foregroundStyle(NRColor.fg)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, NRSpace.sp3)
+            .frame(height: NRSpace.tabH)
+            .fixedSize(horizontal: true, vertical: false)
+            .background(jar.paint.wash(0.20), in: RoundedRectangle(cornerRadius: NRRadius.r2))
+            .overlay(RoundedRectangle(cornerRadius: NRRadius.r2)
+                .strokeBorder(jar.paint.wash(isFront ? 1 : 0.45), lineWidth: NRSpace.hairline))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("\(jar.name): what's in this jar")
+        .accessibilityLabel("\(jar.name) board")
+        .accessibilityAddTraits(isFront ? .isSelected : [])
+    }
+}
+
 /// The icons a tab's menu offers, as SF Symbols (manifest §7: system line icons for
 /// everything that isn't a jar). The first is what every tab wears until one is picked.
 struct TabGlyph: Identifiable {
@@ -308,6 +316,36 @@ struct TabGlyph: Identifiable {
     ]
 }
 
+/// A tab's icon chip: the icon picked for it, or the first letter of its site.
+struct TabIcon: View {
+    let tab: Tab
+    var glyph: String? = nil
+    var size: CGFloat = 19
+
+    /// The site's first letter: "j" for juniperbakery.example, never the "w" of "www".
+    static func letter(for tab: Tab) -> String? {
+        guard let url = tab.url, let host = URL(string: url)?.host ?? URL(string: "https://" + url)?.host else { return nil }
+        let name = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+        return name.first.map { String($0).uppercased() }
+    }
+
+    var body: some View {
+        Group {
+            if let glyph {
+                Image(systemName: glyph).font(.system(size: size * 0.6, weight: .medium))
+            } else if let letter = Self.letter(for: tab) {
+                Text(letter).font(.system(size: size * 0.55, weight: .semibold))
+            } else {
+                Image(systemName: TabGlyph.standard).font(.system(size: size * 0.6))
+            }
+        }
+        .foregroundStyle(NRColor.fg2)
+        .frame(width: size, height: size)
+        .background(glyph == nil ? NRColor.hairline.opacity(0.6) : .clear, in: RoundedRectangle(cornerRadius: size * 0.3))
+        .accessibilityHidden(true)
+    }
+}
+
 struct TabChip: View {
     let tab: Tab
     let jar: Jar
@@ -323,38 +361,45 @@ struct TabChip: View {
 
     private var fading: Bool { ShelfLife.isFading(tab, in: jar, now: now) }
     private var label: String { (tab.title?.isEmpty == false ? tab.title : tab.url) ?? "New Tab" }
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: NRRadius.r2) }
 
     var body: some View {
         HStack(spacing: NRSpace.sp2) {
-            if tab.isPinned {
-                Image(systemName: "pin.fill").font(.system(size: 10)).foregroundStyle(NRColor.fg2).help("Pinned — never sinks")
-            }
-            if let glyph {
-                Image(systemName: glyph).font(.system(size: 11)).foregroundStyle(NRColor.fg2)
-            } else if !tab.isPinned {
-                Image(systemName: TabGlyph.standard).font(.system(size: 11)).foregroundStyle(NRColor.fg3)
-            }
+            TabIcon(tab: tab, glyph: glyph)
             if !tab.isPinned {
                 Text(label)
-                    .font(NRType.font(NRType.fsSm, weight: isActive ? .medium : .regular))
+                    .font(NRType.font(NRType.fsMd, weight: isActive ? .medium : .regular))
                     .lineLimit(1).truncationMode(.tail)
-                    .frame(maxWidth: 160, alignment: .leading)
-            }
-            if hovering, !tab.isPinned {
-                Button(action: close) { Image(systemName: "xmark").font(.system(size: 9, weight: .bold)) }
-                    .buttonStyle(.plain).foregroundStyle(NRColor.fg2).help("Close Tab (⌘W)")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if hovering {
+                    Button(action: close) { Image(systemName: "xmark").font(.system(size: 9, weight: .bold)) }
+                        .buttonStyle(.plain).foregroundStyle(NRColor.fg2).help("Close Tab (⌘W)")
+                        .accessibilityLabel("Close Tab")
+                }
             }
         }
         .foregroundStyle(fading ? NRColor.fg3 : NRColor.fg)
-        .padding(.horizontal, NRSpace.sp3)
-        .frame(height: NRSpace.tabH)
-        .background(isActive ? NRColor.surface : .clear,
-                    in: UnevenRoundedRectangle(topLeadingRadius: NRRadius.r2, topTrailingRadius: NRRadius.r2))
-        .overlay(alignment: .top) { if isActive { NRTabLip().padding(.horizontal, NRSpace.sp2) } }
+        .padding(.horizontal, tab.isPinned ? 0 : NRSpace.sp3)
+        .frame(width: tab.isPinned ? NRShell.pinnedTabW : NRShell.tabW, height: NRSpace.tabH)
+        .background(isActive ? NRColor.surface : NRColor.bg, in: shape)
+        .overlay(shape.strokeBorder(isActive ? jar.paint.face : NRColor.hairline, lineWidth: NRSpace.hairline))
+        // The tab in front: a bar in the jar's color along its bottom edge.
+        .overlay(alignment: .bottom) {
+            if isActive {
+                Capsule().fill(jar.paint.face).frame(height: 2).padding(.horizontal, 9)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if tab.isPinned {
+                Image(systemName: "pin.fill").font(.system(size: 7)).foregroundStyle(NRColor.fg3).padding(3)
+            }
+        }
         .overlay(alignment: .leading) { if isDropTarget { NRDropMark().padding(.vertical, NRSpace.sp1) } }
         .contentShape(Rectangle())
         .onTapGesture(perform: activate)
         .onHover { hovering = $0 }
+        .help(tab.isPinned ? "\(label). Pinned: it never sinks" : label)
+        .accessibilityAddTraits(.isButton)
         .animation(NRMotion.animation(duration: NRMotion.fast), value: fading)
     }
 }
@@ -694,10 +739,18 @@ struct PanelView: View {
             PanelTabSections(tab: tab, workbench: workbench)
                 .id(tab.id)
         case .jar(let jar):
-            PanelHeader(title: jar.name, subtitle: "Jar")
+            PanelHeader(title: jar.name, subtitle: JarBoard.summary(tabs: workbench.tabs.count, kept: workbench.jarItems.count))
             PanelSection("Jar") {
                 PanelRow("Shelf life", jar.shelfLifeDays.map { PanelText.days($0) } ?? "None. Tabs never sink")
                 PanelRow("Open tabs", "\(workbench.tabs.count)")
+                PanelRow("Kept", "\(workbench.jarItems.count)")
+            }
+            PanelSection("Color") {
+                JarSwatches(selected: jar.tint) { workbench.setTint($0, of: jar) }
+            }
+            PanelSection("Do something") {
+                Button("New Tab") { workbench.newTab(in: jar.id) }.buttonStyle(.nrSecondary)
+                Button("Edit Jar…") { workbench.requestEditActiveJar() }.buttonStyle(.nrSecondary)
             }
         case .smartJar(let smart):
             PanelHeader(title: smart.name, subtitle: "Smart jar")

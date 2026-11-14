@@ -79,7 +79,10 @@ struct NetRelishApp: App {
         WindowGroup("NetRelish", id: NetRelishApp.mainWindowId) {
             ContentView(workbench: workbench)
         }
-        .defaultSize(width: 1180, height: 820)
+        // The title row is the top of the window (manifest v2.0 §10): no title bar of the
+        // system's over it, only its three buttons.
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 1440, height: 900)
         .commands {
             // Jars menu: ⌘1–9 switch jars (manifest §8 Shelf).
             CommandGroup(after: .appInfo) {
@@ -173,18 +176,31 @@ struct NetRelishApp: App {
     }
 }
 
-/// The main window: Shelf on the leading edge, Bench filling the rest (manifest §10).
-/// The title carries the active jar's name; the subtitle, the Pantry's item count.
+/// The main window, in four rows (manifest v2.0 §10, Workstation v5 spec §5): the title row
+/// with the tab strip, the address row, then the Shelf, the Bench and the Panel side by
+/// side, then the bottom bar with Brine. The window's title still carries the active jar's
+/// name, for the Window menu and Mission Control; the jar's chip shows it in the window.
 struct ContentView: View {
     @Bindable var workbench: Workbench
+    /// This window's web views. Each window keeps its own.
+    @State private var webViews = BenchWebViews()
+
+    /// The page in front in this window, if the Bench is showing one.
+    private var webInFront: JarWebView? { workbench.benchTab.map { webViews.view(for: $0) } }
 
     var body: some View {
-        HStack(spacing: 0) {
-            ShelfView(workbench: workbench)
-            BenchView(workbench: workbench)
-            if workbench.showPanel { PanelView(workbench: workbench) }
+        VStack(spacing: 0) {
+            TitleRow(workbench: workbench, web: webInFront)
+            SearchRow(workbench: workbench, web: webInFront)
+            HStack(spacing: 0) {
+                ShelfView(workbench: workbench)
+                BenchView(workbench: workbench, webViews: webViews)
+                if workbench.showPanel { PanelView(workbench: workbench) }
+            }
+            BottomBar(workbench: workbench)
         }
-        .frame(minWidth: 880, minHeight: 560)
+        .ignoresSafeArea(.container, edges: .top)   // the title row sits where the title bar was
+        .frame(minWidth: 1120, minHeight: 640)
         .background(NRColor.bg)
         .navigationTitle(workbench.activeSmartJar?.name ?? workbench.activeJar?.name ?? "NetRelish")
         .navigationSubtitle("\(workbench.itemCount) \(workbench.itemCount == 1 ? "item" : "items")")

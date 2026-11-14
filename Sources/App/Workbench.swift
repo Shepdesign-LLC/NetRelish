@@ -148,7 +148,51 @@ final class Workbench {
     var activeTab: Tab? { tabs.first { $0.id == activeTabId } }
     /// The tab the Bench is showing, or nil when a smart jar or a saved copy covers it.
     /// Capture, Seal, Fill and Pin act on this, never on a tab the user can't see.
-    var benchTab: Tab? { savedCopy == nil && comparison == nil && !showingSmartJar ? activeTab : nil }
+    var benchTab: Tab? {
+        savedCopy == nil && comparison == nil && !showingSmartJar && !showingBoard ? activeTab : nil
+    }
+
+    // MARK: The jar board (ADR 0034)
+
+    /// True while the Bench shows the active jar's board in place of its page: the jar's open
+    /// tabs and what it keeps. The tab stays open behind it. A jar with no tabs shows its
+    /// board whatever this says.
+    private(set) var showingBoard = false
+    /// What the active jar keeps, most recently changed first. Empty for a smart jar.
+    private(set) var jarItems: [Item] = []
+    /// How many items each jar keeps, by jar id.
+    private(set) var keptCounts: [String: Int] = [:]
+
+    /// How many things a jar's glyph is drawn to hold. The jar reads as full at this many and
+    /// nothing stops there: `Jar` has no capacity yet (ADR 0034), so every jar holds the same.
+    static let jarHolds = 12
+
+    /// Shows a jar's board: the jar on the Shelf you clicked, or the active jar's.
+    func showBoard(of jar: Jar? = nil) {
+        if let jar {
+            activate(jarId: jar.id)
+        } else {
+            savedCopy = nil
+            comparison = nil
+            reader = nil
+        }
+        guard activeJar != nil else { return }
+        showingBoard = true
+    }
+
+    /// Open tabs in a jar.
+    func tabCount(in jar: Jar) -> Int { allTabs.filter { $0.jarId == jar.id }.count }
+    /// Items a jar keeps.
+    func keptCount(in jar: Jar) -> Int { keptCounts[jar.id] ?? 0 }
+    /// Everything in a jar: its open tabs and what it keeps.
+    func count(in jar: Jar) -> Int { tabCount(in: jar) + keptCount(in: jar) }
+    /// How full a jar is drawn, 0…1.
+    func fill(of jar: Jar) -> Double {
+        min(1, Double(count(in: jar)) / Double(Self.jarHolds))
+    }
+
+    /// The Zest tool a row on the Shelf asked for. The Zest window shows it and clears this.
+    var zestToolRequest: ZestTool?
 
     // MARK: Zest in front (ADR 0015, ADR 0033)
 
@@ -495,6 +539,16 @@ final class Workbench {
         }) else { return }
         (todayItems, sealedItems, allTabs) = smart
         forgetGlyphsOfGoneTabs()
+        refreshKept()
+    }
+
+    /// What each jar keeps, and the active jar's items, for the Shelf's counts and the board.
+    private func refreshKept() {
+        let jarId = activeJar?.id
+        guard let kept = try? store.read({ db in
+            (try store.keptCounts(db), try jarId.map { try store.kept(db, inJar: $0) } ?? [])
+        }) else { return }
+        (keptCounts, jarItems) = kept
     }
 
     private func loadTabs() {
@@ -531,6 +585,7 @@ final class Workbench {
                 if activeJarId == nil || (!showingSmartJar && !jars.contains { $0.id == activeJarId }) {
                     activate(jars.first)
                 }
+                refreshKept()
             }
         } catch is CancellationError {
             // The window went away; nothing to keep current.
@@ -576,6 +631,7 @@ final class Workbench {
         reader = nil
         guard jarId != activeJarId else { return }
         touchActiveTab()
+        showingBoard = false              // another jar opens on its page, as it always has
         activeJarId = jarId
         activeTabId = nil
         loadTabs()
@@ -626,6 +682,7 @@ final class Workbench {
         savedCopy = nil
         comparison = nil
         reader = nil
+        showingBoard = false
         let target = jarId ?? (showingSmartJar ? jars.first?.id : activeJarId)
         guard let target, jars.contains(where: { $0.id == target }) else { return nil }
         if activeJarId != target { activate(jarId: target) }
@@ -649,6 +706,7 @@ final class Workbench {
         savedCopy = nil
         comparison = nil
         reader = nil
+        showingBoard = false              // picking a tab always shows its page
         guard tab.id != activeTabId else { return }
         touchActiveTab()
         activeTabId = tab.id
@@ -1348,6 +1406,7 @@ final class Workbench {
         guard let jarId = tab.jarId, jars.contains(where: { $0.id == jarId }) else { return }
         activate(jarId: jarId)
         guard var fresh = tabs.first(where: { $0.id == tab.id }) else { return }
+        showingBoard = false
         activeTabId = fresh.id
         fresh.touchedAt = Date()
         try? store.write { db in try fresh.update(db) }
