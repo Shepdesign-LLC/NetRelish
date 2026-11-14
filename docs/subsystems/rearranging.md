@@ -40,7 +40,7 @@ Workbench directly and never a view.
 
 **Jars use their own `DragGesture`, not the system drag.** A jar may only move along the
 Shelf. The system drag would let it be carried anywhere, so the row is slid with an
-offset, held to the rail's two ends, and the order is written once on release.
+offset, held to the two ends of the list of jars, and the order is written once on release.
 
 **Tabs and Brine rows use the system drag**, carrying a `DragPayload`
 (`Sources/App/Workbench.swift:19`) as a plain string. A drop reads it back with

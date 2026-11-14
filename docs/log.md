@@ -145,4 +145,4 @@ Append-only. Newest entries at the bottom.
   jar board), so `ShelfView`, `BenchView`, `Workbench`, `NetRelishApp` and `ZestWindow`
   all grew. rearranging (15 citations), zest-window (4) and privacy-and-sandbox (2) had
   their line numbers moved to the same lines' new places; nothing those lines do changed.
-  rearranging still says "rail" once for what is now the Shelf's list of jars
+  rearranging's one "rail" now reads "the list of jars"

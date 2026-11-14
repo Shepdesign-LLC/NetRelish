@@ -63,6 +63,24 @@ import Testing
         #expect(bench.benchTab != nil)
     }
 
+    @Test("Going to the jar you're already in, by ⌘1–9 or a Shortcut, leaves its board for its page")
+    func sameJarLeavesTheBoard() throws {
+        let bench = try bench()
+        bench.newJar(name: "Ash", tint: nil, shelfLifeDays: 3)
+        let tab = try #require(bench.newTab(url: "https://ash.example"))
+        let ash = try jar("Ash", in: bench)
+
+        bench.showBoard()
+        bench.activate(ash)
+        #expect(!bench.showingBoard && bench.benchTab?.id == tab.id)
+
+        bench.showBoard(of: ash)               // the Shelf, on the same jar, still opens the board
+        #expect(bench.showingBoard)
+        let index = try #require(bench.jars.firstIndex { $0.id == ash.id })
+        bench.activate(index: index)
+        #expect(!bench.showingBoard && bench.pageInFront?.id == tab.id)
+    }
+
     @Test("A jar counts its open tabs and what it keeps, and fills toward twelve")
     func countsAndFills() throws {
         let bench = try bench()
@@ -104,6 +122,21 @@ import Testing
         #expect(TabIcon.letter(for: Pantry.Tab(url: "https://www.juniperbakery.example/menu")) == "J")
         #expect(TabIcon.letter(for: Pantry.Tab(url: "harborsigns.example")) == "H")
         #expect(TabIcon.letter(for: Pantry.Tab(url: nil)) == nil)
+    }
+
+    @Test("The ink on a jar's color passes 4.5:1 for any color Edit Jar… allows")
+    func inkContrast() {
+        for l in stride(from: 0.0, through: 1.0, by: 0.05) {
+            for c in [0.0, 0.05, 0.1, 0.15, 0.2, 0.25] {
+                for h in stride(from: 0.0, to: 360.0, by: 30) {
+                    let paint = JarPaint(OKLCH(l: l, c: c, h: h))
+                    #expect(paint.inkContrast >= 4.5, "oklch(\(l) \(c) \(h)) has \(paint.inkContrast):1")
+                }
+            }
+        }
+        #expect(JarPaint(OKLCH(l: 0.6, c: 0, h: 0)).inkIsDark)      // mid gray takes black, not white
+        #expect(JarPaint.relish.inkIsDark)
+        #expect(!JarPaint(OKLCH(l: 0.3, c: 0.1, h: 260)).inkIsDark)
     }
 
     @Test("A jar with no color of its own is painted relish; a tint is read back as stored")

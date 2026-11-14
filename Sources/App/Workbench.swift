@@ -526,6 +526,7 @@ final class Workbench {
             self.brine = brine
             self.activeJarId = root.activeJarId ?? jars.first?.id
             loadTabs()
+            refreshKept()
         } catch {
             assertionFailure("Workbench.load: \(error)")
         }
@@ -539,10 +540,11 @@ final class Workbench {
         }) else { return }
         (todayItems, sealedItems, allTabs) = smart
         forgetGlyphsOfGoneTabs()
-        refreshKept()
     }
 
     /// What each jar keeps, and the active jar's items, for the Shelf's counts and the board.
+    /// Read when the Pantry's items change (`observe()`), when another jar becomes active and
+    /// on `load()`: never on a tab change or the sweep, which touch no item a jar keeps.
     private func refreshKept() {
         let jarId = activeJar?.id
         guard let kept = try? store.read({ db in
@@ -629,12 +631,13 @@ final class Workbench {
         savedCopy = nil                   // picking a jar always leaves a saved copy
         comparison = nil
         reader = nil
+        showingBoard = false              // a jar opens on its page, as it always has; so does the one you're in
         guard jarId != activeJarId else { return }
         touchActiveTab()
-        showingBoard = false              // another jar opens on its page, as it always has
         activeJarId = jarId
         activeTabId = nil
         loadTabs()
+        refreshKept()
         if SmartJar(id: jarId) == nil {
             try? store.write { db in
                 var root = try store.root(db)

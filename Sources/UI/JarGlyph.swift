@@ -20,8 +20,25 @@ public struct JarPaint: Equatable, Sendable {
 
     public var face: Color { oklch.color }
     public var base: Color { OKLCH(l: oklch.l * 0.78, c: oklch.c, h: oklch.h).color }
-    /// Text on the face. Polarity by lightness first (tokens.css: L > 0.62 takes dark ink).
-    public var ink: Color { oklch.l > 0.62 ? Color.black.opacity(0.86) : .white }
+    /// The face's relative luminance (WCAG), from its Display P3 components.
+    public var luminance: Double {
+        func linear(_ v: Double) -> Double { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+        let (r, g, b) = oklch.p3
+        return 0.2289746 * linear(r) + 0.6917385 * linear(g) + 0.0792869 * linear(b)
+    }
+
+    /// Whether black reads better on the face than white. They tie at a luminance of about
+    /// 0.179, where each still has 4.58:1, so the better of the two never falls under 4.5:1,
+    /// whatever color the jar was given in Edit Jar….
+    public var inkIsDark: Bool { (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05) }
+
+    /// The contrast of `ink` on the face.
+    public var inkContrast: Double {
+        inkIsDark ? (luminance + 0.05) / 0.05 : 1.05 / (luminance + 0.05)
+    }
+
+    /// Text on the face: black or white, whichever has more contrast.
+    public var ink: Color { inkIsDark ? .black : .white }
     /// The face at a part of its strength: row tints, chips, borders.
     public func wash(_ amount: Double) -> Color { face.opacity(amount) }
 }

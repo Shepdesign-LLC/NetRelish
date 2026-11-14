@@ -278,8 +278,11 @@ struct JarChip: View {
         Button(action: open) {
             HStack(spacing: NRSpace.sp2) {
                 NRFilledJar(paint: jar.paint, fill: fill, size: 16)
+                // The frame's ideal width is the name's, held to 180: a long name truncates
+                // here and never crowds the tabs. The tooltip has it in full.
                 Text(jar.name).font(NRType.font(NRType.fsMd, weight: .semibold)).foregroundStyle(NRColor.fg)
-                    .lineLimit(1)
+                    .lineLimit(1).truncationMode(.tail)
+                    .frame(maxWidth: 180, alignment: .leading)
             }
             .padding(.horizontal, NRSpace.sp3)
             .frame(height: NRSpace.tabH)

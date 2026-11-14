@@ -150,6 +150,11 @@ private struct BoardCard<Content: View>: View {
             .contentShape(Rectangle())
             .onTapGesture(perform: open)
             .onHover { hovering = $0 }
+            // A tap gesture, not a Button, so a tile can still be dragged onto a jar. The
+            // keyboard gets the same: focus with Tab, open with Space or Return.
+            .focusable()
+            .onKeyPress(.space) { open(); return .handled }
+            .onKeyPress(.return) { open(); return .handled }
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isButton)
             .animation(NRMotion.animation(duration: NRMotion.fast), value: hovering)
