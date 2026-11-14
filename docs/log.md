@@ -103,3 +103,19 @@ Append-only. Newest entries at the bottom.
 - The Zest review fixes grew Workbench's Zest block by nine lines, so rearranging's
   Workbench citations below it moved by nine; nothing they describe changed. project.yml
   changed only in a comment, so building-without-a-mac's `verified_at` moved alone
+
+## [2026-11-14] zest-window: the bundle is real
+
+- `Resources/Zest` now holds the built tools (143 files, 6.89 MB), so the page and ADR 0033
+  describe what exists instead of what phase 2 would write. New rows for content types and
+  Help › Acknowledgments; `ZestBundleTests` and the policy check in `zest/tests/inapp.js`
+  under Tests. Four new traps: `zest/tests/inapp.js` parses the policy and types out of
+  `Sources/Zest/ZestFiles.swift`, no `'unsafe-eval'`, a new extension needs a type, and
+  `NOTICE` is edited at the root only
+
+## [2026-11-14] building-without-a-mac re-verified
+
+- Since `a9ac3a1`, `project.yml` changed only in a comment (the Zest folder reference is now
+  described as generated, not to be generated), and the page cites no line below it, so
+  `verified_at` moved alone. Help › Acknowledgments adds `Sources/App/Acknowledgments.swift`:
+  the page's first trap applies, and the Xcode project is regenerated before merge

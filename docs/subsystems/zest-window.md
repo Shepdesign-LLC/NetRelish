@@ -2,7 +2,7 @@
 title: The Zest window — four tools, offline, beside the Bench
 type: subsystem
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 sources:
   - code: Sources/Zest/ZestFiles.swift
   - code: Sources/Zest/ZestSchemeHandler.swift
@@ -11,13 +11,16 @@ sources:
   - code: Sources/Zest/ZestWindow.swift
   - code: Sources/App/Workbench.swift
   - code: Sources/App/NetRelishApp.swift
+  - code: Sources/App/Acknowledgments.swift
   - code: Sources/Pantry/Store/JarProfile.swift
   - code: project.yml
   - code: Resources/Zest/README.md
+  - code: NOTICE
+  - code: zest/tests/inapp.js
   - code: Tests/NetRelishTests/Zest/ZestFilesTests.swift
   - code: Tests/NetRelishTests/Zest/ZestHostTests.swift
   - code: Tests/Fixtures/zest-fixture.html
-verified_at: 1d9a0c4
+verified_at: 36f74b2
 ---
 
 # The Zest window
@@ -33,22 +36,24 @@ and tested only in CI ([[building-without-a-mac]]).
 
 | Piece | Where | What it does |
 |---|---|---|
-| The files | `Resources/Zest/` | Today only a README. Phase 2's `zest/build.sh --app` (not written yet) will fill it: Studio at the root, then `mail/`, `md/`, `image/`. Added to the app as a folder reference (`project.yml:93`), so it lands as `Contents/Resources/Zest` with its folders kept |
+| The files | `Resources/Zest/` | Written by `zest/build.sh --app` and committed: Studio at the root, then `mail/`, `md/`, `image/`, the vendored libraries and fonts in `vendor/`, and `NOTICE`. 143 files, 7,228,672 bytes (6.89 MB) of an 8 MB budget. Added to the app as a folder reference (`project.yml:92`), so it lands as `Contents/Resources/Zest` with its folders kept. The tools' side is `zest/README.md` |
 | The scheme | `Sources/Zest/ZestSchemeHandler.swift:27` | Serves `zest://app/…` from that folder, read-only, and answers every request before returning |
-| What a path may reach | `Sources/Zest/ZestFiles.swift:31`, `:63` | Pure functions: the URL's path becomes components, or nothing; the components become a file inside the folder, or nothing |
-| The second layer | `Sources/Zest/ZestFiles.swift:140` | A Content-Security-Policy on every response, with no web origin in any directive |
+| What a path may reach | `Sources/Zest/ZestFiles.swift:32`, `:64` | Pure functions: the URL's path becomes components, or nothing; the components become a file inside the folder, or nothing |
+| Content types | `Sources/Zest/ZestFiles.swift:99` | By extension, plus `NOTICE` and `LICENSE` as text; anything else is bytes |
+| The second layer | `Sources/Zest/ZestFiles.swift:160` | A Content-Security-Policy on every response, with no web origin in any directive and no `'unsafe-eval'`; the comment above it says what each tool needs from it |
 | The third layer | `Sources/Zest/ZestRules.swift:33` | A content rule list that blocks every http(s), ws(s) and file load, compiled once per launch |
 | Zest's store | `Sources/Pantry/Store/JarProfile.swift:23` | One fixed website data store, reserved beside the jars' derivation so no jar maps to it |
 | A tool's view | `Sources/Zest/ZestWebView.swift:57` | Every Zest web view's configuration: Zest's store, the scheme, the rule list, the frozen `window.netrelish` stub |
 | Where links go | `Sources/Zest/ZestWebView.swift:95` | A pure routing function: a clicked web link opens in the active jar, a link to another tool moves the switcher, blob: and data: pages download, other apps follow the Bench's handoff. It decides downloads too: only the tool's own files, blob: and data: are ever downloaded |
 | The window | `Sources/Zest/ZestWindow.swift:17` | The tool table, and the window with its segmented switcher; each tool's view is made on first use and kept |
 | Gating | `Sources/App/Workbench.swift:162` | While the Zest window is main, `pageInFront` is nil, and Seal, Capture, Reader, Fill from Me, Pin and Close Tab stand down |
+| Acknowledgments | `Sources/App/Acknowledgments.swift:14` | Help › Acknowledgments: a small window with the bundle's copy of `NOTICE`, which lists every third-party library, font and Swift package in the app |
 
 ## What leaves a tool
 
 - A clicked http(s) link: a new tab in the active jar, in the main window, which is brought
   forward or opened (`Sources/Zest/ZestWindow.swift:128`). The main window is the one
-  `ContentView` registers (`Sources/App/NetRelishApp.swift:172`), never Settings or the
+  `ContentView` registers (`Sources/App/NetRelishApp.swift:183`), never Settings or the
   Design Kit. It is an ordinary page load, which non-negotiable 5 already allows.
 - A download (`a[download]` of the tool's own file, a blob: or data: page, a file WebKit
   can't show): the save panel, through `WKDownload` (`Sources/Zest/ZestWebView.swift:274`).
@@ -126,12 +131,31 @@ and tested only in CI ([[building-without-a-mac]]).
 > ⚠️ **CI doesn't show that storage on `zest://` survives a relaunch.** The integration
 > test shows two views in one process sharing localStorage, which would pass if WebKit kept
 > it in memory only. Relaunch persistence and IndexedDB (ADR 0015 risk 1) are checked by
-> hand in phase 2's demo: write in a tool, quit, open NetRelish again.
+> hand in the pull request's demo: write in a tool, quit, open NetRelish again.
 
 > ⚠️ **Whether `zest://` is a secure context is not settled.** The integration test prints
 > `window.isSecureContext` to the CI log rather than asserting it. If it is false, the
-> clipboard API and `crypto.subtle` are missing inside the tools; phase 2 checks this
-> before it relies on them.
+> clipboard API and `crypto.subtle` are missing inside the tools, and the tools' copy
+> buttons need a fallback; read the log line before relying on either.
+
+> ⚠️ **`zest/tests/inapp.js` reads the policy and the content types out of `Sources/Zest/ZestFiles.swift`.** It
+> matches the `contentSecurityPolicy` array literal joined with `"; "` and the `"ext":
+> "type"` lines of `mimeTypes`. Change either declaration's shape and the suite fails its
+> first check rather than testing a policy the app doesn't send. Keep them as literals.
+
+> ⚠️ **The policy has no `'unsafe-eval'`, and the suites hold it there.** No tool uses eval
+> or `new Function`; Mermaid's one `Function("return this")` is lodash's fallback for a page
+> with no `self`, never reached in a browser. A library update that needs eval shows up as
+> a refusal in `zest/tests/inapp.js` and in `ZestBundleTests`; add `'unsafe-eval'` to `script-src` only
+> with a comment saying which library and why, or configure the library not to need it.
+
+> ⚠️ **A new extension in the tools needs a row in `mimeTypes`.** The handler sends
+> `nosniff`, so a script or stylesheet served as bytes doesn't run. `ZestBundleTests` walks
+> the bundle and `zest/tests/inapp.js` lists the shipped extensions; both fail on one with no type.
+
+> ⚠️ **Edit the root `NOTICE`, never `Resources/Zest/NOTICE`.** Help › Acknowledgments
+> reads the bundle's copy, which `build.sh --app` writes and `vendor.mjs --check` compares
+> byte for byte. A new Swift package, library or font goes in the root file, then rebuild.
 
 ## Tests
 
@@ -139,9 +163,19 @@ and tested only in CI ([[building-without-a-mac]]).
 content types, the policy and byte ranges. `ZestHostTests` covers Zest's store against
 jar ids (and jar ids against each other), the rule list's JSON (it blocks exactly http,
 https, ws, wss and file), the stub being in Zest configurations and in no jar's, routing
-(download links included), the tool table and the gating, panels included. Its last suite
-loads `Tests/Fixtures/zest-fixture.html` through the real scheme handler, each test on a
-throwaway store: it checks that two views on one store share localStorage in one process
-(part of ADR 0015 risk 1, not persistence across a relaunch), that a fetch to the web is
-blocked with and without the policy header, that a download link to the web clicked by a
-script starts no download, and that the stub is frozen.
+(download links included), the tool table and the gating, panels included. The
+integration suite loads `Tests/Fixtures/zest-fixture.html` through the real scheme handler,
+each test on a throwaway store: it checks that two views on one store share localStorage in
+one process (part of ADR 0015 risk 1, not persistence across a relaunch), that a fetch to
+the web is blocked with and without the policy header, that a download link to the web
+clicked by a script starts no download, and that the stub is frozen.
+
+`ZestBundleTests` reads the real bundle in the app hosting the tests. Each tool's URL, and
+the vendored DOMPurify, KaTeX, Mermaid, fonts and `NOTICE`, are answered by the scheme
+handler with 200, their type and the policy; every file in the folder maps back to itself
+and has a type; Help › Acknowledgments has the notices. Then each tool loads from the
+bundle in WebKit on a throwaway store, with the in-app switch on and Geist loaded, Zest MD
+draws its sample's math and diagram, and no frame records a policy refusal.
+
+On the tools' side, `zest/tests/inapp.js` serves the same folder with the host's headers in
+Chromium and runs each tool's flows; `zest/tests/README.md` lists what each suite checks.

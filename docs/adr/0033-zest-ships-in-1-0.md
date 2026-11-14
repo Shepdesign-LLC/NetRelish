@@ -15,7 +15,7 @@ ADR 0015 is the design, and it holds. This moves its timing and nothing else.
 |---|---|---|
 | ADR 0015, "Before Dec 14 vs after" | "Nothing Zest-related goes into the Dec 14 binary." | Superseded. The Zest window, the bundled tools, the rule list, the open and save panels, Seal gating and the root LICENSE are in 1.0. |
 | ADR 0015, the 1.1 row | 1.1 (Jan 2027): the Zest window and everything with it | Moved to 1.0. The 1.2 and 1.3+ rows are unchanged: the bridge, Finder file types, Save to jar and the Quick Look extension stay in 1.2. |
-| ADR 0015, the Dec 1–14 spike | A one-day spike on a branch never merged | Partly replaced by `ZestHostIntegrationTests`, which runs in CI on every pull request: localStorage on `zest://` shared between two views in one process, the rule list blocking a fetch, a download link to the web starting no download, the frozen stub. Still open, for phase 2 and the pull request's demo: whether storage on `zest://` survives a relaunch (risk 1 itself), IndexedDB, clipboard, downloads, ZestImage font embedding and bundle size. |
+| ADR 0015, the Dec 1–14 spike | A one-day spike on a branch never merged | Partly replaced by tests that run in CI on every pull request. `ZestHostIntegrationTests`: localStorage on `zest://` shared between two views in one process, the rule list blocking a fetch, a download link to the web starting no download, the frozen stub. `ZestBundleTests`: each tool's URL served from the real bundle with its type and the policy, and each tool running in WebKit from the bundle with nothing refused by the policy, Zest MD's math and diagram included. The bundle is 143 files, 7,228,672 bytes (6.89 MB). Still open for the pull request's demo: whether storage on `zest://` survives a relaunch (risk 1 itself), IndexedDB, the clipboard, saving through the save panel, and ZestImage's font embedding in WebKit. |
 | ADR 0012, scope of 1.0 | No Zest | Adds the Zest window. Nothing else in ADR 0012 moves. |
 | CLAUDE.md, Roadmap anchors and repo layout | Zest window deferred to 1.1 | In 1.0; `/Sources/Zest/` and `/Resources/Zest/` are listed. |
 | `docs/ROADMAP.md` | Zest under 1.1 | Zest under 1.0. |
@@ -27,13 +27,15 @@ Two phases, so the app work and the tools' work don't wait on each other.
 1. **The host (this ADR's pull request).** `Sources/Zest/`: the read-only `zest://app/`
    scheme handler, Zest's own data store, the rule list, the frozen stub, the window with
    its switcher, the open and save panels, and the gating of Seal, Capture and Fill from Me
-   while the Zest window is main. `Resources/Zest/` is a folder reference in `project.yml`,
-   holding only its README until phase 2. Root `LICENSE`. How it fits together:
-   `docs/subsystems/zest-window.md`.
-2. **The tools (phase 2).** A new `zest/build.sh --app` fills `Resources/Zest/` (studio at the
-   root, then `mail/`, `md/`, `image/`), vendors DOMPurify, KaTeX, Mermaid and the fonts
-   with `VENDOR.lock.json`, and adds the `IN_APP` switches inside each tool. `NOTICE`, with
-   the third-party list, is written then, from the lock.
+   while the Zest window is main. `Resources/Zest/` is a folder reference in `project.yml`.
+   Root `LICENSE`. How it fits together: `docs/subsystems/zest-window.md`.
+2. **The tools (phase 2).** `zest/build.sh --app` writes `Resources/Zest/` (studio at the
+   root, then `mail/`, `md/`, `image/`) with DOMPurify, KaTeX, Mermaid and 38 font
+   families under `vendor/`, pinned in `zest/vendor/VENDOR.lock.json`, and strips the
+   parts only the web has. Each tool's `IN_APP` switch hides the same parts at run time.
+   The root `NOTICE` lists every third party the app carries; the bundle holds a copy,
+   and Help › Acknowledgments shows it. CI rebuilds the folder and fails on any
+   difference, scans it, and runs every tool with the network blocked.
 
 ## Defaults chosen, for Ryan to confirm (ADR 0015's open questions)
 
@@ -67,17 +69,25 @@ are untouched: question 6 no longer applies, because the app shows Zest from 1.0
 - **NN6:** Zest's store is reserved in `JarProfile`, beside the jars' derivation, so no jar
   id maps to it; tested.
 - **NN7:** no Recipe in Zest.
-- **NN8:** root `LICENSE`: MIT for the code, with the rights-reserved items stated.
+- **NN8:** root `LICENSE`: MIT for the code, with the rights-reserved items stated. Root
+  `NOTICE`: every third-party library, font and Swift package the app carries, with
+  its license, shown in the app under Help › Acknowledgments.
 
 ## Risks
 
 ADR 0015's risks stand. Three are now on the calendar for 1.0 rather than 1.1:
 
 1. **App Review (rule 3.1.1).** A leftover Upgrade or pricing link in a tool fails review.
-   Phase 2's `IN_APP` switches and the static scan are what stop it, before P6.
-2. **Calendar.** Phase 2 competes with P5 (App Store prep). If it isn't merged by Nov 30,
-   the Zest window can be hidden from the Window menu for 1.0 without removing the host.
+   What stops it: `build.sh --app` strips the web-only parts, the `IN_APP` switches hide
+   them at run time, and the static scan and `zest/tests/inapp.js` block the merge if any
+   are left.
+2. **Calendar.** Both phases are on one branch, competing with P5 (App Store prep). If it
+   isn't merged by Nov 30, the Zest window can be hidden from the Window menu for 1.0
+   without removing the host.
 3. **Storage on `zest://` (ADR 0015 risk 1).** CI shows only that two views in one process
-   share localStorage; it can't show that WebKit writes it to disk. Phase 2's demo checks it:
-   write in a tool, quit, open NetRelish again, and the work is there; the same for IndexedDB.
-   If it isn't, ADR 0015's answer holds: the 1.2 storage bridge moves forward.
+   share localStorage; it can't show that WebKit writes it to disk. The pull request's demo
+   checks it: write in a tool, quit, open NetRelish again, and the work is there; the same
+   for IndexedDB. If it isn't, ADR 0015's answer holds: the 1.2 storage bridge moves forward.
+4. **Size.** The tools add 6.89 MB to the app, under the 8 MB budget in
+   `zest/scripts/offline-allowlist.json`; Mermaid is 3.41 MB of it and the fonts 2.00 MB.
+   The offline scan fails the merge past the budget.
