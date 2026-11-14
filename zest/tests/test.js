@@ -203,6 +203,19 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   ok((await zi.$eval('#stageSvg', e => e.innerHTML)).includes('#5f7a0d'), 'ZestImage composes with the studio primary');
   ok(await zi.$eval('#tLogo', e => !e.hidden), 'ZestImage picked up the brand logo');
   ok(ziErrs.length === 0, 'ZestImage: no exceptions during handoff');
+  {   // five and seven hex digits are not colors: an imported brand carrying them falls back instead of drawing black and fooling the contrast guard
+    const zh = await ctx.newPage(); const zhErrs = []; zh.on('pageerror', e => zhErrs.push(e.message));
+    await zh.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+    await zh.goto('http://localhost:8772', { waitUntil: 'domcontentloaded' }); await zh.waitForTimeout(300);
+    const odd = { zest: 1, name: 'Odd Hex', light: { primary: '#12345', ink: '#1234567', muted: '#5c5c66', paper: '#fbf8f1', sheet: '#ffffff', line: '#e8e2d4', dark: '#1d1d1f' } };
+    await zh.setInputFiles('#fBrand', { name: 'odd-zest-brand.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(odd)) });
+    await zh.waitForTimeout(300);
+    const fills = await zh.$eval('#stageSvg', e => [...e.querySelectorAll('[fill], [data-bg], stop')].flatMap(n => [n.getAttribute('fill'), n.getAttribute('data-bg'), n.getAttribute('stop-color')]).filter(v => v && v.startsWith('#')));
+    ok(fills.length > 3 && fills.every(v => /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) && !fills.some(v => /^#12345/.test(v)), `ZestImage: 5- and 7-digit hex in an imported brand fall back to valid colors (${fills.length} fills checked)`);
+    await zh.locator('.bdel').last().click(); await zh.waitForTimeout(200);   // leave the saved brands as the later sections expect them
+    ok(zhErrs.length === 0, 'ZestImage: no exceptions importing odd hex');
+    await zh.close();
+  }
 
   console.log('== 12b: ZestImage — fields follow the layout, one Export button, folded options ==');
   // same page as the handoff: the imported brand is active, and it carries a logo
@@ -219,7 +232,7 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   await zi.focus('#cRest summary'); await zi.keyboard.press('Enter');
   ok(await zi.$eval('#cRest', d => d.open) && await ziVis('#cTitle') && await zi.inputValue('#cTitle') === 'Kept across layouts', 'ZestImage: that disclosure opens by keyboard, and the hidden Title kept what was typed');
   await zi.click('#layoutGrid [data-l="title"]');
-  ok(await ziShown() === 'title byline' && await zi.inputValue('#cTitle') === 'Kept across layouts' && (await zi.$eval('#stageSvg', e => e.textContent)).includes('Kept across'), 'ZestImage: switching back shows Title again with its value, and the stage draws it');
+  ok(await ziShown() === 'title byline' && await zi.inputValue('#cTitle') === 'Kept across layouts' && (await zi.$eval('#stageSvg', e => [...e.querySelectorAll('tspan')].map(t => t.textContent).join(' '))).includes('Kept across'), 'ZestImage: switching back shows Title again with its value, and the stage draws it');   // read line by line: a balanced headline may break between the two words, and textContent glues lines without the space
 
   ok(await ziVis('#bExport') && await zi.$eval('#exMenu', d => !d.open) && !(await ziVis('#bAlt')) && !(await ziVis('#bManifest')) && !(await ziVis('#bOg')), 'ZestImage: one Export button; alt.txt, Manifest and the OG snippet wait behind More');
   await zi.focus('#exMenu summary'); await zi.keyboard.press('Enter');
@@ -268,6 +281,62 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   ok((await zi.$eval('#stageSvg', e => e.innerHTML)).includes(withLogo.logo) && !(await ziVis('#dLogo')) && await ziVis('#bLogoReplace'), 'ZestImage: removing the replacement falls back to the brand logo');
   ok(ziErrs.length === 0, `ZestImage: no exceptions from the simplified controls${ziErrs.length ? ' — ' + ziErrs.join(' | ') : ''}`);
   await zi.close();
+
+  console.log('== 12c: ZestImage stage — the preview fits the window, zoom, safe zones per target ==');
+  const zs = await ctx.newPage();
+  const zsErrs = []; zs.on('pageerror', e => zsErrs.push(e.message));
+  await zs.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  await zs.goto('http://localhost:8772', { waitUntil: 'domcontentloaded' }); await zs.waitForTimeout(600);
+  const ZS_TARGETS = ['og', 'blog', 'blog-sm', 'square', 'portrait', 'story', 'pinterest', 'custom'];
+  const zsTarget = async t => { await zs.click(`#targetGrid [data-t="${t}"]`); await zs.waitForTimeout(120); };
+  // the frame against the stage's content box: whole, centered, as large as fits on one axis or at real size, never past it
+  const zsFit = () => zs.evaluate(() => {
+    const f = document.querySelector('#frame').getBoundingClientRect(), st = document.querySelector('#stage'), s = st.getBoundingClientRect(), cs = getComputedStyle(st);
+    const L = s.left + parseFloat(cs.paddingLeft), R = s.right - parseFloat(cs.paddingRight), T = s.top + parseFloat(cs.paddingTop), B = s.bottom - parseFloat(cs.paddingBottom);
+    const real = +document.querySelector('#dims').textContent.split('×')[0];
+    return { inVp: f.top >= 0 && f.left >= 0 && f.bottom <= innerHeight + 0.5 && f.right <= innerWidth + 0.5,
+      inStage: f.left >= L - 1 && f.right <= R + 1 && f.top >= T - 1 && f.bottom <= B + 1,
+      dx: Math.round(Math.abs((f.left + f.right) / 2 - (s.left + s.right) / 2)), dy: Math.round(Math.abs((f.top + f.bottom) / 2 - (s.top + s.bottom) / 2)),
+      fills: Math.abs(f.width - (R - L)) < 2 || Math.abs(f.height - (B - T)) < 2 || Math.abs(f.width - real) < 2, w: Math.round(f.width), real };
+  });
+  for (const [W, H] of [[1280, 720], [1440, 900], [1920, 1080]]) {
+    await zs.setViewportSize({ width: W, height: H }); await zs.waitForTimeout(250);
+    const bad = [];
+    for (const t of ZS_TARGETS) { await zsTarget(t); const m = await zsFit(); if (!(m.inVp && m.inStage && m.dx <= 40 && m.dy <= 40 && m.fills && m.w <= m.real + 1)) bad.push(t + ' ' + JSON.stringify(m)); }
+    ok(bad.length === 0, `ZestImage at ${W}×${H}: every target's preview is whole, centered on the stage, as large as fits and never past real size (${bad.join('; ') || 'all eight'})`);
+  }
+  await zs.setViewportSize({ width: 1280, height: 720 }); await zsTarget('og'); await zs.waitForTimeout(200);
+  ok(await zs.evaluate(() => document.documentElement.scrollHeight <= innerHeight && ['#left', '.panel.right'].every(s => { const p = document.querySelector(s); return getComputedStyle(p).overflowY === 'auto' && p.getBoundingClientRect().bottom <= innerHeight; }) && document.querySelector('.panel.right').scrollHeight > document.querySelector('.panel.right').clientHeight),
+    'ZestImage: the workspace is the window — the page does not scroll, and each panel scrolls on its own');
+  ok(await zs.evaluate(() => { const b = getComputedStyle(document.body); return b.backgroundRepeat.startsWith('no-repeat') && b.backgroundColor === 'rgb(18, 6, 7)'; }), 'ZestImage: the body gradient paints once over plain night (no seam a viewport down)');
+  const zsPct = () => zs.textContent('#zoomPct');
+  const fitPct = await zsPct();
+  ok(fitPct === Math.round(await zs.$eval('#frame', f => f.getBoundingClientRect().width) / 1200 * 100) + '%' && parseInt(fitPct) < 100, `ZestImage: the stage bar shows the live scale (${fitPct} at Fit)`);
+  await zs.click('#zoomSeg [data-z="100"]'); await zs.waitForTimeout(200);
+  ok(await zs.$eval('#frame', f => Math.round(f.getBoundingClientRect().width)) === 1200 && await zsPct() === '' && await zs.$eval('#stage', s => s.scrollWidth > s.clientWidth && getComputedStyle(s).overflow === 'auto') && await zs.$eval('#zoomSeg [data-z="100"]', b => b.getAttribute('aria-pressed') === 'true'),
+    'ZestImage: 100% shows the image at real size, the stage scrolls to reach all of it, and the readout steps aside (the pressed 100% already says it)');
+  await zs.click('#zoomSeg [data-z="fit"]'); await zs.waitForTimeout(200);
+  ok(await zsPct() === fitPct && (await zsFit()).inStage, 'ZestImage: Fit brings it back inside the stage');
+  // safe zones: drawn from each target's own pixel insets; no zone, no toggle
+  const zsSafe = () => zs.evaluate(() => {
+    const lab = document.querySelector('#safeLab'), f = document.querySelector('#frame').getBoundingClientRect(), i = document.querySelector('#safe i').getBoundingClientRect(), em = document.querySelector('#safe em').getBoundingClientRect();
+    return { shown: !lab.hidden && lab.checkVisibility(), on: document.querySelector('#safe').classList.contains('on'), f, i, em, inside: document.querySelector('#safe').classList.contains('inside'), fs: parseFloat(getComputedStyle(document.querySelector('#safe em')).fontSize) };
+  });
+  const zones = {};
+  for (const t of ZS_TARGETS) { await zsTarget(t); const z = await zsSafe(); zones[t] = z.shown === z.on ? (z.shown ? 'zone' : 'none') : 'MISMATCH'; }
+  ok(['og', 'portrait', 'story', 'pinterest'].every(t => zones[t] === 'zone') && ['blog', 'blog-sm', 'square', 'custom'].every(t => zones[t] === 'none'), `ZestImage: the Safe zone toggle shows only for targets that have a zone (${JSON.stringify(zones)})`);
+  await zsTarget('story'); const sz = await zsSafe();
+  const near = (a, b) => Math.abs(a - b) < 1.5;
+  ok(near(sz.i.top - sz.f.top, sz.f.height * 250 / 1920) && near(sz.f.bottom - sz.i.bottom, sz.f.height * 340 / 1920) && near(sz.i.left - sz.f.left, sz.f.width * 60 / 1080), 'ZestImage: Story draws its own zone — clear of the top bar (250px) and the reply bar (340px)');
+  ok(sz.em.left >= sz.f.left && sz.em.top >= sz.f.top && sz.fs >= 9 && !sz.inside && sz.em.bottom <= sz.i.top + 0.5, 'ZestImage: the zone label rides on the rectangle, inside the frame, and never sits across the dashed line');
+  ok(await zs.$eval('#safeTgl', c => getComputedStyle(c).accentColor) === 'rgb(240, 82, 94)', 'ZestImage: the Safe zone checkbox wears the accent, not system blue');
+  await zsTarget('og');
+  ok(await zs.$eval('#fontNote', n => !n.hidden && n.checkVisibility()) && !(await zs.textContent('#toast')).includes('Brand fonts'), 'ZestImage: with the fonts blocked, a quiet line in the stage bar says so — no toast over the card');
+  await zs.click('.pro[data-pro="batch"]'); await zs.waitForTimeout(400);
+  ok(await zs.evaluate(() => { const t = document.querySelector('#toast'), r = t.getBoundingClientRect(), f = document.querySelector('#frame').getBoundingClientRect();
+    return t.classList.contains('show') && (r.right <= f.left || r.left >= f.right || r.bottom <= f.top || r.top >= f.bottom); }), 'ZestImage: a toast never covers the preview');
+  ok(zsErrs.length === 0, `ZestImage: no exceptions from the stage${zsErrs.length ? ' — ' + zsErrs.join(' | ') : ''}`);
+  await zs.close();
 
   console.log('== 13: persistence + pro + a11y bits ==');
   // lock a role, reload: the lock must survive sanitizeBrand (spec: role-based swatches WITH locks)

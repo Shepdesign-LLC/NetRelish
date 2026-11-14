@@ -25,8 +25,8 @@
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html,body{height:100%;margin:0}
-body{background:linear-gradient(180deg,var(--bgtop),var(--night) 420px);color:var(--ink);font:14px/1.5 var(--body);-webkit-font-smoothing:antialiased}
+html,body{min-height:100%;margin:0}
+body{background:linear-gradient(180deg,var(--bgtop),var(--night) 420px) no-repeat var(--night);color:var(--ink);font:14px/1.5 var(--body);-webkit-font-smoothing:antialiased}
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 input,select,textarea{font:inherit;color:var(--ink)}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:6px}
@@ -40,9 +40,16 @@ header .sp{flex:1}
 header a{color:var(--ink-2);text-decoration:none;font-size:13px}
 header a:hover{color:var(--ink)}
 
-.app{display:grid;grid-template-columns:300px 1fr 324px;min-height:calc(100dvh - 57px)}
+.app{display:grid;grid-template-columns:clamp(248px,20vw,300px) minmax(0,1fr) clamp(272px,22vw,324px);min-height:calc(100dvh - 57px)}
 @media(max-width:1100px){.app{display:flex;flex-direction:column;min-height:0}.stagewrap{order:-1;position:sticky;top:0;z-index:5}}
-.panel{padding:16px;border-right:1px solid var(--line);overflow-y:auto}
+/* desktop: the workspace is exactly the window. Each panel scrolls on its own and the stage is the visible area,
+   so the preview can be sized to it on both axes. Scoped to wide screens: on a phone the docked stage takes its height from the frame. */
+@media(min-width:1101px){
+  body{height:100dvh;display:flex;flex-direction:column}
+  header,footer{flex:none}
+  .app{flex:1;min-height:0;grid-template-rows:minmax(0,1fr)}
+}
+.panel{padding:16px;border-right:1px solid var(--line);overflow-y:auto;min-height:0}
 .panel.right{border-right:0;border-left:1px solid var(--line)}
 @media(max-width:1100px){.panel,.panel.right{border:0;border-top:1px solid var(--line)}}
 .sec{margin-bottom:22px}
@@ -78,32 +85,72 @@ header a:hover{color:var(--ink)}
 .brandrow b{flex:1;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .brandrow small{font-size:10.5px;color:var(--ink-3);font-family:var(--mono)}
 .modes{display:flex;gap:6px}
+.inkrow{align-items:center;margin-top:8px} .inkrow span{font-size:12px;color:var(--ink-3);margin-right:2px}
 .modes .btn[aria-pressed="true"]{border-color:var(--acc);color:var(--acc)}
 
 .lgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-.lcell{border:1px solid var(--line);border-radius:var(--r);background:var(--pane);padding:9px 10px;text-align:left;transition:all var(--t) var(--ease)}
+.lcell{display:flex;flex-direction:column;gap:7px;border:1px solid var(--line);border-radius:var(--r);background:var(--pane);padding:6px 6px 8px;text-align:left;min-width:0;transition:all var(--t) var(--ease)}
 .lcell:hover{border-color:var(--ink-3);transform:translateY(-1px)}
 .lcell[aria-pressed="true"]{border-color:var(--acc);background:var(--pane-2)}
-.lcell b{display:block;font-size:12px;font-weight:600}
-.lcell small{font-size:10.5px;color:var(--ink-3);line-height:1.3;display:block}
+.lcell b{display:block;font-size:12px;font-weight:600;padding:0 3px}
+.lthumb{display:block;width:100%;max-height:132px;border-radius:6px;overflow:hidden;background:var(--night);box-shadow:0 0 0 1px var(--line)}
+.lthumb svg{display:block;width:100%;height:100%}
 .tgrid{display:flex;flex-wrap:wrap;gap:6px}
 .tchip{border:1px solid var(--line);border-radius:999px;background:var(--pane);padding:5px 11px;font-size:12px;transition:all var(--t)}
 .tchip:hover{border-color:var(--ink-3)}
 .tchip[aria-pressed="true"]{border-color:var(--acc);color:var(--acc)}
 .tchip small{color:var(--ink-3);font-size:10px;font-family:var(--mono);margin-left:5px}
 
-.stagewrap{display:flex;flex-direction:column;min-width:0;background:
+.stagewrap{display:flex;flex-direction:column;min-width:0;min-height:0;background:
   radial-gradient(900px 480px at 50% -10%,rgba(255,100,112,.08),transparent 60%)}
-.stagebar{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:12px;color:var(--ink-3)}
-.stagebar .fn{font-family:var(--mono);color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stagebar{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:12px;color:var(--ink-3);min-width:0}
+/* the filename: the end (target, scale, extension) never truncates; the start gives way first */
+.stagebar .fn{display:flex;min-width:0;font-family:var(--mono);color:var(--ink-2);white-space:nowrap}
+.stagebar .fn .fh{overflow:hidden;text-overflow:ellipsis;min-width:2ch}
+.stagebar .fn .ft{flex:none}
 .stagebar .sp{flex:1}
-.stage{flex:1;display:grid;place-items:center;padding:10px 26px 26px;min-height:0}
-.frame{position:relative;max-width:100%;box-shadow:0 30px 80px -24px rgba(0,0,0,.7),0 0 0 1px var(--line)}
+.stagebar label{display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap;flex:none}
+#dims{white-space:nowrap;flex:none}
+.fontnote{display:inline-flex;align-items:center;gap:6px;flex:none;white-space:nowrap}
+.fontnote::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--warn)}
+.zseg{display:inline-flex;flex:none;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.zseg button{padding:3px 9px;font-size:12px;color:var(--ink-2);transition:background var(--t),color var(--t)}
+.zseg button + button{border-left:1px solid var(--line)}
+.zseg button:hover{color:var(--ink)}
+.zseg button[aria-pressed="true"]{background:var(--pane-3);color:var(--acc)}
+#zoomPct{min-width:4ch;text-align:right;font-family:var(--mono);font-size:11.5px;color:var(--ink-2);flex:none}
+.stage{flex:1;display:grid;padding:10px 26px 26px;min-height:0}
+.frame{position:relative;margin:auto;max-width:100%;box-shadow:0 30px 80px -24px rgba(0,0,0,.7),0 0 0 1px var(--line)} /* auto margins centre it, and never push an oversized frame off the scrollable side */
 #stageSvg > svg{display:block;width:100%;height:auto} /* outer preview svg only — photoAt()'s nested viewport keeps its own dimensions */
 .safe{position:absolute;inset:0;pointer-events:none;display:none}
 .safe.on{display:block}
-.safe i{position:absolute;inset:6% 7%;border:1.5px dashed rgba(255,100,112,.65);border-radius:4px}
-.safe em{position:absolute;top:2%;left:7%;font:500 10px var(--mono);letter-spacing:.06em;color:var(--juice);font-style:normal}
+.safe i{position:absolute;border:1.5px dashed rgba(255,100,112,.8);border-radius:4px;box-shadow:0 0 0 1px rgba(255,255,255,.18)}
+/* the label rides on the rectangle, just above its top edge. With no room above (a small preview), it hides: inside the
+   line it would sit on the card's type, and the checked Safe zone toggle beside the preview already names the line */
+.safe em{position:absolute;left:-1px;bottom:100%;margin-bottom:3px;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.85);color:var(--acc-ink);
+  font:600 clamp(9px,1.4cqw,11px)/1.25 var(--body);letter-spacing:.01em;font-style:normal;white-space:nowrap}
+.safe.inside em{display:none}
+.zoomhint{display:none}
+@media(min-width:1101px){
+  /* the stage is a size container: the frame fits both axes, centred, and never grows past the image's real size */
+  .stage{container-type:size;padding:12px 32px 32px}
+  .frame{width:min(100cqw, calc(100cqh * var(--ar, 1.9)), var(--real, 100cqw));height:auto;aspect-ratio:var(--ar, 1.9)}
+  .stage[data-zoom="100"]{overflow:auto}
+  .stage[data-zoom="100"] .frame{width:var(--real);max-width:none}
+}
+@media(max-width:1100px){ .zseg,#zoomPct{display:none} }
+input[type=checkbox]{accent-color:var(--acc)}
+
+/* the full-size preview on phones: tap the docked frame */
+#pview{width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:var(--night);color:var(--ink)}
+#pview[open]{display:flex;flex-direction:column}
+#pview::backdrop{background:rgba(0,0,0,.7)}
+.pvhead{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 16px;border-bottom:1px solid var(--line);font-size:12px;color:var(--ink-3)}
+.pvhead .fn{flex:1;min-width:0;font-family:var(--mono);color:var(--ink-2);overflow-wrap:anywhere;line-height:1.35}
+#pvClose{width:44px;height:44px;padding:0;flex:none}
+.pvbody{flex:1;min-height:0;overflow:auto;display:grid;padding:16px;touch-action:pan-x pan-y pinch-zoom}
+#pvSvg{margin:auto;width:min(calc(100vw - 32px), calc((100dvh - 100px) * var(--ar, 1)));box-shadow:0 0 0 1px var(--line)}
+#pvSvg > svg{display:block;width:100%;height:auto}
 
 .alt textarea{min-height:64px}
 .alt.err textarea{border-color:var(--acc);animation:shake .3s}
@@ -153,19 +200,36 @@ footer .sp{flex:1}
   border:1px solid var(--line);border-radius:999px;padding:10px 18px;font-size:13px;opacity:0;pointer-events:none;
   transition:all 240ms var(--ease);box-shadow:0 18px 44px -16px rgba(0,0,0,.6);max-width:min(92vw,520px)}
 .toast.show{opacity:1;transform:translateX(-50%)}
+/* desktop: toasts sit at the foot of the right panel, beside Export, never over the preview */
+@media(min-width:1101px){
+  .toast{left:auto;right:16px;bottom:60px;transform:translateY(12px);border-radius:12px;max-width:calc(clamp(272px,22vw,324px) - 32px)}
+  .toast.show{transform:none}
+}
 @media(prefers-reduced-motion:reduce){*{transition-duration:1ms!important;animation:none!important}}
 
 /* ---- mobile (kept last so these win the cascade over the base component rules above) ---- */
 @media(max-width:1100px){
   html,body{height:auto;min-height:100%}
+  /* the docked stage is opaque with an edge, so the form scrolls under it, not through it */
+  .stagewrap{background:radial-gradient(900px 480px at 50% -10%,rgba(255,100,112,.08),transparent 60%),var(--night);
+    border-bottom:1px solid var(--line);box-shadow:0 12px 24px -16px rgba(0,0,0,.8)}
   .stage{padding:8px 16px 12px}
-  .stagebar{flex-wrap:nowrap} .stagebar label,#dims{white-space:nowrap}
+  .stagebar{flex-wrap:wrap;row-gap:2px;padding:6px 16px} .stagebar label,#dims{white-space:nowrap;flex:none}
+  /* the filename gets up to two lines and breaks after a hyphen, so all of it stays readable */
+  .stagebar .fn{display:block;max-height:28px;overflow:hidden;flex:1 1 0;white-space:normal;font-size:11px;line-height:14px;overflow-wrap:anywhere}
+  .stagebar .fn .fh,.stagebar .fn .ft{display:inline;overflow:visible}
+  .stagebar .sp{display:none} /* the filename takes all the room the toggle and the size leave */
+  .fontnote{font-size:11px}
+  .frame[role=button]{cursor:zoom-in;-webkit-tap-highlight-color:transparent}
+  .zoomhint{display:grid;place-items:center;flex:none;width:32px;height:32px;margin:0 -6px 0 auto;border-radius:8px;background:none;border:0;color:var(--ink-2);cursor:zoom-in} /* in the stage bar, off the card */
+  .zoomhint svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   .sec.exportsec{position:sticky;bottom:0;z-index:4;background:var(--night,#120607);border-top:1px solid var(--line);margin-top:10px;padding-top:10px;padding-bottom:10px}
   .field input[type=text],.field input[type=number],.field select,.field textarea,#cAlt{font-size:16px} /* under 16px, iOS Safari focus-zooms the page */
-  .lab{font-size:12.5px} .hint{font-size:12px} .tchip small{font-size:11px} .lcell small{font-size:11.5px} .req{font-size:11px}
+  .lab{font-size:12.5px} .hint{font-size:12px} .tchip small{font-size:11px} .lcell b{font-size:12.5px} .req{font-size:11px}
   .disc > summary{font-size:13px} .disc > summary b{font-size:12.5px}
 }
-@media(max-width:640px){header .tag{display:none}}
+@media(max-width:640px){header .tag{display:none} .fontnote{order:9;flex-basis:100%}}
+@media(max-width:480px){.stagebar .fn{flex-basis:100%;max-height:none}} /* the filename takes its own row, so the toggle, the size and the expand button fit beside each other */
 @media(max-width:1100px) and (max-height:500px){
   /* landscape phones: two stickies would sandwich the controls into a negative band — unstick both */
   .stagewrap{position:static}
@@ -177,6 +241,7 @@ footer .sp{flex:1}
   .tchip{padding:10px 14px}
   .stagebar label{padding:10px 0}
   .stagebar input[type=checkbox]{width:20px;height:20px}
+  .zoomhint{width:40px;height:40px}
   .brandrow .bdel{padding:0 16px}
   header a{padding:12px 6px}
 }
@@ -191,6 +256,7 @@ footer .sp{flex:1}
  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7Z"/><path d="M14 3v4h4"/></symbol>
  <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5Z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></symbol>
+ <symbol id="i-expand" viewBox="0 0 24 24"><path d="M14 4h6v6M10 20H4v-6M20 4l-6.5 6.5M4 20l6.5-6.5"/></symbol>
  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
 </defs></svg>
 
@@ -219,6 +285,7 @@ footer .sp{flex:1}
       <button type="button" class="drop" id="dLogo">Drop an SVG or PNG, or click</button>
       <input type="file" id="fLogo" accept="image/svg+xml,image/png" hidden>
       <div class="thumb" id="tLogo" hidden><img alt=""><span></span><button type="button" class="btn sm" id="bLogoReplace" hidden>Replace</button><button type="button" id="bLogoRemove" title="Remove"><svg><use href="#i-x"/></svg></button></div>
+      <div class="modes inkrow" id="logoInk" role="group" aria-label="Logo color" hidden><span>Color</span><button type="button" class="btn sm" data-ink="auto" aria-pressed="true" title="Keeps the logo's own colors, and sets it in one color only where it would not show">Auto</button><button type="button" class="btn sm" data-ink="original" aria-pressed="false" title="Always the logo's own colors">Original</button><button type="button" class="btn sm" data-ink="one" aria-pressed="false" title="Always one color, taken from the card">One color</button></div>
       <p class="hint" id="logoHint">Stays on this machine. Layouts fall back to the brand name without it.</p>
     </div>
     <div class="sec">
@@ -249,6 +316,7 @@ footer .sp{flex:1}
       <button type="button" class="drop" id="dPhoto">Your photo — dropped here, cropped and tinted to the palette. Never invented.</button>
       <input type="file" id="fPhoto" accept="image/*" hidden>
       <div class="thumb" id="tPhoto" hidden><img alt=""><span></span><button title="Remove"><svg><use href="#i-x"/></svg></button></div>
+      <p class="hint" id="photoHint" hidden>This layout is built around a photo. Add one above to see it.</p>
       <div class="field" id="tintRow" hidden style="margin-top:8px"><label for="cTint">Tint toward the palette — <b id="tintVal">35%</b></label><input type="range" id="cTint" min="0" max="100" value="35"></div>
     </div>
   </aside>
@@ -256,12 +324,16 @@ footer .sp{flex:1}
   <main class="stagewrap">
     <div class="stagebar">
       <span class="fn" id="fname">—</span>
+      <span class="fontnote" id="fontNote" hidden title="Brand fonts could not load, so the preview and the export use system type.">Brand fonts offline</span>
       <span class="sp"></span>
-      <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" id="safeTgl" checked> Safe zone</label>
+      <div class="zseg" id="zoomSeg" role="group" aria-label="Preview size"><button type="button" data-z="fit" aria-pressed="true" title="Fit the preview to the stage">Fit</button><button type="button" data-z="100" aria-pressed="false" title="Show the image at its real size">100%</button></div>
+      <span id="zoomPct" title="Preview scale"></span>
+      <label id="safeLab"><input type="checkbox" id="safeTgl" checked> Safe zone</label>
       <span id="dims"></span>
+      <button type="button" class="zoomhint" id="bBig" aria-label="Open a larger preview" title="Open a larger preview"><svg><use href="#i-expand"/></svg></button>
     </div>
-    <div class="stage"><div class="frame" id="frame"><div id="stageSvg"></div>
-      <div class="safe" id="safe"><em>SAFE ZONE — keep text inside</em><i></i></div>
+    <div class="stage" id="stage" data-zoom="fit"><div class="frame" id="frame"><div id="stageSvg"></div>
+      <div class="safe" id="safe"><i><em>Safe zone</em></i></div>
     </div></div>
   </main>
 
@@ -329,6 +401,10 @@ footer .sp{flex:1}
   <span>Fonts load from Google Fonts and nothing else is fetched.</span>
 </footer>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog id="pview" aria-label="Preview">
+  <div class="pvhead"><span class="fn" id="pvName"></span><span id="pvDims"></span><button type="button" class="btn" id="pvClose" aria-label="Close preview"><svg><use href="#i-x"/></svg></button></div>
+  <div class="pvbody"><div id="pvSvg"></div></div>
+</dialog>
 
 <script>
 /* zest-sound:start v1 */
@@ -435,26 +511,91 @@ const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [..
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const slug = s => String(s || '').toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'untitled';
 const snd = n => { try { window.ZestSound.play(n); } catch {} };   // tap · pop · drop · done · nope (the zest-sound kit above)
-let tT; const toast = (m, s) => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tT); tT = setTimeout(() => t.classList.remove('show'), 3200); if (s) snd(s); };
+let tT; const toast = (m, s) => {
+  if (/^Brand fonts could not load/.test(m)) { fontNote(); return; }   // a state, not an event: it shows as a quiet line in the stage bar, never over the card
+  const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tT); tT = setTimeout(() => t.classList.remove('show'), 3200); if (s) snd(s); };
+let fontsOffline = false;                 // a brand font failed to load this session
+function fontNote() { fontsOffline = true; paintFontNote(); }
+function paintFontNote() {                 // shown while the current brand's own fonts are the ones missing
+  let on = fontsOffline;
+  try { const b = brand(), bf = b.fonts || {}; on = on && ['head', 'body'].some(r => bf[r] && fam(b, r) === FALL[r]); } catch {}
+  const n = $('#fontNote'); if (n) n.hidden = !on;
+}
 
 /* ---------- bundled sample brands (zest-brand.json shape, spec §7.3) ---------- */
 /* Brands are untrusted input (imports and localStorage survive tampering).
    Every brand is forced through this before use: hex-only palette, letters-
    only font names, clamped numbers. Layouts never see a raw imported string. */
-const HEX = /^#[0-9a-fA-F]{3,8}$/;
+const HEX = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;   // 5 and 7 digits are not colors: they fall back
 const safeColor = (v, d) => HEX.test(String(v ?? '').trim()) ? String(v).trim() : d;
+const hex6 = v => { let x = String(v).trim().replace('#', ''); if (x.length <= 4) x = [...x.slice(0, 3)].map(c => c + c).join(''); return '#' + x.slice(0, 6); };   // #rgb, #rgba, #rrggbbaa → #rrggbb: a card has no use for alpha, and contrast math needs six digits
 const safeFont = v => { v = String(v ?? '').trim(); return /^[A-Za-z0-9 '\-]{1,48}$/.test(v) && !v.includes("''") ? v.replace(/'/g, '') : ''; };
 const safeLogo = v => typeof v === 'string' && v.length <= 1500000 && /^data:image\/(png|jpe?g|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(v) ? v : null;
+
+/* ---------- color: hex ⇄ OKLCH — the studio's own functions, so both apps derive the same ramp ---------- */
+const hex2rgb = x => { x = hex6(x).slice(1); const n = parseInt(x, 16) || 0; return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const rgb2hex = ([r, g, b]) => '#' + [r, g, b].map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+const s2l = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+const l2s = v => { v = Math.max(0, Math.min(1, v)); return 255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055); };
+function rgb2oklch([r, g, b]) {
+  const [lr, lg, lb] = [r, g, b].map(s2l);
+  const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb);
+  const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb);
+  const s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb);
+  const L = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s;
+  const A = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s;
+  const B = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
+  const C = Math.hypot(A, B); let H = Math.atan2(B, A) * 180 / Math.PI; if (H < 0) H += 360;
+  return { L, C, H };
+}
+function oklch2rgbRaw({ L, C, H }) {
+  const A = C * Math.cos(H * Math.PI / 180), B = C * Math.sin(H * Math.PI / 180);
+  const l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3;
+  const m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3;
+  const s = (L - 0.0894841775 * A - 1.2914855480 * B) ** 3;
+  return [
+    +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
+  ];
+}
+const inGamut = lin => lin.every(v => v >= -1e-4 && v <= 1 + 1e-4);
+function oklch2hex(c) {               // chroma-reduce until the color fits sRGB
+  let lo = 0, hi = c.C, C = c.C;
+  if (!inGamut(oklch2rgbRaw(c))) {
+    for (let i = 0; i < 18; i++) { C = (lo + hi) / 2; if (inGamut(oklch2rgbRaw({ ...c, C }))) lo = C; else hi = C; }
+    C = lo;
+  }
+  return rgb2hex(oklch2rgbRaw({ ...c, C }).map(l2s));
+}
+const hex2oklch = h => rgb2oklch(hex2rgb(h));
+function deriveRamp(primary) {        // the studio's rampHexes(), from any primary: 11 steps, lightest first
+  const base = hex2oklch(primary);
+  return Array.from({ length: 11 }, (_, i) => { const t = i / 10;
+    const L = 0.975 - t * 0.73, C = Math.min(base.C, 0.02 + Math.sin(Math.PI * t) * Math.max(base.C, 0.06) * 1.15);
+    return oklch2hex({ L, C, H: base.H }); });
+}
+const shade = (h, dL) => { const c = hex2oklch(h); return oklch2hex({ ...c, L: Math.max(0, Math.min(1, c.L + dL)) }); };   // tone-on-tone: same hue, a step lighter or darker
+const mix = (a, b, t) => { const A = hex2rgb(a), B = hex2rgb(b); return rgb2hex(A.map((v, i) => v + (B[i] - v) * t)); };
+const lum = h => { const [r, g, b] = hex2rgb(h).map(s2l); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };   // WCAG relative luminance
+const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+/* The contrast guard: the first candidate that reads on bg (4.5:1, or 3:1 for big bold type), else whichever reads best. */
+function onto(bg, cands, min = 4.5) {
+  for (const c of cands) if (c && contrast(c, bg) >= min) return c;
+  return [...cands, '#ffffff', '#000000'].filter(Boolean).sort((a, b) => contrast(b, bg) - contrast(a, bg))[0];
+}
+
 function sanitizeBrand(b) {
   b = b && typeof b === 'object' ? b : {};
   const pal = (q, fall) => { q = q && typeof q === 'object' ? q : {}; const out = {};
-    for (const k of ['primary', 'ink', 'muted', 'paper', 'sheet', 'line', 'dark']) out[k] = safeColor(q[k], (fall && fall[k]) || '#888888');
+    for (const k of ['primary', 'ink', 'muted', 'paper', 'sheet', 'line', 'dark']) out[k] = hex6(safeColor(q[k], (fall && fall[k]) || '#888888'));
     return out; };
   const light = pal(b.light), f = b.fonts && typeof b.fonts === 'object' ? b.fonts : {};
+  const ramp = Array.isArray(b.ramp) && b.ramp.length === 11 && b.ramp.every(v => safeColor(v, '')) ? b.ramp.map(hex6) : deriveRamp(light.primary);   // older files and the samples carry no ramp: derive it the way the studio does
   return { zest: 1, name: String(b.name || 'Untitled').slice(0, 48),
     logo: safeLogo(b.logo),
     fonts: { head: safeFont(f.head), body: safeFont(f.body), mono: safeFont(f.mono) },
-    light, dark: pal(b.dark, light),
+    light, dark: pal(b.dark, light), ramp,
     radius: Math.max(0, Math.min(40, +b.radius || 8)),
     type: { base: Math.max(8, Math.min(32, +(b.type && b.type.base) || 16)), ratio: Math.max(1, Math.min(2, +(b.type && b.type.ratio) || 1.25)) } };
 }
@@ -470,20 +611,30 @@ const SAMPLES = [
     light: { primary: '#5f7a0d', ink: '#14181f', muted: '#5f6866', paper: '#f4f5f2', sheet: '#ffffff', line: '#dde1da', dark: '#14181f' },
     dark:  { primary: '#b9e02f', ink: '#eef1ec', muted: '#9aa39f', paper: '#0d1013', sheet: '#161b20', line: '#262c2f', dark: '#0d1013' },
     radius: 10, type: { base: 16, ratio: 1.25 } },
-];
+].map(sanitizeBrand);   // the samples go through the same door as imports — and pick up their ramp there
 const FREE_BRANDS = 3;
 
 /* ---------- targets (spec §7.4) ---------- */
+/* safe: where the platform's own crop or controls cover the image, as pixel insets {t, r, b, l} at the target's own size.
+   Text inside the rectangle stays visible. why: one line for the toggle's tooltip. No safe, no zone, and the toggle hides. */
 const TARGETS = [
-  { id: 'og',        n: 'OG / Twitter', w: 1200, h: 630,  safe: true },
+  { id: 'og',        n: 'OG / Twitter', w: 1200, h: 630,  safe: { t: 40, r: 84, b: 40, l: 84 },   why: 'Some apps round or trim the edges of link cards.' },
   { id: 'blog',      n: 'Blog',         w: 1600, h: 900 },
   { id: 'blog-sm',   n: 'Blog small',   w: 1200, h: 675 },
   { id: 'square',    n: 'Square',       w: 1080, h: 1080 },
-  { id: 'portrait',  n: 'Portrait',     w: 1080, h: 1350 },
-  { id: 'story',     n: 'Story',        w: 1080, h: 1920 },
-  { id: 'pinterest', n: 'Pinterest',    w: 1000, h: 1500 },
+  { id: 'portrait',  n: 'Portrait',     w: 1080, h: 1350, safe: { t: 0, r: 34, b: 0, l: 34 },    why: 'The profile grid shows only the middle 3:4.' },
+  { id: 'story',     n: 'Story',        w: 1080, h: 1920, safe: { t: 250, r: 60, b: 340, l: 60 }, why: 'The top bar and the reply bar cover these edges.' },
+  { id: 'pinterest', n: 'Pinterest',    w: 1000, h: 1500, safe: { t: 150, r: 60, b: 150, l: 60 }, why: 'The Save button and the link sit over the top and bottom on hover.' },
   { id: 'custom',    n: 'Custom',       w: 0,    h: 0 },
 ];
+/* Pure: the safe zone of a target as pixel insets at W×H (scaled from the target's own size), or null when it has none.
+   The stage draws it; a layout can call it to keep text inside. */
+function safeInsets(targetId, W, H) {
+  const t = TARGETS.find(x => x.id === targetId);
+  if (!t || !t.safe || !t.w || !t.h) return null;
+  const sx = W / t.w, sy = H / t.h;
+  return { t: t.safe.t * sy, r: t.safe.r * sx, b: t.safe.b * sy, l: t.safe.l * sx };
+}
 
 /* ---------- state ---------- */
 const store = { get(k, d) { try { const v = localStorage.getItem('zestimage:' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
@@ -495,6 +646,7 @@ const S = {
   layout: store.get('layout', 'title'),
   target: store.get('target', 'og'),
   custom: store.get('custom', { w: 1200, h: 800 }),
+  logoInk: ['auto', 'original', 'one'].includes(store.get('logoInk', 'auto')) ? store.get('logoInk', 'auto') : 'auto',
   tint: 35, altTouched: false, exports: [], logo: null, logoName: '', photo: null, photoName: '',
 };
 const allBrands = () => [...SAMPLES, ...S.brands];
@@ -541,6 +693,7 @@ async function fetchFaces(entry, family, axes) {
     entry.css += face.replace(src[1], dataUri) + '\n';
     const w = (face.match(/font-weight:\s*([\d ]+)/) || [])[1] || '400';
     const ff = new FontFace(family, `url(${dataUri})`, { weight: w.trim().split(' ')[0] });
+    (entry.weights = entry.weights || []).push(...w.trim().split(' ').map(Number).filter(Boolean));
     await ff.load(); document.fonts.add(ff);
   }
   entry.ok = entry.css.length > 0;
@@ -551,10 +704,11 @@ function loadFamily(family, axes) {
   if (fontLoads.has(key)) return fontLoads.get(key);
   const p = (async () => {
     const entry = { css: '', ok: false };
-    try {
-      await fetchFaces(entry, family, axes);
-      if (!entry.ok && axes) await fetchFaces(entry, family, '');   // some families reject weighted requests (DM Serif Display is 400-only) — take their default faces
-    } catch { /* offline or blocked — fall back below */ }
+    try { await fetchFaces(entry, family, axes); } catch { /* offline, blocked, or a weighted request the family refuses */ }
+    if (!entry.ok && axes) {   // some families reject weighted requests (DM Serif Display is 400-only: an HTTP 400 with no CORS, so fetch throws) — take their default faces
+      entry.css = ''; entry.weights = [];
+      try { await fetchFaces(entry, family, ''); } catch { /* offline or blocked — fall back below */ }
+    }
     fontLoads.delete(key);
     if (entry.ok) fontCache.set(key, entry);   // failures stay uncached, so the next brand selection or import retries
     else if (!fontsWarned) { fontsWarned = true; toast('Brand fonts could not load — using system type for now.'); }
@@ -570,166 +724,557 @@ async function loadBrandFonts(b) {
 const fontCSS = b => { const seen = new Set(); return ['head', 'body', 'mono'].map(r => {
   const k = famKey(b, r); if (!k || seen.has(k)) return ''; seen.add(k);
   return (fontCache.get(k) || {}).css || ''; }).join(''); };
+/* the heaviest head weight that actually loaded: a 400-only display serif is set at 400, never faux-bolded. System type has them all. */
+const headMax = b => { const e = (b.fonts || {}).head && fontCache.get(famKey(b, 'head')); return e && e.ok && e.weights && e.weights.length ? Math.max(...e.weights) : 900; };
 const fam = (b, r) => { const f = (b.fonts || {})[r]; return f && (fontCache.get(famKey(b, r)) || {}).ok ? `'${f}', ${FALL[r]}` : FALL[r]; };
 
 /* ---------- text measuring + wrapping ---------- */
+/* Every line is measured with canvas measureText after the fonts load, then set as plain <text>/<tspan>,
+   so the preview, the PNG and the SVG export draw the same lines. Words never break mid-word: a size that
+   would need it is skipped, and only at the floor size may an unbreakable run (a URL, a CJK run) break. */
 const mctx = document.createElement('canvas').getContext('2d');
-function wrap(text, font, size, weight, maxW, maxLines) {
-  mctx.font = `${weight} ${size}px ${font}`;
-  const fitsW = t => mctx.measureText(t).width <= maxW;
-  const words = [];
+const r1 = n => Math.round(n * 10) / 10;
+const setF = (family, weight, size) => { mctx.font = `${weight} ${size}px ${family}`; };
+const tw = (t, size, ls) => mctx.measureText(t).width + (ls || 0) * size * [...t].length;   // ls in em; SVG tracks after every glyph
+const metrics = new Map();
+function capOf(family, weight) {     // cap height and descent as a fraction of the size, for the face actually in use
+  const key = family + '|' + weight;
+  if (!metrics.has(key)) { setF(family, weight, 100); const m = mctx.measureText('HXEbdhkl'), d = mctx.measureText('gjpy');
+    metrics.set(key, { cap: (m.actualBoundingBoxAscent || 72) / 100, desc: (d.actualBoundingBoxDescent || 20) / 100 }); }
+  return metrics.get(key);
+}
+function wrap(text, family, weight, size, maxW, maxLines, ls, breakWords) {
+  setF(family, weight, size);
+  const words = []; let broke = false;
   for (const w of String(text || '').split(/\s+/).filter(Boolean)) {
-    if (fitsW(w)) { words.push(w); continue; }
-    let cur = '';                       // a word wider than the column (URL, CJK run) breaks by characters
-    for (const ch of w) { if (cur && !fitsW(cur + ch)) { words.push(cur); cur = ch; } else cur += ch; }
+    if (tw(w, size, ls) <= maxW) { words.push(w); continue; }
+    if (!breakWords) return { lines: [], clipped: true, broke: true };
+    broke = true; let cur = '';
+    for (const ch of w) { if (cur && tw(cur + ch, size, ls) > maxW) { words.push(cur); cur = ch; } else cur += ch; }
     if (cur) words.push(cur);
   }
-  const lines = [];
-  let line = '';
+  const lines = []; let line = '';
   for (const w of words) {
     const t = line ? line + ' ' + w : w;
-    if (mctx.measureText(t).width <= maxW || !line) line = t;
-    else { lines.push(line); line = w; if (maxLines && lines.length === maxLines) return { lines, clipped: true }; }
+    if (!line || tw(t, size, ls) <= maxW) line = t;
+    else { lines.push(line); line = w; }
   }
   if (line) lines.push(line);
-  return { lines, clipped: false };
+  return { lines, broke, clipped: !!maxLines && lines.length > maxLines };
 }
-function fit(text, font, weight, maxW, maxH, startSize, minSize, lh) {
-  for (let size = startSize; size >= minSize; size -= Math.max(2, size * 0.06)) {
-    const maxLines = Math.max(1, Math.floor(maxH / (size * lh)));
-    const r = wrap(text, font, size, weight, maxW, maxLines + 1);
-    if (!r.clipped && r.lines.length <= maxLines) return { size, lines: r.lines };
+function ellipsize(lines, n, family, weight, size, maxW, ls) {   // too long even at the floor: end on a whole word and an ellipsis
+  setF(family, weight, size);
+  const out = lines.slice(0, n); let last = out[n - 1] || '';
+  while (last.includes(' ') && tw(last + '…', size, ls) > maxW) last = last.slice(0, last.lastIndexOf(' '));
+  out[n - 1] = last + '…';
+  return out;
+}
+const widest = (lines, family, weight, size, ls) => { setF(family, weight, size); return Math.max(0, ...lines.map(l => tw(l, size, ls))); };
+/* fit(): the largest size from start down to min at which the text sets in maxW × maxH (and maxLines) without
+   breaking a word. balance:true then narrows the measure until just before a line would be added, so a
+   headline's lines come out even instead of leaving one word alone on the last line. */
+function fit(text, o) {
+  const lh = o.lh || 1.1, ls = o.ls || 0, min = o.min, start = Math.max(o.start, min);
+  const room = size => Math.max(1, Math.min(o.maxLines || 99, Math.floor((o.maxH - size) / (size * lh) + 1e-6) + 1));
+  const done = (lines, size) => {
+    const sep = String(text).indexOf(' · ');
+    if (lines.length === 2 && sep > 0) {           // a two-line byline breaks at its own separator: name, then the rest
+      const two = [String(text).slice(0, sep).trim(), String(text).slice(sep + 3).trim()];
+      setF(o.family, o.weight, size);
+      if (two.every(l => tw(l, size, ls) <= o.maxW)) return { size, lines: two, lh, ls, w: widest(two, o.family, o.weight, size, ls), family: o.family, weight: o.weight };
+    }
+    if (o.balance && lines.length > 1) {
+      let lo = o.maxW * 0.45, hi = o.maxW;
+      for (let i = 0; i < 9; i++) { const mid = (lo + hi) / 2, r = wrap(text, o.family, o.weight, size, mid, 0, ls, false);
+        if (!r.broke && r.lines.length <= lines.length) hi = mid; else lo = mid; }
+      const r = wrap(text, o.family, o.weight, size, hi, 0, ls, false);
+      if (!r.broke && r.lines.length === lines.length) lines = r.lines;
+    }
+    return { size, lines, lh, ls, w: widest(lines, o.family, o.weight, size, ls), family: o.family, weight: o.weight };
+  };
+  for (let size = start; ; size = Math.max(min, size * 0.95)) {
+    if (size <= o.maxH || size <= min) {
+      const r = wrap(text, o.family, o.weight, size, o.maxW, room(size), ls, false);
+      if (!r.clipped) return done(r.lines, size);
+    }
+    if (size <= min) break;
   }
-  const size = minSize, r = wrap(text, font, size, weight, maxW, Math.max(1, Math.floor(maxH / (size * lh))));
-  return { size, lines: r.lines };
+  const n = room(min), r = wrap(text, o.family, o.weight, min, o.maxW, n, ls, true);
+  return { ...done(r.clipped ? ellipsize(r.lines, n, o.family, o.weight, min, o.maxW, ls) : r.lines, min), cut: r.clipped };   // cut: callers with room to give can give it and try again
 }
-function fitOne(text, font, weight, maxW, startSize, minSize) {
-  for (let size = startSize; size >= minSize; size -= Math.max(1, size * 0.06)) {
-    const r = wrap(text, font, size, weight, maxW, 1);
-    if (r.lines.length === 1 && !r.clipped) return { size, lines: [r.lines[0]] };
-  }
-  const r = wrap(text, font, minSize, weight, maxW, 1);
-  return { size: minSize, lines: [(r.lines[0] || '') + (r.clipped ? '…' : '')] };
+const fitOne = (text, o) => fit(text, { ...o, maxLines: 1, maxH: 1e6 });
+/* One block of pre-wrapped type. y is the first baseline. data-bg names the color the text sits on, so the
+   layout matrix test can hold every line to its contrast floor; decorative glyphs are marked data-deco. */
+function T(o, x, y, fill, bg, extra = {}) {
+  const lh = o.lh || 1.1, a = extra.anchor;
+  return `<text font-family="${o.family}" font-size="${r1(o.size)}" font-weight="${o.weight}" fill="${fill}"${o.ls ? ` letter-spacing="${r1(o.ls * o.size)}"` : ''}${a ? ` text-anchor="${a}"` : ''}${extra.deco ? ' aria-hidden="true" data-deco="1"' : ` data-bg="${bg}"`}${extra.role ? ` data-role="${extra.role}"` : ''}>${o.lines.map((l, i) => `<tspan x="${r1(x)}" y="${r1(y + i * o.size * lh)}">${esc(l)}</tspan>`).join('')}</text>`;
 }
-const tspans = (lines, x, y, lh, size) => lines.map((l, i) => `<tspan x="${x}" y="${(y + i * size * lh).toFixed(1)}">${esc(l)}</tspan>`).join('');
+const blockH = o => (o.lines.length - 1) * o.size * o.lh;              // first baseline → last baseline
+const capH = o => { setF(o.family, o.weight, o.size); return Math.max(capOf(o.family, o.weight).cap * o.size, o.lines[0] ? mctx.measureText(o.lines[0]).actualBoundingBoxAscent : 0); };   // the first line's own ink top, so a block set to a margin stays inside it
+const descH = o => capOf(o.family, o.weight).desc * o.size;
+const inkL = o => { setF(o.family, o.weight, o.size); return o.lines[0] ? mctx.measureText(o.lines[0]).actualBoundingBoxLeft : 0; };   // how far the first line's ink starts left of its origin: a big numeral set flush to a margin moves right by this much
+const inkExt = o => { setF(o.family, o.weight, o.size); const l = o.lines[0] || '', m = mctx.measureText(l); return Math.max(0, m.actualBoundingBoxLeft) + m.width + (o.ls || 0) * o.size * Math.max(0, [...l].length - 1); };   // the room a big line needs: its ink overhang (it moves right by that), its advance, and tracking counted between glyphs only — SVG draws a tightly tracked numeral wider than tw() expects
 
-/* ---------- shared pieces ---------- */
-const lum = h => { h = String(h).slice(1); if (h.length < 6) h = h.split('').map(c => c + c).join(''); const n = parseInt(h.slice(0, 6), 16) || 0; return 0.2126 * (n >> 16 & 255) + 0.7152 * (n >> 8 & 255) + 0.0722 * (n & 255); };
-const photoDefs = (ph, tint, primary, W, H, id) => ph ? `
-  <filter id="tint${id}"><feColorMatrix type="saturate" values="${(1 - (tint / 100) * 0.6).toFixed(2)}"/></filter>
-  <clipPath id="pc${id}"><rect x="0" y="0" width="${W}" height="${H}"/></clipPath>` : '';
-const photoAt = (ph, tint, primary, x, y, w, h, id) => ph ? `
-  <g clip-path="url(#pc${id})"><g transform="translate(${x} ${y})">
-    <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid slice" style="overflow:hidden">
-      <image href="${ph}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" filter="url(#tint${id})"/>
+/* ---------- geometry: one grid for every layout ---------- */
+/* u is the short side. Margins come from both sides of the canvas, never one, so a 3:1 banner keeps its
+   height and a story keeps its sides. ins (optional) is the target's own safe zone in px {t,r,b,l}: the
+   margin on each side is the larger of the two, so type and logos stay inside it. Only color fields and
+   decorative glyphs bleed past it. */
+function G(W, H, ins) {
+  const u = Math.min(W, H), ar = W / H, i = ins || {};
+  const l = Math.max(W * 0.07, u * 0.075, +i.l || 0), r = Math.max(W * 0.07, u * 0.075, +i.r || 0);
+  const t = Math.max(H * 0.06, u * 0.075, +i.t || 0), b = Math.max(H * 0.06, u * 0.075, +i.b || 0);
+  return { W, H, u, ar, o: ar >= 1.3 ? 'wide' : ar <= 0.8 ? 'tall' : 'square',
+    x0: l, x1: W - r, y0: t, y1: H - b, sw: W - l - r, sh: H - t - b,
+    meta: u * 0.042,          // byline, brand name: about 11px when a 1200px card shows at 500px in a feed
+    label: u * 0.046,         // kicker chip, part label
+    gap: u * 0.05 };
+}
+/* per-mode color roles. R is the brand's 11-step ramp ordered from the paper end: R[0] sits nearest the
+   page, R[10] furthest from it — so R[1] is a tint in Light and a deep tone in Dark. primary stays the
+   brand's literal value; ramp steps only ever carry secondary tones. */
+function roles(b, mode) {
+  const t = { ...(b[mode] || b.light) };
+  t.dk = lum(t.paper) < 0.2;          // by the paper itself: an import without dark tokens copies light into dark
+  t.R = t.dk ? b.ramp.slice().reverse() : b.ramp.slice();
+  t.onP = onto(t.primary, t.dk ? [t.paper, t.dark, t.ink] : [t.sheet, t.paper, t.ink]);
+  t.tone = t.R[1];                    // a brand-tinted field that is not the primary: a tint in Light, a deep tone in Dark
+  return t;
+}
+const rect = (x, y, w, h, fill, extra = '') => `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" fill="${fill}"${extra}/>`;
+const rxFor = (k, h) => r1(Math.min(h / 2, h * k.b.radius / 36));    // the brand radius, as it sits on a 36px control, scaled to this shape
+
+/* ---------- logos: placed by their measured aspect ---------- */
+const LOGO_AR = new Map();
+function logoAR(url) {
+  if (!url) return 1;
+  if (LOGO_AR.has(url)) return LOGO_AR.get(url);
+  let ar = 0;
+  try {
+    const b64 = url.slice(url.indexOf(',') + 1);
+    if (/^data:image\/svg/.test(url)) {
+      const src = atob(b64), svgTag = (src.match(/<svg\b[^>]*>/i) || [''])[0];
+      const vb = svgTag.match(/viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i);
+      const w = svgTag.match(/\swidth\s*=\s*["']([\d.]+)(px)?["']/i), h = svgTag.match(/\sheight\s*=\s*["']([\d.]+)(px)?["']/i);
+      ar = vb && +vb[2] ? vb[1] / vb[2] : w && h && +h[1] ? w[1] / h[1] : 0;
+    } else if (/^data:image\/png/.test(url)) {
+      const head = atob(b64.slice(0, 44));   // IHDR: width and height, big-endian, at bytes 16 and 20
+      const be = o => ((head.charCodeAt(o) << 24) >>> 0) + (head.charCodeAt(o + 1) << 16) + (head.charCodeAt(o + 2) << 8) + head.charCodeAt(o + 3);
+      ar = be(20) ? be(16) / be(20) : 0;
+    }
+  } catch {}
+  if (!(ar > 0.05 && ar < 20)) {          // anything else: measure it once, then draw again
+    ar = 1;
+    const img = new Image(); img.onload = () => { if (img.naturalWidth && img.naturalHeight) { LOGO_AR.set(url, img.naturalWidth / img.naturalHeight); render(); } }; img.src = url;
+  }
+  LOGO_AR.set(url, ar);
+  return ar;
+}
+/* How a logo reads on a ground: the luminance of its opaque pixels, sampled once at 64px. A logo that fills its
+   box (a badge, an app icon) carries its own ground and is never recolored. */
+const LOGO_PX = new Map();
+function logoPixels(url) {
+  if (!url) return null;
+  if (LOGO_PX.has(url)) return LOGO_PX.get(url);
+  LOGO_PX.set(url, null);
+  const img = new Image();
+  img.onload = () => {
+    let px = { cover: 1, lums: [] };
+    try {
+      const ar = logoAR(url), n = 64, w = ar >= 1 ? n : Math.max(4, Math.round(n * ar)), h = ar >= 1 ? Math.max(4, Math.round(n / ar)) : n;
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      const x = cv.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0, w, h);
+      const d = x.getImageData(0, 0, w, h).data, lums = [];
+      for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 128) lums.push(0.2126 * s2l(d[i]) + 0.7152 * s2l(d[i + 1]) + 0.0722 * s2l(d[i + 2]));
+      px = { cover: lums.length / (w * h), lums };
+    } catch {}
+    LOGO_PX.set(url, px); render();
+  };
+  img.onerror = () => LOGO_PX.set(url, { cover: 1, lums: [] });
+  img.src = url;
+  return null;
+}
+/* one color, or the logo's own? Original never recolors, One color always does; Auto recolors only when a fifth
+   or more of the logo's ink would sit under 3:1 on this ground (2:1 on light paper): a dark wordmark on a Dark card or a deep field. */
+function inkLogo(k, bg) {
+  if (S.logoInk === 'original') return false;
+  if (S.logoInk === 'one') return true;
+  const px = logoPixels(k.logo); if (!px || px.cover > 0.85 || !px.lums.length) return false;
+  const lb = lum(bg), need = lb > 0.6 ? 2 : 3; let low = 0;   // on light paper only a faint logo goes one color; on a field or a Dark card, under 3:1 does
+  for (const l of px.lums) if ((Math.max(l, lb) + 0.05) / (Math.min(l, lb) + 0.05) < need) low++;
+  return low / px.lums.length >= 0.2;
+}
+/* the logo as an <image>, in its own colors or flooded with one (an alpha mask: its shape, the card's color) */
+function logoImg(k, x, y, w, h, bg, fill) {
+  const one = fill && inkLogo(k, bg), fid = one ? `mk${k.id}-${k.mk = (k.mk || 0) + 1}` : '';
+  return (one ? `<filter id="${fid}" color-interpolation-filters="sRGB"><feFlood flood-color="${fill}"/><feComposite in2="SourceAlpha" operator="in"/></filter>` : '')
+    + `<image href="${esc(k.logoHref)}" x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" preserveAspectRatio="xMidYMid meet" data-logo="1" data-bg="${bg}"${one ? ` filter="url(#${fid})" data-ink="${fill}"` : ''}/>`;
+}
+/* the brand mark: the logo when there is one, else the brand name set in the head face.
+   cy is the vertical center; anchor start/end/middle aligns x. Returns its width so rails can share a line. */
+function mark(k, x, cy, o) {
+  const { g, f, b } = k, anchor = o.anchor || 'start';
+  if (k.logo && !o.nameOnly) {
+    let h = o.h || g.meta * 1.7, w = h * logoAR(k.logo);
+    if (o.maxW && w > o.maxW) { w = o.maxW; h = w / logoAR(k.logo); }
+    const lx = anchor === 'end' ? x - w : anchor === 'middle' ? x - w / 2 : x;
+    cy = Math.max(g.y0 + h / 2, Math.min(cy, g.y1 - h / 2));     // a logo stays inside the safe rect, like type
+    return { svg: logoImg(k, lx, cy - h / 2, w, h, o.bg, o.fill), w, h };
+  }
+  const nm = fitOne(b.name || 'Brand', { family: f.head, weight: f.hw(700), maxW: o.maxW || g.sw, start: o.size || g.meta * 1.05, min: g.meta, ls: -0.01 });
+  return { svg: T(nm, x, cy + capH(nm) / 2, o.fill, o.bg, { anchor: anchor === 'start' ? '' : anchor }), w: nm.w, h: capH(nm), cut: !!nm.cut };   // cut: the name only fit shortened; a caller with somewhere else to put it should
+}
+/* the footer rail every card shares: brand mark at one end, byline at the other, one baseline. When the
+   byline would not fit beside the mark, the two stack: mark above, byline below, both from the start.
+   o: { x0, x1, cy, bg, fill (byline), markFill, byline, line (hairline color), brandAt: 'start'|'end'|'none' } */
+function rail(k, o) {
+  const { g, f } = k, out = [], W0 = o.x1 - o.x0; let at = o.brandAt || 'end';
+  const mk = (x, cy, anchor) => mark(k, x, cy, { anchor, fill: o.markFill || o.fill, bg: o.bg, maxW: W0 * (o.byline ? 0.45 : 1) });
+  let m = at !== 'none' ? mk(at === 'end' ? o.x1 : o.x0, o.cy, at) : null, by = null;
+  if (o.byline) {
+    setF(f.body, 500, g.meta);
+    if (m && tw(o.byline, g.meta) > W0 - m.w - g.gap) at = 'stack';     // no room side by side: stack
+    const room = m && at !== 'stack' ? W0 - m.w - g.gap : W0;
+    by = fit(o.byline, { family: f.body, weight: 500, maxW: room, maxH: g.meta * 3, start: g.meta, min: g.meta, lh: 1.3, maxLines: 2 });   // a long byline takes a second line, upward
+  }
+  if (m && at !== 'stack' && k.logo && o.cy > g.y1 - m.h / 2) { o = { ...o, cy: g.y1 - m.h / 2 }; m = mk(at === 'end' ? o.x1 : o.x0, o.cy, at); }   // a tall logo lifts the rail so its foot stays on the margin
+  const byUp = by ? blockH(by) : 0;                 // how far the byline's first line sits above the rail's line
+  let top = o.cy - byUp - g.meta * 0.9;
+  if (m && at === 'stack') { const cy = o.cy - byUp - g.meta * 0.5 - g.u * 0.035 - m.h / 2; m = mk(o.x0, cy, 'start'); top = cy - m.h / 2; }
+  else if (m) top = Math.min(top, o.cy - m.h / 2);
+  if (m) out.push(m.svg);
+  if (by) out.push(T(by, at === 'start' ? o.x0 + m.w + g.gap : o.x0, o.cy + capH(by) / 2 - byUp, o.fill, o.bg));
+  if (o.line) { top -= g.u * 0.035; out.push(rect(o.x0, top, W0, Math.max(2, g.u * 0.0025), o.line)); }
+  return { svg: out.join(''), top };
+}
+/* the kicker chip: mono caps on a primary pill with the brand's radius. Returns its box. */
+function chip(k, text, x, y, o = {}) {
+  const { g, f, t } = k, fill = o.fill || t.primary;
+  const lab = fitOne(String(text).toUpperCase(), { family: f.mono, weight: 500, maxW: (o.maxW || g.sw) - g.label * 1.2, start: o.size || g.label, min: g.meta, ls: 0.08 });
+  const h = lab.size * 2, w = lab.w + lab.size * 1.15;
+  const fg = onto(fill, o.cands || [t.onP, t.sheet, t.paper, t.ink]);
+  return { svg: rect(x, y, w, h, fill, ` rx="${rxFor(k, h)}"`) + T(lab, x + lab.size * 0.6, y + h / 2 + capH(lab) / 2, fg, fill), w, h };
+}
+/* a ladder of ramp steps: the brand's own scale used as structure. Vertical strips (dir 'x') or bands (dir 'y'). */
+function ladder(k, steps, x, y, step, len, dir) {
+  return steps.map((s, i) => dir === 'x' ? rect(x + i * step, y, step + 0.5, len, k.t.R[s]) : rect(x, y + i * step, len, step + 0.5, k.t.R[s])).join('');
+}
+const initial = b => ([...String(b.name || 'Z').trim()][0] || 'Z').toUpperCase();
+/* a big tone-on-tone letterform: the brand initial one step off its field, solid color (not opacity), so it rasterizes crisp */
+function tonal(k, ch, size, x, y, fill, anchor = 'end') {
+  return T({ family: k.f.head, weight: k.f.hw(800), size, lines: [ch], ls: -0.04 }, x, y, fill, '', { anchor, deco: true });
+}
+const toneOn = (bg, amt = 0.06) => shade(bg, lum(bg) > 0.35 ? -amt : amt);
+const photoDefs = k => k.ph ? `
+  <filter id="tint${k.id}"><feColorMatrix type="saturate" values="${(1 - (k.tint / 100) * 0.6).toFixed(2)}"/></filter>
+  <clipPath id="pc${k.id}"><rect x="0" y="0" width="${k.W}" height="${k.H}"/></clipPath>` : '';
+function photoAt(k, x, y, w, h) {
+  return `<g clip-path="url(#pc${k.id})"><g transform="translate(${r1(x)} ${r1(y)})">
+    <svg width="${r1(w)}" height="${r1(h)}" viewBox="0 0 ${r1(w)} ${r1(h)}" preserveAspectRatio="xMidYMid slice" style="overflow:hidden">
+      <image href="${esc(k.ph)}" width="${r1(w)}" height="${r1(h)}" preserveAspectRatio="xMidYMid slice" filter="url(#tint${k.id})"/>
     </svg>
-    <rect width="${w}" height="${h}" fill="${primary}" opacity="${(tint / 100 * 0.42).toFixed(2)}" style="mix-blend-mode:multiply"/>
-  </g></g>` : '';
-const logoAt = (logo, x, y, h) => logo ? `<image href="${logo}" x="${x}" y="${y}" height="${h}" width="${h * 4}" preserveAspectRatio="xMinYMid meet"/>` : '';
-const brandLine = (b, t, x, y, size, anchor) =>
-  `<text x="${x}" y="${y}" font-family="${fam(b, 'mono')}" font-size="${size}" letter-spacing="${size * 0.12}" fill="${t.muted}" text-anchor="${anchor || 'start'}">${esc(b.name.toUpperCase())}</text>`;
+    <rect width="${r1(w)}" height="${r1(h)}" fill="${k.t.primary}" opacity="${(k.tint / 100 * 0.42).toFixed(2)}" style="mix-blend-mode:multiply"/>
+  </g></g>`;
+}
+/* worst case under text on a veil of color v at opacity a over an unknown photo: the photo pixel that hurts most */
+const veiled = (v, a, fg) => [mix(v, '#ffffff', 1 - a), mix(v, '#000000', 1 - a)].sort((p, q) => contrast(fg, p) - contrast(fg, q))[0];
+const boost = g => g.o === 'wide' ? Math.min(1.35, 1 + (g.ar - 1.3) * 0.22) : 1;   // a wide card's headline can run larger than its short side alone suggests
+const bigEnough = c => String(c.title || '').split(/\s+/).length > 8 ? 0.09 : 0.1;   // the headline size a panel gives way for: 0.1u, 0.09u for a long title
+const titleFace = (k, extra) => ({ family: k.f.head, weight: k.f.hw(800), lh: 1.02, ls: -0.035, balance: true, ...extra });
 
-/* ---------- the eight layouts (spec §7.4) — pure functions over tokens ---------- */
-/* f lists the Content fields a layout draws (the data-f names in the markup; stat is Stat + Stat label, series is Part + of).
-   Keep it in step with fn: renderFields() shows these and tucks the rest away. Quote card draws the title only when Quote is empty. */
+/* ---------- the eight layouts (spec §7.4) — pure functions over the brand ---------- */
+/* Each takes k = { b, t (roles), c (content), W, H, g (grid), f (faces), ph, logo, id } and returns SVG.
+   f lists the Content fields a layout draws (the data-f names in the markup; stat is Stat + Stat label,
+   series is Part + of). Keep it in step with fn: renderFields() shows these and tucks the rest away.
+   Quote card draws the title only when Quote is empty. Every card works wide, square and tall. */
 const LAYOUTS = {
-  title: { n: 'Title card', d: 'The headline, set properly', f: ['title', 'byline'], fn(b, t, c, W, H, ph) {
-    const M = W * 0.08, u = Math.min(W, H);
-    const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, W - M * 2, H * 0.52, u * 0.16, u * 0.05, 1.08);
-    const block = ti.lines.length * ti.size * 1.08, y0 = (H - block) / 2 + ti.size * 0.86;
-    return `<rect width="${W}" height="${H}" fill="${t.paper}"/>
-      <rect x="${M}" y="${y0 - ti.size * 1.32}" width="${u * 0.085}" height="${u * 0.012}" rx="${u * 0.006}" fill="${t.primary}"/>
-      <text font-family="${fam(b, 'head')}" font-weight="800" font-size="${ti.size}" fill="${t.ink}" letter-spacing="${-ti.size * 0.02}">${tspans(ti.lines, M, y0, 1.08, ti.size)}</text>
-      ${c.byline ? `<text x="${M}" y="${H - M * 0.72}" font-family="${fam(b, 'body')}" font-size="${u * 0.032}" fill="${t.muted}">${esc(c.byline)}</text>` : ''}
-      ${logoAt(S.logo, W - M - u * 0.26, H - M * 0.72 - u * 0.058, u * 0.065) || brandLine(b, t, W - M, H - M * 0.72, u * 0.026, 'end')}`;
+  /* Title card — editorial: a big headline on the page, the brand's color field beside it, entered through the ramp */
+  title: { n: 'Title card', d: 'The headline, set properly', f: ['title', 'byline'], fn(k) {
+    const { g, t, c, f, W, H, u } = { ...k, u: k.g.u }, out = [rect(0, 0, W, H, t.paper)], step = u * 0.022;
+    if (g.o === 'wide') {
+      const fx = Math.round(W * 0.77), edge = fx - step * 3;
+      out.push(ladder(k, [2, 4, 6], edge, 0, step, H, 'x'), rect(fx, 0, W - fx, H, t.primary));
+      out.push(tonal(k, initial(k.b), (W - fx) * 1.55, W + u * 0.06, H + u * 0.1, toneOn(t.primary)));
+      // The brand sits in the field when it fits there whole. A long name (or a wide fallback face) would only fit
+      // cut short, so it moves to the rail's end instead, like the other cards: a brand name is never shortened.
+      const fm = mark(k, fx + u * 0.06, g.y0 + g.meta * 1.2, { fill: t.onP, bg: t.primary, maxW: Math.min(g.x1, W - u * 0.06) - fx - u * 0.06, h: u * 0.11, size: g.meta * 1.25 });
+      if (!fm.cut) out.push(fm.svg);
+      const rl = rail(k, { x0: g.x0, x1: edge - u * 0.07, cy: g.y1 - g.meta * 0.4, bg: t.paper, fill: onto(t.paper, [t.muted, t.ink]), markFill: onto(t.paper, [t.ink]), byline: c.byline, brandAt: fm.cut ? 'end' : 'none', line: t.line });
+      const ti = fit(c.title || 'Untitled', titleFace(k, { maxW: edge - u * 0.08 - g.x0, maxH: rl.top - g.gap - g.y0, start: u * 0.2 * boost(g), min: u * 0.07 }));
+      out.push(T(ti, g.x0, g.y0 + capH(ti), t.ink, t.paper, { role: 'title' }), rl.svg);
+    } else {
+      const tall = g.o === 'tall', want = H * (tall ? 0.66 : 0.8);
+      const cy = Math.min(want + (H - want) * (tall ? 0.7 : 0.5), g.y1 - g.meta * 0.4);
+      const rl = rail(k, { x0: g.x0, x1: g.x1, cy, bg: t.primary, fill: t.onP, byline: c.byline, brandAt: 'start' });
+      const band = Math.min(want, rl.top - u * 0.05), edge = band - step * 3;
+      out.push(ladder(k, [2, 4, 6], 0, edge, step, W, 'y'), rect(0, band, W, H - band, t.primary));
+      if (tall) out.push(`<clipPath id="tb${k.id}">${rect(0, band, W, H - band, '#000')}</clipPath><g clip-path="url(#tb${k.id})">${tonal(k, initial(k.b), (H - band) * 1.3, W + u * 0.08, H + (H - band) * 0.2, toneOn(t.primary))}</g>`);
+      out.push(rl.svg);
+      const ti = fit(c.title || 'Untitled', titleFace(k, { maxW: g.sw, maxH: edge - u * 0.08 - g.y0, start: u * (tall ? 0.22 : 0.18), min: u * 0.075 }));
+      out.push(T(ti, g.x0, tall ? g.y0 + capH(ti) : edge - u * 0.08 - blockH(ti), t.ink, t.paper, { role: 'title' }));
+    }
+    return out.join('');
   }},
-  kicker: { n: 'Kicker + title', d: 'Eyebrow in the accent', f: ['title', 'kicker', 'byline'], fn(b, t, c, W, H) {
-    const M = W * 0.08, u = Math.min(W, H);
-    const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, W - M * 2, H * 0.46, u * 0.145, u * 0.05, 1.1);
-    const kY = H * 0.22;
-    return `<rect width="${W}" height="${H}" fill="${t.paper}"/>
-      <text x="${M}" y="${kY}" font-family="${fam(b, 'mono')}" font-size="${u * 0.034}" letter-spacing="${u * 0.005}" fill="${t.primary}">${esc((c.kicker || 'Kicker').toUpperCase())}</text>
-      <rect x="${M}" y="${kY + u * 0.022}" width="${W - M * 2}" height="1.5" fill="${t.line}"/>
-      <text font-family="${fam(b, 'head')}" font-weight="800" font-size="${ti.size}" fill="${t.ink}" letter-spacing="${-ti.size * 0.02}">${tspans(ti.lines, M, kY + u * 0.075 + ti.size * 0.86, 1.1, ti.size)}</text>
-      ${c.byline ? `<text x="${M}" y="${H - M * 0.72}" font-family="${fam(b, 'body')}" font-size="${u * 0.03}" fill="${t.muted}">${esc(c.byline)}</text>` : ''}
-      ${logoAt(S.logo, W - M - u * 0.26, H - M * 0.72 - u * 0.055, u * 0.06) || brandLine(b, t, W - M, H - M * 0.72, u * 0.025, 'end')}`;
+  /* Kicker + title — the label: the card takes the brand's tint, the kicker is a chip, a dot grid holds the corner */
+  kicker: { n: 'Kicker + title', d: 'A label, then the headline', f: ['title', 'kicker', 'byline'], fn(k) {
+    const { g, t, c, f, W, H } = k, u = g.u, bg = t.R[1], out = [rect(0, 0, W, H, bg)];
+    const pitch = u * 0.034, r0 = g.o === 'wide' ? u * 0.52 : g.o === 'tall' ? W * 0.5 : u * 0.42;
+    const ch = chip(k, c.kicker || 'Kicker', g.x0, g.y0, { maxW: g.o === 'wide' ? W - r0 - g.gap - g.x0 : g.sw * 0.6 });
+    const rl = rail(k, { x0: g.x0, x1: g.x1, cy: g.y1 - g.meta * 0.4, bg, fill: onto(bg, [t.muted, t.ink]), markFill: onto(bg, [t.ink]), byline: c.byline, brandAt: 'end', line: onto(bg, [t.R[3]], 1.2) });
+    const maxW = g.o === 'wide' ? Math.min(g.sw, W * 0.74 - g.x0) : g.sw;
+    let rad, ti, top;
+    for (const sh of g.o === 'wide' ? [1] : [1, 0.75, 0.55]) {     // a long headline on a square card: the dot field steps back to give it room
+      rad = r0 * sh;
+      top = g.o === 'wide' ? g.y0 + ch.h + g.gap * 1.1 : Math.max(g.y0 + ch.h, rad) + g.gap * 1.1;
+      ti = fit(c.title || 'Untitled', titleFace(k, { maxW, maxH: rl.top - g.gap - top, start: u * (g.o === 'tall' ? 0.19 : g.o === 'wide' ? 0.22 : 0.17) * boost(g), min: u * 0.07, lh: 1.04 }));
+      if (ti.size >= u * 0.095 && !ti.cut) break;
+    }
+    out.push(`<pattern id="dots${k.id}" width="${r1(pitch)}" height="${r1(pitch)}" patternUnits="userSpaceOnUse"><circle cx="${r1(pitch / 2)}" cy="${r1(pitch / 2)}" r="${r1(u * 0.0048)}" fill="${t.R[t.dk ? 5 : 4]}"/></pattern>`,
+      `<circle cx="${W}" cy="0" r="${r1(rad)}" fill="url(#dots${k.id})"/>`, ch.svg);
+    const y = g.o === 'square' ? top + capH(ti) : Math.max(top + capH(ti), rl.top - g.gap * 1.2 - blockH(ti) - descH(ti));   // tall and wide: the headline sits on the rail, the chip holds the top
+    out.push(T(ti, g.x0, y, onto(bg, [t.ink]), bg, { role: 'title' }), rl.svg);
+    return out.join('');
   }},
-  split: { n: 'Split', d: 'Text left, photo right', f: ['title', 'kicker', 'byline'], fn(b, t, c, W, H, ph, id) {
-    const pw = W * 0.44, M = W * 0.055, u = Math.min(W, H), tw = W - pw;
-    const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, tw - M * 2, H * 0.5, u * 0.12, u * 0.045, 1.1);
-    const block = ti.lines.length * ti.size * 1.1, y0 = (H - block) / 2 + ti.size * 0.86;
-    const right = ph ? photoAt(ph, S.tint, t.primary, tw, 0, pw, H, id)
-      : `<rect x="${tw}" width="${pw}" height="${H}" fill="${t.primary}"/>
-         <text x="${tw + pw / 2}" y="${H / 2 + u * 0.14}" font-family="${fam(b, 'head')}" font-weight="800" font-size="${u * 0.42}" fill="${t.paper}" opacity=".3" text-anchor="middle">${esc((b.name || 'Z')[0].toUpperCase())}</text>`;
-    return `<rect width="${W}" height="${H}" fill="${t.sheet}"/>${right}
-      <rect x="${tw - 1}" width="2" height="${H}" fill="${t.line}"/>
-      ${c.kicker ? `<text x="${M}" y="${y0 - ti.size * 1.35}" font-family="${fam(b, 'mono')}" font-size="${u * 0.03}" letter-spacing="${u * 0.004}" fill="${t.primary}">${esc(c.kicker.toUpperCase())}</text>` : ''}
-      <text font-family="${fam(b, 'head')}" font-weight="800" font-size="${ti.size}" fill="${t.ink}" letter-spacing="${-ti.size * 0.02}">${tspans(ti.lines, M, y0, 1.1, ti.size)}</text>
-      ${c.byline ? `<text x="${M}" y="${H - M}" font-family="${fam(b, 'body')}" font-size="${u * 0.028}" fill="${t.muted}">${esc(c.byline)}</text>` : ''}`;
+  /* Split — half page, half picture: your photo (or the brand field with its initial), joined by the ramp */
+  split: { n: 'Split', d: 'Text beside your photo', f: ['title', 'kicker', 'byline'], fn(k) {
+    const { g, t, c, W, H } = k, u = g.u, out = [rect(0, 0, W, H, t.sheet)], step = u * 0.02;
+    const pic = (x, y, w, h) => k.ph ? photoAt(k, x, y, w, h)
+      : rect(x, y, w, h, t.primary) + `<clipPath id="sf${k.id}">${rect(x, y, w, h, '#000')}</clipPath><g clip-path="url(#sf${k.id})">${tonal(k, initial(k.b), Math.max(w, h) * 1.05, x + w + u * 0.08, y + h + Math.max(w, h) * 0.16, toneOn(t.primary))}</g>`;
+    const tries = g.o === 'wide' ? [0.5, 0.56, 0.62] : g.o === 'tall' ? [0.46, 0.4, 0.33, 0.26, 0.2] : [0.47, 0.4, 0.33, 0.26, 0.2];
+    let best = null;
+    for (const fr of tries) {         // the picture gives way, a step at a time, until the headline is whole and big enough
+      const o = [];
+      let tx0 = g.x0, tx1 = g.x1, ty0, ty1 = g.y1;
+      if (g.o === 'wide') {
+        const half = Math.round(W * fr);
+        o.push(pic(half, 0, W - half, H), ladder(k, [2, 4, 6], half, 0, step, H, 'x'));
+        tx1 = half - u * 0.08; ty0 = g.y0;
+      } else {
+        const seam = Math.round(H * fr);
+        o.push(pic(0, 0, W, seam), ladder(k, [6, 4, 2], 0, seam - step * 3, step, W, 'y'));
+        ty0 = Math.max(g.y0, seam + u * 0.07);
+      }
+      const ch = c.kicker ? chip(k, c.kicker, tx0, ty0, { maxW: tx1 - tx0 }) : { svg: '', h: -g.gap * 0.9 };
+      const rl = rail(k, { x0: tx0, x1: tx1, cy: ty1 - g.meta * 0.4, bg: t.sheet, fill: onto(t.sheet, [t.muted, t.ink]), markFill: onto(t.sheet, [t.ink]), byline: c.byline, brandAt: 'end' });
+      const top = ty0 + ch.h + g.gap * 0.9;
+      const ti = fit(c.title || 'Untitled', titleFace(k, { maxW: tx1 - tx0, maxH: rl.top - g.gap - top, start: u * 0.15 * boost(g), min: u * 0.065, lh: 1.04 }));
+      o.push(ch.svg, T(ti, tx0, top + capH(ti), onto(t.sheet, [t.ink]), t.sheet, { role: 'title' }), rl.svg);
+      if (!ti.cut && ti.size >= u * bigEnough(c)) return out.concat(o).join('');
+      if (!best || (best.cut && !ti.cut) || (best.cut === !!ti.cut && ti.size > best.size)) best = { cut: !!ti.cut, size: ti.size, o };
+    }
+    return out.concat(best.o).join('');
   }},
-  scrim: { n: 'Photo + scrim', d: 'Title over your photo', f: ['title', 'kicker'], fn(b, t, c, W, H, ph, id) {
-    const M = W * 0.07, u = Math.min(W, H);
-    const fg = Math.abs(lum(t.ink) - lum(t.dark)) >= Math.abs(lum(t.paper) - lum(t.dark)) ? t.ink : t.paper;  // whichever contrasts with the scrim — mode alone lies when an import without dark tokens copied light into dark
-    const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, W - M * 2, H * 0.34, u * 0.12, u * 0.045, 1.08);
-    const block = ti.lines.length * ti.size * 1.08;
-    const base = ph ? photoAt(ph, S.tint, t.primary, 0, 0, W, H, id) : `<rect width="${W}" height="${H}" fill="${t.dark}"/>`;
-    return `${base}
-      <linearGradient id="sc${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.dark}" stop-opacity="0"/><stop offset="1" stop-color="${t.dark}" stop-opacity=".92"/></linearGradient>
-      <rect y="${H * 0.38}" width="${W}" height="${H * 0.62}" fill="url(#sc${id})"/>
-      ${c.kicker ? `<text x="${M}" y="${H - M - block - u * 0.035}" font-family="${fam(b, 'mono')}" font-size="${u * 0.028}" letter-spacing="${u * 0.004}" fill="${t.primary}">${esc(c.kicker.toUpperCase())}</text>` : ''}
-      <text font-family="${fam(b, 'head')}" font-weight="800" font-size="${ti.size}" fill="${fg}" letter-spacing="${-ti.size * 0.02}">${tspans(ti.lines, M, H - M - block + ti.size * 0.86, 1.08, ti.size)}</text>
-      ${logoAt(S.logo, M, M, u * 0.06) || brandLine(b, t, M, M + u * 0.03, u * 0.026)}`;
+  /* Photo + scrim — your photo carries the card; a veil in the mode's own color holds the type */
+  scrim: { n: 'Photo + scrim', d: 'Title over your photo', f: ['title', 'kicker'], fn(k) {
+    const { g, t, c, W, H } = k, u = g.u, out = [];
+    const veil = t.dk ? t.dark : t.paper, A = t.dk ? 0.8 : 0.72, At = t.dk ? 0.86 : 0.94;   // A over the photo by the chip; At behind the type, enough for 4.5:1 over any pixel
+    let fg, bgText, chipFill = t.primary;
+    if (k.ph) {
+      out.push(photoAt(k, 0, 0, W, H));
+      fg = onto(veil, t.dk ? [t.ink, '#ffffff'] : [t.ink, '#000000']);
+      bgText = veiled(veil, At, fg);
+      fg = onto(bgText, [fg, t.dk ? '#ffffff' : '#000000']);
+    } else {
+      const field = t.dk ? t.tone : t.primary;
+      out.push(rect(0, 0, W, H, field), tonal(k, initial(k.b), Math.max(W, H) * 0.95, W + u * 0.12, H * 0.62, toneOn(field, 0.05)));
+      bgText = field; fg = onto(field, t.dk ? [t.ink, t.primary] : [t.onP]);
+      if (!t.dk) chipFill = t.onP;
+    }
+    const markH = u * 0.075, pad = u * 0.02;
+    const mfg = k.ph ? onto(veil, [t.ink]) : fg, mbg = k.ph ? veil : bgText;   // over a photo the mark sits on a small tile of the veil's color, so the photo stays clean
+    const mk = mark(k, g.x0, g.y0 + markH / 2, { h: markH, fill: mfg, bg: mbg, maxW: g.sw * 0.5 });
+    const ch = c.kicker ? chip(k, c.kicker, g.x0, 0, { fill: chipFill, cands: [t.onP, t.primary, t.ink, t.sheet] }) : { h: 0 };
+    const ti = fit(c.title || 'Untitled', titleFace(k, { maxW: g.o === 'wide' ? Math.min(g.sw, W * 0.78) : g.sw, maxH: (g.y1 - g.y0) * 0.5 - ch.h, start: u * 0.17 * boost(g), min: u * 0.065, lh: 1.04 }));
+    const last = g.y1 - descH(ti) * 0.4, first = last - blockH(ti), chipY = first - capH(ti) - g.gap * 0.7 - ch.h;
+    if (k.ph) {
+      // the veil starts just above the chip and eases in (no edge to see), reaches A by the chip, and At by the first line
+      const top = Math.max(0, chipY - u * 0.12), sp = H - top, at = y => Math.max(0, Math.min(1, (y - top) / sp)).toFixed(3);
+      const ease = [[0, 0], [0.25, 0.25], [0.5, 0.6], [0.75, 0.9], [1, 1]].map(([f, a]) => `<stop offset="${at(top + (chipY - top) * f)}" stop-color="${veil}" stop-opacity="${(A * a).toFixed(3)}"/>`).join('');
+      out.push(`<linearGradient id="sc${k.id}" x1="0" y1="${r1(top)}" x2="0" y2="${H}" gradientUnits="userSpaceOnUse">${ease}<stop offset="${at(first - capH(ti))}" stop-color="${veil}" stop-opacity="${At}"/><stop offset="1" stop-color="${veil}" stop-opacity="${At}"/></linearGradient>`,
+        rect(0, top, W, H - top, `url(#sc${k.id})`));
+      out.push(rect(g.x0 - pad, g.y0 + markH / 2 - mk.h / 2 - pad, mk.w + pad * 2, mk.h + pad * 2, veil, ` rx="${rxFor(k, mk.h + pad * 2)}"`));
+    }
+    if (c.kicker) out.push(chip(k, c.kicker, g.x0, chipY, { fill: chipFill, cands: [t.onP, t.primary, t.ink, t.sheet] }).svg);
+    out.push(mk.svg, T(ti, g.x0, first, fg, bgText, { role: 'title' }));
+    return out.join('');
   }},
-  stat: { n: 'Stat card', d: 'One big number', f: ['title', 'stat'], fn(b, t, c, W, H) {
-    const M = W * 0.08, u = Math.min(W, H);
-    const st = fitOne(c.stat || '0', fam(b, 'head'), 800, W - M * 2, u * 0.42, u * 0.1);
-    return `<rect width="${W}" height="${H}" fill="${t.paper}"/>
-      ${c.title ? `<text x="${M}" y="${M + u * 0.03}" font-family="${fam(b, 'mono')}" font-size="${u * 0.03}" letter-spacing="${u * 0.004}" fill="${t.muted}">${esc(c.title.toUpperCase())}</text>` : ''}
-      <text x="${M}" y="${H * 0.56}" font-family="${fam(b, 'head')}" font-weight="800" font-size="${st.size}" fill="${t.primary}" letter-spacing="${-st.size * 0.03}">${esc(st.lines[0] || '')}</text>
-      ${c.statLabel ? `<text x="${M}" y="${H * 0.56 + u * 0.085}" font-family="${fam(b, 'body')}" font-weight="500" font-size="${u * 0.052}" fill="${t.ink}">${esc(c.statLabel)}</text>` : ''}
-      ${logoAt(S.logo, W - M - u * 0.26, H - M * 0.8 - u * 0.055, u * 0.06) || brandLine(b, t, W - M, H - M * 0.8, u * 0.025, 'end')}`;
+  /* Stat card — one number, as big as the field allows; the context and the label beside it */
+  stat: { n: 'Stat card', d: 'One big number', f: ['title', 'stat'], fn(k) {
+    const { g, t, c, f, W, H } = k, u = g.u, out = [rect(0, 0, W, H, t.paper)];
+    const field = t.dk ? t.tone : t.primary, numFill = onto(field, t.dk ? [t.primary, t.ink] : [t.onP], 3), onF = onto(field, t.dk ? [t.ink] : [t.onP]);
+    const ink = onto(t.paper, [t.ink]), muted = onto(t.paper, [t.muted, t.ink]);
+    // a face whose big digits overhang their origin (Bricolage's 4) is moved right by that much, and fitted with that much less room
+    const numInk = (maxW, maxCap) => { let n = numO(maxW, maxCap);
+      for (let i = 0; i < 3; i++) { const ext = inkExt(n); if (ext <= maxW + 0.5) break; n = numO(maxW * maxW / ext, maxCap); }
+      return n; };
+    const numO = (maxW, maxCap) => { const s = fitOne(c.stat || '0', { family: f.head, weight: f.hw(800), maxW, start: u * 0.78, min: u * 0.12, ls: -0.045 });
+      const cap = capOf(f.head, f.hw(800)).cap; if (s.size * cap > maxCap) { const z = Math.max(u * 0.12, maxCap / cap); return fitOne(c.stat || '0', { family: f.head, weight: f.hw(800), maxW, start: z, min: Math.min(z, u * 0.12), ls: -0.045 }); } return s; };
+    const ctx = (maxW, maxH) => fit((c.title || '').toUpperCase(), { family: f.mono, weight: 500, maxW, maxH, start: g.label, min: g.meta, lh: 1.32, ls: 0.06, maxLines: 5 });
+    const lab = (maxW, maxH, start) => fit(c.statLabel || '', { family: f.head, weight: f.hw(700), maxW, maxH, start, min: u * 0.055, lh: 1.08, ls: -0.02, maxLines: 3, balance: true });
+    const tries = g.o === 'wide' ? [0.56, 0.52, 0.48, 0.44] : g.o === 'tall' ? [0.55, 0.51, 0.47, 0.43, 0.39, 0.33] : [0.58, 0.54, 0.5, 0.46, 0.42, 0.36];
+    for (const [i, fr] of tries.entries()) {         // the field gives way before the label or the context would be cut
+      const o = []; let cut = false;
+      if (g.o === 'wide') {
+        const fw = Math.round(W * fr);
+        o.push(rect(0, 0, fw, H, field), ladder(k, [6, 4, 2], fw, 0, u * 0.02, H, 'x'));
+        const mk = mark(k, g.x0, g.y0 + g.meta * 0.8, { fill: onF, bg: field, h: u * 0.09, maxW: fw - g.x0 - u * 0.08 });
+        const nb = g.y1, n = numInk(fw - g.x0 - u * 0.08, nb - (g.y0 + mk.h + g.gap));
+        o.push(mk.svg, T(n, g.x0 + Math.max(0, inkL(n)), nb, numFill, field));
+        const cx = fw + u * 0.06 + g.gap, cw = g.x1 - cx;
+        let ctxB = g.y0;
+        if (c.title) { const cc = ctx(cw, g.sh * 0.5); cut = cut || cc.cut; o.push(T(cc, cx, g.y0 + capH(cc), muted, t.paper)); ctxB = g.y0 + capH(cc) + blockH(cc) + descH(cc); }
+        if (c.statLabel) { const l = lab(cw, nb - ctxB - g.gap, u * 0.09); cut = cut || l.cut; o.push(T(l, cx, nb - blockH(l), ink, t.paper)); }
+      } else {
+        const fh = Math.round(H * fr);
+        o.push(rect(0, 0, W, fh, field), ladder(k, [6, 4, 2], 0, fh, u * 0.02, W, 'y'));
+        const mk = mark(k, g.x0, g.y0 + g.meta * 0.8, { fill: onF, bg: field, h: u * 0.09, maxW: g.sw * 0.6 });
+        const nb = fh - u * 0.07, n = numInk(g.sw, nb - (g.y0 + mk.h + g.gap));
+        o.push(mk.svg, T(n, g.x0 + Math.max(0, inkL(n)), nb, numFill, field));
+        const below = fh + u * 0.06 + g.gap;
+        let used = below;
+        if (c.statLabel) { const l = lab(g.sw, (g.y1 - below) * 0.5, u * 0.1); cut = cut || l.cut; o.push(T(l, g.x0, below + capH(l), ink, t.paper)); used = below + capH(l) + blockH(l) + g.gap; }
+        if (c.title) { const cc = ctx(g.sw, g.y1 - used); cut = cut || cc.cut; o.push(T(cc, g.x0, g.y1 - blockH(cc) - descH(cc) * 0.3, muted, t.paper)); }
+      }
+      if (!cut || i === tries.length - 1) return out.concat(o).join('');
+    }
   }},
-  quote: { n: 'Quote card', d: 'Said out loud', f: ['quote', 'byline'], fn(b, t, c, W, H) {
-    const M = W * 0.09, u = Math.min(W, H);
-    const q = fit(c.quote || c.title || '—', fam(b, 'head'), 600, W - M * 2, H * 0.5, u * 0.105, u * 0.042, 1.22);
-    const block = q.lines.length * q.size * 1.22, y0 = (H - block) / 2 + q.size * 0.8;
-    return `<rect width="${W}" height="${H}" fill="${t.sheet}"/>
-      <text x="${M - u * 0.012}" y="${y0 - q.size * 0.55}" font-family="${fam(b, 'head')}" font-weight="800" font-size="${u * 0.22}" fill="${t.primary}" opacity=".9">“</text>
-      <text font-family="${fam(b, 'head')}" font-weight="600" font-size="${q.size}" fill="${t.ink}" letter-spacing="${-q.size * 0.012}">${tspans(q.lines, M, y0, 1.22, q.size)}</text>
-      ${c.byline ? `<text x="${M}" y="${y0 + block + u * 0.015}" font-family="${fam(b, 'mono')}" font-size="${u * 0.03}" letter-spacing="${u * 0.003}" fill="${t.muted}">— ${esc(c.byline.toUpperCase())}</text>` : ''}
-      ${brandLine(b, t, W - M, H - M * 0.7, u * 0.025, 'end')}`;
+  /* Quote card — said out loud: an oversized tonal mark behind the words, the primary rule, the person */
+  quote: { n: 'Quote card', d: 'Said out loud', f: ['quote', 'byline'], fn(k) {
+    const { g, t, c, f, W, H } = k, u = g.u, bg = t.sheet, out = [rect(0, 0, W, H, bg)];
+    const qm = { family: f.head, weight: f.hw(800), size: u * (g.o === 'wide' ? 0.62 : 0.56), lines: ['“'] };   // whole, not cropped: the mark is the picture
+    setF(qm.family, 800, qm.size); const qmm = mctx.measureText('“'), qa = qmm.actualBoundingBoxAscent || qm.size * 0.72, qd = qmm.actualBoundingBoxDescent || -qm.size * 0.3;
+    const qTop = Math.max(u * 0.05, g.y0 * 0.55), qBot = qTop + qa + qd;
+    out.push(T(qm, g.x0 - u * 0.025, qTop + qa, onto(bg, [t.dk ? t.R[2] : t.R[1], t.R[3], t.R[4]], 1.4), '', { deco: true }));
+    const mk = mark(k, g.x1, g.y1 - g.meta * 0.4, { anchor: 'end', fill: onto(bg, [t.ink]), bg, maxW: g.sw * 0.35 });
+    out.push(mk.svg);
+    const parts = String(c.byline || '').split(/\s+[·|—–-]\s+|,\s+/).filter(Boolean);
+    const who = parts.length ? fitOne(parts[0], { family: f.body, weight: 600, maxW: g.sw, start: g.meta * 1.12, min: g.meta }) : null;
+    const role = parts.length > 1 ? fitOne(parts.slice(1).join(' · '), { family: f.body, weight: 400, maxW: g.sw, start: g.meta, min: g.meta }) : null;
+    const attrH = who ? capH(who) + (role ? who.size * 1.35 : 0) + u * 0.045 + Math.max(4, u * 0.012) : 0;
+    const area0 = Math.max(g.y0, qBot + u * 0.03), area1 = Math.min(g.y1 - mk.h - g.gap, g.y1 - g.meta * 2);
+    const q = fit(c.quote || c.title || '—', { family: f.head, weight: f.hw(600), maxW: g.o === 'wide' ? g.sw * 0.9 : g.sw, maxH: area1 - area0 - attrH - g.gap, start: u * (g.o === 'tall' ? 0.15 : 0.13) * boost(g), min: u * 0.06, lh: 1.12, ls: -0.018, balance: true });
+    const blk = capH(q) + blockH(q) + (who ? g.gap + attrH : 0);
+    const top = area0 + Math.max(0, (area1 - area0 - blk) / 2);
+    out.push(T(q, g.x0, top + capH(q), onto(bg, [t.ink]), bg));
+    if (who) {
+      let y = top + capH(q) + blockH(q) + descH(q) + g.gap * 0.9;
+      out.push(rect(g.x0, y, u * 0.1, Math.max(4, u * 0.012), t.primary, ` rx="${r1(Math.max(2, u * 0.006))}"`));
+      y += Math.max(4, u * 0.012) + u * 0.035 + capH(who);
+      out.push(T(who, g.x0, y, onto(bg, [t.ink]), bg));
+      if (role) out.push(T(role, g.x0, y + who.size * 1.35, onto(bg, [t.muted, t.ink]), bg));
+    }
+    return out.join('');
   }},
-  series: { n: 'Numbered series', d: 'Part N of M', f: ['title', 'byline', 'series'], fn(b, t, c, W, H) {
-    const M = W * 0.08, u = Math.min(W, H);
-    const ti = fit(c.title || 'Untitled', fam(b, 'head'), 800, W * 0.72 - M, H * 0.46, u * 0.13, u * 0.05, 1.1);
-    const block = ti.lines.length * ti.size * 1.1, y0 = (H - block) / 2 + ti.size * 0.9;
-    return `<rect width="${W}" height="${H}" fill="${t.paper}"/>
-      <text x="${W * 0.99}" y="${H * 0.92}" font-family="${fam(b, 'head')}" font-weight="800" font-size="${H * 0.95}" fill="${t.primary}" opacity=".09" text-anchor="end">${c.n}</text>
-      <g><rect x="${M}" y="${y0 - ti.size * 1.1 - u * 0.055}" width="${u * 0.012 * ((('PART ' + c.n + ' OF ' + c.of).length) * 2.1 + 4)}" height="${u * 0.055}" rx="${u * 0.0275}" fill="${t.primary}" opacity=".14"/>
-      <text x="${M + u * 0.022}" y="${y0 - ti.size * 1.1 - u * 0.018}" font-family="${fam(b, 'mono')}" font-weight="500" font-size="${u * 0.026}" letter-spacing="${u * 0.003}" fill="${t.primary}">PART ${c.n} OF ${c.of}</text></g>
-      <text font-family="${fam(b, 'head')}" font-weight="800" font-size="${ti.size}" fill="${t.ink}" letter-spacing="${-ti.size * 0.02}">${tspans(ti.lines, M, y0, 1.1, ti.size)}</text>
-      ${c.byline ? `<text x="${M}" y="${H - M * 0.75}" font-family="${fam(b, 'body')}" font-size="${u * 0.029}" fill="${t.muted}">${esc(c.byline)}</text>` : ''}`;
+  /* Numbered series — the number is the picture: a two-digit numeral bleeding off its panel, a progress row of parts */
+  series: { n: 'Numbered series', d: 'Part N of M', f: ['title', 'byline', 'series'], fn(k) {
+    const { g, t, c, f, W, H } = k, u = g.u, out = [rect(0, 0, W, H, t.paper)];
+    const of = Math.max(1, Math.min(99, Math.round(c.of) || 1)), n = Math.max(1, Math.min(99, Math.round(c.n) || 1));
+    const num = { family: f.head, weight: f.hw(800), lines: [String(n).padStart(2, '0')], ls: -0.06 };
+    const panel = t.tone, numFill = onto(panel, [t.primary, t.R[6], t.R[8]], 2);   // decorative, but it has to read: a light primary on its tint steps down the ramp
+    const tries = g.o === 'wide' ? [0.62, 0.68, 0.74] : g.o === 'tall' ? [0.36, 0.3, 0.24, 0.18] : [0.36, 0.3, 0.24, 0.18];
+    let best = null;
+    for (const [i, fr] of tries.entries()) {         // the panel gives way until the headline is whole and big enough
+      const o = []; let cx1 = g.x1, top;
+      if (g.o === 'wide') {
+        const px = Math.round(W * fr);
+        num.size = Math.min(H * 1.25, (W - px) * 1.1);
+        o.push(rect(px, 0, W - px, H, panel), `<clipPath id="np${k.id}-${i}">${rect(px, 0, W - px, H, '#000')}</clipPath>`,
+          `<g clip-path="url(#np${k.id}-${i})">${T(num, W + u * 0.03, H + num.size * 0.1, numFill, '', { anchor: 'end', deco: true })}</g>`);
+        cx1 = px - u * 0.08; top = g.y0;
+      } else {
+        const ph = Math.round(H * fr);
+        num.size = Math.min(ph * 1.25, W * 0.82);
+        o.push(rect(0, 0, W, ph, panel), `<clipPath id="np${k.id}-${i}">${rect(0, 0, W, ph, '#000')}</clipPath>`,
+          `<g clip-path="url(#np${k.id}-${i})">${T(num, W + u * 0.03, ph + num.size * 0.1, numFill, '', { anchor: 'end', deco: true })}</g>`);
+        top = Math.max(g.y0, ph + u * 0.07);
+      }
+      const cw = cx1 - g.x0;
+      const part = fitOne(`Part ${n} of ${of}`.toUpperCase(), { family: f.mono, weight: 500, maxW: cw, start: g.label, min: g.meta, ls: 0.08 });
+      o.push(T(part, g.x0, top + capH(part), onto(t.paper, [t.primary, t.ink]), t.paper));
+      let y = top + capH(part) + u * 0.04;
+      const segH = Math.max(4, u * 0.016), gapS = u * 0.01, total = Math.min(cw, Math.max(of, 4) * u * 0.07);
+      if (of <= 24) { const sw = (total - gapS * (of - 1)) / of;
+        for (let j = 0; j < of; j++) o.push(rect(g.x0 + j * (sw + gapS), y, sw, segH, j < n ? t.primary : t.R[t.dk ? 3 : 2], ` rx="${r1(segH / 2)}"`));
+      } else o.push(rect(g.x0, y, total, segH, t.R[t.dk ? 3 : 2], ` rx="${r1(segH / 2)}"`), rect(g.x0, y, total * Math.min(1, n / of), segH, t.primary, ` rx="${r1(segH / 2)}"`));
+      y += segH + g.gap * 1.1;
+      const rl = rail(k, { x0: g.x0, x1: cx1, cy: g.y1 - g.meta * 0.4, bg: t.paper, fill: onto(t.paper, [t.muted, t.ink]), markFill: onto(t.paper, [t.ink]), byline: c.byline, brandAt: 'end', line: t.line });
+      const ti = fit(c.title || 'Untitled', titleFace(k, { maxW: cw, maxH: rl.top - g.gap - y, start: u * 0.15 * boost(g), min: u * 0.065, lh: 1.04 }));
+      o.push(T(ti, g.x0, y + capH(ti), onto(t.paper, [t.ink]), t.paper, { role: 'title' }), rl.svg);
+      if (!ti.cut && ti.size >= u * bigEnough(c)) return out.concat(o).join('');
+      if (!best || (best.cut && !ti.cut) || (best.cut === !!ti.cut && ti.size > best.size)) best = { cut: !!ti.cut, size: ti.size, o };
+    }
+    return out.concat(best.o).join('');
   }},
-  logo: { n: 'Logo lockup', d: 'Just the brand', f: ['byline'], fn(b, t, c, W, H) {
-    const u = Math.min(W, H);
-    const nm = fitOne(b.name || 'Brand', fam(b, 'head'), 800, W * 0.8, u * 0.11, u * 0.04);
-    const hasLogo = !!S.logo, ly = H / 2 - (hasLogo ? u * 0.16 : u * 0.05);
-    return `<rect width="${W}" height="${H}" fill="${t.paper}"/>
-      ${hasLogo ? `<image href="${S.logo}" x="${W / 2 - u * 0.11}" y="${ly - u * 0.02}" width="${u * 0.22}" height="${u * 0.22}" preserveAspectRatio="xMidYMid meet"/>` : ''}
-      <text x="${W / 2}" y="${hasLogo ? ly + u * 0.3 : H / 2 + nm.size * 0.3}" font-family="${fam(b, 'head')}" font-weight="800" font-size="${nm.size}" fill="${t.ink}" letter-spacing="${-nm.size * 0.02}" text-anchor="middle">${esc(nm.lines[0] || '')}</text>
-      ${c.byline ? `<text x="${W / 2}" y="${(hasLogo ? ly + u * 0.3 : H / 2 + nm.size * 0.3) + u * 0.06}" font-family="${fam(b, 'body')}" font-size="${u * 0.03}" fill="${t.muted}" text-anchor="middle">${esc(c.byline)}</text>` : ''}
-      <rect x="${W / 2 - u * 0.04}" y="${H - u * 0.09}" width="${u * 0.08}" height="${u * 0.01}" rx="${u * 0.005}" fill="${t.primary}"/>`;
+  /* Logo lockup — just the brand: the field in its color, the mark on a tile, and the ramp signed along the edge */
+  logo: { n: 'Logo lockup', d: 'Just the brand', f: ['byline'], fn(k) {
+    const { g, t, c, f, W, H, b } = k, u = g.u;
+    const bg = t.dk ? t.dark : t.primary, fg = t.dk ? onto(bg, [t.primary, t.ink], 3) : onto(bg, [t.onP], 3);
+    const sub = onto(bg, [mix(fg, bg, 0.22), fg]);
+    const out = [rect(0, 0, W, H, bg)];
+    const barH = u * 0.03, seg = W / 11;
+    b.ramp.forEach((h, i) => out.push(rect(i * seg, H - barH, seg + 0.5, barH, h)));
+    const cy = (g.y0 + Math.min(g.y1, H - barH - u * 0.04)) / 2;
+    const byFor = maxW => c.byline ? fit(c.byline, { family: f.body, weight: 500, maxW, maxH: g.meta * 4, start: g.meta * 1.1, min: g.meta, lh: 1.3, maxLines: 2, balance: true }) : null;
+    const byH = by => by ? capH(by) + blockH(by) : 0;
+    const AR = k.logo ? logoAR(k.logo) : 1;
+    if (k.logo && AR >= 1.8) {          // a wordmark already says the name: it is the lockup, with the byline under it
+      let lw = Math.min(g.sw * 0.7, u * 0.36 * AR), lH = lw / AR;
+      const by = byFor(g.sw), gap = u * 0.06, blk = lH + (by ? gap + byH(by) : 0);
+      const ly = cy - blk / 2;
+      out.push(logoImg(k, (W - lw) / 2, ly, lw, lH, bg, fg));
+      if (by) out.push(T(by, W / 2, ly + lH + gap + capH(by), sub, bg, { anchor: 'middle' }));
+    } else if (k.logo) {
+      const wide = g.o === 'wide', tile = u * (wide ? 0.36 : 0.34), lh = tile * 0.62;
+      let lw = lh * logoAR(k.logo), lH = lh; if (lw > tile * 0.8) { lw = tile * 0.8; lH = lw / logoAR(k.logo); }
+      const tileW = Math.max(tile, lw + tile * 0.38);
+      const nameMax = wide ? g.sw - tileW - g.gap * 1.2 : g.sw;
+      const nm = fitOne(b.name || 'Brand', { family: f.head, weight: f.hw(800), maxW: nameMax, start: u * (wide ? 0.15 : 0.12), min: u * 0.06, ls: -0.03 }), by = byFor(nameMax);
+      const textW = Math.max(nm.w, by ? by.w : 0), textH = capH(nm) + (by ? g.gap * 0.7 + byH(by) : 0);
+      let tx, ty, gx, gy;
+      if (wide) { const gw = tileW + g.gap * 1.2 + textW; gx = (W - gw) / 2; gy = cy - tile / 2; tx = gx + tileW + g.gap * 1.2; ty = cy - textH / 2 + capH(nm); }
+      else { const gh = tile + g.gap * 1.1 + textH; gx = (W - tileW) / 2; gy = cy - gh / 2; tx = W / 2; ty = gy + tile + g.gap * 1.1 + capH(nm); }
+      out.push(rect(gx, gy, tileW, tile, '#ffffff', ` rx="${rxFor(k, tile * 0.3)}"`),   // white in both modes: a full-color logo always has a light ground
+        logoImg(k, gx + (tileW - lw) / 2, gy + (tile - lH) / 2, lw, lH, '#ffffff', onto('#ffffff', [t.dk ? t.dark : t.ink, '#000000'], 3)));
+      const a = wide ? '' : 'middle';
+      out.push(T(nm, tx, ty, fg, bg, { anchor: a }));
+      if (by) out.push(T(by, tx, ty + g.gap * 0.7 + capH(by), sub, bg, { anchor: a }));
+    } else {
+      const nm = fitOne(b.name || 'Brand', { family: f.head, weight: f.hw(800), maxW: g.sw * 0.9, start: u * 0.24, min: u * 0.07, ls: -0.035 }), by = byFor(g.sw);
+      const textH = capH(nm) + (by ? g.gap * 0.9 + byH(by) : 0), ty = cy - textH / 2 + capH(nm);
+      out.push(T(nm, W / 2, ty, fg, bg, { anchor: 'middle' }));
+      if (by) out.push(T(by, W / 2, ty + g.gap * 0.9 + capH(by), sub, bg, { anchor: 'middle' }));
+    }
+    return out.join('');
   }},
 };
 
 /* ---------- compose ---------- */
+/* One SVG string: the stage shows it, the export rasterizes it, the thumbnails reuse it at their own size.
+   o.layout draws another layout than the current one; o.thumb leaves out the embedded fonts (the page
+   already has them) and points at blob copies of the photo and logo instead of megabyte data URIs. */
 let svgN = 0;
-function compose(W, H) {
-  const b = brand(), t = tokens(), c = content(), id = ++svgN;
-  const body = LAYOUTS[S.layout].fn(b, t, c, W, H, S.photo, id);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
-<style>${fontCSS(b)}</style>
-<defs>${photoDefs(S.photo, S.tint, t.primary, W, H, id)}</defs>
+const BLOBS = new Map();
+function blobHref(dataUrl) {
+  if (!dataUrl) return null;
+  if (!BLOBS.has(dataUrl)) {
+    for (const [d, u] of BLOBS) if (d !== S.photo && d !== S.logo) { URL.revokeObjectURL(u); BLOBS.delete(d); }
+    try { const i = dataUrl.indexOf(','), bin = atob(dataUrl.slice(i + 1)), a = new Uint8Array(bin.length);
+      for (let j = 0; j < bin.length; j++) a[j] = bin.charCodeAt(j);
+      BLOBS.set(dataUrl, URL.createObjectURL(new Blob([a], { type: dataUrl.slice(5, dataUrl.indexOf(';')) })));
+    } catch { return dataUrl; }
+  }
+  return BLOBS.get(dataUrl);
+}
+function compose(W, H, o = {}) {
+  const b = brand(), t = roles(b, S.mode), c = content(), id = ++svgN;
+  const ins = safeInsets(S.target, W, H);   // the target's own safe zone: the same numbers the stage's overlay draws
+  const g = G(W, H, ins);
+  const k = { b, t, c, W, H, g, id, tint: S.tint,
+    f: { head: fam(b, 'head'), body: fam(b, 'body'), mono: fam(b, 'mono'), hw: w => Math.min(w, headMax(b)) },
+    ph: o.thumb ? blobHref(S.photo) : S.photo, logo: S.logo, logoHref: o.thumb ? blobHref(S.logo) : S.logo };
+  const body = LAYOUTS[o.layout || S.layout].fn(k);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" data-safe="${[g.x0, g.y0, g.x1, g.y1].map(r1).join(' ')}">
+${o.thumb ? '' : `<style>${fontCSS(b)}</style>\n`}<defs>${photoDefs(k)}</defs>
 ${body}</svg>`;
 }
 
@@ -739,24 +1284,69 @@ const scale = () => +$('#eScale').value;
 const filename = () => `${slug(brand().name)}-${slug(content().title)}-${S.target}${scale() === 2 ? '@2x' : ''}.${ext()}`;
 const altDefault = () => { const c = content(); return [c.kicker, c.title].filter(Boolean).join(' — '); };
 
+/* ---------- the stage: frame size, zoom, safe zone, the phone's full-size preview ---------- */
+const narrow = () => matchMedia('(max-width:1100px)').matches;
+let zoom = 'fit';                          // desktop only: 'fit' sizes the frame to the stage, '100' shows real pixels
+function paintZoom() {
+  const { w } = dims(), f = $('#frame');
+  $('#stage').dataset.zoom = narrow() ? 'fit' : zoom;
+  $$('#zoomSeg [data-z]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.z === zoom)));
+  const fw = f.getBoundingClientRect().width;
+  $('#zoomPct').textContent = fw && zoom === 'fit' ? Math.round(fw / w * 100) + '%' : '';   // under 100% the pressed button already says it
+  if (narrow()) { f.setAttribute('role', 'button'); f.tabIndex = 0; f.setAttribute('aria-label', 'Open a larger preview'); }
+  else { f.removeAttribute('role'); f.removeAttribute('tabindex'); f.removeAttribute('aria-label'); }
+}
+function paintSafe(w, h) {
+  const ins = safeInsets(S.target, w, h), lab = $('#safeLab'), sf = $('#safe');
+  lab.hidden = !ins;                       // no zone, no toggle: it never shows checked while doing nothing
+  lab.title = ins ? target().why || '' : '';
+  sf.classList.toggle('on', !!ins && $('#safeTgl').checked);
+  if (!ins) return;
+  $('#safe i').style.inset = `${ins.t / h * 100}% ${ins.r / w * 100}% ${ins.b / h * 100}% ${ins.l / w * 100}%`;
+  placeSafeLabel();
+}
+function placeSafeLabel() {                // above the dashed line when it fits there, hidden when it does not
+  const sf = $('#safe'); if (!sf.classList.contains('on')) return;
+  sf.classList.remove('inside');
+  sf.classList.toggle('inside', $('#safe i').offsetTop < $('#safe em').offsetHeight + 4);
+}
+function openPreview() {
+  const { w, h } = dims(), d = $('#pview'), box = $('#pvSvg');
+  box.style.setProperty('--ar', w / h);
+  box.innerHTML = $('#stageSvg').innerHTML;
+  $('#pvName').textContent = filename(); $('#pvDims').textContent = `${w} × ${h}`;
+  if (!d.open) { d.showModal(); snd('tap'); }
+}
+new ResizeObserver(() => { paintZoom(); placeSafeLabel(); }).observe($('#frame'));
+
 /* ---------- render ---------- */
 function render() {
   const { w, h } = dims();
   const svg = compose(w, h);
   const host = $('#stageSvg'); host.innerHTML = svg;
   const f = $('#frame'); f.style.aspectRatio = `${w} / ${h}`;
-  if (matchMedia('(max-width:1100px)').matches) {
+  f.style.setProperty('--ar', w / h); f.style.setProperty('--real', w + 'px');
+  if (narrow()) {
     // compact docked preview: the sticky stage stays visible while editing. Height-first, but
     // never wider than the stage — the auto grid track grows to content, so max-width can't bind.
+    // A landscape phone does not dock (the stage scrolls with the page), so the frame can take most of the height.
     const avail = Math.max(120, f.parentElement.clientWidth - 32);
+    const top = f.getBoundingClientRect().top + scrollY;   // where the frame starts on the page: a landscape phone's frame must end on the first screen
+    const cap = matchMedia('(max-height:500px)').matches ? Math.max(120, Math.min(innerHeight * 0.7, innerHeight - top - 12)) : Math.min(innerHeight * 0.26, 280);
     f.style.width = 'auto';
-    f.style.height = Math.round(Math.min(innerHeight * 0.26, 280, avail * h / w)) + 'px';
+    f.style.height = Math.round(Math.min(cap, avail * h / w, h)) + 'px';   // never past real size
   }
-  else { f.style.width = h > w ? 'auto' : 'min(100%, 880px)'; f.style.height = h > w ? 'min(62vh, 640px)' : 'auto'; }
-  $('#dims').textContent = `${w} × ${h}${scale() === 2 ? ' → ' + w * 2 + ' × ' + h * 2 : ''}`;
-  $('#fname').textContent = filename();
+  else f.style.width = f.style.height = '';   // desktop: CSS fits the frame to the stage (container units), capped at real size
+  $('#dims').textContent = `${w} × ${h}`;   // the 2× is in the filename and in Export's summary; the exported size is in the tooltip
+  $('#dims').title = `Exports at ${w * scale()} × ${h * scale()}`;
+  const name = filename(), cut = name.lastIndexOf('-' + S.target);   // the end (target, scale, extension) stays whole
+  $('#fname').innerHTML = `<span class="fh">${esc(name.slice(0, cut))}</span><span class="ft">${esc(name.slice(cut))}</span>`;
+  $('#fname').title = name;
   $('#exSum').textContent = $('#eFmt').selectedOptions[0].text + ' · ' + $('#eScale').selectedOptions[0].text;   // the closed disclosure still says what Export will make
-  $('#safe').classList.toggle('on', !!target().safe && $('#safeTgl').checked);
+  paintSafe(w, h);
+  paintZoom();
+  paintFontNote();
+  if ($('#pview').open) openPreview();
   if (!S.altTouched) $('#cAlt').value = altDefault();
   $('#exCount').textContent = S.exports.length ? `${S.exports.length} exported this session — the manifest lists them all.` : 'The manifest records every export so a rebrand can regenerate the set.';
 }
@@ -782,6 +1372,8 @@ function paintLogo() {
   $('#dLogo').hidden = $('#logoHint').hidden = line;
   $('#tLogo').hidden = !S.logo; $('#tLogo').classList.toggle('line', line);
   $('#bLogoReplace').hidden = !line; $('#bLogoRemove').hidden = line;
+  $('#logoInk').hidden = !S.logo;
+  $$('#logoInk [data-ink]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ink === S.logoInk)));
   if (S.logo) { $('#tLogo img').src = S.logo; $('#tLogo span').textContent = line ? "Using the brand's logo." : S.logoName; }
 }
 function syncBrandLogo() {
@@ -799,13 +1391,37 @@ function renderFields() {
 }
 function renderChoosers() {
   renderFields();
-  $('#layoutGrid').innerHTML = Object.entries(LAYOUTS).map(([k, l]) =>
-    `<button class="lcell" data-l="${k}" aria-pressed="${k === S.layout}"><b>${l.n}</b><small>${l.d}</small></button>`).join('');
+  const grid = $('#layoutGrid');
+  if (grid.children.length !== Object.keys(LAYOUTS).length)    // built once, so the thumbnails survive a click; after that only the pressed state moves
+    grid.innerHTML = Object.entries(LAYOUTS).map(([k, l]) =>
+      `<button class="lcell" data-l="${k}" title="${esc(l.d)}"><span class="lthumb" aria-hidden="true"></span><b>${esc(l.n)}</b></button>`).join('');
+  for (const b of grid.children) b.setAttribute('aria-pressed', b.dataset.l === S.layout);
   $('#targetGrid').innerHTML = TARGETS.map(t =>
     `<button class="tchip" data-t="${t.id}" aria-pressed="${t.id === S.target}">${t.n}${t.w ? `<small>${t.w}×${t.h}</small>` : ''}</button>`).join('');
   $('#customRow').hidden = S.target !== 'custom';
   $('#cw').value = S.custom.w; $('#ch').value = S.custom.h;
 }
+/* Layout thumbnails: every layout drawn live in the current brand, mode, target and content. They follow the
+   stage a beat after typing stops, one thumbnail per idle slice, and only when something they draw has changed:
+   a format, scale or export redraw of the stage costs them nothing. */
+let thumbT = 0, thumbKey = '', thumbJob = 0;
+const tail = v => v ? v.length + v.slice(-24) : '';
+const thumbState = () => JSON.stringify([S.brandIdx, brand(), S.mode, dims(), content(), tail(S.logo), tail(S.photo), S.tint, S.logoInk,
+  fontCache.size, LOGO_AR.size, [...LOGO_PX.values()].filter(Boolean).length]);
+const idle = fn => window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 60 }) : setTimeout(fn, 16);
+function paintThumbs() {
+  const key = thumbState(); if (key === thumbKey) return;
+  thumbKey = key; const job = ++thumbJob, { w, h } = dims(), cells = $$('#layoutGrid .lcell');
+  const one = i => { if (job !== thumbJob || i >= cells.length) return;
+    const box = $('.lthumb', cells[i]); box.style.aspectRatio = `${w} / ${h}`;
+    box.innerHTML = compose(w, h, { layout: cells[i].dataset.l, thumb: true });
+    idle(() => one(i + 1)); };
+  one(0);
+}
+new MutationObserver(() => {
+  $('#photoHint').hidden = !(S.layout === 'scrim' && !S.photo);
+  clearTimeout(thumbT); thumbT = setTimeout(paintThumbs, 250);
+}).observe($('#stageSvg'), { childList: true });
 const save = () => { store.set('brands', S.brands); store.set('brandIdx', S.brandIdx); store.set('mode', S.mode); store.set('layout', S.layout); store.set('target', S.target); store.set('custom', S.custom); };
 
 /* ---------- export ---------- */
@@ -907,6 +1523,8 @@ async function setLogo(f) { if (!f) return; S.logo = await readAsDataURL(f); S.l
 async function setPhoto(f) { if (!f) return; S.photo = await readAsDataURL(f); S.photoName = f.name;
   $('#tPhoto').hidden = false; $('#tPhoto img').src = S.photo; $('#tPhoto span').textContent = f.name; $('#tintRow').hidden = false; render(); snd('pop'); }
 pickFile($('#dLogo'), $('#fLogo'), setLogo);
+$('#logoInk').addEventListener('click', e => { const b = e.target.closest('[data-ink]'); if (!b || b.dataset.ink === S.logoInk) return;
+  S.logoInk = b.dataset.ink; store.set('logoInk', S.logoInk); paintLogo(); render(); snd('tap'); });
 $('#bLogoReplace').addEventListener('click', () => { logoOpen = true; paintLogo(); $('#dLogo').focus(); snd('tap'); });
 $('#bLogoRemove').addEventListener('click', () => {
   const bl = brand().logo || null;
@@ -929,6 +1547,16 @@ $('#layoutGrid').addEventListener('click', e => { const b = e.target.closest('[d
 $('#targetGrid').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; S.target = b.dataset.t; save(); renderChoosers(); render(); snd('tap'); });
 $('#customRow').addEventListener('input', () => { S.custom = { w: +$('#cw').value, h: +$('#ch').value }; save(); render(); });
 $('#safeTgl').addEventListener('change', render);
+$('#zoomSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-z]'); if (!b || b.dataset.z === zoom) return;
+  zoom = b.dataset.z; paintZoom(); snd('tap');
+  const st = $('#stage'); st.scrollTop = 0; st.scrollLeft = Math.max(0, (st.scrollWidth - st.clientWidth) / 2);
+});
+$('#frame').addEventListener('click', () => { if (narrow()) openPreview(); });
+$('#bBig').addEventListener('click', () => openPreview());
+$('#frame').addEventListener('keydown', e => { if (narrow() && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openPreview(); } });
+$('#pvClose').addEventListener('click', () => $('#pview').close());
+$('#pview').addEventListener('close', () => { $('#pvSvg').innerHTML = ''; });
 $('#eFmt').addEventListener('change', render);
 $('#eScale').addEventListener('change', render);
 $('#bExport').addEventListener('click', exportImage);
