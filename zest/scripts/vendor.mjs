@@ -13,8 +13,9 @@
 //
 // Both check modes also fail when Zest MD's DOMPurify <script> tag names a different version than the lock
 // (or names none), when an integrity hash in apps/md/index.html is not the sha384 of the vendored file it
-// stands for, when zest/tests pins a different DOMPurify than the lock, and when the root NOTICE does not
-// name every vendored npm release.
+// stands for, when zest/tests pins a different DOMPurify than the lock, when the root NOTICE does not
+// name every vendored npm release, and when code inlined in a tool (vendor.config.json "inline": Zest MD's
+// renderer) no longer hashes to the SHA-256 pinned there, in apps/ or in Resources/Zest.
 //
 // No dependencies: Node 20+ (global fetch, zlib). Output is deterministic: sorted paths, no timestamps.
 import { createHash } from 'node:crypto';
@@ -289,6 +290,21 @@ function checkMdTags(lock) {
   if (pinned !== versionOf('dompurify')) fail(`tests/package.json pins dompurify ${pinned}, VENDOR.lock.json pins ${versionOf('dompurify')}`);
 }
 
+// Code a tool carries inline, not fetched from npm: the <script> block whose text starts with the entry's mark
+// hashes to the SHA-256 pinned in vendor.config.json, in the tool's source and in the copy the app ships.
+function checkInline() {
+  for (const e of CONFIG.inline || []) {
+    for (const [label, file] of [[e.file, path.join(ZEST, e.file)],
+      [`Resources/Zest/${e.file.replace(/^apps\/(zest\/)?/, '')}`, path.join(BUNDLE, e.file.replace(/^apps\/(zest\/)?/, ''))]]) {
+      if (!fs.existsSync(file)) { fail(`${label} is missing (inline "${e.block}")`); continue; }
+      const blocks = [...fs.readFileSync(file, 'utf8').matchAll(/<script>(\/\* ([^*]+?) \*\/[\s\S]*?)<\/script>/g)].filter(m => m[2] === e.block);
+      if (blocks.length !== 1) { fail(`${label}: expected one <script> block marked "${e.block}", found ${blocks.length}`); continue; }
+      const got = sha256(Buffer.from(blocks[0][1], 'utf8'));
+      if (got !== e.sha256) fail(`${label}: the "${e.block}" block hashes to ${got}; vendor.config.json pins ${e.sha256} (${e.names}). Update the pin and NOTICE section 3 together`);
+    }
+  }
+}
+
 // The root NOTICE names every vendored release as name@version, so a bump can't leave it behind.
 function checkNotice(lock) {
   const file = path.join(ZEST, '..', 'NOTICE');
@@ -336,8 +352,9 @@ try {
     }
     checkBundle(lock);
     checkMdTags(lock);
+    checkInline();
     checkNotice(lock);
-    if (!problems.length) console.log(`vendor check: ${lock.files.length} files in vendor/ and Resources/Zest/vendor/ match VENDOR.lock.json${OFFLINE ? ' (offline: disk against the lock)' : ' and npm'}; Resources/Zest/NOTICE is the root NOTICE; Zest MD's tags name the vendored versions`);
+    if (!problems.length) console.log(`vendor check: ${lock.files.length} files in vendor/ and Resources/Zest/vendor/ match VENDOR.lock.json${OFFLINE ? ' (offline: disk against the lock)' : ' and npm'}; Resources/Zest/NOTICE is the root NOTICE; Zest MD's tags name the vendored versions, and its inline renderer matches its pin`);
   }
 } catch (e) {
   if (e) fail(e.message || String(e));

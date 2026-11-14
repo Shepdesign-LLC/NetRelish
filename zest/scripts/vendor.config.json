@@ -1,5 +1,15 @@
 {
   "about": "Input to scripts/vendor.mjs. Each library and font family the Zest tools load, pinned to one npm release. vendor.mjs fetches these tarballs from registry.npmjs.org, copies the named files into zest/vendor/, and writes VENDOR.lock.json. Change a version here, run `node scripts/vendor.mjs`, and commit the result with the lock (ADR 0015, Pinned and generated).",
+  "inline": [
+    {
+      "file": "apps/md/index.html",
+      "block": "MD Press core bundle",
+      "sha256": "575377234009fd53eb90fb191d528b4a67ae39e66a457ce90498a92fd621b2c5",
+      "names": "markdown-it 14 with linkify-it, mdurl, uc.micro, punycode.js 2.3.1 and entities; highlight.js 11.12.0 (common languages)",
+      "license": "MIT, BSD-2-Clause (entities) and BSD-3-Clause (highlight.js); NOTICE section 3 has the texts",
+      "why": "Zest MD's Markdown renderer, inlined in its own file rather than fetched from npm. vendor.mjs --check fails if the <script> block whose text starts with this mark hashes to anything else. Change the bundle, then this hash and NOTICE section 3, together."
+    }
+  ],
   "libraries": [
     {
       "name": "dompurify",
