@@ -922,7 +922,7 @@ function mark(k, x, cy, o) {
     return { svg: logoImg(k, lx, cy - h / 2, w, h, o.bg, o.fill), w, h };
   }
   const nm = fitOne(b.name || 'Brand', { family: f.head, weight: f.hw(700), maxW: o.maxW || g.sw, start: o.size || g.meta * 1.05, min: g.meta, ls: -0.01 });
-  return { svg: T(nm, x, cy + capH(nm) / 2, o.fill, o.bg, { anchor: anchor === 'start' ? '' : anchor }), w: nm.w, h: capH(nm) };
+  return { svg: T(nm, x, cy + capH(nm) / 2, o.fill, o.bg, { anchor: anchor === 'start' ? '' : anchor }), w: nm.w, h: capH(nm), cut: !!nm.cut };   // cut: the name only fit shortened; a caller with somewhere else to put it should
 }
 /* the footer rail every card shares: brand mark at one end, byline at the other, one baseline. When the
    byline would not fit beside the mark, the two stack: mark above, byline below, both from the start.
@@ -995,8 +995,11 @@ const LAYOUTS = {
       const fx = Math.round(W * 0.77), edge = fx - step * 3;
       out.push(ladder(k, [2, 4, 6], edge, 0, step, H, 'x'), rect(fx, 0, W - fx, H, t.primary));
       out.push(tonal(k, initial(k.b), (W - fx) * 1.55, W + u * 0.06, H + u * 0.1, toneOn(t.primary)));
-      out.push(mark(k, fx + u * 0.06, g.y0 + g.meta * 1.2, { fill: t.onP, bg: t.primary, maxW: Math.min(g.x1, W - u * 0.06) - fx - u * 0.06, h: u * 0.11, size: g.meta * 1.25 }).svg);
-      const rl = rail(k, { x0: g.x0, x1: edge - u * 0.07, cy: g.y1 - g.meta * 0.4, bg: t.paper, fill: onto(t.paper, [t.muted, t.ink]), byline: c.byline, brandAt: 'none', line: t.line });
+      // The brand sits in the field when it fits there whole. A long name (or a wide fallback face) would only fit
+      // cut short, so it moves to the rail's end instead, like the other cards: a brand name is never shortened.
+      const fm = mark(k, fx + u * 0.06, g.y0 + g.meta * 1.2, { fill: t.onP, bg: t.primary, maxW: Math.min(g.x1, W - u * 0.06) - fx - u * 0.06, h: u * 0.11, size: g.meta * 1.25 });
+      if (!fm.cut) out.push(fm.svg);
+      const rl = rail(k, { x0: g.x0, x1: edge - u * 0.07, cy: g.y1 - g.meta * 0.4, bg: t.paper, fill: onto(t.paper, [t.muted, t.ink]), markFill: onto(t.paper, [t.ink]), byline: c.byline, brandAt: fm.cut ? 'end' : 'none', line: t.line });
       const ti = fit(c.title || 'Untitled', titleFace(k, { maxW: edge - u * 0.08 - g.x0, maxH: rl.top - g.gap - g.y0, start: u * 0.2 * boost(g), min: u * 0.07 }));
       out.push(T(ti, g.x0, g.y0 + capH(ti), t.ink, t.paper, { role: 'title' }), rl.svg);
     } else {
