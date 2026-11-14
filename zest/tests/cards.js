@@ -33,7 +33,10 @@ const COPY = {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, serviceWorkers: 'block' });
   const pg = await ctx.newPage();
   const errs = []; pg.on('pageerror', e => errs.push(e.message));
-  await pg.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort());
+  await pg.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
+  // The matrix runs in the brand's own faces from vendor/ (what people see) by default. CARDS_FONTS=system blocks
+  // them, so the same matrix is judged in the system fallback too (CI's Ubuntu runner falls back to DejaVu Sans).
+  if (process.env.CARDS_FONTS === 'system') await pg.route(/\/vendor\/fonts\//, r => r.abort());
   await pg.goto(process.env.ZI_URL || 'http://localhost:8772/', { waitUntil: 'domcontentloaded' });
   await pg.evaluate(() => localStorage.clear()); await pg.reload({ waitUntil: 'domcontentloaded' }); await pg.waitForTimeout(500);
 
@@ -240,26 +243,20 @@ const COPY = {
   ok(xs.el === 0 && !xs.zx && xs.txt.includes('<img') && xs.txt.includes('</tspan>'), 'titles and bylines are drawn as text, never as markup (stage and thumbnails)');
 
   console.log('== a head face with one weight still loads ==');
-  // DM Serif Display has only 400: Google answers the weighted request with an HTTP 400 and no CORS header, so
-  // fetch() throws. The app must then ask again without weights, and set the face at the weight it got.
+  // DM Serif Display ships one face, 400. The head role asks for 500, 600 and 800; with none of those the app must take
+  // the faces the family has, and set the headline at the weight it got. Every face is read from vendor/ on this origin.
   const fpg = await ctx.newPage(), asked = [];
   fpg.on('pageerror', e => errs.push(e.message));
-  const ttf = require('fs').readFileSync(__dirname + '/fixtures/Caladea-Regular.ttf');
-  await fpg.route(/cdnjs\.cloudflare\.com/, r => r.abort());
-  await fpg.route(/fonts\.googleapis\.com/, r => {
-    const u = r.request().url(); asked.push(decodeURIComponent(u));
-    if (/:[a-z,]*wght@/.test(u)) return r.fulfill({ status: 400, body: 'Bad request' });
-    const fam = decodeURIComponent((u.match(/family=([^&:]+)/) || [])[1] || 'X').replace(/\+/g, ' ');
-    return r.fulfill({ status: 200, contentType: 'text/css', headers: { 'Access-Control-Allow-Origin': '*' },
-      body: `/* latin */\n@font-face { font-family: '${fam}'; font-style: normal; font-weight: 400; src: url(https://fonts.gstatic.com/s/x/v1/face.woff2) format('woff2'); unicode-range: U+0000-00FF; }` });
-  });
-  await fpg.route(/fonts\.gstatic\.com/, r => r.fulfill({ status: 200, contentType: 'font/ttf', headers: { 'Access-Control-Allow-Origin': '*' }, body: ttf }));
+  fpg.on('request', r => asked.push(r.url()));
+  await fpg.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
   await fpg.goto(process.env.ZI_URL || 'http://localhost:8772/', { waitUntil: 'domcontentloaded' }); await fpg.waitForTimeout(400);
   const serif = { zest: 1, name: 'Serif Press', fonts: { head: 'DM Serif Display' }, light: { primary: '#ffc928', ink: '#1d1d1f', muted: '#5c5c66', paper: '#fbf8f1', sheet: '#ffffff', line: '#e8e2d4', dark: '#1d1d1f' } };
   await fpg.setInputFiles('#fBrand', { name: 'serif.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(serif)) });
   await fpg.waitForFunction(() => { const t = document.querySelector('#stageSvg text[data-role="title"]'); return t && t.getAttribute('font-family').startsWith("'DM Serif Display'"); }, null, { timeout: 5000 }).catch(() => {});
   const ff = await fpg.evaluate(() => { const t = document.querySelector('#stageSvg text[data-role="title"]'); return { fam: t.getAttribute('font-family'), w: t.getAttribute('font-weight'), note: document.querySelector('#fontNote').hidden }; });
-  ok(asked.some(u => /DM Serif Display:wght@/.test(u.replace(/\+/g, ' '))) && asked.some(u => /family=DM\+Serif\+Display&/.test(u)), `after the weighted request fails, the plain one is made (${asked.filter(u => /Serif/.test(u)).length} requests)`);
+  const serifFiles = asked.filter(u => /\/vendor\/fonts\/dm-serif-display\//.test(u));
+  ok(asked.some(u => /\/vendor\/fonts\/fonts\.json$/.test(u)) && serifFiles.length >= 1 && serifFiles.every(u => /-400-normal\.woff2$/.test(u)), `the family's one face is read from vendor/fonts (${serifFiles.map(u => u.split('/').pop()).join(', ') || 'none'})`);
+  ok(asked.every(u => !/^https?:/.test(u) || /^https?:\/\/(localhost|127\.0\.0\.1)[:/]/.test(u)), 'and nothing is asked of a font host');
   ok(ff.fam.startsWith("'DM Serif Display'") && ff.w === '400' && ff.note, `the headline is set in the brand's own face at the weight that loaded (${ff.fam.split(',')[0]} ${ff.w}), with no offline note`);
   await fpg.close();
 

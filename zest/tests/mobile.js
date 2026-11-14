@@ -10,7 +10,7 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3, serviceWorkers: 'block' });
   const page = async url => {
     const pg = await ctx.newPage();
-    await pg.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort());
+    await pg.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
     await pg.goto(url, { waitUntil: 'domcontentloaded' }); await pg.waitForTimeout(600);
     return pg;
   };
@@ -143,7 +143,7 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
     console.log(`== mail at ${w}x${h} (${what}) ==`);
     const c2 = await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, serviceWorkers: 'block' });
     const m2 = await c2.newPage();
-    await m2.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort());
+    await m2.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
     await m2.goto('http://localhost:8773/', { waitUntil: 'domcontentloaded' }); await m2.evaluate(() => localStorage.clear()); await m2.reload({ waitUntil: 'domcontentloaded' }); await m2.waitForTimeout(500);
     const libX = () => m2.evaluate(() => Math.round(document.querySelector('.pane.left').getBoundingClientRect().right));
     const closed0 = await libX(); await m2.tap('#btnLib'); await m2.waitForTimeout(350); const opened = await libX();
@@ -257,7 +257,7 @@ const ok = (c, m) => { if (c) { pass++; console.log('  PASS ' + m); } else { fai
   console.log('== image at 844x390 (landscape phone) ==');
   const land = await browser.newContext({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3, serviceWorkers: 'block' });
   const lp = await land.newPage();
-  await lp.route(/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/, r => r.abort());
+  await lp.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
   await lp.goto('http://localhost:8772/', { waitUntil: 'domcontentloaded' }); await lp.waitForTimeout(600);
   await lp.evaluate(() => document.querySelector('.sec.exportsec').scrollIntoView({ block: 'center' })); await lp.waitForTimeout(300);
   ok(await lp.evaluate(() => {

@@ -1,0 +1,89 @@
+{
+  "about": "Input to scripts/vendor.mjs. Each library and font family the Zest tools load, pinned to one npm release. vendor.mjs fetches these tarballs from registry.npmjs.org, copies the named files into zest/vendor/, and writes VENDOR.lock.json. Change a version here, run `node scripts/vendor.mjs`, and commit the result with the lock (ADR 0015, Pinned and generated).",
+  "inline": [
+    {
+      "file": "apps/md/index.html",
+      "block": "MD Press core bundle",
+      "sha256": "575377234009fd53eb90fb191d528b4a67ae39e66a457ce90498a92fd621b2c5",
+      "names": "markdown-it 14 with linkify-it, mdurl, uc.micro, punycode.js 2.3.1 and entities; highlight.js 11.12.0 (common languages)",
+      "license": "MIT, BSD-2-Clause (entities) and BSD-3-Clause (highlight.js); NOTICE section 3 has the texts",
+      "why": "Zest MD's Markdown renderer, inlined in its own file rather than fetched from npm. vendor.mjs --check fails if the <script> block whose text starts with this mark hashes to anything else. Change the bundle, then this hash and NOTICE section 3, together."
+    }
+  ],
+  "libraries": [
+    {
+      "name": "dompurify",
+      "version": "3.4.17",
+      "license": "MPL-2.0 OR Apache-2.0",
+      "why": "Zest MD's HTML sanitizer: the eager <script> in apps/md/index.html",
+      "files": { "dist/purify.min.js": "dompurify/purify.min.js", "LICENSE": "dompurify/LICENSE" },
+      "sri": ["dist/purify.min.js"]
+    },
+    {
+      "name": "katex",
+      "version": "0.16.11",
+      "license": "MIT",
+      "why": "Zest MD's math, loaded on demand (VENDOR.katex in apps/md/index.html)",
+      "files": {
+        "dist/katex.min.css": "katex/katex.min.css",
+        "dist/katex.min.js": "katex/katex.min.js",
+        "dist/contrib/auto-render.min.js": "katex/contrib/auto-render.min.js",
+        "LICENSE": "katex/LICENSE"
+      },
+      "cssFonts": { "css": "dist/katex.min.css", "format": "woff2", "into": "katex" },
+      "sri": ["dist/katex.min.css", "dist/katex.min.js", "dist/contrib/auto-render.min.js"]
+    },
+    {
+      "name": "mermaid",
+      "version": "11.17.2",
+      "license": "MIT",
+      "why": "Zest MD's diagrams, loaded on demand (VENDOR.mermaid in apps/md/index.html)",
+      "files": { "dist/mermaid.min.js": "mermaid/mermaid.min.js", "LICENSE": "mermaid/LICENSE" },
+      "sri": ["dist/mermaid.min.js"]
+    }
+  ],
+  "fonts": {
+    "about": "Latin subset only. A variable family ships one file per style, which covers every weight the tools ask for. A static family ships only the weights the tools ask for: the studio's 400-800 (WGHTS in apps/zest/index.html), ZestImage's 400-800 by role, Zest MD's and ZestMail's UI weights. Italic only where a tool asks for it (Zest MD: Instrument Sans and Newsreader). `axis` names the fontsource file: wght, or opsz (opsz + wght) where a tool asks for the optical-size axis.",
+    "version": "5.3.0",
+    "families": [
+      { "family": "Bricolage Grotesque", "pkg": "@fontsource-variable/bricolage-grotesque", "axis": "opsz", "styles": ["normal"], "usedBy": "studio UI, ZestImage UI, Zest MD skins, studio type palettes" },
+      { "family": "DM Serif Display", "pkg": "@fontsource/dm-serif-display", "weights": [400], "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Fraunces", "pkg": "@fontsource-variable/fraunces", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Geist", "pkg": "@fontsource-variable/geist", "axis": "wght", "styles": ["normal"], "usedBy": "UI font of all four tools, studio type palettes" },
+      { "family": "Inter", "pkg": "@fontsource-variable/inter", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Instrument Sans", "pkg": "@fontsource-variable/instrument-sans", "axis": "wght", "styles": ["normal", "italic"], "usedBy": "Zest MD skins (with italic), studio type palettes" },
+      { "family": "Manrope", "pkg": "@fontsource-variable/manrope", "axis": "wght", "styles": ["normal"], "usedBy": "Zest MD skins, studio type palettes" },
+      { "family": "Space Grotesk", "pkg": "@fontsource-variable/space-grotesk", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Sora", "pkg": "@fontsource-variable/sora", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Work Sans", "pkg": "@fontsource-variable/work-sans", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "DM Sans", "pkg": "@fontsource-variable/dm-sans", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Plus Jakarta Sans", "pkg": "@fontsource-variable/plus-jakarta-sans", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Outfit", "pkg": "@fontsource-variable/outfit", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Figtree", "pkg": "@fontsource-variable/figtree", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Archivo", "pkg": "@fontsource-variable/archivo", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Public Sans", "pkg": "@fontsource-variable/public-sans", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Epilogue", "pkg": "@fontsource-variable/epilogue", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Hanken Grotesk", "pkg": "@fontsource-variable/hanken-grotesk", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Chivo", "pkg": "@fontsource-variable/chivo", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Rubik", "pkg": "@fontsource-variable/rubik", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Karla", "pkg": "@fontsource-variable/karla", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Nunito Sans", "pkg": "@fontsource-variable/nunito-sans", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Red Hat Display", "pkg": "@fontsource-variable/red-hat-display", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "IBM Plex Sans", "pkg": "@fontsource-variable/ibm-plex-sans", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Newsreader", "pkg": "@fontsource-variable/newsreader", "axis": "opsz", "styles": ["normal", "italic"], "usedBy": "Zest MD skins and doc font (with italic), studio type palettes" },
+      { "family": "Source Serif 4", "pkg": "@fontsource-variable/source-serif-4", "version": "5.3.1", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "IBM Plex Serif", "pkg": "@fontsource/ibm-plex-serif", "weights": [400, 500, 600, 700], "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Spectral", "pkg": "@fontsource/spectral", "weights": [400, 500, 600, 700, 800], "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Lora", "pkg": "@fontsource-variable/lora", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Literata", "pkg": "@fontsource-variable/literata", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Crimson Pro", "pkg": "@fontsource-variable/crimson-pro", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Alegreya", "pkg": "@fontsource-variable/alegreya", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Zilla Slab", "pkg": "@fontsource/zilla-slab", "weights": [400, 500, 600, 700], "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Geist Mono", "pkg": "@fontsource-variable/geist-mono", "axis": "wght", "styles": ["normal"], "usedBy": "mono UI font of all four tools, studio type palettes" },
+      { "family": "JetBrains Mono", "pkg": "@fontsource-variable/jetbrains-mono", "axis": "wght", "styles": ["normal"], "usedBy": "Zest MD skins, studio type palettes" },
+      { "family": "IBM Plex Mono", "pkg": "@fontsource/ibm-plex-mono", "weights": [400, 500, 600, 700], "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Fira Code", "pkg": "@fontsource-variable/fira-code", "axis": "wght", "styles": ["normal"], "usedBy": "studio type palettes" },
+      { "family": "Space Mono", "pkg": "@fontsource/space-mono", "weights": [400, 700], "styles": ["normal"], "usedBy": "studio type palettes" }
+    ]
+  }
+}

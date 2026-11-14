@@ -78,11 +78,11 @@ The sixteen tokens, in order: `paper, sheet, ink, ink-2, ink-3, rule, accent, ac
 
 The **Custom** skin takes four colors (page, sheet, ink, accent) and derives the other twelve, plus a full opposite-mode palette, so a user can never build an unreadable skin. See `derive()` and `customSkin()`.
 
-To add a font: add it to the Google Fonts `<link>` (both places — head and export), add an entry to `F`, add the key to `FONT_CHOICES` and `FONT_NAMES`.
+To add a font: vendor it first (add the family to `scripts/vendor.config.json` and run `node scripts/vendor.mjs`, which writes it into `vendor/fonts/fonts.css` and `fonts.json`), then add an entry to `F`, add the key to `FONT_CHOICES` and `FONT_NAMES`. The page links `../vendor/fonts/fonts.css`; the export embeds the faces it uses from `fonts.json`.
 
 ### 2.5 Export
 
-Exported HTML = `#doc-css` + the resolved skin baked into `html[data-theme]` as CSS variables + the rendered article + a ten-line script for copy buttons and back-to-top. Fonts load from Google Fonts. KaTeX CSS is linked only when math is present. Mermaid diagrams are already SVG, so they ship inline.
+Exported HTML = `#doc-css` + the resolved skin baked into `html[data-theme]` as CSS variables + the rendered article + a ten-line script for copy buttons and back-to-top. The skin's faces are embedded as `data:` URIs read from `vendor/fonts/` (the document font with its italic), and, when math is present, KaTeX's stylesheet is inlined with only the faces the math uses; a saved file loads nothing and names no `vendor/` path. A face that could not be read falls back to the system stack in the skin's font list. Mermaid diagrams are already SVG, so they ship inline.
 
 ### 2.6 Ship it
 

@@ -20,7 +20,7 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   const ctx = await browser.newContext({ serviceWorkers: 'block', permissions: ['clipboard-read', 'clipboard-write'] });
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push(e.message));
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  await page.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
   await page.goto('http://localhost:8771', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(800);
   // four of the five folds are closed on every load: open one the way a person would before using what is inside it
@@ -154,7 +154,7 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   const link = await page.evaluate(() => navigator.clipboard.readText());
   ok(link.includes('#b='), 'share link copied');
   const page2 = await ctx.newPage();
-  await page2.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  await page2.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
   await page2.goto(link.replace(/^https?:\/\/[^/]+/, 'http://localhost:8771'), { waitUntil: 'domcontentloaded' });
   await page2.waitForTimeout(600);
   ok(await page2.inputValue('#bName') === 'Pantry', 'share link restores the brand');
@@ -194,7 +194,7 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   console.log('== 12: THE HANDOFF — studio export into ZestImage ==');
   const zi = await ctx.newPage();
   const ziErrs = []; zi.on('pageerror', e => ziErrs.push(e.message));
-  await zi.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  await zi.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
   await zi.goto('http://localhost:8772', { waitUntil: 'domcontentloaded' });
   await zi.waitForTimeout(600);
   await zi.evaluate(j => { const dt = new DataTransfer(); dt.items.add(new File([j], 'pantry-zest-brand.json', { type: 'application/json' })); document.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true })); }, JSON.stringify(withLogo));
@@ -205,7 +205,7 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   ok(ziErrs.length === 0, 'ZestImage: no exceptions during handoff');
   {   // five and seven hex digits are not colors: an imported brand carrying them falls back instead of drawing black and fooling the contrast guard
     const zh = await ctx.newPage(); const zhErrs = []; zh.on('pageerror', e => zhErrs.push(e.message));
-    await zh.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+    await zh.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
     await zh.goto('http://localhost:8772', { waitUntil: 'domcontentloaded' }); await zh.waitForTimeout(300);
     const odd = { zest: 1, name: 'Odd Hex', light: { primary: '#12345', ink: '#1234567', muted: '#5c5c66', paper: '#fbf8f1', sheet: '#ffffff', line: '#e8e2d4', dark: '#1d1d1f' } };
     await zh.setInputFiles('#fBrand', { name: 'odd-zest-brand.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(odd)) });
@@ -285,7 +285,8 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   console.log('== 12c: ZestImage stage — the preview fits the window, zoom, safe zones per target ==');
   const zs = await ctx.newPage();
   const zsErrs = []; zs.on('pageerror', e => zsErrs.push(e.message));
-  await zs.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  await zs.route(/^https?:\/\/(?!(localhost|127\.0\.0\.1)[:/])/, r => r.abort());
+  await zs.route(/\/vendor\/fonts\//, r => r.abort());   // the brand faces blocked: the fonts-offline line below needs them missing
   await zs.goto('http://localhost:8772', { waitUntil: 'domcontentloaded' }); await zs.waitForTimeout(600);
   const ZS_TARGETS = ['og', 'blog', 'blog-sm', 'square', 'portrait', 'story', 'pinterest', 'custom'];
   const zsTarget = async t => { await zs.click(`#targetGrid [data-t="${t}"]`); await zs.waitForTimeout(120); };

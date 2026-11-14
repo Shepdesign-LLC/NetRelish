@@ -7,11 +7,15 @@
 <meta name="description" content="The brand studio. Pick the colors and type once — every Zest tool inherits them. OKLCH palettes, font pairings, type and spacing scales, WCAG audit, tokens out. Runs in your browser; nothing is uploaded.">
 <meta name="theme-color" content="#100E06">
 <link rel="icon" href="icons/icon-64.png" type="image/png">
-<link rel="manifest" href="manifest.webmanifest">
+<!-- web:start --><link rel="manifest" href="manifest.webmanifest"><!-- web:end -->
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-title" content="Zest">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,800&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" crossorigin="anonymous">
+<link rel="stylesheet" href="vendor/fonts/fonts.css"><!-- every family the studio offers, from this origin (zest/vendor): no font host on any surface -->
+<script>/* The in-app switch (ADR 0015): true in the copy NetRelish.app serves on zest://, or under the host's
+   window.netrelish stub. Parts only the web has are marked, and build.sh --app strips them from that
+   copy; .web-only hides what is left of them here, .app-only shows only here. */
+window.ZEST_IN_APP = location.protocol === 'zest:' || !!(window.netrelish && window.netrelish.host === 'app');
+if (window.ZEST_IN_APP) document.documentElement.classList.add('in-app');</script>
 <style>
 :root{
   --acc:#F2B705; --acc-ink:#8A6500; --flesh:#FFD84A; --pith:#FFF9DC; --juice:#FFCF2E;
@@ -41,10 +45,11 @@ header a{color:var(--ink-2);text-decoration:none;font-size:13px}
 header a:hover{color:var(--ink)}
 
 .app{display:grid;grid-template-columns:318px 1fr 336px;height:calc(100dvh - 57px);min-height:520px} /* FIXED height: each panel scrolls itself — min-height would balloon the grid to the tallest column and strand the page in dead space */
-@media(max-width:1180px){.app{grid-template-columns:1fr;height:auto;min-height:0}.stagewrap{order:-1;min-height:0}}
+/* 1179, not 1180: the Zest window in NetRelish opens 1180 wide, and that width gets the three columns */
+@media(max-width:1179px){.app{grid-template-columns:1fr;height:auto;min-height:0}.stagewrap{order:-1;min-height:0}}
 .panel{padding:16px;border-right:1px solid var(--line);overflow-y:auto}
 .panel.right{border-right:0;border-left:1px solid var(--line)}
-@media(max-width:1180px){.panel,.panel.right{border:0;border-top:1px solid var(--line)}}
+@media(max-width:1179px){.panel,.panel.right{border:0;border-top:1px solid var(--line)}}
 .sec{margin-bottom:22px}
 .lab{display:flex;align-items:center;gap:8px;font:600 11.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px}
 .lab .sp{flex:1}
@@ -148,6 +153,7 @@ input[type=range]{width:100%;accent-color:var(--acc)}
 .pro:hover{color:var(--ink-2);border-color:var(--ink-3)}
 .pro svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.9;flex:none}
 .pro em{font-style:normal;margin-left:auto;font:600 9.5px var(--mono);letter-spacing:.07em;color:var(--acc);opacity:.85}
+.in-app .web-only{display:none!important} .in-app #xFontface{grid-column:1/-1} html:not(.in-app) .app-only{display:none!important}
 
 .drop{display:block;width:100%;border:1.5px dashed var(--line);border-radius:var(--r);padding:12px;text-align:center;font-size:12px;color:var(--ink-3);transition:all var(--t);cursor:pointer}
 .drop:hover,.drop.over{border-color:var(--acc);color:var(--ink-2)}
@@ -186,7 +192,7 @@ footer .sp{flex:1}
 .jump{display:none;position:sticky;top:0;z-index:10;gap:6px;padding:8px 14px;background:var(--bgtop,#2A2610);border-bottom:1px solid var(--line);overflow-x:auto}
 .jump a{color:var(--ink-2);text-decoration:none;font:500 12.5px var(--ui);padding:7px 11px;border:1px solid var(--line);border-radius:999px;white-space:nowrap}
 .jump a:active{color:var(--ink)}
-@media(max-width:1180px){
+@media(max-width:1179px){
   html,body{height:auto;min-height:100%} /* body must grow with the page or the sticky .jump's containing block ends one viewport down */
   /* the preview no longer owns the whole first screen, and stops trapping page swipes */
   .frame iframe{height:min(52vh,480px)}
@@ -243,7 +249,7 @@ footer .sp{flex:1}
       <div class="field"><input type="text" id="bName" value="New brand" aria-label="Brand name"></div>
       <input type="file" id="fBrand" accept=".json,application/json" aria-label="Import a zest-brand.json" hidden>
       <div id="savedList"></div>
-      <p class="hint">Saved brands live in this browser. Cloud, named and versioned, arrives with Pro.</p>
+      <p class="hint"><span class="app-only">Saved brands live on this Mac.</span><!-- web:start --><span class="web-only">Saved brands live in this browser. Cloud, named and versioned, arrives with Pro.</span><!-- web:end --></p>
     </div>
     <div class="sec">
       <p class="lab">Palette<span class="sp"></span><button class="btn sm" id="bDerive" title="Derive the dark palette from the light roles">Derive dark</button></p>
@@ -330,7 +336,7 @@ footer .sp{flex:1}
       <button type="button" class="drop" id="dFont">Drop a .woff2 / .ttf / .otf, or click</button>
       <input type="file" id="fFont" accept=".woff2,.woff,.ttf,.otf" hidden>
       <div id="fontList"></div>
-      <p class="hint">Stored in this browser (IndexedDB), usable in every select above. A cloud font library arrives with Pro.</p>
+      <p class="hint"><span class="app-only">Stored on this Mac, usable in every select above.</span><!-- web:start --><span class="web-only">Stored in this browser (IndexedDB), usable in every select above. A cloud font library arrives with Pro.</span><!-- web:end --></p>
     </div>
     <div class="sec">
       <details class="fold" id="spaceFold">
@@ -366,7 +372,7 @@ footer .sp{flex:1}
       </div>
       <div class="row2" style="margin-top:8px">
         <button class="btn sm" id="xFontface">@font-face</button>
-        <button class="btn sm" id="xShare"><svg><use href="#i-link"/></svg>Share link</button>
+        <!-- web:start --><button class="btn sm web-only" id="xShare"><svg><use href="#i-link"/></svg>Share link</button><!-- web:end -->
       </div>
       <p class="hint" id="xNote">One file is the handoff — every Zest tool reads it.</p>
       <details class="fold" id="sendFold">
@@ -374,12 +380,12 @@ footer .sp{flex:1}
         <button class="btn wide" data-send="image" style="margin-bottom:7px"><svg><use href="#i-send"/></svg>ZestImage — tokens + logo</button>
         <button class="btn wide" data-send="mail" style="margin-bottom:7px"><svg><use href="#i-send"/></svg>ZestMail — brand</button>
         <button class="btn wide" data-send="md"><svg><use href="#i-send"/></svg>Zest MD — skin</button>
-        <p class="hint">In the browser this is a download and an import on the other side. Inside NetRelish it becomes a direct handoff.</p>
+        <p class="hint"><span class="app-only">Each one saves the file. Open it in the tool, or drop it on the tool’s page.</span><!-- web:start --><span class="web-only">In the browser this is a download and an import on the other side. Inside NetRelish it becomes a direct handoff.</span><!-- web:end --></p>
       </details>
     </div>
-    <div class="sec">
+    <!-- web:start --><div class="sec web-only">
       <details class="fold" id="proFold" open>
-        <summary class="lab">Pro</summary>
+        <summary class="lab" id="proName">Pro</summary>
         <button class="pro" data-pro="cloud"><svg><use href="#i-lock"/></svg>Cloud brand systems — named, versioned, shared<em>PRO</em></button>
         <button class="pro" data-pro="fonts"><svg><use href="#i-lock"/></svg>Cloud font library across tools and devices<em>PRO</em></button>
         <button class="pro" data-pro="figma"><svg><use href="#i-lock"/></svg>Figma variables JSON export<em>PRO</em></button>
@@ -388,12 +394,12 @@ footer .sp{flex:1}
         <button class="pro" data-pro="pairings"><svg><use href="#i-lock"/></svg>Model-assisted font pairings<em>PRO</em></button>
       </details>
       <p class="hint">Pro arrives with Zest accounts. The local core stays free — that is the point.</p>
-    </div>
+    </div><!-- web:end -->
   </aside>
 </div>
 
 <section class="toolsrow" id="tools" aria-label="The Zest tools">
-  <p class="lab" style="margin:0 0 12px">Tools — each one imports the brand you build here<span class="sp"></span><a href="pricing/" style="color:var(--ink-2);text-decoration:none;letter-spacing:0;text-transform:none;font:500 12px var(--body)">Pricing →</a></p>
+  <p class="lab" style="margin:0 0 12px">Tools — each one imports the brand you build here<span class="sp"></span><!-- web:start --><a class="web-only" href="pricing/" style="color:var(--ink-2);text-decoration:none;letter-spacing:0;text-transform:none;font:500 12px var(--body)">Pricing →</a><!-- web:end --></p>
   <div class="trow">
     <a class="tool" href="mail/"><img src="mail/icons/icon-112.png" alt="" onerror="this.remove()"><span><b>ZestMail</b><small>HTML email built from your tokens</small></span></a>
     <a class="tool" href="md/"><img src="md/icons/icon-112.png" alt="" onerror="this.remove()"><span><b>Zest MD</b><small>Markdown, read like it was typeset</small></span></a>
@@ -401,9 +407,9 @@ footer .sp{flex:1}
   </div>
 </section>
 <footer>
-  <span>Runs in your browser. Nothing is uploaded — brands, fonts and your logo stay on this machine.</span>
+  <span class="web-only">Runs in your browser. Nothing is uploaded — brands, fonts and your logo stay on this machine.</span><span class="app-only">Runs on this Mac. Nothing is uploaded — brands, fonts and your logo stay here.</span>
   <span class="sp"></span>
-  <span>Fonts load from Google Fonts and nothing else is fetched.</span>
+  <span>The fonts come with Zest. Nothing is fetched from anywhere else.</span>
 </footer>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -508,6 +514,7 @@ footer .sp{flex:1}
 (() => {
 'use strict';
 const PRODUCT = 'Zest';
+const IN_APP = window.ZEST_IN_APP === true;   // set in <head>: the copy inside NetRelish.app
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const slug = s => String(s || '').toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'untitled';
@@ -604,17 +611,17 @@ const PAIRINGS = [
   ['Modern neutral', 'Manrope', 'Geist', 'Geist Mono'],
   ['One family', 'Instrument Sans', 'Instrument Sans', 'Geist Mono'],
 ];
-const famParam = f => f.trim().replace(/ /g, '+');
-// families that don't carry the default 400–800 range — one bad axis rejects Google's whole combined stylesheet
-const WGHTS = { 'DM Serif Display': '400', 'Space Mono': '400;700', 'Fira Code': '400;500;600;700',
-  'IBM Plex Mono': '400;500;600;700', 'IBM Plex Sans': '400;500;600;700', 'IBM Plex Serif': '400;500;600;700',
-  'Zilla Slab': '400;500;600;700', 'Space Grotesk': '400;500;600;700', 'Lora': '400;500;600;700',
-  'Instrument Sans': '400;500;600;700', 'Geist Mono': '400;500;600;700', 'Manrope': '400;500;600;700;800',
-  'Plus Jakarta Sans': '400;500;600;700;800', 'Sora': '400;500;600;700;800', 'Newsreader': '400;500;600;700;800' };
-const gfontsUrl = fonts => {
-  const fams = [...new Set([fonts.head, fonts.body, fonts.mono].filter(f => FONTS.includes(f)))];
-  return fams.length ? `https://fonts.googleapis.com/css2?${fams.map(f => 'family=' + famParam(f) + ':wght@' + (WGHTS[f] || '400;500;600;700;800')).join('&')}&display=swap` : '';
+/* Every family above ships with the tools in vendor/fonts (zest/vendor, ADR 0015), on the web and in the app:
+   fonts.css declares them all (a browser fetches only the faces a page uses), fonts.json lists each one's files. */
+const FONTS_CSS = new URL('vendor/fonts/fonts.css', document.baseURI).href;
+const FONTS_JSON = new URL('vendor/fonts/fonts.json', document.baseURI).href;
+let fontIndex = null;                 // fonts.json, read once
+const vendoredFaces = async family => {
+  if (!fontIndex) fontIndex = fetch(FONTS_JSON).then(r => r.ok ? r.json() : {}).catch(() => ({}));
+  const fam = ((await fontIndex).families || {})[family];
+  return fam ? fam.faces.map(f => ({ ...f, url: new URL(f.file, FONTS_JSON).href, license: fam.license, attribution: fam.attribution })) : [];
 };
+const b64 = buf => { let bin = ''; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i += 0x8000) bin += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(bin); };
 
 /* ---------- presets (12) ---------- */
 const P = (name, primary, ink, paper, dark, pair, radius, darkPal) =>
@@ -724,7 +731,7 @@ async function removeCustomFont(name) {
   save(); renderFonts(); render(); snd('drop');
 }
 
-/* Google fonts for the PREVIEW load inside the iframe via its own <link>; the app chrome never refetches */
+/* the PREVIEW loads vendor/fonts/fonts.css inside the iframe with its own <link>; the browser fetches only the faces it sets */
 
 /* ---------- preview document ---------- */
 const scaleSteps = () => { const out = {}; const d = { compact: 0.75, comfortable: 1, spacious: 1.3 }[S.spacing.density];
@@ -736,9 +743,9 @@ const famCss = f => customs.some(c => c.name === f) ? `'${f}', system-ui, sans-s
   : SERIF.includes(f) || f === 'Fraunces' || f === 'DM Serif Display' ? `'${f}', Georgia, serif`
   : MONO.includes(f) ? `'${f}', ui-monospace, Menlo, monospace` : `'${f}', system-ui, sans-serif`;
 function previewDoc() {
-  const t = S[mode], sp = scaleSteps(), gf = gfontsUrl(S.fonts);
+  const t = S[mode], sp = scaleSteps();
   const customFaces = customs.filter(c => [S.fonts.head, S.fonts.body, S.fonts.mono].includes(c.name));
-  return `<!doctype html><html><head><meta charset="utf-8">${gf ? `<link href="${esc(gf)}" rel="stylesheet" crossorigin="anonymous">` : ''}
+  return `<!doctype html><html><head><meta charset="utf-8"><link href="${esc(FONTS_CSS)}" rel="stylesheet">
 <style>
 ${customFaces.map(c => `@font-face{font-family:'${esc(c.name)}';src:url('${c.url}');font-display:swap}`).join('\n')}
 :root{--primary:${t.primary};--ink:${t.ink};--muted:${t.muted};--paper:${t.paper};--sheet:${t.sheet};--line:${t.line};--dark:${t.dark};--r:${S.radius}px}
@@ -853,7 +860,7 @@ function renderPairs() {
     <b>${esc(p[1])} + ${esc(p[2])}</b><small>${esc(p[0])} · ${esc(p[3])}</small></button>`).join('');
 }
 function renderFonts() {
-  const opts = (sel, list) => [`<optgroup label="Google Fonts">`, ...list.map(f => `<option ${f === sel ? 'selected' : ''}>${esc(f)}</option>`), `</optgroup>`,
+  const opts = (sel, list) => [`<optgroup label="Included fonts">`, ...list.map(f => `<option ${f === sel ? 'selected' : ''}>${esc(f)}</option>`), `</optgroup>`,
     ...(customs.length ? [`<optgroup label="Your fonts">`, ...customs.map(c => `<option ${c.name === sel ? 'selected' : ''}>${esc(c.name)}</option>`), `</optgroup>`] : [])].join('');
   $('#fHead').innerHTML = opts(S.fonts.head, [...DISPLAY, ...SERIF, ...SANS]);
   $('#fBody').innerHTML = opts(S.fonts.body, [...SANS, ...SERIF]);
@@ -894,7 +901,7 @@ function render() { rederive('light'); rederive('dark'); syncRoles(); renderHarm
 /* ---------- exports ---------- */
 function brandJSON() {
   const out = { zest: 1, name: S.name,
-    fonts: { head: S.fonts.head, body: S.fonts.body, mono: S.fonts.mono, googleFontsUrl: gfontsUrl(S.fonts), custom: customNames().filter(n => [S.fonts.head, S.fonts.body, S.fonts.mono].includes(n)) },
+    fonts: { head: S.fonts.head, body: S.fonts.body, mono: S.fonts.mono, googleFontsUrl: '', custom: customNames().filter(n => [S.fonts.head, S.fonts.body, S.fonts.mono].includes(n)) },
     light: { primary: S.light.primary, ink: S.light.ink, muted: S.light.muted, paper: S.light.paper, sheet: S.light.sheet, line: S.light.line, dark: S.light.dark },
     dark: { primary: S.dark.primary, ink: S.dark.ink, muted: S.dark.muted, paper: S.dark.paper, sheet: S.dark.sheet, line: S.dark.line, dark: S.dark.dark },
     ramp: rampHexes(), radius: S.radius, type: { base: S.type.base, ratio: S.type.ratio },
@@ -909,10 +916,23 @@ const cssVars = () => {
   return `/* ${commentName()} — generated by ${PRODUCT} */\n${block(S.light, ':root')}\n@media (prefers-color-scheme: dark) {\n${block(S.dark, ':root').split('\n').map(l => '  ' + l).join('\n')}\n}\n\n/* ramp */\n:root{\n${rampHexes().map((h, i) => `  --primary-${i === 0 ? 50 : i * 100}: ${h};`).join('\n')}\n}\n`;
 };
 const tailwindCfg = () => `// ${commentName()} — generated by ${PRODUCT}\nmodule.exports = {\n  theme: {\n    extend: {\n      colors: {\n        primary: { DEFAULT: '${S.light.primary}', ${rampHexes().map((h, i) => `${i === 0 ? 50 : i * 100}: '${h}'`).join(', ')} },\n        ink: '${S.light.ink}', muted: '${S.light.muted}', paper: '${S.light.paper}', sheet: '${S.light.sheet}', line: '${S.light.line}', panel: '${S.light.dark}',\n      },\n      fontFamily: {\n        head: [${famCss(S.fonts.head).split(',').map(s => `'${s.trim().replace(/'/g, '')}'`).join(', ')}],\n        body: [${famCss(S.fonts.body).split(',').map(s => `'${s.trim().replace(/'/g, '')}'`).join(', ')}],\n        mono: [${famCss(S.fonts.mono).split(',').map(s => `'${s.trim().replace(/'/g, '')}'`).join(', ')}],\n      },\n      borderRadius: { brand: '${S.radius}px' },\n    },\n  },\n};\n`;
-const fontfaceCss = () => {
-  const g = gfontsUrl(S.fonts);
+// The brand's own faces, embedded: the file works on any site with no font host, as the tools themselves do.
+const fontfaceCss = async () => {
+  const fams = [...new Set([S.fonts.head, S.fonts.body, S.fonts.mono].filter(f => FONTS.includes(f)))];
+  const embedded = [];
+  for (const f of fams) {
+    try {
+      const faces = await vendoredFaces(f); if (!faces.length) throw new Error('not vendored');
+      const rules = [];
+      for (const face of faces) {
+        const r = await fetch(face.url); if (!r.ok) throw new Error(r.status);
+        rules.push(`@font-face{font-family:'${f}';font-style:${face.style};font-weight:${face.weight};font-display:swap;src:url(data:font/woff2;base64,${b64(await r.arrayBuffer())}) format('woff2')}`);
+      }
+      embedded.push(`/* ${f} — ${faces[0].attribution.replace(/\*\//g, '* /')} Licensed under the SIL Open Font License, Version 1.1. */\n${rules.join('\n')}`);
+    } catch { embedded.push(`/* ${f}: could not be embedded here — it falls back to the system stack below */`); }
+  }
   const cus = customs.filter(c => [S.fonts.head, S.fonts.body, S.fonts.mono].includes(c.name));
-  return `/* ${commentName()} — fonts, generated by ${PRODUCT} */\n${g ? `@import url('${g}');\n` : ''}${cus.map(c => `/* ${c.name}: a local font from your library — serve ${slug(c.name)}.${c.format} next to this file */\n@font-face{font-family:'${c.name}';src:url('${slug(c.name)}.${c.format}')${c.format === 'woff2' ? " format('woff2')" : ''};font-display:swap}`).join('\n')}\n\n:root{ --font-head: ${famCss(S.fonts.head)}; --font-body: ${famCss(S.fonts.body)}; --font-mono: ${famCss(S.fonts.mono)}; }\n`;
+  return `/* ${commentName()} — fonts, generated by ${PRODUCT} */\n${embedded.join('\n')}${embedded.length ? '\n' : ''}${cus.map(c => `/* ${c.name}: a local font from your library — serve ${slug(c.name)}.${c.format} next to this file */\n@font-face{font-family:'${c.name}';src:url('${slug(c.name)}.${c.format}')${c.format === 'woff2' ? " format('woff2')" : ''};font-display:swap}`).join('\n')}\n\n:root{ --font-head: ${famCss(S.fonts.head)}; --font-body: ${famCss(S.fonts.body)}; --font-mono: ${famCss(S.fonts.mono)}; }\n`;
 };
 
 /* Saving feature-detects the host (spec §6.3 — one file, every surface). */
@@ -1013,7 +1033,7 @@ $('#bSave').addEventListener('click', () => {
   const copy = sanitizeBrand(JSON.parse(JSON.stringify({ ...S, logo: S.logo })));
   const updated = i >= 0; if (updated) saved[i] = copy; else saved.unshift(copy);
   renderSaved();
-  if (save()) toast(`${S.name} ${updated ? 'updated' : 'saved to this browser'}.`, 'done');
+  if (save()) toast(`${S.name} ${updated ? 'updated' : IN_APP ? 'saved' : 'saved to this browser'}.`, 'done');
   else toast('This browser’s storage is full — the brand stays in memory only. Export zest-brand.json to keep it safe.', 'nope');
 });
 $('#savedList').addEventListener('click', e => {
@@ -1077,7 +1097,8 @@ $('#xBrand').addEventListener('click', async () => {
 });
 $('#xCss').addEventListener('click', async () => { if (await download(`${slug(S.name)}-tokens.css`, cssVars(), 'text/css')) toast('CSS variables saved — light, dark and the ramp.'); });
 $('#xTailwind').addEventListener('click', async () => { if (await download(`${slug(S.name)}-tailwind.config.js`, tailwindCfg(), 'text/javascript')) toast('Tailwind config saved.'); });
-$('#xFontface').addEventListener('click', async () => { if (await download(`${slug(S.name)}-fonts.css`, fontfaceCss(), 'text/css')) toast('Font CSS saved.'); });
+$('#xFontface').addEventListener('click', async () => { if (await download(`${slug(S.name)}-fonts.css`, await fontfaceCss(), 'text/css')) toast('Font CSS saved.'); });
+/* web:start */   /* a share link is a web address: in the app it would be a zest:// URL nothing else can open */
 $('#xShare').addEventListener('click', async () => {
   const b = brandJSON(); delete b.logo;              // share links carry tokens, never the logo bytes
   const hash = '#b=' + btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(b)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -1085,6 +1106,7 @@ $('#xShare').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(url); toast('Share link copied — the whole brand travels in the URL.', 'done'); }
   catch { if (await download(`${slug(S.name)}-share-link.txt`, url)) toast('Clipboard was blocked — the link saved as a file instead.'); }
 });
+/* web:end */
 
 /* send to tools */
 $$('[data-send]').forEach(b => b.addEventListener('click', async () => {
@@ -1098,6 +1120,7 @@ $$('[data-send]').forEach(b => b.addEventListener('click', async () => {
   toast(`${name} — ${notes[tool]}.`);
 }));
 
+/* web:start */   /* Pro is the web's plan. The app's copy holds none of it (App Review 3.1.1); under the switch, .web-only hides it */
 const PRO_WHY = {  // §4.3: a one-line reason per feature, not one toast for all
   cloud: 'Cloud brand systems need a Zest account — saves stay in this browser until then.',
   fonts: 'The cloud font library needs an account — your fonts stay in this browser for now.',
@@ -1108,6 +1131,7 @@ const PRO_WHY = {  // §4.3: a one-line reason per feature, not one toast for al
 };
 $$('.pro').forEach(p => p.addEventListener('click', () =>
   toast((PRO_WHY[p.dataset.pro] || 'Pro arrives with Zest accounts.') + ' The local core stays free — zest.netrelish.com/pricing has the plan.', 'nope')));
+/* web:end */
 
 document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'e') { e.preventDefault(); $('#xBrand').click(); }
@@ -1131,9 +1155,11 @@ async function boot() {
   saved = (store.get('brands', []) || []).map(sanitizeBrand);
   tryHash();                          // a share link wins over the stored brand
   renderRoles(); renderPresets(); renderPairs(); renderFonts(); renderSaved(); syncControls(); render();
-  if ('serviceWorker' in navigator && window.isSecureContext) {   // localhost counts as secure — `npx serve .` gets the offline shell too
+  /* web:start */
+  if (!IN_APP && 'serviceWorker' in navigator && window.isSecureContext) {   // localhost counts as secure — `npx serve .` gets the offline shell too. Not in the app: its files are already on disk
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
+  /* web:end */
 }
 boot();
 })();

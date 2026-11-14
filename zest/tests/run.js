@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-// Zest test runner: builds dist/, serves the apps, runs the Playwright suites
-// and the WCAG contrast sweeps. Exits nonzero if anything fails.
+// Zest test runner: builds dist/ and the app's copy (build.sh --app, into a temp folder), serves the apps,
+// runs the Playwright suites and the WCAG contrast sweeps. Exits nonzero if anything fails.
+// offline.js and inapp.js read the app's copy built here (ZEST_APP_ROOT); CI's app-bundle job checks that
+// the committed Resources/Zest is byte for byte that build.
 //
 //   cd zest/tests && npm ci && npx playwright install chromium && npm test
 //   node run.js mobile.js test.js   — only those suites (no contrast sweeps), for a quick loop
@@ -10,6 +12,7 @@
 const { execSync, spawn } = require('child_process');
 const http = require('http');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const ZEST = path.join(__dirname, '..');
@@ -29,6 +32,9 @@ const SERVERS = {
   8774: 'apps/md',     // Zest MD
   8780: 'dist',        // assembled topology (studio at /, tools at paths, store at /pricing)
 };
+// The pinned fonts and libraries sit at /vendor/ beside the tools (dist/vendor on the web, vendor/ in the app's
+// copy). Each app served alone gets the same /vendor/ from zest/vendor, so its relative vendor paths resolve.
+const VENDOR = path.join(ZEST, 'vendor');
 
 function serve(port, dir) {
   const root = path.join(ZEST, dir);
@@ -36,8 +42,9 @@ function serve(port, dir) {
     try {
       let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
       if (p.endsWith('/')) p += 'index.html';
-      const file = path.join(root, p);
-      if (!file.startsWith(root + path.sep) || !fs.existsSync(file)) { res.writeHead(404); return res.end('not found'); }
+      let file = path.join(root, p);
+      if (!fs.existsSync(file) && p.startsWith('/vendor/') && p !== '/vendor/VENDOR.lock.json') file = path.join(VENDOR, p.slice('/vendor/'.length));
+      if (!(file.startsWith(root + path.sep) || file.startsWith(VENDOR + path.sep)) || !fs.existsSync(file)) { res.writeHead(404); return res.end('not found'); }
       if (fs.statSync(file).isDirectory()) { res.writeHead(301, { location: p + '/' }); return res.end(); }
       res.writeHead(200, { 'content-type': MIME[path.extname(file)] || 'application/octet-stream' });
       fs.createReadStream(file).pipe(res);
@@ -50,7 +57,7 @@ function serve(port, dir) {
 // loop, and these servers live in this process
 function runNode(args, capture) {
   return new Promise(res => {
-    const c = spawn(process.execPath, args, { stdio: capture ? ['ignore', 'pipe', 'pipe'] : 'inherit' });
+    const c = spawn(process.execPath, args, { stdio: capture ? ['ignore', 'pipe', 'pipe'] : 'inherit', env: { ...process.env, ZEST_APP_ROOT: APP_OUT } });
     let out = '', err = '';
     if (capture) { c.stdout.on('data', d => out += d); c.stderr.on('data', d => err += d); }
     c.on('error', e => res({ code: 1, out, err: err + e.message }));
@@ -58,19 +65,29 @@ function runNode(args, capture) {
   });
 }
 
+const APP_OUT = fs.mkdtempSync(path.join(os.tmpdir(), 'zest-app-'));
 (async () => {
   console.log('build: assembling dist/ …');
   execSync('bash build.sh', { cwd: ZEST, stdio: 'inherit' });
+  console.log("build: assembling the app's copy …");
+  execSync('bash build.sh --app', { cwd: ZEST, stdio: 'inherit', env: { ...process.env, ZEST_APP_OUT: APP_OUT } });
 
   const servers = await Promise.all(Object.entries(SERVERS).map(([p, d]) => serve(+p, d)));
   let failed = 0;
 
-  const ALL = ['test.js', 'handoff2.js', 'topology.js', 'mobile.js', 'desktop.js', 'sound.js', 'cards.js'];
+  const ALL = ['test.js', 'handoff2.js', 'topology.js', 'mobile.js', 'desktop.js', 'sound.js', 'cards.js', 'inapp.js', 'offline.js'];
   const picked = process.argv.slice(2).filter(a => a.endsWith('.js'));
   for (const suite of picked.length ? picked : ALL) {
     console.log(`\n=== ${suite} ===`);
     const r = await runNode([path.join(__dirname, suite)]);
     if (r.code !== 0) failed++;
+    if (suite === 'cards.js') {        // the matrix again in the system fallback: brand faces can fail to load, and a wider fallback must not cut or overflow either
+      console.log(`\n=== cards.js (system type) ===`);
+      process.env.CARDS_FONTS = 'system';
+      const s = await runNode([path.join(__dirname, suite)]);
+      delete process.env.CARDS_FONTS;
+      if (s.code !== 0) failed++;
+    }
   }
 
   // Contrast sweeps. ZestImage is excluded: its body background is a gradient,
@@ -97,6 +114,7 @@ function runNode(args, capture) {
   }
 
   servers.forEach(s => s.close());
+  fs.rmSync(APP_OUT, { recursive: true, force: true });
   console.log(failed ? `\nRESULT: ${failed} stage(s) FAILED` : '\nRESULT: all stages green');
   process.exit(failed ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

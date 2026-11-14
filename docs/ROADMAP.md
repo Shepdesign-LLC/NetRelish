@@ -98,6 +98,9 @@ preview built with the license key (ADR 0027), Pro in the direct build needs a k
   "Seal & Summarize" uses on-device Foundation Models.
 - **Pro:** reseal & diff, provenance export, buying and restoring Pro (StoreKit 2), and a
   license key for the direct build.
+- **Zest:** the free Zest tools (Studio, Mail, MD, Image) inside the app, offline, in their
+  own window (Window › Zest). Moved from 1.1 by Ryan on Nov 13 (ADR 0033; the design is
+  ADR 0015). Sign-in, sync, publishing, test sends and drafting stay on zest.netrelish.com.
 - **App Store prep:** everything in P5.
 
 Free and Pro: Free, and Pro at $39/yr or $99 lifetime ("Buy once, use forever."). Pro
@@ -108,7 +111,6 @@ launches with two features at those prices.
 - Moved from 1.0 by ADR 0012: Ask the Pantry, content blocker, split view, Jar bundles,
   semantic search, unlimited Recipes, recording a Recipe and replaying it with ⌘R.
 - Notebook: highlights and notes on saved pages.
-- Zest: the free Zest tools inside the app, offline, in their own window (ADR 0015).
 - Proposed, not decided: Panel notes, which need a model change in System Designer first.
 
 ### After 1.1
@@ -116,7 +118,8 @@ launches with two features at those prices.
 - **Duo companion (iOS):** capture and Brine on the phone. Post-1.0, no date (Ryan,
   Nov 5). The Pantry core is already a Swift package for it (ADR 0009).
 - **1.2:** Mason Jar, a jar with a local dev environment (direct build only); voice notes;
-  opt-in larger on-device models (MLX).
+  opt-in larger on-device models (MLX); the Zest bridge, Finder file types, Save to jar and
+  a Zest MD Quick Look extension (ADR 0015).
 - **1.3:** Mason Jar with Docker; a visionOS "Pantry as a room" demo.
 
 ### The site

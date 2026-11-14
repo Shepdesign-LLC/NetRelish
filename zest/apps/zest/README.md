@@ -38,9 +38,11 @@ sheet, and model-assisted pairings.
 ## Run locally
 
 ```bash
-cd zest/apps/zest && npx serve .
+cd zest && bash build.sh && npx serve dist     # the studio is /
 ```
 
-The only network calls are Google Fonts. Brands live in `localStorage`
+The studio loads its fonts from `vendor/`, which `build.sh` puts beside it;
+served on its own from `apps/zest/`, it falls back to system type. The fonts
+come from that folder, never from a font host. Brands live in `localStorage`
 (`zeststudio:` keys), custom fonts in IndexedDB; the service worker
 (`zstudio-` cache, scoped lookups) keeps the shell offline after first load.

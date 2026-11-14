@@ -13,7 +13,7 @@ sources:
   - code: design/NetRelish.json
   - code: Resources/PrivacyInfo.xcprivacy
   - code: Sources/ShareExtension/PrivacyInfo.xcprivacy
-verified_at: a7941bc
+verified_at: 36f74b2
 ---
 
 # Building without a Mac

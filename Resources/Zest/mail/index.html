@@ -1,0 +1,1604 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZestMail — email builder and generator</title>
+<link rel="icon" href="icons/icon-64.png" type="image/png">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="../vendor/fonts/fonts.css"><!-- Geist and Geist Mono for the UI, from this origin (zest/vendor): no font host on any surface -->
+<script>/* The in-app switch (ADR 0015): true in the copy NetRelish.app serves on zest://, or under the host's
+   window.netrelish stub. Parts only the web has are marked, and build.sh --app strips them from that
+   copy; .web-only hides what is left of them here, .app-only shows only here. */
+window.ZEST_IN_APP = location.protocol === 'zest:' || !!(window.netrelish && window.netrelish.host === 'app');
+if (window.ZEST_IN_APP) document.documentElement.classList.add('in-app');</script>
+<style>
+:root{ /* ZestMail wears orange (fruits.json): one fruit-dark chrome, like every Zest tool — the emails on the canvas stay whatever the brand says */
+  --paper:#160d05; --sheet:#211408; --ink:#f4ede1; --ink-2:#c3b7a4; --ink-3:#a2967f; --rule:#3c2a16; /* ink-3 ≥4.5:1 on paper and sheet — verified by the contrast harness */
+  --accent:#f5761a; --accent-soft:#3a2008; --on-accent:#120a04; --code-bg:#1a0f06;
+  --accent-ind:#D55E00; --ind-halo:rgba(255,255,255,.8); /* canvas indicators: ≥3:1 on white, the default mat, and the dark chrome; the halo carries contrast on dark user sheets */
+  --peel-a:#FFA63D; --peel-b:#F06A00; --night:#120a04;
+  --ok:#7fd6c6; --warn:#f2b56b; --err:#ff8fa8; --ok-soft:#12302c; --warn-soft:#332612; --err-soft:#3a1c25;
+  --ui:'Geist',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0; background:var(--paper); color:var(--ink); font:14px/1.5 var(--ui); overflow:hidden}
+button,select,input,textarea{font:inherit; color:inherit}
+button{cursor:pointer; background:none; border:0; padding:0}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px}
+.app{display:grid; grid-template-rows:52px 1fr; height:100%}
+
+/* toolbar */
+.bar{display:flex; align-items:center; gap:6px; padding:0 14px; background:var(--sheet); border-bottom:1px solid var(--rule); position:relative; z-index:5}
+.brand{display:flex; align-items:center; gap:9px; margin-right:6px; font-weight:600; letter-spacing:-.01em; white-space:nowrap}
+.brand .mark{width:34px; height:34px; border-radius:9px; display:block; box-shadow:0 4px 12px -4px rgba(0,0,0,.5)}
+.brand .tag{font:500 10.5px var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin-left:4px}
+@media(max-width:1180px){.brand .tag{display:none}}
+.spacer{flex:1}
+.group{display:flex; align-items:center; gap:2px; padding:0 6px; border-left:1px solid var(--rule)}
+.group:first-of-type{border-left:0}
+.btn{display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 10px; border-radius:6px; color:var(--ink-2); white-space:nowrap}
+.btn:hover{background:var(--paper); color:var(--ink)}
+.btn[aria-pressed="true"],.btn[aria-pressed="true"]:hover{background:var(--accent-soft); color:var(--accent)}
+.btn.primary{background:var(--accent); color:var(--on-accent); font-weight:600}
+.btn.primary:hover{filter:brightness(1.1)}
+.btn:disabled{opacity:.45; cursor:default}
+.btn svg{width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none}
+.btn.icon{width:32px; padding:0; justify-content:center}
+@media (prefers-reduced-motion:no-preference){.btn:active:not(:disabled),.seg button:active{transform:translateY(1px)}} /* pressed feedback; none under reduced motion */
+.seg{display:flex; gap:2px; background:var(--paper); border-radius:6px; padding:2px}
+.seg button{padding:5px 10px; border-radius:4px; color:var(--ink-2); font-size:13px}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--sheet); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.pill{font:500 11px/1 var(--ui); padding:4px 8px; border-radius:999px; background:var(--paper); color:var(--ink-2); white-space:nowrap}
+.pill.ok{background:var(--ok-soft); color:var(--ok)} .pill.warn{background:var(--warn-soft); color:var(--warn)} .pill.err{background:var(--err-soft); color:var(--err)}
+.pop{position:absolute; top:46px; right:14px; background:var(--sheet); border:1px solid var(--rule); border-radius:10px; box-shadow:0 12px 32px -8px rgba(10,14,24,.25); padding:8px; min-width:250px; display:none; z-index:20; max-height:calc(100vh - 60px); overflow:auto}
+.pop[data-open="true"]{display:block}
+.pop .menu button{display:flex; width:100%; align-items:center; gap:10px; padding:8px 10px; border-radius:6px; text-align:left}
+.pop .menu button:hover{background:var(--paper); color:var(--ink)}
+.pop .menu button small{margin-left:auto; color:var(--ink-3); font-family:var(--mono); font-size:11px}
+.pop hr{border:0; border-top:1px solid var(--rule); margin:6px 0}
+.pop .head{font-size:12px; color:var(--ink-3); padding:8px 8px 4px}
+
+/* workspace */
+.work{display:grid; grid-template-columns:clamp(220px,17vw,300px) 1fr clamp(320px,24vw,400px); min-height:0} /* the panels follow the window, so a 1280 laptop still shows the email at 100% */
+.work[data-mode="source"]{grid-template-columns:minmax(300px,36%) 1fr clamp(320px,24vw,400px)}
+.pane{min-width:0; min-height:0; display:flex; flex-direction:column; overflow:hidden}
+.pane-head{display:flex; align-items:center; gap:10px; padding:8px 14px; font-size:12px; color:var(--ink-3); border-bottom:1px solid var(--rule); background:var(--sheet); min-height:38px}
+.pane-head b{color:var(--ink-2); font-weight:500}
+#centerNote{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pane-head .right{margin-left:auto; display:flex; gap:6px; align-items:center}
+.left{background:var(--sheet); border-right:1px solid var(--rule)}
+.left .scroll{overflow:auto; flex:1; padding:10px 12px 40px}
+.left h5{margin:14px 0 6px; font-size:11px; font-weight:500; color:var(--ink-3); letter-spacing:.02em}
+.left h5:first-child{margin-top:4px}
+.lib{display:grid; grid-template-columns:1fr 1fr; gap:6px}
+.lib-item{display:flex; flex-direction:column; gap:4px; padding:9px 10px; border:1px solid var(--rule); border-radius:8px; cursor:grab; background:var(--paper); user-select:none}
+.lib-item:hover{border-color:var(--ink-3)} .lib-item:active{cursor:grabbing}
+.lib-item b{font-size:12.5px; font-weight:500}
+.lib-item span{font-size:11px; color:var(--ink-3); line-height:1.3}
+.tpl{display:flex; flex-direction:column; gap:6px}
+.tpl button{display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:9px 10px; border:1px solid var(--rule); border-radius:8px; text-align:left; background:var(--paper)}
+.tpl button:hover{border-color:var(--ink-3)}
+.tpl button b{font-size:12.5px; font-weight:500} .tpl button span{font-size:11px; color:var(--ink-3)}
+.saved{display:flex; flex-direction:column; gap:4px}
+.saved div{display:flex; align-items:center; gap:6px; font-size:12.5px; padding:5px 8px; border-radius:6px}
+.saved div:hover{background:var(--paper)}
+.saved div span{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.saved div small{color:var(--ink-3); font-size:11px}
+.saved div button{color:var(--ink-3); width:20px; height:20px; border-radius:4px; display:grid; place-items:center} .saved div button:hover{background:var(--rule); color:var(--ink)}
+.left textarea{flex:1; width:100%; resize:none; border:0; outline:0; background:transparent; color:var(--ink); font:12.5px/1.55 var(--mono); padding:16px 18px; tab-size:2; white-space:pre; overflow:auto}
+
+/* canvas / preview */
+.center{background:var(--paper)}
+.stage{flex:1; width:100%; overflow:auto; padding:24px}
+/* the mat: previews the email's outer background, and is the one raised surface on the stage. Its zoom is the presentation
+   zoom (Fit · 100% · 125% · 150%); the exported email never sees it */
+.canvas-wrap{margin:0 auto; padding:20px; box-sizing:content-box; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,.3), 0 18px 40px -18px rgba(0,0,0,.6)}
+.canvas{background:#fff; border-radius:6px; overflow:hidden; min-height:200px}
+.cv-block{position:relative; outline:1px solid transparent; outline-offset:-1px; transition:outline-color .12s}
+.cv-block:hover{outline-color:var(--ink-3)}
+.cv-block[aria-selected="true"]{z-index:1}
+.cv-block[aria-selected="true"]::after{content:""; position:absolute; inset:0; z-index:1; pointer-events:none; outline:2px solid var(--accent-ind); outline-offset:-2px; box-shadow:inset 0 0 0 4px var(--ind-halo)} /* both rings live inside the block: .canvas{overflow:hidden} clips anything outside */
+.cv-block .tools{position:absolute; top:6px; right:6px; display:none; gap:2px; background:var(--ink); border-radius:6px; padding:2px; z-index:2; zoom:calc(1 / var(--fit, 1))} /* editing chrome counter-zooms: it stays UI size at any canvas zoom */
+.cv-block[aria-selected="true"] .tools{display:flex}
+.cv-block .tools button{width:24px; height:24px; border-radius:4px; color:var(--sheet); display:grid; place-items:center}
+.cv-block .tools button:hover{background:rgba(255,255,255,.15)}
+.cv-block .tools button:focus-visible{outline-color:var(--accent-ind)} /* the tools bar is light (--ink) here, where --accent only reaches 2.41:1 */
+.cv-block .tools svg{width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
+.cv-block .tag{position:absolute; top:6px; left:6px; font:500 10px/1 var(--ui); background:var(--accent); color:var(--on-accent); padding:3px 6px; border-radius:4px; display:none; z-index:2; zoom:calc(1 / var(--fit, 1))}
+.cv-block[aria-selected="true"] .tag{display:block}
+.cv-block .ptag{display:none} /* 'Hidden on phones': only on the phone canvas, for a block that carries .hide-mobile */
+/* merge tags are chips on the canvas: one piece, never half-typed into. The export keeps the raw tag */
+.canvas .mtag{display:inline-block; padding:0 5px; margin:0 1px; border:1px solid rgba(95,104,121,.45); border-radius:4px; font-size:.86em; line-height:1.35; color:#4b5363; background:rgba(95,104,121,.08); white-space:nowrap; vertical-align:baseline; cursor:default}
+.cv-block.drop-before{box-shadow:inset 0 3px 0 var(--accent-ind), inset 0 4px 0 var(--ind-halo)} .cv-block.drop-after{box-shadow:inset 0 -3px 0 var(--accent-ind), inset 0 -4px 0 var(--ind-halo)}
+.canvas.drag-over{outline:2px dashed var(--accent-ind); outline-offset:-2px; box-shadow:0 0 0 2px var(--ind-halo), 0 20px 50px -20px rgba(10,14,24,.35)}
+.canvas [data-edit]{outline:0; cursor:text; border-radius:2px; transition:box-shadow .12s}
+.canvas [data-edit]:hover{box-shadow:0 0 0 1px rgba(213,94,0,.5)}
+.canvas [data-edit]:focus{box-shadow:0 0 0 2px var(--accent-ind), 0 0 0 4px var(--ind-halo); background:rgba(213,94,0,.05)}
+.canvas [data-edit] a{pointer-events:none}
+.tagbar{display:flex; gap:6px; align-items:center; margin:0 0 8px}
+.tagbar select{flex:1; min-width:0; background:var(--paper); border:1px solid var(--rule); border-radius:6px; padding:5px 8px; font-size:12.5px; color:var(--ink)}
+.tagbar .btn{border:1px solid var(--rule); height:30px; font-size:12.5px}
+.canvas .empty{padding:60px 36px; text-align:center; color:#5f6879; font:14px/1.5 var(--ui)} /* literal: the email canvas stays white — emails carry their own brand */
+.canvas button.empty{display:block; width:100%; cursor:pointer; background:none}
+.canvas .empty b{display:block; color:#4b5363; font-size:16px; margin-bottom:6px}
+.canvas .empty img{width:52px; height:52px; border-radius:13px; display:block; margin:0 auto 16px; box-shadow:0 10px 28px -10px rgba(18,10,4,.45)}
+.canvas .ph{background:repeating-linear-gradient(45deg,#f0f1f4,#f0f1f4 8px,#e6e8ee 8px,#e6e8ee 16px); color:#5f6879; font:12px var(--ui); display:flex; align-items:center; justify-content:center; text-align:center; padding:12px}
+.center iframe{border:0; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.3), 0 18px 40px -18px rgba(0,0,0,.6); border-radius:8px; height:200px; display:block; margin:0 auto} /* height follows the email (see sizeFrame): the stage scrolls, as on the canvas */
+/* zoom: one presentation scale for the canvas and the three previews */
+.zoom{display:flex; align-items:center; gap:8px}
+.zoom .zval{font:500 11px var(--mono); color:var(--ink-3); min-width:34px; text-align:right}
+.zoom .seg button{padding:3px 8px; font-size:12px}
+/* the selected block's actions on touch and narrow screens: one bar above the sheet, so nothing sits on the block itself */
+.blockbar{display:none}
+.blockbar svg{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
+/* B · I · Link for the focused text on touch screens, where there is no ⌘B */
+.fmtbar{position:fixed; z-index:45; display:none; gap:2px; padding:3px; background:var(--ink); border-radius:8px; box-shadow:0 8px 24px -8px rgba(0,0,0,.6)}
+.fmtbar[data-open="true"]{display:flex}
+.fmtbar button{min-width:44px; height:40px; padding:0 10px; border-radius:6px; color:var(--sheet); font:600 15px var(--ui)}
+.fmtbar button:active{background:rgba(0,0,0,.12)}
+.fmtbar button:focus-visible{outline-color:var(--accent-ind)}
+.grab{display:none}
+.phone-note{display:none}
+
+/* inspector */
+.inspector{background:var(--sheet); border-left:1px solid var(--rule); overflow:hidden}
+.tabs{display:flex; border-bottom:1px solid var(--rule); background:var(--sheet)}
+.tabs button{flex:1; min-width:0; white-space:nowrap; padding:10px 4px; font-size:12.5px; color:var(--ink-3); border-bottom:2px solid transparent}
+.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--accent); font-weight:500}
+.tabs button .pill{margin-left:6px; padding:2px 6px; font-size:10px}
+.panel{display:none; overflow:auto; flex:1; padding:12px 14px 40px}
+.panel[data-active="true"]{display:block}
+.panel h4{margin:14px 0 6px; font-size:11px; font-weight:500; color:var(--ink-3); letter-spacing:.02em} .panel h4:first-child{margin-top:0}
+.field{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:4px 0; font-size:13px}
+.field label{color:var(--ink-2); flex:none; width:104px}
+.field input[type=text],.field input[type=url],.field input[type=password],.field input[type=number],.field select,.field textarea{background:var(--paper); border:1px solid var(--rule); border-radius:6px; padding:5px 8px; color:var(--ink); flex:1; min-width:0; font-size:13px}
+.field textarea{resize:vertical; min-height:64px; font:12.5px/1.45 var(--mono)}
+.field.stack{flex-direction:column; align-items:stretch} .field.stack label{width:auto; margin-bottom:3px}
+.field input[type=color]{width:38px; height:26px; border:1px solid var(--rule); border-radius:6px; padding:1px 2px; background:var(--paper); cursor:pointer; flex:none}
+.field .colorbox{display:flex; gap:6px; flex:1; align-items:center; min-width:0}
+.field .colorbox select{flex:1}
+.field input[type=checkbox]{accent-color:var(--accent); width:16px; height:16px}
+.field input[type=range]{flex:1; accent-color:var(--accent)}
+.field .val{font:11px var(--mono); color:var(--ink-3); width:34px; text-align:right}
+.hint{font-size:11.5px; color:var(--ink-3); line-height:1.45; margin:6px 0 2px}
+.hint code{font-family:var(--mono); background:var(--paper); padding:1px 4px; border-radius:3px}
+.row-btns{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px}
+.row-btns .btn{border:1px solid var(--rule); height:30px; font-size:13px} .row-btns .btn.primary{border-color:transparent}
+.issues{display:flex; flex-direction:column; gap:6px}
+.issue{border:1px solid var(--rule); border-left:3px solid var(--ink-3); border-radius:6px; padding:8px 10px; font-size:12.5px; background:var(--paper)}
+.issue.err{border-left-color:var(--err)} .issue.warn{border-left-color:var(--warn)} .issue.ok{border-left-color:var(--ok)}
+.issue b{display:block; font-weight:600; color:var(--ink); margin-bottom:2px} .issue span{color:var(--ink-2)}
+.issue code{font-family:var(--mono); font-size:11px; background:var(--sheet); padding:1px 4px; border-radius:3px}
+.stats{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px}
+.stat{background:var(--paper); border-radius:6px; padding:8px 10px} .stat b{display:block; font-size:16px; font-weight:600} .stat span{font-size:11px; color:var(--ink-3)}
+.in-app .web-only{display:none!important} html:not(.in-app) .app-only{display:none!important}
+.claude textarea{width:100%; min-height:80px; resize:vertical; background:var(--paper); border:1px solid var(--rule); border-radius:6px; padding:8px 10px; font:13px/1.45 var(--ui); color:var(--ink)}
+.claude .note{font-size:11.5px; color:var(--ink-3); margin-top:8px; line-height:1.45} .claude .note code{font-family:var(--mono)}
+.busy{display:inline-block; width:14px; height:14px; border:2px solid var(--rule); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(8px); background:var(--ink); color:var(--sheet); padding:9px 14px; border-radius:8px; font-size:13px; opacity:0; pointer-events:none; transition:.18s; z-index:50; display:flex; gap:14px; align-items:center; min-width:min(280px, calc(100vw - 32px)); max-width:calc(100vw - 32px)}
+.toast span{flex:1; min-width:0; overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2}
+.toast button{flex:none}
+.toast.show{opacity:1; transform:translateX(-50%); pointer-events:auto}
+.toast button{color:var(--accent); font-weight:600}
+.sr{position:absolute; left:-9999px}
+/* a fold for settings most people leave alone: a native details, closed until asked for */
+.fold{margin-top:12px; border-top:1px solid var(--rule)}
+.fold summary{padding:8px 0 4px; font-size:12.5px; color:var(--ink-2); cursor:pointer}
+.fold summary:hover{color:var(--ink)}
+.btn .lbl{display:none} /* the text label of an icon button; shown only when the button sits in a menu */
+.scrim{display:none} /* the library drawer's backdrop exists only on phones; anywhere else it must not take a grid cell */
+.btn.mobile-only,.btn.phone-only{display:none}
+.tabs .sheet-x{display:none; flex:0 0 auto; padding:10px 12px; color:var(--ink-3)}
+.tabs .sheet-x svg{width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round}
+.canvas-wrap[data-phone="true"] .stack{display:block !important; width:100% !important}
+.canvas-wrap[data-phone="true"] .hide-mobile{opacity:.45}
+/* ≤1100px: the inspector becomes a bottom sheet and the library a drawer under the toolbar, so the canvas gets the full width */
+@media (max-width:1100px){
+  .bar{z-index:35} /* the export popover lives in the bar's stacking context and must paint above the sheet (z 30) */
+  .work,.work[data-mode="source"]{grid-template-columns:1fr}
+  /* the sheet is as tall as what it holds, up to a cap that always leaves canvas showing above it */
+  .inspector{display:flex; position:fixed; left:0; right:0; bottom:0; height:auto; max-height:min(55dvh, calc(100dvh - var(--bar-h, 52px) - 160px)); z-index:30; border-left:0; border-top:1px solid var(--rule); border-radius:12px 12px 0 0; box-shadow:0 -18px 48px -18px rgba(0,0,0,.55); transform:translateY(103%); transition:transform .2s ease}
+  .inspector[data-open="true"]{transform:none}
+  .grab{display:flex; justify-content:center; align-items:center; flex:none; height:22px; width:100%; touch-action:none; cursor:grab}
+  .grab::before{content:""; width:36px; height:5px; border-radius:3px; background:var(--ink-3)}
+  .tabs{touch-action:pan-x}
+  .tabs .sheet-x{display:flex}
+  .btn.mobile-only{display:inline-flex}
+  /* the library drawer sits below the toolbar: Build, Source and Export stay reachable while it is open */
+  .pane.left{position:fixed; top:var(--bar-h, 52px); bottom:0; left:0; width:min(320px,86vw); z-index:25; border-right:1px solid var(--rule); box-shadow:18px 0 48px -18px rgba(0,0,0,.55); transform:translateX(-103%); transition:transform .2s ease}
+  .work[data-mode="source"] .pane.left{width:min(560px,86vw)}
+  .pane.left[data-open="true"]{transform:none}
+  .scrim{display:none; position:fixed; left:0; right:0; bottom:0; top:var(--bar-h, 52px); z-index:24; background:rgba(0,0,0,.45); border:0; padding:0}
+  .pane.left[data-open="true"] ~ .scrim{display:block}
+  /* the selected block's tools leave the block for one bar above the sheet */
+  .cv-block .tools,.cv-block[aria-selected="true"] .tools,.cv-block[aria-selected="true"] .tag{display:none}
+  .blockbar[data-open="true"]{display:flex}
+  .work[data-editing="true"] ~ .blockbar,.work:has(.pane.left[data-open="true"]) ~ .blockbar{display:none} /* the bar steps aside while canvas text is being typed into, and while the library drawer is open */
+  .blockbar{position:fixed; z-index:31; left:50%; bottom:calc(12px + env(safe-area-inset-bottom, 0px)); transform:translateX(-50%); align-items:center; gap:2px; padding:3px 3px 3px 12px; background:var(--ink); color:var(--sheet); border-radius:10px; box-shadow:0 10px 28px -10px rgba(0,0,0,.7); transition:bottom .2s ease; max-width:calc(100vw - 16px)}
+  .blockbar b{font:500 12.5px var(--ui); margin-right:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0}
+  .blockbar button{width:44px; height:44px; flex:none; border-radius:7px; display:grid; place-items:center; color:var(--sheet)}
+  .blockbar button:active{background:rgba(0,0,0,.12)}
+  .blockbar button:focus-visible{outline-color:var(--accent-ind)}
+  .blockbar button:disabled{opacity:.35}
+  .blockbar .props{width:auto; padding:0 12px 0 10px; display:flex; gap:6px; font:600 13px var(--ui); background:var(--accent); color:var(--on-accent); margin-left:4px}
+  .work[data-sel="true"] .stage{padding-bottom:84px} /* room to scroll the last block clear of the bar */
+  .work[data-sheet="open"] .stage{padding-bottom:calc(var(--sheet-h, 0px) + 84px)} /* and clear of the sheet */
+  .work[data-sheet="open"] ~ .blockbar{bottom:calc(var(--sheet-h, 0px) + 8px)}
+  body[data-sheet="open"] .toast{bottom:calc(var(--sheet-h, 0px) + 12px)} /* never over the sheet's fields */
+  body[data-bar="true"]:not([data-sheet="open"]) .toast{bottom:calc(70px + env(safe-area-inset-bottom, 0px))} /* nor over the block bar's buttons */
+  /* the sheet starts at a peek that keeps the block in sight; a swipe up on its grabber gives it more room */
+  .inspector[data-tall="true"]{max-height:min(80dvh, calc(100dvh - var(--bar-h, 52px) - 72px))}
+  /* with the sheet open the selected block's actions are the sheet's top row, so nothing floats over the block */
+  .inspector .blockbar[data-open="true"]{display:flex}
+  .inspector .blockbar{position:static; transform:none; flex:none; box-shadow:none; border-radius:0; max-width:none; background:transparent; color:var(--ink); padding:0 6px 0 14px; border-bottom:1px solid var(--rule); transition:none}
+  .inspector .blockbar b{flex:1}
+  .inspector .blockbar button{color:var(--ink-2)}
+  .inspector .blockbar button:active{background:var(--rule)}
+  .inspector .blockbar .props{display:none} /* the sheet already is the block's properties */
+}
+@media (max-width:1100px) and (orientation:portrait), (max-width:1100px) and (min-height:501px){
+  .inspector{max-height:min(45dvh, calc(100dvh - var(--bar-h, 52px) - 160px))}
+}
+@media (max-width:480px){ .blockbar .props .w{position:absolute; left:-9999px} .blockbar .props{width:44px; padding:0; justify-content:center; margin-left:4px} } /* the icon carries it; the block's name gets the room */
+/* ≤1100px: the toolbar wraps to two rows instead of forcing a wider layout viewport (a 1024 iPad in landscape too) */
+@media (max-width:1100px){
+  .app{grid-template-rows:auto 1fr}
+  .bar{flex-wrap:wrap; padding:6px 10px; row-gap:4px}
+  .spacer{flex:0 0 100%; order:1; height:0}
+  .bar .group,.bar #viewSeg{order:2}
+  .pop{left:8px; right:8px; top:calc(100% + 4px); min-width:0}
+}
+/* ≤700px: a phone. The canvas shows the email at the screen's width with the email's own phone rules (columns stack),
+   the way the Mobile preview and a phone show it: editing happens at 1:1, not on a shrunken desktop layout */
+@media (max-width:700px){
+  .bar .btn{height:38px; padding:0 8px}
+  .bar .btn.icon{width:38px}
+  .bar .seg button{padding:8px 10px; font-size:12.5px} /* .bar scoping outranks the pointer:coarse bump below */
+  .group{padding:0 3px}
+  .stage{padding:10px 8px}
+  .canvas-wrap{padding:8px; border-radius:10px}
+  .cv-block .ptag{position:absolute; top:6px; right:6px; z-index:2; font:500 11px/1 var(--ui); padding:4px 7px; border-radius:4px; background:var(--ink); color:var(--sheet)}
+  .cv-block[data-hidden-phone="true"] .ptag{display:block}
+  .zoom{display:none} /* the phone canvas is always 1:1 */
+  .phone-note{display:block}
+}
+/* landscape phones and short tablets: the sheet docks on the right, the toolbar keeps to one row, and the canvas title folds away */
+@media (max-width:1100px) and (max-height:500px) and (orientation:landscape){
+  .inspector{top:var(--bar-h, 52px); left:auto; right:0; bottom:0; width:min(360px,48vw); max-height:none; border-top:0; border-left:1px solid var(--rule); border-radius:12px 0 0 0; box-shadow:-18px 0 48px -18px rgba(0,0,0,.55); transform:translateX(103%)}
+  .grab{display:none}
+  .work[data-sheet="open"] .stage{padding-bottom:84px; padding-right:calc(min(360px,48vw) + 8px)}
+  .work[data-sheet="open"] ~ .blockbar{bottom:calc(12px + env(safe-area-inset-bottom, 0px))}
+  .blockbar{left:calc((100vw - var(--dock-w, 0px)) / 2)}
+  .work[data-sheet="open"] ~ .blockbar{--dock-w:min(360px,48vw)}
+  body[data-sheet="open"] .toast{bottom:22px; left:calc((100vw - min(360px,48vw)) / 2)}
+  .pane.center > .pane-head{display:none}
+}
+@media (max-width:1100px) and (max-height:500px) and (orientation:landscape){
+  .app{grid-template-rows:auto 1fr}
+  .bar{flex-wrap:nowrap; padding:4px 8px; gap:4px}
+  .spacer{flex:1 1 0; order:0; height:auto}
+  .bar .group,.bar #viewSeg{order:0}
+  .brand{display:none}
+  .group{padding:0 2px}
+  .btn.phone-only{display:inline-flex}
+  .bar .seg button{padding:8px 9px}
+  #btnExport{padding:0 10px}
+  .pop .head{display:flex; gap:6px; align-items:center}
+  .pop .menu .btn.icon{width:100%; justify-content:flex-start}
+  .pop .menu .btn .lbl{display:inline}
+}
+@media (max-width:760px) and (max-height:500px) and (orientation:landscape){ #btnExport .word{position:absolute; left:-9999px} }
+/* ≤480px: the toolbar is two rows. Row one: library, mark, Build/Source, Export, More. Row two: the views, Undo, the panel.
+   Save, New, Sound and the two status pills sit in the More menu — placeTools() moves the same elements there and back. */
+@media (max-width:480px){
+  .btn.phone-only{display:inline-flex}
+  .brand{margin-right:0} .brand .word{position:absolute; left:-9999px} /* the mark carries the name here; the word stays for screen readers */
+  .bar .seg button{padding:8px 7px}
+  .bar .group{display:contents} /* the groups dissolve so each control can take its row */
+  #btnExport{margin-left:auto}
+  .bar #viewSeg{order:2; flex:1 1 0; min-width:0} .bar #viewSeg button{flex:1 1 0; min-width:0; padding:8px 0}
+  #btnUndo{order:3} #btnPanel{order:4}
+  .pop .head{display:flex; gap:6px; align-items:center}
+  .pop .menu .btn.icon{width:100%; justify-content:flex-start}
+  .pop .menu .btn .lbl{display:inline}
+}
+@media (max-width:350px){ #btnExport{gap:0} #btnExport .word{position:absolute; left:-9999px} } /* the smallest phones: Export keeps its arrow and its name, and row one still fits */
+/* touch: 44px targets, and 16px text in every field so iOS never zooms the page when one takes focus */
+@media (pointer:coarse){
+  .fold summary{padding:12px 0 6px}
+  .btn{height:42px} .btn.icon{width:42px}
+  .seg button{padding:10px 12px}
+  .cv-block .tools button{width:38px; height:38px}
+  .saved div button{width:32px; height:32px}
+  .tabs button{padding:14px 6px}
+  .lib-item span,.tpl button span,.pill{font-size:12px}
+  .left h5,.panel h4{font-size:12px}
+  .hint{font-size:12.5px}
+  .field input[type=text],.field input[type=url],.field input[type=password],.field input[type=number],.field select,.field textarea,.tagbar select,.left textarea,.claude textarea{font-size:16px; min-height:44px}
+  .field input[type=color]{width:44px; height:44px}
+  .field input[type=range]{height:44px}
+  .field input[type=checkbox]{width:24px; height:24px}
+  .row-btns .btn,.tagbar .btn{height:44px}
+  .pop .menu button{min-height:44px; padding:12px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <button class="btn icon mobile-only" id="btnLib" aria-label="Blocks and templates"><svg viewBox="0 0 24 24"><path d="M4 5h7v7H4zM13 5h7v7h-7zM4 14h7v6H4zM13 14h7v6h-7z"/></svg></button>
+    <div class="brand"><img class="mark" src="icons/icon-112.png" alt="" aria-hidden="true"><span class="word">ZestMail</span><span class="tag">orange · email from your tokens</span></div>
+    <div class="seg" id="modeSeg"><button data-m="build" aria-pressed="true">Build</button><button data-m="source">Source</button></div>
+    <span class="pill" id="sizePill">0 KB</span>
+    <span class="pill" id="lintPill">empty</span>
+    <div class="spacer"></div>
+    <div class="group">
+      <button class="btn" id="btnUndo" title="Undo (⌘Z)" disabled><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h9a6 6 0 0 1 0 12h-3"/></svg></button>
+      <button class="btn" id="btnSave"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6"/></svg>Save</button>
+      <button class="btn" id="btnNew"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>New</button>
+    </div>
+    <div class="group">
+      <div class="seg" id="viewSeg">
+        <button data-w="canvas" aria-pressed="true">Canvas</button>
+        <button data-w="600">Desktop</button>
+        <button data-w="375">Mobile</button>
+        <button data-w="outlook">Outlook</button>
+      </div>
+    </div>
+    <div class="group">
+      <button type="button" class="btn icon" id="btnSound" data-zest-sound aria-pressed="true" aria-label="Sound" title="Short sounds when you copy, save, add or remove something"><svg viewBox="0 0 24 24"><path d="M4 10v4h3l5 4V6l-5 4z"/><path d="M16 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg><span class="lbl">Sound</span></button>
+    </div>
+    <div class="group"><button class="btn icon mobile-only" id="btnPanel" aria-label="Message, brand and lint panel"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button><button class="btn primary" id="btnExport" aria-expanded="false" aria-controls="popExport"><svg viewBox="0 0 24 24"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg><span class="word">Export</span></button><button class="btn icon phone-only" id="btnMore" aria-label="More" aria-expanded="false" aria-controls="popMore"><svg viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3"/></svg></button></div>
+    <div class="pop" id="popExport">
+      <div class="menu">
+        <button data-do="copy">Copy email HTML <small>⌘S</small></button>
+        <button data-do="download">Download .html</button>
+        <hr>
+        <button data-do="text">Copy plain-text version</button>
+        <button data-do="tosource">Open in Source for hand edits</button>
+        <hr>
+        <button data-do="json">Download design (.json)</button>
+        <button data-do="importjson">Import… <small>design or brand</small></button>
+      </div>
+    </div>
+    <div class="pop" id="popMore">
+      <div class="head" id="moreStatus"></div>
+      <div class="menu" id="moreMenu"></div>
+    </div>
+    <form class="pop" id="popName" aria-labelledby="nameLabel">
+      <div class="field stack"><label for="nameInput" id="nameLabel">Design name</label><input type="text" id="nameInput" autocomplete="off"></div>
+      <div class="row-btns"><button class="btn primary" id="nameSave">Save</button><button type="button" class="btn" id="nameCancel">Cancel</button></div>
+    </form>
+  </header>
+
+  <div class="work" id="work" data-mode="build">
+    <section class="pane left">
+      <div class="pane-head" id="leftHead"><b>Blocks</b><span>drag onto the canvas</span><div class="right"><button class="btn icon mobile-only" id="libClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div></div>
+      <div class="scroll" id="leftBuild">
+        <h5>Blocks</h5>
+        <div class="lib" id="lib"></div>
+        <h5>My modules</h5>
+        <div class="lib" id="mods"></div>
+        <h5>Templates</h5>
+        <div class="tpl" id="tpl"></div>
+        <h5>Saved designs</h5>
+        <div class="saved" id="savedList"><div><span style="color:var(--ink-3)">Nothing saved yet</span></div></div>
+      </div>
+      <textarea id="src" spellcheck="false" placeholder="<!-- paste your email HTML here -->" style="display:none"></textarea>
+    </section>
+    <button class="scrim" id="scrim" aria-label="Close the library" tabindex="-1"></button>
+
+    <section class="pane center">
+      <div class="pane-head"><b id="centerTitle">Canvas</b><span id="centerNote">click a block to edit it</span><div class="right"><div class="zoom"><span class="zval" id="zoomVal" aria-hidden="true">100%</span><div class="seg" id="zoomSeg" role="group" aria-label="Zoom"><button data-z="fit" aria-pressed="true" title="Fit the email to the window">Fit</button><button data-z="1" aria-pressed="false">100%</button><button data-z="1.25" aria-pressed="false">125%</button><button data-z="1.5" aria-pressed="false">150%</button></div></div><span class="pill" id="brandPill"></span></div></div>
+      <div class="stage" id="stage">
+        <div class="canvas-wrap" id="canvasWrap"><div class="canvas" id="canvas"></div></div>
+        <iframe id="frame" title="Email preview" sandbox="allow-same-origin" style="display:none"></iframe>
+      </div>
+    </section>
+
+    <aside class="pane inspector" id="inspector">
+      <div class="grab" id="sheetGrab" aria-hidden="true"></div>
+      <div class="tabs" id="tabs">
+        <button data-t="block" aria-selected="true">Block</button>
+        <button data-t="brand">Brand</button>
+        <button data-t="message">Message</button>
+        <button data-t="lint">Lint<span class="pill" id="lintCount">0</span></button>
+        
+        <button class="sheet-x" id="sheetClose" aria-label="Close panel"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div class="panel" data-active="true" id="panelBlock"></div>
+      <div class="panel" id="panelBrand"></div>
+      <div class="panel" id="panelMessage">
+        <h4>Message</h4>
+        <div class="field"><label>Subject</label><input type="text" id="subject" placeholder="Subject line"></div>
+        <div class="field"><label>Preheader</label><input type="text" id="preheader" placeholder="Hidden preview text"></div>
+        <h4>Layout</h4>
+        <div class="field"><label for="width">Width</label><select id="width"><option>560</option><option selected>600</option><option>640</option><option>680</option></select></div>
+        <div class="hint phone-note">Width sets the email for desktop clients. Phones show it at screen width, and so does the canvas here.</div>
+        <div class="field"><label>Outer background</label><input type="color" id="bg" value="#f2f3f5"></div>
+        <div class="field" id="fontsField"><label for="fonts">Fallback fonts</label><select id="fonts"><option value="Helvetica Neue, Helvetica, Arial, sans-serif">Helvetica / Arial</option><option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">System stack</option><option value="Georgia, 'Times New Roman', serif">Georgia / Times</option></select></div>
+        <details class="fold" id="foldCompat">
+          <summary>Compatibility</summary>
+          <div class="field"><label for="darkMeta">Dark-mode meta</label><input type="checkbox" id="darkMeta" checked></div>
+          <div class="field"><label for="wrap">Wrap in tables</label><input type="checkbox" id="wrap" checked></div>
+          <div class="field"><label for="mirror">Mirror attributes</label><input type="checkbox" id="mirror" checked></div>
+        </details>
+      </div>
+      <div class="panel" id="panelLint"><div class="issues" id="issues"></div><div class="stats" id="stats"></div></div>
+      
+    </aside>
+  </div>
+  <div class="blockbar" id="blockBar" role="group" aria-label="Selected block"><b id="blockName"></b><button type="button" data-act="up" aria-label="Move up"><svg viewBox="0 0 24 24"><path d="m6 14 6-6 6 6"/></svg></button><button type="button" data-act="down" aria-label="Move down"><svg viewBox="0 0 24 24"><path d="m6 10 6 6 6-6"/></svg></button><button type="button" data-act="dup" aria-label="Duplicate"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button><button type="button" data-act="del" aria-label="Delete"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3m-7 4v6m4-6v6M6 7l1 13h10l1-13"/></svg></button><button type="button" class="props" data-act="props"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span class="w">Properties</span></button></div>
+  <div class="fmtbar" id="fmtBar" role="group" aria-label="Format text"><button type="button" data-fmt="bold" aria-label="Bold" aria-pressed="false"><b>B</b></button><button type="button" data-fmt="italic" aria-label="Italic" aria-pressed="false"><i>I</i></button><button type="button" data-fmt="link">Link</button></div>
+</div>
+<input type="file" id="jsonFile" class="sr" accept=".json,application/json" aria-label="Import a design or a zest-brand.json" tabindex="-1">
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* zest-sound:start v1 */
+/* Zest sound kit: short synthesized sounds for the things you do in a tool. No audio files, no network.
+   This block is inlined, byte for byte, in all four tools (studio, mail, md, image). To change it,
+   edit one copy, paste it over the other three and bump the version; tests/sound.js fails if they differ.
+     window.ZestSound = { play(name), muted, setMuted(bool) }   names: tap · pop · drop · done · nope
+   Any button carrying data-zest-sound is the mute toggle; the kit keeps its aria-pressed in step.
+   The choice lives in localStorage under one key, zest.sound = on | off, shared by every tool on the origin. */
+(function () {
+  'use strict';
+  var KEY = 'zest.sound', GESTURES = ['pointerdown', 'keydown', 'touchend', 'click'];
+  var AC = window.AudioContext || window.webkitAudioContext;
+  var ctx = null, armed = false, idle = 0, last = '', lastAt = 0;
+  function stored() { try { return localStorage.getItem(KEY) === 'off'; } catch (e) { return false; } }
+  var muted = stored();
+
+  // A sound is one or two notes: [wave, start Hz, end Hz, delay s, length s, peak gain].
+  // One family: soft sine and triangle blips around D, 35-180 ms, never louder than 0.07.
+  var SOUNDS = {
+    tap:  [['sine', 1175, 880, 0, 0.035, 0.05]],                                              // select, toggle, switch
+    pop:  [['sine', 440, 880, 0, 0.07, 0.07]],                                                // something was added
+    drop: [['sine', 587, 294, 0, 0.11, 0.07]],                                                // something left, or a drag landed
+    done: [['sine', 880, 880, 0, 0.07, 0.06], ['sine', 1319, 1319, 0.06, 0.12, 0.06]],        // copied, saved, exported
+    nope: [['triangle', 233, 208, 0, 0.06, 0.06], ['triangle', 208, 185, 0.08, 0.08, 0.06]]   // blocked, or it failed
+  };
+
+  function noop() {}
+  function resume() { try { return Promise.resolve(ctx.resume()); } catch (e) { return Promise.reject(e); } }
+  function rest() {            // an idle context is suspended, so an open tab does not hold the audio device
+    clearTimeout(idle);
+    idle = setTimeout(function () { try { if (ctx) Promise.resolve(ctx.suspend()).catch(noop); } catch (e) {} }, 20000);
+  }
+  function wake() {            // only reached once a real gesture has happened
+    if (!AC) return null;
+    try {
+      if (!ctx) ctx = new AC();
+      if (ctx.state !== 'running') resume().catch(noop);
+      rest();
+    } catch (e) { ctx = null; }
+    return ctx;
+  }
+  function sound(notes) {
+    var t0 = ctx.currentTime + 0.005;
+    notes.forEach(function (n) {
+      var osc = ctx.createOscillator(), amp = ctx.createGain(), t = t0 + n[3];
+      osc.type = n[0];
+      osc.frequency.setValueAtTime(n[1], t);
+      if (n[2] !== n[1]) osc.frequency.exponentialRampToValueAtTime(n[2], t + n[4]);
+      amp.gain.setValueAtTime(0.001, t);
+      amp.gain.exponentialRampToValueAtTime(n[5], t + 0.006);
+      amp.gain.exponentialRampToValueAtTime(0.001, t + n[4]);
+      osc.connect(amp); amp.connect(ctx.destination);
+      osc.start(t); osc.stop(t + n[4] + 0.02);
+    });
+    rest();
+  }
+  function play(name) {
+    var notes = SOUNDS[name], now = Date.now();
+    if (muted || !armed || !notes) return;          // silent until the first real gesture: nothing plays on load
+    if (name === last && now - lastAt < 60) return;  // one action, one sound
+    last = name; lastAt = now;
+    try {
+      if (!wake()) return;
+      if (ctx.state === 'running') sound(notes);
+      else resume().then(function () { if (!muted && Date.now() - now < 250) sound(notes); }, noop);
+    } catch (e) {}
+  }
+  function paint() {
+    var els = document.querySelectorAll('[data-zest-sound]');
+    for (var i = 0; i < els.length; i++) els[i].setAttribute('aria-pressed', String(!muted));
+  }
+  function setMuted(off) {
+    muted = !!off;
+    try { localStorage.setItem(KEY, muted ? 'off' : 'on'); } catch (e) {}
+    if (!muted && armed) wake();
+    paint();
+  }
+  function arm(e) {            // the audio context is made on the first real gesture, never before
+    if (!e.isTrusted) return;
+    armed = true;
+    GESTURES.forEach(function (g) { window.removeEventListener(g, arm, true); });
+    if (!muted) wake();
+  }
+  GESTURES.forEach(function (g) { window.addEventListener(g, arm, true); });
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest && e.target.closest('[data-zest-sound]');
+    if (!b) return;
+    setMuted(!muted);
+    play('tap');               // turning sound on answers with a tap; turning it off is silent
+  });
+  window.addEventListener('storage', function (e) { if (e.key === KEY || e.key === null) { muted = stored(); paint(); } });
+  document.addEventListener('DOMContentLoaded', paint);
+  paint();
+  window.ZestSound = { play: play, setMuted: setMuted, get muted() { return muted; } };
+})();
+/* zest-sound:end */
+</script>
+<script>
+(() => {
+  'use strict';
+  const PRODUCT = 'ZestMail';
+  const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const IN_APP = window.ZEST_IN_APP === true;   // set in <head>: the copy inside NetRelish.app
+  // Drafting calls a model over the network, so the app's copy has none of it: no tab, no panel, no request.
+  if (IN_APP) { $('#tabs [data-t="claude"]')?.remove(); $('#panelClaude')?.remove(); }
+  const store = { get(k, d) { try { const v = localStorage.getItem('mailpress:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem('mailpress:' + k, JSON.stringify(v)); } catch {} } };
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const uid = () => Math.random().toString(36).slice(2, 9);
+  const snd = n => { try { window.ZestSound.play(n); } catch {} };   // tap · pop · drop · done · nope (the zest-sound kit above)
+
+  /* =========================================================
+     CSS parsing — tiny, tolerant, no dependencies
+     ========================================================= */
+  function parseCSS(css) {
+    css = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    const out = { rules: [], media: [], raw: [] }; // raw: @font-face, @keyframes, etc. kept verbatim
+    let i = 0;
+    const readBlock = () => { // assumes css[i] === '{'; returns inner text, advances past matching '}'
+      let depth = 0, start = ++i;
+      for (; i < css.length; i++) { if (css[i] === '{') depth++; else if (css[i] === '}') { if (!depth) return css.slice(start, i++); depth--; } }
+      return css.slice(start);
+    };
+    while (i < css.length) {
+      const j = css.indexOf('{', i); if (j < 0) break;
+      const head = css.slice(i, j).trim(); i = j;
+      const body = readBlock();
+      if (!head) continue;
+      if (head.startsWith('@media')) { const inner = parseCSS(body); out.media.push({ query: head, rules: inner.rules }); }
+      else if (head.startsWith('@')) out.raw.push(`${head}{${body}}`);
+      else head.split(',').map(s => s.trim()).filter(Boolean).forEach(sel => out.rules.push({ sel, decls: parseDecls(body), spec: specificity(sel) }));
+    }
+    return out;
+  }
+  function parseDecls(body) {
+    return body.split(';').map(d => d.trim()).filter(Boolean).map(d => { const k = d.indexOf(':'); if (k < 0) return null; const prop = d.slice(0, k).trim().toLowerCase(); let val = d.slice(k + 1).trim(); const imp = /!important$/i.test(val); if (imp) val = val.replace(/\s*!important$/i, ''); return { prop, val, imp }; }).filter(Boolean);
+  }
+  function specificity(sel) {
+    const s = sel.replace(/::?[a-z-]+(\([^)]*\))?/gi, m => m.startsWith('::') ? '' : ' :p'); // pseudo-elements ignored, pseudo-classes count as class
+    return [(s.match(/#[\w-]+/g) || []).length, (s.match(/\.[\w-]+|\[[^\]]+\]|:p/g) || []).length, (s.match(/(^|[\s>+~])[a-z][\w-]*/gi) || []).length];
+  }
+  const cmpSpec = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+
+  /* =========================================================
+     Compile
+     ========================================================= */
+  const UNSAFE_PROPS = {
+    'display:flex': 'Flexbox — no Outlook (Windows), partial Gmail. Use nested tables for columns.',
+    'display:grid': 'CSS Grid — not supported in Outlook or Gmail. Use nested tables.',
+    'position': 'Positioning — ignored by Outlook and Gmail. Layout must flow.',
+    'float': 'Floats — Outlook drops them. Use table cells with align.',
+    'transform': 'Transforms — not supported in email clients.',
+    'box-shadow': 'Box shadow — dropped by Outlook and Gmail; decorative only, fine if the design survives without it.',
+    'background-image': 'Background images — Outlook needs a VML fallback; always set a background-color too.',
+    'border-radius': 'Border radius — Outlook (Windows) renders square corners. Acceptable if square is acceptable.',
+    'gap': 'gap — flex/grid property, not supported.',
+    'animation': 'Animation — not supported in most clients.',
+    'filter': 'CSS filters — not supported.',
+    'object-fit': 'object-fit — not supported in Outlook.',
+    'line-clamp': 'line-clamp — not supported.'
+  };
+  function compile(input, o) {
+    const issues = [], parser = new DOMParser(), doc = parser.parseFromString(input, 'text/html');
+    // 1. gather CSS
+    let css = '';
+    $$('style', doc).forEach(s => { css += s.textContent + '\n'; s.remove(); });
+    $$('link[rel="stylesheet"]', doc).forEach(l => { issues.push(['err', 'External stylesheet', `<code>${esc(l.getAttribute('href') || '')}</code> — email clients do not load linked CSS. Paste the CSS into a &lt;style&gt; block and it will be inlined.`]); l.remove(); });
+    $$('script, form, video, audio, iframe, object, embed, svg', doc).forEach(el => { issues.push(['err', `Removed <${el.tagName.toLowerCase()}>`, 'Scripts, forms and embedded media are stripped or blocked by every major client. SVG fails in Outlook and Gmail — export it as PNG.']); el.remove(); });
+    const parsed = parseCSS(css);
+    // 2. inline plain rules by specificity, source order
+    const applied = new Map(); // el -> {prop: {val, spec, imp, order}}
+    parsed.rules.forEach((rule, order) => {
+      let els; try { els = $$(rule.sel, doc.body); } catch { return; }
+      if (/:(hover|focus|active|visited)/.test(rule.sel)) return; // stays in <style> for clients that honour it
+      els.forEach(el => {
+        const m = applied.get(el) || {}; applied.set(el, m);
+        rule.decls.forEach(d => {
+          const cur = m[d.prop];
+          const wins = !cur || (d.imp && !cur.imp) || (d.imp === cur.imp && cmpSpec(rule.spec, cur.spec) >= 0);
+          if (wins) m[d.prop] = { val: d.val, spec: rule.spec, imp: d.imp, order };
+        });
+      });
+    });
+    applied.forEach((m, el) => {
+      const existing = parseDecls(el.getAttribute('style') || '');
+      const merged = {}; Object.entries(m).forEach(([p, v]) => merged[p] = v.val);
+      existing.forEach(d => merged[d.prop] = d.val); // author inline style wins last
+      el.setAttribute('style', Object.entries(merged).map(([p, v]) => `${p}:${v}`).join(';'));
+    });
+    // 3. scan for unsupported CSS + mirror attributes
+    const seen = new Set(); let divs = 0, tables = 0, imgs = 0, imgNoAlt = 0, imgNoW = 0, links = 0, webFonts = new Set();
+    $$('*', doc.body).forEach(el => {
+      const st = el.getAttribute('style') || '';
+      const tag = el.tagName.toLowerCase();
+      if (tag === 'div') divs++; if (tag === 'table') tables++; if (tag === 'a') links++;
+      Object.keys(UNSAFE_PROPS).forEach(k => {
+        const [p, v] = k.split(':');
+        const hit = v ? new RegExp(`(^|;)\\s*${p}\\s*:\\s*${v}`).test(st) : new RegExp(`(^|;)\\s*${p}(-[a-z-]+)?\\s*:`).test(st);
+        if (hit && !seen.has(k)) { seen.add(k); issues.push([/flex|grid|position|float|gap/.test(k) ? 'err' : 'warn', k.replace(':', ': '), UNSAFE_PROPS[k]]); }
+      });
+      if (/\d(rem|vw|vh|vmin|vmax)\b/.test(st) && !seen.has('units')) { seen.add('units'); issues.push(['warn', 'Viewport / rem units', 'Outlook ignores rem and viewport units. Use px for sizes and percentages for widths.']); }
+      const ff = st.match(/font-family\s*:\s*([^;]+)/i);
+      if (ff) { const fam = ff[1].replace(/['"]/g, '').split(',')[0].trim(); if (!/^(arial|helvetica|helvetica neue|georgia|times|times new roman|verdana|tahoma|trebuchet ms|courier|courier new|-apple-system|blinkmacsystemfont|segoe ui|roboto|sans-serif|serif|monospace|system-ui)$/i.test(fam)) webFonts.add(fam); if (!/,/.test(ff[1])) el.setAttribute('style', st.replace(ff[0], `font-family:${ff[1].trim()}, ${o.fonts}`)); }
+      if (o.mirror) {
+        const bg = st.match(/background(?:-color)?\s*:\s*(#[0-9a-f]{3,8})\b/i); if (bg && ['table', 'td', 'th', 'tr', 'body'].includes(tag)) el.setAttribute('bgcolor', bg[1]);
+        const w = st.match(/(^|;)\s*width\s*:\s*(\d+)(px|%)/); if (w && ['table', 'td', 'th', 'img'].includes(tag)) el.setAttribute('width', w[2] + (w[3] === '%' ? '%' : ''));
+        const al = st.match(/text-align\s*:\s*(left|center|right)/); if (al && ['td', 'th', 'table', 'p', 'div'].includes(tag)) el.setAttribute('align', al[1]);
+        const va = st.match(/vertical-align\s*:\s*(top|middle|bottom)/); if (va && ['td', 'th'].includes(tag)) el.setAttribute('valign', va[1]);
+        if (tag === 'table') { ['cellpadding', 'cellspacing', 'border'].forEach(a => { if (!el.hasAttribute(a)) el.setAttribute(a, '0'); }); if (!el.hasAttribute('role')) el.setAttribute('role', 'presentation'); }
+        if (tag === 'img') { imgs++; if (!el.hasAttribute('alt')) imgNoAlt++; if (!el.hasAttribute('width')) imgNoW++; if (!el.hasAttribute('border')) el.setAttribute('border', '0'); if (!/display\s*:/.test(st)) el.setAttribute('style', (st ? st + ';' : '') + 'display:block'); }
+      }
+    });
+    if (imgNoAlt) issues.push(['warn', `${imgNoAlt} image${imgNoAlt > 1 ? 's' : ''} without alt`, 'Images are blocked by default in many clients; alt text is what the reader sees. Empty alt="" is correct for decorative images.']);
+    if (imgNoW) issues.push(['warn', `${imgNoW} image${imgNoW > 1 ? 's' : ''} without a width attribute`, 'Outlook renders images at their natural size unless the width attribute is set. Retina images ship at 2× and need width= to display at 1×.']);
+    if (divs > tables * 3 && divs > 6) issues.push(['warn', 'Layout is div-heavy', `${divs} divs vs ${tables} tables. Outlook (Windows) uses the Word engine — divs can't be widths in a row. Columns and side-by-side content need tables.`]);
+    if (webFonts.size) issues.push(['warn', 'Web fonts: ' + [...webFonts].join(', '), 'Supported in Apple Mail and iOS; Gmail and Outlook use the fallback. Fallbacks have been appended so the type degrades on purpose, not by accident.']);
+    if (!o.preheader) issues.push(['warn', 'No preheader', 'The inbox preview text will be whatever comes first in the body — often "View in browser". Set one in the inspector.']);
+    if (!links) issues.push(['warn', 'No links', 'Every email needs at least a CTA and an unsubscribe link.']);
+    if (!/unsubscribe|opt.?out|manage preferences/i.test(doc.body.textContent)) issues.push(['warn', 'No unsubscribe text', 'Marketing email without an unsubscribe link violates CAN-SPAM / GDPR and gets you filtered. Transactional mail is exempt.']);
+    // 4. assemble
+    const bodyInner = doc.body.innerHTML.trim();
+    const mediaCSS = parsed.media.map(m => `${m.query}{${m.rules.map(r => `${r.sel}{${r.decls.map(d => `${d.prop}:${d.val}${d.imp ? ' !important' : ''}`).join(';')}}`).join('')}}`).join('\n');
+    const hoverCSS = parsed.rules.filter(r => /:(hover|focus|active)/.test(r.sel)).map(r => `${r.sel}{${r.decls.map(d => `${d.prop}:${d.val}`).join(';')}}`).join('\n');
+    const rawCSS = parsed.raw.join('\n');
+    const W = +o.width;
+    const content = o.wrap ? `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${o.bg}" style="background-color:${o.bg};margin:0;padding:0;width:100%">
+  <tr><td align="center" style="padding:24px 12px">
+    <!--[if mso]><table role="presentation" width="${W}" cellpadding="0" cellspacing="0" border="0" align="center"><tr><td><![endif]-->
+    <table role="presentation" class="container" width="100%" cellpadding="0" cellspacing="0" border="0" align="center" style="max-width:${W}px;width:100%;margin:0 auto">
+      <tr><td style="font-family:${o.fonts};font-size:16px;line-height:1.5;color:#1b2130">
+${bodyInner}
+      </td></tr>
+    </table>
+    <!--[if mso]></td></tr></table><![endif]-->
+  </td></tr>
+</table>` : bodyInner;
+    const preheader = o.preheader ? `<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:transparent">${esc(o.preheader)}${'&#847;&zwnj;&nbsp;'.repeat(30)}</div>\n` : '';
+    const html = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+${o.darkMeta ? '<meta name="color-scheme" content="light dark">\n<meta name="supported-color-schemes" content="light dark">' : ''}
+<title>${esc(o.subject || '')}</title>
+<!--[if mso]><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
+<!--[if mso]><style>table{border-collapse:collapse;border-spacing:0;mso-table-lspace:0pt;mso-table-rspace:0pt}td{mso-line-height-rule:exactly}</style><![endif]-->
+<style>
+${o.darkMeta ? ':root{color-scheme:light dark;supported-color-schemes:light dark}' : ''}
+html,body{margin:0 !important;padding:0 !important;height:100% !important;width:100% !important;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}
+*{-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}
+table,td{mso-table-lspace:0pt !important;mso-table-rspace:0pt !important}
+img{-ms-interpolation-mode:bicubic;border:0;height:auto;line-height:100%;outline:none;text-decoration:none}
+a[x-apple-data-detectors]{color:inherit !important;text-decoration:none !important}
+u + #body a{color:inherit;text-decoration:none}
+${rawCSS}
+${hoverCSS}
+${mediaCSS}
+@media only screen and (max-width:${W + 20}px){ .container{width:100% !important;max-width:100% !important} .stack{display:block !important;width:100% !important} .hide-mobile{display:none !important} }
+</style>
+</head>
+<body id="body" style="margin:0;padding:0;word-spacing:normal;background-color:${o.bg}" bgcolor="${o.bg}">
+${preheader}${content}
+</body>
+</html>`;
+    const bytes = new TextEncoder().encode(html).length;
+    if (bytes > 102 * 1024) issues.push(['err', `Gmail will clip this (${(bytes / 1024).toFixed(0)} KB)`, 'Gmail clips messages over ~102 KB and hides the rest behind "View entire message" — including your unsubscribe link. Trim markup or move imagery to hosted images.']);
+    else if (bytes > 80 * 1024) issues.push(['warn', `Getting heavy (${(bytes / 1024).toFixed(0)} KB)`, 'Gmail clips at ~102 KB. You have room, but not much.']);
+    if (!issues.length) issues.push(['ok', 'Clean', 'No client-compatibility flags. Send a test to real inboxes before the campaign; a linter is not an inbox.']);
+    return { html, issues, bytes, stats: { divs, tables, imgs, links, rules: parsed.rules.length, media: parsed.media.length } };
+  }
+  function outlookSim(html) {
+    // Approximate the Word rendering engine: drop what it drops.
+    return html.replace(/<!--\[if mso\]>([\s\S]*?)<!\[endif\]-->/g, (m, inner) => (/<\/?(table|tr|td)\b/.test(inner) ? inner : m))   // Word reads its conditional comments: the fixed-width ghost table holds the email at its width
+      .replace(/(border-radius|box-shadow|background-image|transform|max-width|filter|object-fit|gap)\s*:[^;"]+;?/gi, '')
+      .replace(/display\s*:\s*(flex|grid)[^;"]*;?/gi, 'display:block;')
+      .replace(/<style>[\s\S]*?<\/style>/g, m => m.replace(/@media[^{]*\{[\s\S]*?\}\s*\}/g, '').replace(/@font-face[^{]*\{[^}]*\}/g, ''))
+      .replace(/font-family\s*:\s*[^;"]*/gi, 'font-family:Arial, sans-serif');
+  }
+  function toText(html) {
+    const d = new DOMParser().parseFromString(html, 'text/html');
+    $$('style,script,title,[style*="display:none"]', d).forEach(e => e.remove());
+    const walk = n => {
+      if (n.nodeType === 3) return n.nodeValue.replace(/\s+/g, ' ');
+      if (n.nodeType !== 1) return '';
+      const t = n.tagName.toLowerCase(), inner = [...n.childNodes].map(walk).join('');
+      if (/^h[1-6]$/.test(t)) return `\n\n${inner.trim().toUpperCase()}\n`;
+      if (t === 'a') { const h = n.getAttribute('href'); return h && !/^#|^mailto:/.test(h) && inner.trim() ? `${inner.trim()} (${h})` : inner; }
+      if (t === 'li') return `\n- ${inner.trim()}`;
+      if (t === 'br') return '\n';
+      if (t === 'img') return n.getAttribute('alt') ? `[${n.getAttribute('alt')}]` : '';
+      if (t === 'hr') return '\n----------\n';
+      if (/^(p|div|tr|table|ul|ol|blockquote|section|header|footer)$/.test(t)) return `\n${inner}\n`;
+      return inner;
+    };
+    return walk(d.body).replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+
+
+  /* =========================================================
+     Brands
+     ========================================================= */
+  const BRAND_DEFAULT = () => ({ id: uid(), name: 'New brand', esp: 'bento', bentoSite: '', tagFirst: '', tagUnsub: '', tagBrowser: '', logo: '', logoWidth: 140, primary: '#1f4ed8', ink: '#1b2130', muted: '#6b7280', paper: '#f2f3f5', sheet: '#ffffff', line: '#e5e7eb', dark: '#1b2130', font: 'Helvetica Neue, Helvetica, Arial, sans-serif', radius: 8, company: 'Your Company', address: 'City, State', website: 'https://example.com', unsubscribe: 'https://example.com/unsubscribe', preferences: 'https://example.com/preferences', instagram: '', linkedin: '', x: '', facebook: '', youtube: '' });
+  const BRAND_FIELDS = [
+    ['Identity'], ['name', 'Name', 'text'], ['esp', 'Platform', 'select', ['bento', 'generic', 'custom']], ['bentoSite', 'Bento site', 'text'], ['logo', 'Logo URL', 'url'], ['logoWidth', 'Logo width', 'number'], ['company', 'Company', 'text'], ['address', 'Address', 'text'], ['website', 'Website', 'url'],
+    ['Colors'], ['primary', 'Primary', 'color'], ['ink', 'Text', 'color'], ['muted', 'Muted text', 'color'], ['dark', 'Dark panel', 'color'], ['sheet', 'Sheet', 'color'], ['paper', 'Page', 'color'], ['line', 'Lines', 'color'],
+    ['Type'], ['font', 'Font stack', 'text'], ['radius', 'Corner radius', 'number'],
+    ['Links'], ['unsubscribe', 'Unsubscribe URL', 'url'], ['preferences', 'Preferences URL', 'url'],
+    ['Custom platform tags (only when Platform is custom)'], ['tagFirst', 'First name tag', 'text'], ['tagUnsub', 'Unsubscribe tag', 'text'], ['tagBrowser', 'View-in-browser tag', 'text'], ['instagram', 'Instagram', 'url'], ['linkedin', 'LinkedIn', 'url'], ['x', 'X', 'url'], ['facebook', 'Facebook', 'url'], ['youtube', 'YouTube', 'url']
+  ];
+  /* ---------- untrusted data ----------
+     Imported designs and everything restored from storage pass through these before they reach
+     state. A value that lands in markup as structure (an id, color, font stack, number or select
+     option) must be one the app itself could have produced; anything else falls back to the
+     default. Free text and URLs are kept as text and escaped where they render. */
+  const BRAND_HEX = /^#[0-9a-fA-F]{6}$/;
+  const BRAND_ROLES = ['primary', 'ink', 'muted', 'paper', 'sheet', 'line', 'dark'];
+  const BRAND_TEXT = ['name', 'bentoSite', 'company', 'address', 'tagFirst'];
+  const BRAND_TAG_URLS = ['tagUnsub', 'tagBrowser'];   // custom merge tags that become link addresses
+  const BRAND_URLS = ['logo', 'website', 'unsubscribe', 'preferences', 'instagram', 'linkedin', 'x', 'facebook', 'youtube'];
+  const CTRL_RE = new RegExp('[\\x00-\\x1f\\u2028\\u2029]', 'g');
+  const SAFE_ID = /^[A-Za-z0-9_-]{1,40}$/;
+  const cleanId = v => (typeof v === 'string' && SAFE_ID.test(v)) ? v : null;
+  const cleanLine = (v, max = 300) => String(v ?? '').replace(CTRL_RE, ' ').slice(0, max);
+  const cleanNum = (v, lo, hi, d) => { const n = Number(v); return (v == null || v === '' || typeof v === 'boolean' || !Number.isFinite(n)) ? d : Math.max(lo, Math.min(hi, n)); };
+  // links and image sources keep whatever the author wrote (https, mailto, tel, app links, merge tags) except
+  // URLs a browser would run as script or open as a document; those are dropped. Raster data: images stay.
+  // Nothing here is cut to a length: a logo kept as a data: image is long, and a cut one is a broken one.
+  const cleanUrl = v => { const s = String(v ?? '').replace(CTRL_RE, '').trim(); return /^(javascript|vbscript|data):/i.test(s) && !/^data:image\/(png|jpe?g|gif|webp)[;,]/i.test(s) ? '' : s; };
+  // the font stack lands in style="" attributes unescaped (escaping would change the exported email), so it is a whitelist of
+  // characters: letters and digits in any script (a family can be named 游ゴシック), spaces, commas, single quotes, _ and -.
+  // Nothing that closes an attribute or starts a CSS declaration, a function or a tag gets through.
+  const cleanFont = v => String(v ?? '').replace(/[^\p{L}\p{M}\p{N} ,'_-]/gu, '').replace(/\s+/g, ' ').trim();
+  function sanitizeBrand(raw) {
+    const r = raw && typeof raw === 'object' ? raw : {}, b = BRAND_DEFAULT();
+    b.id = cleanId(r.id) || b.id;
+    for (const k of BRAND_TEXT) if (r[k] != null) b[k] = cleanLine(r[k]);
+    b.name = b.name.trim().slice(0, 80) || 'Brand';
+    for (const k of BRAND_URLS) if (r[k] != null) b[k] = cleanUrl(r[k]);
+    for (const k of BRAND_TAG_URLS) if (r[k] != null) b[k] = cleanUrl(r[k]).slice(0, 300);
+    for (const k of BRAND_ROLES) if (BRAND_HEX.test(String(r[k] ?? ''))) b[k] = String(r[k]).toLowerCase();
+    if (['bento', 'generic', 'custom'].includes(r.esp)) b.esp = r.esp;
+    b.font = cleanFont(r.font) || b.font;
+    b.radius = cleanNum(r.radius, 0, 48, b.radius);
+    b.logoWidth = cleanNum(r.logoWidth, 16, 600, b.logoWidth);
+    return b;
+  }
+  function sanitizeProps(type, raw) {
+    const def = BLOCKS[type], r = raw && typeof raw === 'object' ? raw : {}, p = Object.assign({}, def.defaults);
+    for (const f of def.fields) {             // only declared fields are copied, each by its declared type
+      const v = r[f.k]; if (v == null) continue;
+      if (f.t === 'select') { if (f.o.includes(String(v))) p[f.k] = String(v); }
+      else if (f.t === 'range') p[f.k] = cleanNum(v, f.o[0], f.o[1], p[f.k]);
+      else if (f.t === 'toggle') p[f.k] = v === true;
+      else if (f.t === 'color') { if (COLOR_TOKENS.some(([t]) => t === v) || BRAND_HEX.test(String(v))) p[f.k] = String(v); }
+      else if (f.t === 'url') p[f.k] = cleanUrl(v);
+      else p[f.k] = String(v);   // text and textarea, whole: the editor sets no limit, so a saved design isn't cut to one
+    }
+    return p;
+  }
+  // unknown block types are dropped; ids are always regenerated (they are only used for selection). Every known block is
+  // kept, however many: the editor sets no limit, and a design that was saved comes back whole.
+  const sanitizeBlocks = raw => (Array.isArray(raw) ? raw : [])
+    .filter(bl => bl && typeof bl === 'object' && typeof bl.type === 'string' && Object.prototype.hasOwnProperty.call(BLOCKS, bl.type))
+    .map(bl => ({ id: uid(), type: bl.type, props: sanitizeProps(bl.type, bl.props) }));
+
+  /* An imported design is checked against this budget before anything in the editor changes. A design over it is refused with a
+     message, never cut down: 5 MB of file, 2,000 blocks, 200,000 characters in any one text field. The designs
+     the editor makes in normal use are a small fraction of each. Designs already in storage are not imports and are not held to it. */
+  const IMPORT_BUDGET = { chars: 5000000 /* bytes */, blocks: 2000, field: 200000 };
+  function overBudget(d, size) {
+    if (size > IMPORT_BUDGET.chars) return 'The file is larger than 5 MB';
+    const bl = Array.isArray(d && d.blocks) ? d.blocks : [];
+    if (bl.length > IMPORT_BUDGET.blocks) return 'The design has more than 2,000 blocks';
+    for (const b of bl) {
+      const def = b && typeof b === 'object' && typeof b.type === 'string' && Object.prototype.hasOwnProperty.call(BLOCKS, b.type) ? BLOCKS[b.type] : null, pr = def && b.props && typeof b.props === 'object' ? b.props : {};
+      if (def && def.fields.some(f => (f.t === 'text' || f.t === 'textarea') && typeof pr[f.k] === 'string' && pr[f.k].length > IMPORT_BUDGET.field)) return 'A text field is longer than 200,000 characters';
+    }
+    return '';
+  }
+  let brands = store.get('brands', null);
+  brands = Array.isArray(brands) ? brands.map(sanitizeBrand) : [];
+  if (!brands.length) brands = [Object.assign(BRAND_DEFAULT(), IN_APP   // the app's first brand is a placeholder, not the maker's own details
+    ? { id: 'sample', name: 'Your brand', company: 'Your Company', address: 'Street, City', website: 'https://example.com' }
+    : { id: 'shepdesign', name: 'Shepdesign', company: 'Shepdesign LLC', address: 'Phoenix, AZ', website: 'https://shepdesign.com' })];
+  const brand = () => brands.find(b => b.id === state.brandId) || brands[0];
+  // a color is a brand role, a six-digit hex or 'transparent'; nothing else reaches markup
+  const col = v => { if (typeof v === 'string' && v.startsWith('brand.')) { const k = v.slice(6); v = BRAND_ROLES.includes(k) ? brand()[k] : ''; } return v === 'transparent' || BRAND_HEX.test(String(v)) ? v : '#000000'; };
+  /* ---------- merge tags per platform ---------- */
+  const ESP = {
+    bento:   { name: 'Bento (Liquid)', first: '{{ visitor.first_name | default: "there" }}', last: '{{ visitor.last_name }}', email: '{{ visitor.email }}', unsubscribe: '{{ visitor.unsubscribe_url }}', browser: '{{ browser_url }}', snooze: '{{ visitor.snooze_url }}', subject: '{{ subject }}' },
+    generic: { name: 'None (plain URLs)' },
+    custom:  { name: 'Custom' }
+  };
+  function tag(k) {
+    const b = brand(), e = b.esp || 'bento';
+    if (e === 'custom') {             // the unsubscribe and view-in-browser tags become link addresses, so they get the link check wherever they were typed
+      const v = { first: b.tagFirst, unsubscribe: b.tagUnsub, browser: b.tagBrowser }[k] || '';
+      return k === 'first' ? v : cleanUrl(v);
+    }
+    return (ESP[e] && ESP[e][k]) || '';
+  }
+  const TAG_MENU = [['first', 'First name'], ['last', 'Last name'], ['email', 'Email'], ['subject', 'Subject line'], ['browser', 'View-in-browser URL'], ['unsubscribe', 'Unsubscribe URL'], ['snooze', 'Snooze URL']];
+  // sample values for previews; exports keep the raw tags
+  function previewTags(html) {
+    return html.replace(/\{\{\s*visitor\.first_name[^}]*\}\}/g, 'Jamie').replace(/\{\{\s*visitor\.last_name[^}]*\}\}/g, 'Lee').replace(/\{\{\s*visitor\.email[^}]*\}\}/g, 'jamie@example.com')
+      .replace(/\{\{\s*visitor\.unsubscribe_url[^}]*\}\}/g, 'https://example.com/unsubscribe').replace(/\{\{\s*browser_url[^}]*\}\}/g, 'https://example.com/view').replace(/\{\{\s*visitor\.snooze_url[^}]*\}\}/g, 'https://example.com/snooze')
+      .replace(/\{\{\s*subject[^}]*\}\}/g, () => esc($('#subject').value || 'Subject line')).replace(/\{\{\s*([\w.]+)[^}]*\}\}/g, (m, k) => `[${k}]`);
+  }
+  const COLOR_TOKENS = [['brand.primary', 'Brand primary'], ['brand.ink', 'Brand text'], ['brand.muted', 'Brand muted'], ['brand.dark', 'Brand dark'], ['brand.sheet', 'Brand sheet'], ['brand.paper', 'Brand page'], ['brand.line', 'Brand lines'], ['#ffffff', 'White'], ['transparent', 'None']];
+
+  /* =========================================================
+     Blocks — every render returns one <tr> for the container table
+     ========================================================= */
+  let CANVAS = false; // true while rendering for the canvas → text becomes click-to-edit
+  const ed = (k, html, rich = false) => CANVAS ? `<span data-edit="${k}" data-rich="${rich ? 1 : 0}" contenteditable="true" spellcheck="false">${html}</span>` : html;
+  const edb = (k, html) => CANVAS ? `<div data-edit="${k}" data-rich="1" contenteditable="true" spellcheck="false">${html}</div>` : html;
+  // [text](address), found in one left-to-right pass: every character is looked at a bounded number of times, so a long run of
+  // "[" or "(" that never closes costs no more than any other text. Same reading as before: text is one or more characters up to
+  // the next "]", the address one or more up to the next ")", and a "[" that doesn't start a link is left as it was.
+  function mdLinks(s, link) {
+    let out = '', at = 0, i = s.indexOf('[');
+    while (i !== -1) {
+      const j = s.indexOf(']', i + 1);
+      if (j === -1) break;                                              // no "]" anywhere after: nothing further can be a link
+      let end = -1;
+      if (j > i + 1 && s[j + 1] === '(') {
+        const k = s.indexOf(')', j + 2);
+        if (k === -1) break;                                            // no ")" anywhere after: nothing further can be a link
+        if (k > j + 2) end = k;
+      }
+      if (end === -1) { i = s.indexOf('[', j + 1); continue; }          // a "[" before this "]" would stop at the same "]"
+      out += s.slice(at, i) + `<a href="${cleanUrl(s.slice(j + 2, end))}" style="color:${link};text-decoration:underline">${s.slice(i + 1, j)}</a>`;
+      at = end + 1; i = s.indexOf('[', at);
+    }
+    return out + s.slice(at);
+  }
+  // a custom platform's tags can carry markdown's own marks (*|FNAME|*): they are set aside before bold and italic, and put back as typed
+  const md = (s, link) => { const kept = [], own = TAG_MENU.map(([k]) => tag(k)).filter(v => v && /[*_]/.test(v)).map(esc);
+    let t = esc(s); for (const v of own) t = t.split(v).join('\u0001' + (kept.push(v) - 1) + '\u0001');
+    return mdLinks(t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>'), link).replace(/\u0001(\d+)\u0001/g, (_, i) => kept[i]).split(/\n{2,}/).map(p => `<p style="margin:0 0 14px">${p.replace(/\n/g, '<br>')}</p>`).join('').replace(/<p style="margin:0 0 14px">([\s\S]*)<\/p>$/, '<p style="margin:0">$1</p>'); };
+  /* In the app the web is out of reach (NN5), so an image at a web address can't show on the canvas or in the previews.
+     There it is a placeholder its size, holding the URL and one line saying why. The exported email keeps the real <img>.
+     Inline styles only: the previews are srcdoc frames without this page's CSS. */
+  const WEB_IMG = /<img\b[^>]*?\ssrc="(https?:\/\/[^"]*)"[^>]*>/gi;
+  const holdWebImages = html => !IN_APP ? html : html.replace(WEB_IMG, (tag, url) => {
+    const w = +((tag.match(/\swidth="(\d+)"/) || [])[1]) || 600;
+    return `<span class="web-img" title="${url}" style="display:inline-flex;vertical-align:top;align-items:center;justify-content:center;box-sizing:border-box;width:${w}px;max-width:100%;height:${Math.max(64, Math.round(w * .5))}px;padding:8px;overflow:hidden;border-radius:6px;background:repeating-linear-gradient(45deg,#f0f1f4,#f0f1f4 8px,#e6e8ee 8px,#e6e8ee 16px);color:#5f6879;font:12px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;text-align:center">Shows in the inbox. NetRelish doesn’t load images from the web.</span>`;
+  });
+  const img = (src, alt, w, extra = '') => src ? `<img src="${esc(src)}" alt="${esc(alt)}" width="${w}" style="display:block;width:${w}px;max-width:100%;height:auto;border:0${extra}">` : `<!--ph:${w}--><div class="ph" style="width:${w}px;max-width:100%;height:${Math.round(w * .5)}px;border-radius:6px">Image ${w}px wide<br>set a URL in the inspector</div>`;
+  const btn = (text, url, bg, color, r, full, font, k = 'cta') => `<table role="presentation" cellpadding="0" cellspacing="0" border="0" ${full ? 'width="100%"' : ''}><tr><td align="center" bgcolor="${bg}" style="background-color:${bg};border-radius:${r}px;mso-padding-alt:14px 26px"><a href="${esc(url)}" style="display:inline-block;padding:14px 26px;font-family:${font};font-size:16px;font-weight:600;line-height:1;color:${color};text-decoration:none;border-radius:${r}px;${full ? 'width:100%;box-sizing:border-box;' : ''}">${ed(k, esc(text))}</a></td></tr></table>`;
+  const cell = (p, b, inner, extra = '') => `<tr><td align="${p.align || 'left'}" bgcolor="${col(p.bg || 'brand.sheet')}" style="background-color:${col(p.bg || 'brand.sheet')};padding:${p.pad ?? 24}px ${p.padX ?? 36}px;font-family:${b.font};${extra}">${inner}</td></tr>`;
+  const F = (k, label, t, o) => ({ k, label, t, o });
+  const BLOCKS = {
+    header: { name: 'Logo header', desc: 'Brand logo, view-in-browser line', fields: [F('align', 'Align', 'select', ['left', 'center']), F('tagline', 'Tagline', 'text'), F('browser', 'View in browser link', 'toggle'), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [8, 60])],
+      defaults: { align: 'left', tagline: '', browser: true, bg: 'brand.sheet', pad: 24 },
+      render(p, b) { const lw = Number(b.logoWidth) || 140; const logo = b.logo ? `<a href="${esc(b.website)}"><img src="${esc(b.logo)}" alt="${esc(b.company)}" width="${lw}" style="display:${p.align === 'center' ? 'inline-block' : 'block'};width:${lw}px;height:auto;border:0"></a>` : `<a href="${esc(b.website)}" style="font-size:20px;font-weight:700;color:${b.ink};text-decoration:none;letter-spacing:-.01em">${esc(b.company)}</a>`; const vb = esc(tag('browser')); const line = p.browser && vb ? `<div style="font-size:11px;color:${b.muted};margin:0 0 14px"><a href="${vb}" style="color:${b.muted};text-decoration:underline">View in browser</a></div>` : ''; return cell(p, b, line + logo + (p.tagline ? `<div style="font-size:12px;color:${b.muted};margin-top:6px">${ed('tagline', esc(p.tagline))}</div>` : '')); } },
+    hero: { name: 'Hero', desc: 'Eyebrow, headline, lede, CTA', fields: [F('eyebrow', 'Eyebrow', 'text'), F('headline', 'Headline', 'textarea'), F('lede', 'Lede', 'textarea'), F('image', 'Image URL', 'url'), F('imageAlt', 'Image alt', 'text'), F('cta', 'Button text', 'text'), F('url', 'Button URL', 'url'), F('bg', 'Background', 'color'), F('color', 'Text color', 'color'), F('align', 'Align', 'select', ['left', 'center']), F('pad', 'Padding', 'range', [16, 80])],
+      defaults: { eyebrow: 'Announcement', headline: 'A headline that earns the open', lede: 'One or two sentences that say why this matters to the reader, not to you.', image: '', imageAlt: '', cta: 'Read more', url: 'https://example.com', bg: 'brand.dark', color: '#ffffff', align: 'left', pad: 44 },
+      render(p, b) { const c = col(p.color); return cell(p, b, `${p.image ? `<div style="margin:0 0 24px">${img(p.image, p.imageAlt, 528)}</div>` : ''}${p.eyebrow ? `<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:${b.primary === col(p.bg) ? c : b.primary};margin:0 0 12px;opacity:.95">${ed('eyebrow', esc(p.eyebrow))}</div>` : ''}<h1 style="margin:0 0 12px;font-size:30px;line-height:1.15;letter-spacing:-.02em;color:${c};font-weight:700">${ed('headline', esc(p.headline))}</h1>${p.lede ? `<p style="margin:0 0 ${p.cta ? 26 : 0}px;font-size:17px;line-height:1.5;color:${c};opacity:.85">${ed('lede', esc(p.lede))}</p>` : ''}${p.cta ? btn(p.cta, p.url, col(p.bg) === b.primary ? '#ffffff' : b.primary, col(p.bg) === b.primary ? b.primary : '#ffffff', b.radius, false, b.font) : ''}`); } },
+    text: { name: 'Text', desc: 'Paragraphs with bold, italic, links', fields: [F('heading', 'Heading', 'text'), F('body', 'Body', 'textarea'), F('size', 'Size', 'select', ['14', '16', '18']), F('color', 'Text color', 'color'), F('bg', 'Background', 'color'), F('align', 'Align', 'select', ['left', 'center']), F('pad', 'Padding', 'range', [0, 60])],
+      defaults: { heading: '', body: 'Write in **bold**, *italic*, and [link text](https://example.com). Blank line for a new paragraph.', size: '16', color: 'brand.ink', bg: 'brand.sheet', align: 'left', pad: 24 },
+      render(p, b) { return cell(p, b, `${p.heading ? `<h2 style="margin:0 0 10px;font-size:22px;line-height:1.25;letter-spacing:-.01em;color:${col(p.color)}">${ed('heading', esc(p.heading))}</h2>` : ''}<div style="font-size:${p.size}px;line-height:1.55;color:${col(p.color)}">${edb('body', md(p.body, b.primary))}</div>`); } },
+    image: { name: 'Image', desc: 'Full width or fixed, optional link', fields: [F('src', 'Image URL', 'url'), F('alt', 'Alt text', 'text'), F('link', 'Link URL', 'url'), F('width', 'Width', 'select', ['full', '400', '300', '200']), F('align', 'Align', 'select', ['center', 'left']), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 60])],
+      defaults: { src: '', alt: '', link: '', width: 'full', align: 'center', bg: 'brand.sheet', pad: 0 },
+      render(p, b) { const w = p.width === 'full' ? 600 : +p.width; const i = img(p.src, p.alt, w); return cell(Object.assign({}, p, { padX: p.width === 'full' ? 0 : 36 }), b, p.link ? `<a href="${esc(p.link)}">${i}</a>` : i); } },
+    button: { name: 'Button', desc: 'Bulletproof CTA', fields: [F('text', 'Text', 'text'), F('url', 'URL', 'url'), F('bg', 'Button color', 'color'), F('color', 'Label color', 'color'), F('align', 'Align', 'select', ['left', 'center']), F('full', 'Full width', 'toggle'), F('bgc', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 60])],
+      defaults: { text: 'Get started', url: 'https://example.com', bg: 'brand.primary', color: '#ffffff', align: 'left', full: false, bgc: 'brand.sheet', pad: 8 },
+      render(p, b) { return cell(Object.assign({}, p, { bg: p.bgc }), b, btn(p.text, p.url, col(p.bg), col(p.color), b.radius, p.full, b.font, 'text')); } },
+    columns: { name: 'Two columns', desc: 'Stacks on mobile', fields: [F('ratio', 'Ratio', 'select', ['50/50', '40/60', '60/40']), F('leftImage', 'Left image URL', 'url'), F('left', 'Left text', 'textarea'), F('rightImage', 'Right image URL', 'url'), F('right', 'Right text', 'textarea'), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 60])],
+      defaults: { ratio: '50/50', leftImage: '', left: '**Left column**\nShort supporting copy.', rightImage: '', right: '**Right column**\nShort supporting copy.', bg: 'brand.sheet', pad: 24 },
+      render(p, b) { const [l, r] = p.ratio.split('/').map(Number), W = 528, lw = Math.round(W * l / 100) - 10, rw = Math.round(W * r / 100) - 10; const side = (im, tx, w, k) => `<td class="stack" width="${w}" valign="top" style="width:${w}px;padding:0 0 12px">${im ? `<div style="margin:0 0 12px">${img(im, '', w)}</div>` : ''}<div style="font-size:15px;line-height:1.5;color:${b.ink}">${edb(k, md(tx, b.primary))}</div></td>`; return cell(p, b, `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>${side(p.leftImage, p.left, lw, 'left')}<td class="stack" width="20" style="width:20px;font-size:0;line-height:0">&nbsp;</td>${side(p.rightImage, p.right, rw, 'right')}</tr></table>`); } },
+    features: { name: 'Feature grid', desc: 'Three cards, stack on mobile', fields: [F('t1', 'Title 1', 'text'), F('d1', 'Text 1', 'textarea'), F('t2', 'Title 2', 'text'), F('d2', 'Text 2', 'textarea'), F('t3', 'Title 3', 'text'), F('d3', 'Text 3', 'textarea'), F('cardBg', 'Card color', 'color'), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 60])],
+      defaults: { t1: 'Fast', d1: 'One line on the benefit.', t2: 'Local', d2: 'One line on the benefit.', t3: 'Yours', d3: 'One line on the benefit.', cardBg: 'brand.paper', bg: 'brand.sheet', pad: 24 },
+      render(p, b) { const card = (t, d, n) => `<td class="stack" width="169" valign="top" style="width:169px;padding:0 0 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="${col(p.cardBg)}" style="background-color:${col(p.cardBg)};border-radius:${b.radius}px;padding:18px"><div style="font-size:15px;font-weight:600;color:${b.ink};margin:0 0 6px">${ed('t' + n, esc(t))}</div><div style="font-size:13.5px;line-height:1.5;color:${b.muted}">${edb('d' + n, md(d, b.primary))}</div></td></tr></table></td>`; const gap = `<td class="stack" width="10" style="width:10px;font-size:0;line-height:0">&nbsp;</td>`; return cell(p, b, `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>${card(p.t1, p.d1, 1)}${gap}${card(p.t2, p.d2, 2)}${gap}${card(p.t3, p.d3, 3)}</tr></table>`); } },
+    card: { name: 'Product card', desc: 'Image, title, price, button', fields: [F('image', 'Image URL', 'url'), F('title', 'Title', 'text'), F('text', 'Text', 'textarea'), F('price', 'Price / meta', 'text'), F('cta', 'Button text', 'text'), F('url', 'URL', 'url'), F('cardBg', 'Card color', 'color'), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 60])],
+      defaults: { image: '', title: 'Product name', text: 'One sentence that sells it.', price: '$49', cta: 'Buy now', url: 'https://example.com', cardBg: 'brand.paper', bg: 'brand.sheet', pad: 24 },
+      render(p, b) { return cell(p, b, `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="${col(p.cardBg)}" style="background-color:${col(p.cardBg)};border-radius:${b.radius}px;padding:20px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="stack" width="200" valign="top" style="width:200px;padding:0 20px 12px 0">${img(p.image, p.title, 200)}</td><td class="stack" valign="top" style="padding:0 0 12px"><div style="font-size:18px;font-weight:600;color:${b.ink};margin:0 0 6px">${ed('title', esc(p.title))}</div><div style="font-size:14px;line-height:1.5;color:${b.muted};margin:0 0 10px">${edb('text', md(p.text, b.primary))}</div><div style="font-size:16px;font-weight:600;color:${b.ink};margin:0 0 14px">${ed('price', esc(p.price))}</div>${btn(p.cta, p.url, b.primary, '#ffffff', b.radius, false, b.font)}</td></tr></table></td></tr></table>`); } },
+    quote: { name: 'Quote', desc: 'Pull quote with attribution', fields: [F('text', 'Quote', 'textarea'), F('cite', 'Attribution', 'text'), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 60])],
+      defaults: { text: 'A line worth pulling out of the body, said by someone the reader trusts.', cite: 'Name, role', bg: 'brand.sheet', pad: 24 },
+      render(p, b) { return cell(p, b, `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-left:3px solid ${b.primary};padding:4px 0 4px 18px"><div style="font-size:19px;line-height:1.4;color:${b.ink};font-style:italic">“${ed('text', esc(p.text))}”</div>${p.cite ? `<div style="font-size:13px;color:${b.muted};margin-top:10px">— ${ed('cite', esc(p.cite))}</div>` : ''}</td></tr></table>`); } },
+    divider: { name: 'Divider', desc: 'Thin rule', fields: [F('color', 'Line color', 'color'), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 40])],
+      defaults: { color: 'brand.line', bg: 'brand.sheet', pad: 8 },
+      render(p, b) { return cell(p, b, `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="height:1px;line-height:1px;font-size:1px;background-color:${col(p.color)}" bgcolor="${col(p.color)}">&nbsp;</td></tr></table>`); } },
+    spacer: { name: 'Spacer', desc: 'Vertical room', fields: [F('height', 'Height', 'range', [8, 80]), F('bg', 'Background', 'color')],
+      defaults: { height: 24, bg: 'brand.sheet' },
+      render(p, b) { return `<tr><td bgcolor="${col(p.bg)}" style="background-color:${col(p.bg)};height:${p.height}px;line-height:${p.height}px;font-size:1px">&nbsp;</td></tr>`; } },
+    social: { name: 'Social links', desc: 'Text links from the brand', fields: [F('align', 'Align', 'select', ['center', 'left']), F('bg', 'Background', 'color'), F('pad', 'Padding', 'range', [0, 40])],
+      defaults: { align: 'center', bg: 'brand.sheet', pad: 16 },
+      render(p, b) { const links = [['instagram', 'Instagram'], ['linkedin', 'LinkedIn'], ['x', 'X'], ['facebook', 'Facebook'], ['youtube', 'YouTube']].filter(([k]) => b[k]).map(([k, l]) => `<a href="${esc(b[k])}" style="color:${b.muted};text-decoration:none;font-size:13px;font-weight:500;padding:0 8px">${l}</a>`).join('<span style="color:' + b.line + '">|</span>'); return cell(p, b, links || `<span style="font-size:12px;color:${b.muted}">Add social URLs on the Brand tab</span>`); } },
+    footer: { name: 'Footer', desc: 'Address + platform unsubscribe links', fields: [F('note', 'Note', 'textarea'), F('browser', 'View in browser', 'toggle'), F('snooze', 'Snooze link (Bento)', 'toggle'), F('prefs', 'Preferences link', 'toggle'), F('bg', 'Background', 'color'), F('align', 'Align', 'select', ['left', 'center']), F('pad', 'Padding', 'range', [8, 60])],
+      defaults: { note: 'You’re receiving this because you signed up at {website}.', browser: false, snooze: false, prefs: false, bg: 'brand.sheet', align: 'left', pad: 28 },
+      render(p, b) {
+        const note = md(p.note.replace('{website}', b.website.replace(/^https?:\/\//, '')), b.muted);
+        const L = (href, label) => `<a href="${href}" style="color:${b.muted};text-decoration:underline">${label}</a>`;
+        const links = [L(esc(tag('unsubscribe')) || esc(b.unsubscribe), 'Unsubscribe')];   // every href is escaped; the built-in tags have nothing to escape, so exports are unchanged
+        if (p.prefs && b.preferences) links.push(L(esc(b.preferences), 'Manage preferences'));
+        if (p.snooze && tag('snooze')) links.push(L(esc(tag('snooze')), 'Snooze for a while'));
+        if (p.browser && tag('browser')) links.push(L(esc(tag('browser')), 'View in browser'));
+        return cell(p, b, `<div style="font-size:12px;line-height:1.6;color:${b.muted}">${esc(b.company)}${b.address ? ' · ' + esc(b.address) : ''}<br>${edb('note', note)}<br>${links.join(' · ')}</div>`);
+      } }
+  };
+  const newBlock = (type, over = {}) => ({ id: uid(), type, props: Object.assign({}, BLOCKS[type].defaults, over) });
+
+  /* =========================================================
+     Templates
+     ========================================================= */
+  const TEMPLATES = {
+    newsletter: { name: 'Newsletter', desc: 'Header, hero, story, features, footer', blocks: () => [newBlock('header'), newBlock('hero', { eyebrow: 'Issue 12', headline: 'What we shipped this month', lede: 'Three tools, one lesson, and the plan for next month.', cta: 'Read the notes' }), newBlock('text', { heading: 'The lesson', body: 'Hi {{ visitor.first_name | default: "there" }} —\n\nThe first version fetched its parser from a CDN and rendered nothing in a sandboxed viewer. **The core of a tool must never depend on a network call.**' }), newBlock('features'), newBlock('divider'), newBlock('social'), newBlock('footer')] },
+    launch: { name: 'Product launch', desc: 'Hero image, product card, big CTA', blocks: () => [newBlock('header', { align: 'center' }), newBlock('hero', { eyebrow: 'New', headline: 'Meet the thing you asked for', lede: 'Built from your feedback. Shipping today.', cta: 'See it', bg: 'brand.primary' }), newBlock('image', { alt: 'Product hero' }), newBlock('card'), newBlock('button', { text: 'Order now', align: 'center', pad: 24 }), newBlock('footer', { align: 'center' })] },
+    announcement: { name: 'Announcement', desc: 'One message, one button', blocks: () => [newBlock('header'), newBlock('text', { heading: 'A short, clear headline', body: 'Two or three sentences. Say what changed, when, and what the reader should do.', pad: 36 }), newBlock('button', { text: 'Do the thing', pad: 0 }), newBlock('spacer', { height: 36 }), newBlock('footer')] },
+    welcome: { name: 'Welcome', desc: 'Onboarding: what to do first', blocks: () => [newBlock('header'), newBlock('hero', { eyebrow: 'Welcome', headline: 'You’re in. Here’s where to start.', lede: 'Three things worth doing in your first ten minutes.', cta: 'Open your account', bg: 'brand.sheet', color: 'brand.ink' }), newBlock('features', { t1: '1. Set up', d1: 'Connect the essentials.', t2: '2. Import', d2: 'Bring what you already have.', t3: '3. Invite', d3: 'It’s better with your team.' }), newBlock('quote', { text: 'It took me longer to read this email than to get set up.', cite: 'A real customer, allegedly' }), newBlock('footer')] },
+    event: { name: 'Event invite', desc: 'Details block and RSVP', blocks: () => [newBlock('header', { align: 'center' }), newBlock('hero', { eyebrow: 'You’re invited', headline: 'Thursday, October 2 · 6pm', lede: 'An evening on tools, craft, and shipping things that last. Downtown Phoenix.', cta: 'RSVP', align: 'center' }), newBlock('columns', { left: '**Where**\n123 Main St\nPhoenix, AZ', right: '**When**\nThursday, Oct 2\n6:00–8:30pm' }), newBlock('button', { text: 'Save my seat', align: 'center', pad: 24 }), newBlock('footer', { align: 'center' })] },
+    receipt: { name: 'Transactional', desc: 'Receipt / confirmation, no marketing footer', blocks: () => [newBlock('header'), newBlock('text', { heading: 'Order confirmed', body: 'Thanks. Your order **#10482** is being prepared and you’ll get a shipping notice shortly.', pad: 32 }), newBlock('card', { title: 'Item name', price: '$49.00 · Qty 1', cta: 'View order' }), newBlock('text', { body: 'Questions? Reply to this email — a person reads it.', size: '14', color: 'brand.muted', pad: 16 }), newBlock('footer', { note: 'This is a transactional message about your order.' })] },
+    minimal: { name: 'Plain note', desc: 'Looks personally written', blocks: () => [newBlock('text', { body: 'Hi —\n\nA short personal note, in a plain layout that reads like it was typed rather than designed. One idea, one ask.\n\n[Reply and let me know](mailto:hello@example.com)\n\n— Ryan', pad: 40 }), newBlock('footer', { pad: 16 })] }
+  };
+
+  /* =========================================================
+     State
+     ========================================================= */
+  const state = { mode: 'build', view: 'canvas', brandId: brands[0].id, blocks: [], selected: null, designId: null, designName: 'Untitled' };
+  const history = [];
+  // A step holds the blocks as they were. A step taken before the whole design is replaced (a template, New) also holds
+  // its name, subject and preheader, so undoing it puts back everything that step changed. Returns the depth, for undo(depth).
+  function snapshot(whole) { history.push(JSON.stringify(whole ? { blocks: state.blocks, designId: state.designId, designName: state.designName, subject: $('#subject').value, preheader: $('#preheader').value } : state.blocks)); if (history.length > 60) history.shift(); $('#btnUndo').disabled = false; return history.length; }
+  // One step back. Given a depth (the Undo in a toast), back to exactly what that step held, however many edits came after it.
+  function undo(depth) {
+    const to = typeof depth === 'number' ? depth : history.length; if (!history.length || history.length < to) return;
+    while (history.length >= to) { const s = JSON.parse(history.pop()); if (Array.isArray(s)) state.blocks = s; else { state.blocks = s.blocks; state.designId = s.designId; state.designName = s.designName; $('#subject').value = s.subject; $('#preheader').value = s.preheader; } }
+    if (!history.length) $('#btnUndo').disabled = true; state.selected = state.blocks.find(b => b.id === state.selected) ? state.selected : null; renderCanvas(); renderInspector(); run();
+  }
+
+  /* =========================================================
+     Build → HTML
+     ========================================================= */
+  function buildHTML(forCanvas = false) {
+    const b = brand(); CANVAS = forCanvas;
+    const rows = state.blocks.map(bl => { try { return BLOCKS[bl.type].render(bl.props, b); } catch (e) { console.warn(bl.type, e); return ''; } });
+    CANVAS = false;
+    const body = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${b.sheet}" style="background-color:${b.sheet};border-radius:${b.radius}px;overflow:hidden">${rows.join('\n')}</table>`;
+    if (forCanvas) return rows;
+    return `<!doctype html><html><head><style>a{color:${b.primary}}</style></head><body>${body}</body></html>`;
+  }
+
+  /* =========================================================
+     Canvas
+     ========================================================= */
+  const canvas = $('#canvas');
+  const ICON = { up: '<svg viewBox="0 0 24 24"><path d="m6 14 6-6 6 6"/></svg>', down: '<svg viewBox="0 0 24 24"><path d="m6 10 6 6 6-6"/></svg>', dup: '<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>', del: '<svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3m-7 4v6m4-6v6M6 7l1 13h10l1-13"/></svg>' };
+  /* ---------- zoom: one presentation scale for the canvas and the three previews. Fit · 100% · 125% · 150%, remembered here.
+     It is presentation only: the exported email is the same at every zoom. On a phone the canvas is always 1:1. ---------- */
+  const ZOOMS = ['fit', 1, 1.25, 1.5];
+  state.zoom = ZOOMS.includes(store.get('zoom', 'fit')) ? store.get('zoom', 'fit') : 'fit';
+  const MAT = 20;                                       // the mat's padding (.canvas-wrap) on every screen above a phone
+  const short = () => matchMedia('(max-height:500px) and (orientation:landscape)').matches;
+  function stageAvail() { const st = $('#stage'), cs = getComputedStyle(st); return st.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight); }
+  // Fit puts the email and its mat across the stage, between 50% and 125% (100% at most on a short landscape screen), in 5% steps
+  const shortPhone = () => narrow() && short();        // a landscape phone or short tablet: its toolbar hides the zoom control
+  // Fit's ceiling: 125%, or 150% on a stage wider than 1500px, so a 2560 display does not leave the email a narrow slab
+  const fitCap = () => shortPhone() ? 1 : stageAvail() > 1500 ? 1.5 : 1.25;
+  function fitZoom() { const w = +$('#width').value + MAT * 2; return Math.max(.5, Math.min(fitCap(), Math.floor(stageAvail() / w * 20) / 20)); }
+  const zoomNow = () => state.zoom === 'fit' || shortPhone() ? fitZoom() : state.zoom;
+  // the phone canvas: on a phone, and on any narrow screen whose stage cannot hold the email at 100% (the docked sheet
+  // on a landscape phone): the email at the stage's width with its own phone rules, never shrunk under 100%
+  const phoneCanvas = () => phone() || (narrow() && stageAvail() < +$('#width').value + MAT * 2);
+  function paintZoom() {
+    $$('#zoomSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.z === String(state.zoom))));
+    $('#zoomVal').textContent = state.zoom === 'fit' && !phoneCanvas() ? Math.round(zoomNow() * 100) + '%' : '';   // under 100–150% the pressed button already says it
+  }
+  // sizes and scales the canvas without touching its content: safe while a field on it is being edited
+  let lastZ = null;
+  function fitCanvas() {
+    const wrap = $('#canvasWrap'), ph = phoneCanvas(), z = ph ? 1 : zoomNow();
+    wrap.dataset.phone = String(ph);
+    wrap.style.width = ph ? '' : $('#width').value + 'px';           // a phone shows the email at screen width; Width is for desktop clients
+    wrap.style.background = $('#bg').value;
+    wrap.style.zoom = z === 1 ? '' : z;
+    wrap.style.setProperty('--fit', z);                                // the block tools and tag counter-zoom by this
+    paintZoom();
+    if (z !== lastZ) { lastZ = z; centerStage(); }                      // a new zoom starts centered: an email wider than the stage overflows both sides evenly
+    keepTools();
+  }
+  function centerStage() { const st = $('#stage'); st.scrollLeft = Math.max(0, (st.scrollWidth - st.clientWidth) / 2); }
+  // the selected block's tools stay on screen when a zoomed email is wider than the stage: they slide in from the block's edge
+  function keepTools() {
+    const tl = canvas.querySelector('.cv-block[aria-selected="true"] .tools'); if (!tl) return;
+    tl.style.right = '';
+    if (narrow() || !tl.offsetWidth) return;
+    const st = $('#stage'), sr = st.getBoundingClientRect(), lim = sr.left + st.clientWidth - 8;
+    for (let i = 0, off = 6; i < 3; i++) {
+      const r = tl.getBoundingClientRect(), d = r.right - lim; if (d <= 0.5) break;
+      const before = r.right; off += d; tl.style.right = off + 'px';
+      const moved = before - tl.getBoundingClientRect().right; if (moved > 0.5 && Math.abs(moved - d) > 0.5) { off += d * (d / moved - 1); tl.style.right = off + 'px'; }
+    }
+  }
+  // a merge tag on the canvas becomes a chip: one piece the caret can't land inside, read back as the exact tag
+  const tagLabel = t => { const m = t.match(/\{\{\s*([\w.]+)/); if (!m) { const own = TAG_MENU.find(([k]) => tag(k) === t); return own ? own[1].replace(/ URL$/, '').toLowerCase() : 'tag'; } const k = m[1].split('.').pop(); return k.replace(/_url$/, '').replace(/_/g, ' '); };
+  const reEsc = v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  function tagPattern() {   // {{ … }} always; a custom platform's own tags as well (*|FNAME|*, %recipient.first%, …)
+    const own = TAG_MENU.map(([k]) => tag(k)).filter(v => v && v.length >= 3 && !/^\{\{/.test(v) && !/^https?:/i.test(v)).sort((a, b) => b.length - a.length).map(reEsc);   // under 3 characters a tag would chip ordinary text
+    return new RegExp(['\\{\\{[^}]+\\}\\}', ...own].join('|'), 'g');
+  }
+  function chipTags(root) {
+    const pat = tagPattern();
+    $$('[data-edit]', root).forEach(ed => {
+      const walker = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT), hits = [];
+      while (walker.nextNode()) { pat.lastIndex = 0; if (pat.test(walker.currentNode.nodeValue)) hits.push(walker.currentNode); }
+      hits.forEach(n => {
+        const frag = document.createDocumentFragment(), re = new RegExp(pat.source, 'g'); let at = 0, m;
+        while ((m = re.exec(n.nodeValue))) {
+          if (m.index > at) frag.appendChild(document.createTextNode(n.nodeValue.slice(at, m.index)));
+          const c = document.createElement('span'); c.className = 'mtag'; c.contentEditable = 'false'; c.dataset.tag = m[0]; c.title = m[0]; c.textContent = tagLabel(m[0]);
+          frag.appendChild(c); at = m.index + m[0].length;
+        }
+        if (at < n.nodeValue.length) frag.appendChild(document.createTextNode(n.nodeValue.slice(at)));
+        n.replaceWith(frag);
+      });
+    });
+  }
+  const editsHere = () => narrow() || touchUI;           // the library is a drawer, or this is a touch screen: no 'drag from the left'
+  function renderCanvas() {
+    const b = brand();
+    $('#brandPill').textContent = b.name;
+    fitCanvas();
+    if (!state.blocks.length) {
+      canvas.innerHTML = editsHere()
+        ? `<button type="button" class="empty" id="emptyAdd"><img src="icons/icon-112.png" alt=""><b>Empty canvas</b>Tap here to add a block or pick a template.</button>`
+        : `<div class="empty"><img src="icons/icon-112.png" alt=""><b>Empty canvas</b>Drag a block from the left, or pick a template.</div>`;
+      syncSelection(); return;
+    }
+    const rows = buildHTML(true).map(holdWebImages);
+    canvas.innerHTML = state.blocks.map((bl, i) => `<div class="cv-block" data-id="${esc(bl.id)}" draggable="true" aria-selected="${bl.id === state.selected}"><span class="tag">${BLOCKS[bl.type].name}</span><span class="ptag">Hidden on phones</span><div class="tools"><button data-act="up" title="Move up">${ICON.up}</button><button data-act="down" title="Move down">${ICON.down}</button><button data-act="dup" title="Duplicate">${ICON.dup}</button><button data-act="del" title="Delete">${ICON.del}</button></div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:${b.font}"><tbody>${rows[i]}</tbody></table></div>`).join('');
+    $$('.cv-block', canvas).forEach(x => { if (x.querySelector('.hide-mobile')) x.dataset.hiddenPhone = 'true'; });
+    chipTags(canvas);
+    canvas.style.background = b.sheet; canvas.style.borderRadius = b.radius + 'px';
+    syncSelection();
+  }
+  // the selection, without redrawing the canvas: the ring, the block bar on narrow screens, and room to scroll past both
+  function syncSelection() {
+    $$('.cv-block', canvas).forEach(x => x.setAttribute('aria-selected', String(x.dataset.id === state.selected)));
+    const i = state.blocks.findIndex(x => x.id === state.selected), bar = $('#blockBar'), on = i > -1 && state.mode === 'build' && state.view === 'canvas';
+    bar.dataset.open = String(on); $('#work').dataset.sel = String(on); document.body.dataset.bar = String(on && narrow());
+    keepTools();
+    if (!on) return;
+    $('#blockName').textContent = BLOCKS[state.blocks[i].type].name;
+    $('[data-act="up"]', bar).disabled = i === 0; $('[data-act="down"]', bar).disabled = i === state.blocks.length - 1;
+  }
+  // one path for every block action, from the tools on the block (wide screens) or the block bar (narrow screens)
+  function blockAct(act, id) {
+    const i = state.blocks.findIndex(x => x.id === id); if (i < 0) return;
+    if (act === 'props') { state.selected = id; syncSelection(); showTab('block'); revealSelected(); snd('tap'); return; }
+    snapshot();
+    if (act === 'up' && i > 0) [state.blocks[i - 1], state.blocks[i]] = [state.blocks[i], state.blocks[i - 1]];
+    if (act === 'down' && i < state.blocks.length - 1) [state.blocks[i + 1], state.blocks[i]] = [state.blocks[i], state.blocks[i + 1]];
+    if (act === 'dup') { const c = JSON.parse(JSON.stringify(state.blocks[i])); c.id = uid(); state.blocks.splice(i + 1, 0, c); state.selected = c.id; }
+    if (act === 'del') { const gone = state.blocks.splice(i, 1)[0]; state.selected = null; toast(`Removed ${BLOCKS[gone.type].name}`, { label: 'Undo', fn: undo }); if (narrow()) setSheet(false); }
+    snd({ up: 'tap', down: 'tap', dup: 'pop', del: 'drop' }[act]);
+    renderCanvas(); renderInspector(); run(); revealSelected();
+  }
+  canvas.addEventListener('pointerup', e => {
+    const chip = e.target.closest && e.target.closest('.mtag'); if (!chip) return;
+    setTimeout(() => { const ed = chip.closest('[data-edit]'); if (!ed || !chip.isConnected) return; if (document.activeElement !== ed) ed.focus({ preventScroll: true });
+      const r = document.createRange(); r.setStartAfter(chip); r.collapse(true); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }, 0);
+  });
+  canvas.addEventListener('click', e => {
+    const act = e.target.closest('[data-act]'), blk = e.target.closest('.cv-block');
+    if (e.target.closest('a')) e.preventDefault();
+    if (e.target.closest('#emptyAdd')) { openLib(); return; }
+    if (!blk) { state.selected = null; syncSelection(); renderInspector(); if (narrow()) setSheet(false); return; }
+    if (act) return blockAct(act.dataset.act, blk.dataset.id);
+    const ae = document.activeElement, onText = !!e.target.closest('[data-edit]') || (!!ae && blk.contains(ae) && ae.matches('[data-edit]')), was = state.selected === blk.dataset.id;   // a touch tap can focus the text yet report its cell as the target
+    if (!was) { state.selected = blk.dataset.id; syncSelection(); renderInspector(); }
+    if (!narrow()) { if (!was) showTab('block'); return; }
+    // narrow screens: a tap on text only places the caret, so the sheet never covers what is being typed.
+    // A tap on the block itself (its padding, an image) opens the sheet for it, with the block scrolled above the sheet.
+    if (onText) return;
+    showTab('block'); revealSelected();
+  });
+  $('#blockBar').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && !b.disabled && state.selected) blockAct(b.dataset.act, state.selected); });
+  // ---- inline editing on the canvas ----
+  const plainText = el => [...el.childNodes].map(n => n.nodeType === 3 ? n.nodeValue : n.nodeType === 1 ? (n.classList.contains('mtag') ? n.dataset.tag : plainText(n)) : '').join('');
+  function htmlToMd(el) {
+    const walk = n => { if (n.nodeType === 3) return n.nodeValue; if (n.nodeType !== 1) return ''; if (n.classList.contains('mtag')) return n.dataset.tag; const t = n.tagName.toLowerCase(), inner = [...n.childNodes].map(walk).join('');
+      if (t === 'strong' || t === 'b') return `**${inner}**`; if (t === 'em' || t === 'i') return `*${inner}*`; if (t === 'a') return `[${inner}](${n.getAttribute('href') || ''})`; if (t === 'br') return '\n'; if (t === 'p' || t === 'div') return inner + '\n\n'; return inner; };
+    return walk(el).replace(/\u00a0/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+  }
+  canvas.addEventListener('focusin', e => { const ed = e.target.closest('[data-edit]'); if (!ed) return; snapshot(); if (narrow()) setSheet(false); $('#work').dataset.editing = 'true'; showFmt(ed); });   // editing in place always gets the whole stage
+  /* ---------- B · I · Link on touch screens: there is no ⌘B on a phone, so the focused text gets three buttons above it ---------- */
+  const fmtBar = $('#fmtBar'); let fmtEd = null;
+  function showFmt(ed) { fmtEd = touchUI && ed.dataset.rich === '1' ? ed : null; placeFmt(); }
+  function placeFmt() {
+    if (!fmtEd || !fmtEd.isConnected || document.activeElement !== fmtEd) { fmtBar.dataset.open = 'false'; return; }
+    fmtBar.dataset.open = 'true';
+    for (const c of ['bold', 'italic']) { let on = false; try { on = document.queryCommandState(c); } catch {} $(`[data-fmt="${c}"]`, fmtBar).setAttribute('aria-pressed', String(on)); }
+    const r = fmtEd.getBoundingClientRect(), top0 = $('.bar').getBoundingClientRect().bottom + 6, h = fmtBar.offsetHeight, w = fmtBar.offsetWidth;
+    let top = r.top - h - 8;
+    if (top < top0) top = r.bottom + 8 + h < document.documentElement.clientHeight ? r.bottom + 8 : top0;   // no room above the text: below it, or under the toolbar
+    fmtBar.style.top = Math.round(top) + 'px';
+    fmtBar.style.left = Math.round(Math.max(8, Math.min(r.left, document.documentElement.clientWidth - w - 8))) + 'px';
+  }
+  fmtBar.addEventListener('pointerdown', e => e.preventDefault());   // the text keeps focus and its selection
+  fmtBar.addEventListener('mousedown', e => e.preventDefault());
+  fmtBar.addEventListener('click', e => {
+    const b = e.target.closest('[data-fmt]'); if (!b || !fmtEd || !fmtEd.isConnected) return;
+    if (b.dataset.fmt === 'link') return askLink(fmtEd);
+    fmtEd.focus(); document.execCommand(b.dataset.fmt); snd('tap');
+  });
+  canvas.addEventListener('focusout', () => setTimeout(() => { placeFmt(); if (!(document.activeElement && document.activeElement.closest && document.activeElement.closest('#canvas [data-edit]'))) $('#work').dataset.editing = 'false'; }, 0));
+  $('#stage').addEventListener('scroll', () => { if (fmtBar.dataset.open === 'true') placeFmt(); keepTools(); }, { passive: true });
+  document.addEventListener('selectionchange', () => { if (fmtBar.dataset.open === 'true') placeFmt(); });
+  canvas.addEventListener('input', e => {
+    const ed = e.target.closest('[data-edit]'); if (!ed) return;
+    const blk = ed.closest('.cv-block'), bl = state.blocks.find(x => x.id === blk.dataset.id); if (!bl) return;
+    const k = ed.dataset.edit, v = ed.dataset.rich === '1' ? htmlToMd(ed) : plainText(ed).replace(/\u00a0/g, ' ').replace(/\n+$/, '');
+    bl.props[k] = v;
+    const f = $(`#panelBlock [data-k="${k}"]`); if (f && f !== document.activeElement) f.value = v;
+    schedule();
+  });
+  let linking = false;   // true while the link form is open: the canvas is not redrawn, so the selection it will link stays alive
+  canvas.addEventListener('focusout', e => { if (e.target.closest('[data-edit]')) setTimeout(() => { if (!linking && !canvas.contains(document.activeElement)) renderCanvas(); }, 0); });
+  function askLink(ed) {
+    const sel = getSelection(); if (!sel.rangeCount) return; const range = sel.getRangeAt(0).cloneRange();
+    linking = true;
+    askName('Link URL (a Liquid tag is fine)', 'https://', ed, url => { if (ed.isConnected && document.activeElement === ed) document.execCommand('createLink', false, url); }, 'Add link',
+      refocus => { linking = false; if (refocus && ed.isConnected) { sel.removeAllRanges(); sel.addRange(range); } else if (!canvas.contains(document.activeElement)) renderCanvas(); });
+  }
+  canvas.addEventListener('keydown', e => {
+    const ed = e.target.closest('[data-edit]'); if (!ed) return;
+    if (e.key === 'Enter' && ed.dataset.rich !== '1') { e.preventDefault(); ed.blur(); }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && ed.dataset.rich === '1') { e.preventDefault(); askLink(ed); }
+    if (e.key === 'Escape') ed.blur();
+  });
+  canvas.addEventListener('paste', e => { if (!e.target.closest('[data-edit]')) return; e.preventDefault(); document.execCommand('insertText', false, e.clipboardData.getData('text/plain')); });
+  // drag & drop: library → canvas, block → block
+  let dragType = null;
+  $('#lib').addEventListener('dragstart', e => { const it = e.target.closest('.lib-item'); if (!it) return; dragType = 'lib:' + it.dataset.type; e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', dragType); });
+  $('#mods').addEventListener('dragstart', e => { const it = e.target.closest('[data-mod]'); if (!it) return; dragType = 'mod:' + it.dataset.mod; e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', dragType); });
+  const fromModule = id => { const m = store.get('modules', []).find(x => x.id === id); return (m && sanitizeBlocks([m])[0]) || null; };   // modules come back from storage: same checks as an import
+  $('#mods').addEventListener('click', e => { const rm = e.target.closest('[data-rmmod]'); if (rm) { e.preventDefault(); store.set('modules', store.get('modules', []).filter(x => x.id !== rm.dataset.rmmod)); renderModules(); snd('drop'); return; } const it = e.target.closest('[data-mod]'); if (!it) return; const nb = fromModule(it.dataset.mod); if (!nb) return; snapshot(); state.blocks.push(nb); state.selected = nb.id; renderCanvas(); renderInspector(); run(); showTab('block'); closeLibOnAdd(); revealSelected(); snd('pop'); });
+  canvas.addEventListener('dragstart', e => { const blk = e.target.closest('.cv-block'); if (!blk) return; dragType = 'block:' + blk.dataset.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dragType); });
+  const clearDrop = () => { $$('.cv-block', canvas).forEach(x => x.classList.remove('drop-before', 'drop-after')); canvas.classList.remove('drag-over'); };
+  canvas.addEventListener('dragover', e => { if (!dragType) return; e.preventDefault(); clearDrop(); const blk = e.target.closest('.cv-block'); if (blk) { const r = blk.getBoundingClientRect(); blk.classList.add(e.clientY < r.top + r.height / 2 ? 'drop-before' : 'drop-after'); } else canvas.classList.add('drag-over'); });
+  canvas.addEventListener('dragleave', e => { if (!canvas.contains(e.relatedTarget)) clearDrop(); });
+  canvas.addEventListener('drop', e => {
+    e.preventDefault(); const t = dragType || e.dataTransfer.getData('text/plain'); dragType = null; if (!t) return clearDrop();
+    const blk = e.target.closest('.cv-block'); let at = state.blocks.length;
+    if (blk) { const i = state.blocks.findIndex(x => x.id === blk.dataset.id), r = blk.getBoundingClientRect(); at = e.clientY < r.top + r.height / 2 ? i : i + 1; }
+    snapshot();
+    if (t.startsWith('lib:')) { const nb = newBlock(t.slice(4)); state.blocks.splice(at, 0, nb); state.selected = nb.id; }
+    else if (t.startsWith('mod:')) { const nb = fromModule(t.slice(4)); if (!nb) return clearDrop(); state.blocks.splice(at, 0, nb); state.selected = nb.id; }
+    else { const id = t.slice(6), from = state.blocks.findIndex(x => x.id === id); if (from < 0) return clearDrop(); const [mv] = state.blocks.splice(from, 1); if (from < at) at--; state.blocks.splice(at, 0, mv); state.selected = id; }
+    clearDrop(); renderCanvas(); renderInspector(); run(); showTab('block'); revealSelected(); snd('drop');
+  });
+  document.addEventListener('dragend', () => { dragType = null; clearDrop(); });
+  // library click = append
+  $('#lib').addEventListener('click', e => { const it = e.target.closest('.lib-item'); if (!it) return; snapshot(); const nb = newBlock(it.dataset.type); state.blocks.push(nb); state.selected = nb.id; renderCanvas(); renderInspector(); run(); showTab('block'); closeLibOnAdd(); revealSelected(); snd('pop'); });
+  $('#lib').innerHTML = Object.entries(BLOCKS).map(([k, b]) => `<div class="lib-item" draggable="true" data-type="${k}"><b>${b.name}</b><span>${b.desc}</span></div>`).join('');
+  $('#tpl').innerHTML = Object.entries(TEMPLATES).map(([k, t]) => `<button data-tpl="${k}"><b>${t.name}</b><span>${t.desc}</span></button>`).join('');
+  // a template replaces the canvas at once; when there was something on it, the toast's Undo puts back exactly what was there
+  $('#tpl').addEventListener('click', e => { const b = e.target.closest('[data-tpl]'); if (!b) return; const t = TEMPLATES[b.dataset.tpl], had = state.blocks.length, at = snapshot(true); state.blocks = t.blocks(); state.selected = null; state.designName = t.name; if (!$('#subject').value) $('#subject').value = t.name; renderCanvas(); renderInspector(); run(); closeLibOnAdd(); snd('pop'); if (had) toast(`Replaced the canvas with ${t.name}`, { label: 'Undo', fn: () => undo(at) }); });
+
+  /* =========================================================
+     Inspector
+     ========================================================= */
+  function field(f, v, name) {
+    const id = `f-${name}-${f.k}`;
+    if (f.t === 'textarea') return `<div class="field stack"><label for="${id}">${f.label}</label><textarea id="${id}" data-k="${f.k}">${esc(v)}</textarea></div>`;
+    if (f.t === 'select') return `<div class="field"><label for="${id}">${f.label}</label><select id="${id}" data-k="${f.k}">${f.o.map(o => `<option ${String(o) === String(v) ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
+    if (f.t === 'toggle') return `<div class="field"><label for="${id}">${f.label}</label><input type="checkbox" id="${id}" data-k="${f.k}" ${v ? 'checked' : ''}></div>`;
+    if (f.t === 'range') return `<div class="field"><label for="${id}">${f.label}</label><input type="range" id="${id}" data-k="${f.k}" min="${f.o[0]}" max="${f.o[1]}" value="${esc(v)}"><span class="val">${esc(v)}px</span></div>`;
+    if (f.t === 'color') { const isTok = COLOR_TOKENS.some(([t]) => t === v); return `<div class="field"><label>${f.label}</label><div class="colorbox"><select data-k="${f.k}" data-colorsel>${COLOR_TOKENS.map(([t, l]) => `<option value="${t}" ${t === v ? 'selected' : ''}>${l}</option>`).join('')}<option value="custom" ${isTok ? '' : 'selected'}>Custom…</option></select><input type="color" data-k="${f.k}" data-colorpick value="${/^#[0-9a-f]{6}$/i.test(col(v)) ? col(v) : '#000000'}" ${isTok ? 'style="opacity:.4"' : ''}></div></div>`; }
+    if (f.t === 'number') return `<div class="field"><label for="${id}">${f.label}</label><input type="number" id="${id}" data-k="${f.k}" value="${esc(v)}"></div>`;
+    return `<div class="field"><label for="${id}">${f.label}</label><input type="text" id="${id}" data-k="${f.k}" value="${esc(v)}" ${f.t === 'url' ? 'placeholder="https://… or a {{ tag }}"' : ''}></div>`;
+  }
+  function renderInspector() {
+    const bl = state.blocks.find(x => x.id === state.selected), p = $('#panelBlock');
+    if (!bl) { p.innerHTML = `<div class="hint">${narrow() ? 'Select a block on the canvas, or add one from the library.' : touchUI ? 'Select a block on the canvas, or tap one on the left to add it.' : 'Select a block on the canvas, or drag one in from the left.'}</div>${state.blocks.length ? '' : '<div class="hint">Colors default to <b>brand tokens</b>, so switching brand on the Brand tab re-skins the whole email.</div>'}`; return; }
+    const def = BLOCKS[bl.type];
+    const tags = TAG_MENU.filter(([k]) => tag(k)).map(([k, l]) => `<option value="${esc(tag(k))}">${l}</option>`).join('');
+    p.innerHTML = `<h4>${def.name}</h4><div class="tagbar"><select id="tagPick"><option value="">Insert ${ESP[brand().esp || 'bento'].name.split(' ')[0]} tag…</option>${tags}</select><button class="btn" id="btnModule" title="Save this block with its content as a reusable module">Save as module</button></div>${def.fields.map(f => field(f, bl.props[f.k], 'b')).join('')}<div class="hint">${touchUI ? 'Tap any text on the canvas to edit it in place; B, I and Link appear above it.' : 'Click any text on the canvas to edit it in place — ⌘B, ⌘I, ⌘K for a link.'} Text fields take **bold**, *italic* and [links](https://…). Colors that say “Brand” follow the Brand tab.</div>`;
+    renderBrandPanel();
+  }
+  let lastField = null;
+  $('#panelBlock').addEventListener('focusin', e => { if (e.target.dataset.k && /INPUT|TEXTAREA/.test(e.target.tagName)) lastField = e.target; });
+  $('#panelBlock').addEventListener('change', e => {
+    if (e.target.id !== 'tagPick' || !e.target.value) return;
+    const t = e.target.value; e.target.value = '';
+    const bl = state.blocks.find(x => x.id === state.selected); if (!bl) return;
+    if (lastField && lastField.isConnected) { const s = lastField.selectionStart ?? lastField.value.length; lastField.setRangeText(t, s, lastField.selectionEnd ?? s, 'end'); lastField.dispatchEvent(new Event('input', { bubbles: true })); lastField.focus(); }
+    else { const def = BLOCKS[bl.type], f = def.fields.find(x => x.t === 'textarea') || def.fields.find(x => x.t === 'text'); if (!f) return toast('This block has no text field'); bl.props[f.k] = (bl.props[f.k] ? bl.props[f.k] + ' ' : '') + t; renderCanvas(); renderInspector(); schedule(); toast(`Added to ${f.label}`); }
+  });
+  $('#panelBlock').addEventListener('click', e => {
+    if (e.target.id !== 'btnModule') return;
+    const bl = state.blocks.find(x => x.id === state.selected); if (!bl) return;
+    askName('Module name', BLOCKS[bl.type].name + ' — ' + brand().name, e.target, name => {
+      const mods = store.get('modules', []); mods.unshift({ id: uid(), name, type: bl.type, props: JSON.parse(JSON.stringify(bl.props)) }); store.set('modules', mods); renderModules(); toast(`Saved module “${name}”`, 'done');
+    });
+  });
+  function renderModules() {
+    const mods = store.get('modules', []); const el = $('#mods'); if (!el) return;
+    el.innerHTML = mods.length ? mods.map(m => `<div class="lib-item" draggable="true" data-mod="${esc(m.id)}"><b>${esc(m.name)}</b><span>${Object.prototype.hasOwnProperty.call(BLOCKS, m.type) ? BLOCKS[m.type].name : esc(m.type)} · <a href="#" data-rmmod="${esc(m.id)}" style="color:var(--ink-3)">remove</a></span></div>`).join('') : '<div class="lib-item" style="cursor:default"><b>No modules yet</b><span>Select a block, then “Save as module”</span></div>';
+  }
+  function renderBrandPanel() {
+    const b = brand(), p = $('#panelBrand');
+    p.innerHTML = `<div class="field"><label>Brand</label><select id="brandSel">${brands.map(x => `<option value="${esc(x.id)}" ${x.id === b.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
+      <div class="row-btns"><button class="btn" id="brandNew">New brand</button><button class="btn" id="brandDup">Duplicate</button><button class="btn" id="brandDel" ${brands.length < 2 ? 'disabled' : ''}>Delete</button></div>
+      <div class="row-btns"><button class="btn" id="brandImport" title="A zest-brand.json from the Zest studio, or a design">Import…</button></div>
+      ${BRAND_FIELDS.map(f => f.length === 1 ? `<h4>${f[0]}</h4>` : f[2] === 'select' ? `<div class="field"><label>${f[1]}</label><select data-bk="${f[0]}">${f[3].map(o => `<option value="${o}" ${b[f[0]] === o ? 'selected' : ''}>${o === 'bento' ? 'Bento (Liquid)' : o === 'generic' ? 'None — plain URLs' : 'Custom tags'}</option>`).join('')}</select></div>` : f[2] === 'color' ? `<div class="field"><label>${f[1]}</label><input type="color" data-bk="${f[0]}" value="${esc(b[f[0]])}"><span class="val" style="width:auto">${esc(b[f[0]])}</span></div>` : `<div class="field"><label>${f[1]}</label><input type="${f[2]}" data-bk="${f[0]}" value="${esc(b[f[0]])}"></div>`).join('')}
+      <div class="hint">One brand per Bento site. Platform decides which merge tags the footer, header and “Insert tag” menu use; the canvas shows the raw tags and the Desktop/Mobile previews show sample values. Brands are saved in this browser and travel inside exported .json designs. Import… takes either file: a zest-brand.json pulls the Zest studio’s light palette, body font and corner radius into a brand here — identity fields stay yours — and a design opens on the canvas. You can also drop either one anywhere.</div>`;
+  }
+  $('#panelBlock').addEventListener('input', e => {
+    const bl = state.blocks.find(x => x.id === state.selected), k = e.target.dataset.k; if (!bl || !k) return;
+    if (e.target.dataset.colorsel !== undefined) { if (e.target.value === 'custom') { const pick = e.target.parentNode.querySelector('[data-colorpick]'); pick.style.opacity = '1'; bl.props[k] = pick.value; } else { bl.props[k] = e.target.value; e.target.parentNode.querySelector('[data-colorpick]').style.opacity = '.4'; } }
+    else if (e.target.dataset.colorpick !== undefined) { bl.props[k] = e.target.value; const sel = e.target.parentNode.querySelector('[data-colorsel]'); sel.value = 'custom'; e.target.style.opacity = '1'; }
+    else if (e.target.type === 'checkbox') bl.props[k] = e.target.checked;
+    else if (e.target.type === 'range') { bl.props[k] = +e.target.value; e.target.nextElementSibling.textContent = e.target.value + 'px'; }
+    else bl.props[k] = e.target.value;
+    renderCanvas(); schedule();
+  });
+  $('#panelBlock').addEventListener('focusin', e => { if (e.target.dataset.k) snapshot(); });
+  $('#panelBrand').addEventListener('input', e => {
+    const b = brand(), k = e.target.dataset.bk;
+    if (e.target.id === 'brandSel') { state.brandId = e.target.value; renderInspector(); renderBrandPanel(); renderCanvas(); run(); return; }
+    if (!k) return; b[k] = e.target.type === 'number' ? +e.target.value : k === 'font' ? cleanFont(e.target.value) : e.target.value; if (e.target.type === 'color') e.target.nextElementSibling.textContent = e.target.value;
+    if (k === 'name') { $('#brandSel').selectedOptions[0].textContent = b.name; }
+    if (k === 'esp') { renderInspector(); renderBrandPanel(); }
+    store.set('brands', brands); renderCanvas(); schedule();
+  });
+  $('#panelBrand').addEventListener('click', e => {
+    if (e.target.id === 'brandImport') { $('#jsonFile').click(); return; }
+    if (e.target.id === 'brandNew') { const nb = BRAND_DEFAULT(); brands.push(nb); state.brandId = nb.id; }
+    else if (e.target.id === 'brandDup') { const nb = Object.assign({}, brand(), { id: uid(), name: brand().name + ' copy' }); brands.push(nb); state.brandId = nb.id; }
+    else if (e.target.id === 'brandDel') {   // gone at once; the toast's Undo puts the same brand back where it was and selects it again
+      const i = brands.findIndex(x => x.id === state.brandId), gone = brands.splice(i, 1)[0]; state.brandId = brands[0].id;
+      toast(`Deleted brand “${gone.name}”`, { label: 'Undo', fn: () => { brands.splice(i, 0, gone); state.brandId = gone.id; store.set('brands', brands); renderInspector(); renderBrandPanel(); renderCanvas(); run(); } });
+    }
+    else return;
+    store.set('brands', brands); renderBrandPanel(); renderCanvas(); run();
+  });
+  const touchUI = matchMedia('(pointer:coarse)').matches;
+  const narrow = () => matchMedia('(max-width:1100px)').matches, phone = () => matchMedia('(max-width:700px)').matches;
+  let booted = false; // the sheet only auto-opens for user actions, never on load
+  const insp = $('#inspector'), work = $('#work'), libPane = $('.pane.left'), root = document.documentElement;
+  let revealAfterFit = false;   // the docked sheet narrows the stage, which re-fits the canvas: the selected block is revealed again after
+  const docked = () => narrow() && matchMedia('(max-height:500px) and (orientation:landscape)').matches;   // the sheet docks on the right
+  const measureSheet = () => root.style.setProperty('--sheet-h', insp.offsetHeight + 'px');
+  // the sheet is open or closed in one place, so the stage, the block bar and the toast can make room for it
+  const blockBar = $('#blockBar'), barHome = blockBar.nextElementSibling;
+  function setSheet(open) {
+    insp.dataset.open = String(!!open);
+    const v = open && narrow() ? 'open' : 'closed'; work.dataset.sheet = v; document.body.dataset.sheet = v;
+    if (v === 'open') { if (blockBar.parentElement !== insp) insp.insertBefore(blockBar, $('#tabs')); }   // the block's actions ride in the sheet, off the block
+    else { if (blockBar.parentElement === insp) barHome.before(blockBar); insp.dataset.tall = 'false'; }
+    if (open && narrow()) { measureSheet(); libPane.dataset.open = 'false'; if (docked()) revealAfterFit = true; }
+  }
+  function showTab(t) { $$('#tabs button[data-t]').forEach(b => b.setAttribute('aria-selected', b.dataset.t === t)); $$('.panel').forEach(p => p.dataset.active = p.id === 'panel' + t[0].toUpperCase() + t.slice(1)); if (booted && narrow()) setSheet(true); }
+  $('#tabs').addEventListener('click', e => { if (e.target.closest('#sheetClose')) { setSheet(false); return; } const b = e.target.closest('button[data-t]'); if (b) { showTab(b.dataset.t); snd('tap'); } });
+  // Escape inside an open fold (Message → Compatibility, Claude → Connection and model) closes it and hands focus to its summary
+  insp.addEventListener('keydown', e => { const d = e.key === 'Escape' && e.target.closest('details[open]'); if (d) { e.stopPropagation(); d.open = false; $('summary', d).focus(); } });
+  $('#btnPanel').addEventListener('click', () => { const cur = $('#tabs button[aria-selected="true"]'); showTab(cur && cur.dataset.t !== 'block' ? cur.dataset.t : 'message'); setSheet(true); });
+  // On narrow screens the selected block scrolls clear of the sheet and the block bar; on wide ones it just comes into view
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  function revealSelected(force) {
+    const blk = canvas.querySelector('.cv-block[aria-selected="true"]'); if (!blk || state.mode !== 'build' || state.view !== 'canvas') return;
+    if (!narrow()) { blk.scrollIntoView({ block: 'nearest' }); return; }
+    measureSheet();
+    const st = $('#stage'), sr = st.getBoundingClientRect(), r = blk.getBoundingClientRect();
+    const sheetTop = insp.dataset.open === 'true' && !docked() ? root.clientHeight - insp.offsetHeight : sr.bottom;
+    if (!force && r.top >= sr.top + 4 && r.bottom <= Math.min(sr.bottom, sheetTop) - 64) return;   // already clear of the sheet and the bar
+    st.scrollTo({ top: st.scrollTop + r.top - sr.top - 12, behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+  }
+  // the sheet closes from its X, a tap or a downward swipe on its grabber or tab row, a tap on the stage around the email,
+  // or a tap into text on the canvas
+  (() => {
+    let y0 = null, dy = 0, raw = 0, pid = null, dragged = false;
+    const down = e => { if (!narrow() || docked() || insp.dataset.open !== 'true' || (e.pointerType === 'mouse' && e.button !== 0)) return; y0 = e.clientY; dy = 0; raw = 0; pid = e.pointerId; dragged = false; if (e.currentTarget.id === 'sheetGrab') e.currentTarget.setPointerCapture(pid); };
+    const move = e => { if (y0 == null || e.pointerId !== pid) return; raw = e.clientY - y0; dy = Math.max(0, raw); if (raw < -8) dragged = true; if (dy > 8) { dragged = true; insp.style.transition = 'none'; insp.style.transform = `translateY(${dy}px)`; } };
+    const up = e => {
+      if (y0 == null || e.pointerId !== pid) return;
+      const grab = e.currentTarget.id === 'sheetGrab'; y0 = null; insp.style.transition = ''; insp.style.transform = '';
+      if (grab && raw < -30) { insp.dataset.tall = 'true'; measureSheet(); return; }   // a swipe up on the grabber: more room for the fields
+      if (dy > 60 || (grab && !dragged)) setSheet(false);   // a swipe past 60px, or a plain tap on the grabber
+    };
+    [$('#sheetGrab'), $('#tabs')].forEach(el => { el.addEventListener('pointerdown', down); el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', () => { y0 = null; insp.style.transition = ''; insp.style.transform = ''; }); });
+    $('#tabs').addEventListener('click', e => { if (dragged) { dragged = false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);   // a swipe that started on a tab is not a tap on it
+  })();
+  $('#stage').addEventListener('click', e => { if (narrow() && !e.target.closest('#canvas')) setSheet(false); });
+  function openLib() { libPane.dataset.open = 'true'; if (narrow()) setSheet(false); }
+  $('#btnLib').addEventListener('click', () => { if (libPane.dataset.open === 'true') libPane.dataset.open = 'false'; else openLib(); });
+  $('#leftHead').addEventListener('click', e => { if (e.target.closest('#libClose')) libPane.dataset.open = 'false'; }); // delegated: setMode rebuilds the head
+  $('#scrim').addEventListener('click', () => { libPane.dataset.open = 'false'; });
+  const closeLibOnAdd = () => { if (narrow()) libPane.dataset.open = 'false'; };
+  // the drawer and the sheet hang under the toolbar, whose height changes as it wraps: keep --bar-h live
+  const barH = () => root.style.setProperty('--bar-h', Math.round($('.bar').getBoundingClientRect().height) + 'px');
+  barH(); new ResizeObserver(barH).observe($('.bar'));
+  new ResizeObserver(() => { if (insp.dataset.open === 'true') measureSheet(); }).observe(insp);
+
+  /* ---------- previews: Desktop and Outlook get a desktop-sized window (wider than the email's phone breakpoint), Mobile a 375px
+     one. All three take the canvas zoom, and each frame is as tall as its email, so the stage scrolls the way it does on the canvas ---------- */
+  function previewW() {
+    if (state.view === '375') return 375;
+    const W = +$('#width').value, z = phoneCanvas() ? 1 : zoomNow();
+    return Math.max(W + MAT * 2, Math.min(760, Math.floor(stageAvail() / z)));
+  }
+  function sizeFrame() {
+    try {
+      const d = frame.contentDocument; if (!d || !d.documentElement) return;
+      d.documentElement.style.overflow = 'hidden';
+      const st = $('#stage'), y = st.scrollTop, x = st.scrollLeft;     // collapsing the frame clamps the stage's scroll: keep where the reader was
+      frame.style.height = '0px';                                       // measured at zero height, so the email's own length comes back
+      frame.style.height = Math.max(160, d.documentElement.scrollHeight) + 'px';
+      st.scrollTop = y; st.scrollLeft = x;
+    } catch {}
+  }
+  function fitPreview() {
+    if (frame.style.display === 'none' || state.view === 'canvas') return;
+    const vw = previewW(), z = phoneCanvas() ? Math.min(1, stageAvail() / vw) : zoomNow(), W = +$('#width').value;
+    frame.style.width = vw + 'px'; frame.style.zoom = z === 1 ? '' : z;
+    sizeFrame();
+    if (last) $('#centerNote').textContent = state.view === '375' ? '375px · compiled output' : `${W}px email in a ${vw}px window · ${state.view === 'outlook' ? 'Outlook simulation (Word engine approximation)' : 'compiled output'}`;
+  }
+  // a resize (a rotation, a keyboard, a window drag) only re-fits: it never redraws the canvas, so a field being edited keeps its caret
+  const refit = () => { fitCanvas(); fitPreview(); placeFmt(); if (revealAfterFit) { revealAfterFit = false; revealSelected(true); } };   // forced: a smooth scroll aimed before the re-fit would land short
+  let rsT; const onResize = () => { clearTimeout(rsT); rsT = setTimeout(() => {
+    refit(); setSheet(insp.dataset.open === 'true');
+    if (!state.blocks.length) renderCanvas();   // the empty canvas's words depend on the layout; there is nothing on it to edit
+    if (!narrow()) libPane.dataset.open = 'false';
+  }, 120); };
+  addEventListener('resize', onResize);
+  if (window.visualViewport) { visualViewport.addEventListener('resize', onResize); visualViewport.addEventListener('scroll', placeFmt); }
+  let rfQ = 0; new ResizeObserver(() => { cancelAnimationFrame(rfQ); rfQ = requestAnimationFrame(refit); }).observe($('#stage'));   // the stage changes size when the docked sheet opens
+
+  /* =========================================================
+     Compile + preview (shared by both modes)
+     ========================================================= */
+  const src = $('#src'), frame = $('#frame');
+  const o = () => ({ subject: $('#subject').value, preheader: $('#preheader').value, width: $('#width').value, bg: $('#bg').value, fonts: state.mode === 'build' ? brand().font : $('#fonts').value, darkMeta: $('#darkMeta').checked, wrap: $('#wrap').checked, mirror: $('#mirror').checked });
+  let last = null, debounce;
+  const getInput = () => state.mode === 'build' ? (state.blocks.length ? buildHTML() : '') : src.value.trim();
+  function run() {
+    const input = getInput();
+    const isCanvas = state.mode === 'build' && state.view === 'canvas';
+    $('#canvasWrap').style.display = isCanvas ? '' : 'none'; frame.style.display = isCanvas ? 'none' : ''; syncSelection();
+    $('#centerTitle').textContent = isCanvas ? 'Canvas' : 'Preview';
+    if (!input) { last = null; $('#lintPill').textContent = 'empty'; $('#lintPill').className = 'pill'; $('#sizePill').textContent = '0 KB'; $('#issues').innerHTML = '<div class="issue"><span>Nothing to lint yet.</span></div>'; $('#lintCount').textContent = '0'; $('#centerNote').textContent = isCanvas ? (touchUI ? 'add a block or pick a template' : 'drag a block in, or pick a template') : 'nothing to preview'; if (!isCanvas) frame.srcdoc = '<p style="font-family:sans-serif;color:#999;padding:40px;text-align:center">Nothing to preview</p>'; return; }
+    last = compile(input, o());
+    if (!isCanvas) { fitPreview(); frame.srcdoc = holdWebImages(previewTags(state.view === 'outlook' ? outlookSim(last.html) : last.html)); }
+    else $('#centerNote').textContent = touchUI ? 'tap a block to edit it' : 'click a block to edit it · drag to reorder';
+    $('#sizePill').textContent = (last.bytes / 1024).toFixed(1) + ' KB';
+    const errs = last.issues.filter(i => i[0] === 'err').length, warns = last.issues.filter(i => i[0] === 'warn').length;
+    const lp = $('#lintPill'); lp.textContent = errs ? `${errs} blocking` : warns ? `${warns} to review` : 'clean'; lp.className = 'pill ' + (errs ? 'err' : warns ? 'warn' : 'ok');
+    $('#lintCount').textContent = last.issues.filter(i => i[0] !== 'ok').length; $('#lintCount').className = 'pill ' + (errs ? 'err' : warns ? 'warn' : 'ok');
+    $('#issues').innerHTML = last.issues.map(([lvl, title, why]) => `<div class="issue ${lvl}"><b>${esc(title)}</b><span>${why}</span></div>`).join('');
+    const s = last.stats; $('#stats').innerHTML = [[s.rules, 'CSS rules inlined'], [s.media, 'media queries kept'], [s.tables, 'tables'], [s.divs, 'divs'], [s.imgs, 'images'], [s.links, 'links']].map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+    persist();
+  }
+  const schedule = () => { clearTimeout(debounce); debounce = setTimeout(run, 160); };
+  src.addEventListener('input', schedule);
+  src.addEventListener('keydown', e => { if (e.key === 'Tab') { e.preventDefault(); src.setRangeText('  ', src.selectionStart, src.selectionEnd, 'end'); schedule(); } });
+  $$('#panelMessage input, #panelMessage select').forEach(el => el.addEventListener('input', () => { renderCanvas(); schedule(); }));
+
+  /* ---------- modes & views ---------- */
+  let viewBeforeSource = null, libBySource = false;   // Source has no canvas view; going back to Build returns to the canvas if that is where Source took you from
+  function setMode(m) {
+    const canvasHTML = state.mode === 'build' && m === 'source' && last ? last.html : null;
+    state.mode = m; $('#work').dataset.mode = m; $$('#modeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === m));
+    $('#leftBuild').style.display = m === 'build' ? '' : 'none'; src.style.display = m === 'build' ? 'none' : '';
+    $('#fontsField').style.display = m === 'build' ? 'none' : '';   // Build takes its fonts from the brand; the fallback stack only applies to pasted HTML
+    $('#btnLib').setAttribute('aria-label', m === 'source' ? 'Source HTML' : 'Blocks and templates');
+    if (narrow() && m === 'source') { openLib(); libBySource = true; } // the textarea lives in the drawer — Source mode must open it
+    else if (m === 'build' && libBySource) { libBySource = false; if (narrow()) libPane.dataset.open = 'false'; }   // and Build puts it away again
+    if (m === 'build') hideToast();
+    $('#leftHead').innerHTML = (m === 'build' ? `<b>Blocks</b><span>${touchUI ? 'tap to add to the canvas' : 'drag onto the canvas'}</span>` : '<b>Source HTML</b><span>paste anything — yours, or what a model produced</span>') + '<div class="right"><button class="btn icon mobile-only" id="libClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>';
+    $$('#viewSeg button')[0].style.display = m === 'build' ? '' : 'none';
+    if (m === 'source' && state.view === 'canvas') { viewBeforeSource = 'canvas'; setView('600'); }
+    else if (m === 'build' && viewBeforeSource === 'canvas' && state.view === '600') { viewBeforeSource = null; setView('canvas'); }
+    else run();
+    if (canvasHTML && !src.value.trim()) toast('Source is empty.', { label: 'Start from the canvas', fn: () => { src.value = canvasHTML; run(); } });
+  }
+  function setView(v) { state.view = v; $$('#viewSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.w === v)); run(); }
+  $('#modeSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { setMode(b.dataset.m); snd('tap'); } });
+  $('#viewSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { viewBeforeSource = null; setView(b.dataset.w); snd('tap'); } });
+  $('#zoomSeg').addEventListener('click', e => { const b = e.target.closest('button[data-z]'); if (!b) return; state.zoom = b.dataset.z === 'fit' ? 'fit' : +b.dataset.z; store.set('zoom', state.zoom); fitCanvas(); fitPreview(); snd('tap'); });
+  // The chrome wears orange, always (fruits.json) — the one theme every Zest tool shares; emails keep their own brand colors.
+  $('#btnUndo').addEventListener('click', undo);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && openPop) { e.preventDefault(); closePop(true); return; }
+    const mod = e.metaKey || e.ctrlKey, inField = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || document.activeElement.isContentEditable;
+    if (mod && e.key.toLowerCase() === 'z' && !inField && (toastAct || state.mode === 'build')) { e.preventDefault(); if (toastAct) toastAct(); else undo(); }   // while a toast offers Undo, ⌘Z is that Undo
+    if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); if (last) copy(last.html, 'Email HTML copied'); }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && !inField && state.selected) { const i = state.blocks.findIndex(x => x.id === state.selected); if (i > -1) { snapshot(); state.blocks.splice(i, 1); state.selected = null; renderCanvas(); renderInspector(); run(); snd('drop'); } }
+    if (e.key === 'Escape') { state.selected = null; renderCanvas(); renderInspector(); if (narrow()) setSheet(false); }
+  });
+
+  /* ---------- save / load designs ---------- */
+  const designs = () => store.get('designs', []);
+  function persist() { store.set('draft', { blocks: state.blocks, brandId: state.brandId, subject: $('#subject').value, preheader: $('#preheader').value, width: $('#width').value, bg: $('#bg').value, src: src.value, designId: state.designId, designName: state.designName }); }
+  function designJSON() { return { name: state.designName, brand: brand(), blocks: state.blocks, subject: $('#subject').value, preheader: $('#preheader').value, width: $('#width').value, bg: $('#bg').value, saved: new Date().toISOString() }; }
+  const setWidth = v => { if ([...$('#width').options].some(o => o.value === String(v))) $('#width').value = String(v); };
+  const setBg = v => { if (BRAND_HEX.test(String(v))) $('#bg').value = v; };
+  // The brand inside a design is never written into a brand that is already here, whatever id it carries.
+  // A brand whose every field matches is reused, so opening an exported or saved design again adds nothing;
+  // anything else arrives as a separate brand with an id of its own. Returns the id, and the name if one was added.
+  const sameBrand = (a, b) => Object.keys(b).every(k => k === 'id' || k === 'name' || a[k] === b[k]);
+  function adoptBrand(raw) {
+    const nb = sanitizeBrand(raw), alt = nb.name.slice(0, 66) + ' (from design)';
+    const ex = brands.find(x => { const s = sanitizeBrand(x); return (s.name === nb.name || s.name === alt) && sameBrand(s, nb); });
+    if (ex) return { id: ex.id, added: null };
+    nb.id = uid();
+    if (brands.some(x => x.name === nb.name)) nb.name = alt;
+    brands.push(nb); store.set('brands', brands);
+    return { id: nb.id, added: nb.name };
+  }
+  // a design is untrusted wherever it comes from (a file, a drop, or storage): blocks and brand are rebuilt, never taken as-is
+  function loadDesign(d) { let added = null; snapshot(); state.blocks = sanitizeBlocks(d.blocks); state.designName = cleanLine(d.name, 120).trim() || 'Untitled'; state.designId = cleanId(d.id); $('#subject').value = cleanLine(d.subject, 500); $('#preheader').value = cleanLine(d.preheader, 500); setWidth(d.width); setBg(d.bg);
+    if (d.brand && typeof d.brand === 'object') { const a = adoptBrand(d.brand); state.brandId = a.id; added = a.added; }
+    state.selected = null; setMode('build'); renderCanvas(); renderInspector(); renderBrandPanel(); renderSaved(); run(); return added; }   // the Brand tab is redrawn too: with no block selected the inspector leaves it alone
+  function importedDesign(d, size = 0) { const over = overBudget(d, size); if (over) return toast(`${over}, so it was not imported. Nothing changed.`, 'nope'); const added = loadDesign(d); toast(`Imported “${state.designName}”` + (added ? ` — its brand was added as “${added}”` : ''), 'pop'); }
+  $('#btnSave').addEventListener('click', () => askName('Design name', state.designName, $('#btnSave'), name => {
+    const list = designs(), d = Object.assign(designJSON(), { name, id: state.designId || uid() }); state.designName = name; state.designId = d.id;
+    const i = list.findIndex(x => x.id === d.id); if (i > -1) list[i] = d; else list.unshift(d);
+    store.set('designs', list); renderSaved(); toast(`Saved “${name}”`, 'done');
+  }));
+  // New clears at once; when there was something on the canvas, the toast's Undo puts back the blocks, name, subject and preheader
+  $('#btnNew').addEventListener('click', () => { const had = state.blocks.length, at = snapshot(true); state.blocks = []; state.selected = null; state.designId = null; state.designName = 'Untitled'; $('#subject').value = ''; $('#preheader').value = ''; renderCanvas(); renderInspector(); run(); if (had) toast('Started a new design', { label: 'Undo', fn: () => undo(at) }); });
+  function renderSaved() { const list = designs(); $('#savedList').innerHTML = list.length ? list.map(d => `<div><span title="${esc(d.name)}">${esc(d.name)}</span><small>${new Date(d.saved).toLocaleDateString()}</small><button data-load="${esc(d.id)}" title="Open">↗</button><button data-rm="${esc(d.id)}" title="Delete">×</button></div>`).join('') : '<div><span style="color:var(--ink-3)">Nothing saved yet</span></div>'; }
+  $('#savedList').addEventListener('click', e => { const l = e.target.closest('[data-load]'), r = e.target.closest('[data-rm]'); if (l) { const d = designs().find(x => x.id === l.dataset.load); if (d) { const added = loadDesign(d); if (added) toast(`The brand saved with this design was added as “${added}”`); } } if (r) {   // gone at once; the toast's Undo puts the same saved design back in its place
+      const list = designs(), i = list.findIndex(x => x.id === r.dataset.rm); if (i < 0) return; const gone = list.splice(i, 1)[0];
+      store.set('designs', list); renderSaved(); snd('drop');
+      toast(`Deleted “${gone.name}”`, { label: 'Undo', fn: () => { const l = designs(); if (l.some(x => x.id === gone.id)) return; l.splice(i, 0, gone); store.set('designs', l); renderSaved(); } });
+    } });
+
+  /* ---------- export ---------- */
+  /* ---------- popovers: the Export and More menus and the name form. One open at a time; Escape or a click outside closes it ---------- */
+  let openPop = null;
+  function closePop(refocus) {
+    if (!openPop) return; const { pop, btn, onClose } = openPop; openPop = null;
+    pop.dataset.open = 'false'; if (btn.hasAttribute('aria-expanded')) btn.setAttribute('aria-expanded', 'false');
+    if (refocus) (btn.getClientRects().length ? btn : $('#btnMore')).focus();   // a control that sits in the closed More menu hands focus to More
+    if (onClose) onClose(refocus);
+  }
+  function showPop(pop, btn, onClose) {
+    closePop(); openPop = { pop, btn, onClose }; pop.dataset.open = 'true'; if (btn.hasAttribute('aria-expanded')) btn.setAttribute('aria-expanded', 'true');
+    // wide screens: the popover hangs under the control that opened it; at 1000px and under the stylesheet spans it below the toolbar
+    const bar = $('.bar').getBoundingClientRect(), r = btn.getBoundingClientRect();
+    pop.style.right = matchMedia('(max-width:1000px)').matches ? '' : Math.max(14, Math.min(bar.right - r.right, bar.width - 264)) + 'px';
+  }
+  const menuButton = (btn, pop) => btn.addEventListener('click', e => {
+    if (openPop && openPop.pop === pop) return closePop();
+    showPop(pop, btn); if (narrow()) setSheet(false);
+    if (e.detail === 0) { const first = $('button', pop); if (first) first.focus(); }   // opened from the keyboard: start on the first item
+  });
+  menuButton($('#btnExport'), $('#popExport')); menuButton($('#btnMore'), $('#popMore'));
+  document.addEventListener('click', e => { if (openPop && !e.target.closest('.pop') && !openPop.btn.contains(e.target)) closePop(); });
+  // More holds real toolbar buttons: each runs its own handler, then the menu closes (Sound stays open so the change shows)
+  $('#popMore').addEventListener('click', e => { if (openPop && openPop.pop === $('#popMore') && e.target.closest('button') && !e.target.closest('[data-zest-sound]')) closePop(true); });
+  /* ≤480px: Save, New, Sound and the two status pills move into the More menu, and back out when the window widens.
+     They are the same elements, so ids, handlers and sounds come along. */
+  const small = matchMedia('(max-width:480px), (max-width:1000px) and (max-height:500px) and (orientation:landscape)'), tools = ['#sizePill', '#lintPill', '#btnSave', '#btnNew', '#btnSound'].map(q => { const el = $(q); return { el, home: el.parentNode, next: el.nextSibling }; });
+  function placeTools() {
+    if (small.matches) tools.forEach(t => (t.el.matches('.pill') ? $('#moreStatus') : $('#moreMenu')).appendChild(t.el));
+    else { if (openPop && openPop.pop === $('#popMore')) closePop(); tools.slice().reverse().forEach(t => t.home.insertBefore(t.el, t.next)); }
+  }
+  small.addEventListener('change', placeTools); placeTools();
+  /* ---------- naming without a native dialog: one small form under the toolbar, for a design, a module or a link address ---------- */
+  let nameDone = null;
+  function askName(label, value, opener, done, okLabel = 'Save', onClose) {
+    $('#nameLabel').textContent = label; $('#nameSave').textContent = okLabel; nameDone = done;
+    showPop($('#popName'), opener, onClose); const i = $('#nameInput'); i.value = value; i.focus(); i.select();
+  }
+  $('#popName').addEventListener('submit', e => { e.preventDefault(); const v = $('#nameInput').value.trim(), done = nameDone; if (!v) return $('#nameInput').focus(); closePop(true); done(v); });
+  $('#nameCancel').addEventListener('click', () => closePop(true));
+  const download = (name, content, type) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); snd('done'); };
+  const copy = async (t, msg) => { try { await navigator.clipboard.writeText(t); toast(msg, 'done'); } catch { toast('Copy blocked by the browser', 'nope'); } };
+  const slug = () => ($('#subject').value || state.designName || 'email').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'email';
+  $('#popExport').addEventListener('click', e => {
+    const b = e.target.closest('[data-do]'); if (!b) return; closePop(true);
+    const act = b.dataset.do;
+    if (act === 'importjson') return $('#jsonFile').click();
+    if (act === 'json') return download(slug() + '.mailpress.json', JSON.stringify(designJSON(), null, 2), 'application/json');
+    if (!last) return toast('Nothing compiled yet', 'nope');
+    ({ copy: () => copy(last.html, 'Email HTML copied'), download: () => download(slug() + '.html', last.html, 'text/html'), text: () => copy(toText(last.html), 'Plain-text version copied'), tosource: () => { src.value = last.html; setMode('source'); toast('Compiled HTML is now in Source — the builder still has your blocks'); } })[act]();
+  });
+  /* One way in for a .json, whichever control or drop brought it: Export → Import…, the Brand tab's Import…, or a file dropped anywhere */
+  async function importJson(f) {
+    try { const d = JSON.parse(await f.text());
+      if (d && d.zest === 1) return importZestBrand(d);                // a zest-brand.json is a brand, never an empty design
+      if (d && Array.isArray(d.blocks)) return importedDesign(d, f.size);
+    } catch {}
+    toast(`That file isn’t a ${PRODUCT} design or a zest-brand.json`, 'nope');
+  }
+  $('#jsonFile').addEventListener('change', () => { const f = $('#jsonFile').files[0]; $('#jsonFile').value = ''; if (f) importJson(f); });
+
+  /* ---------- zest-brand.json import (ZEST-SPEC §7.3): light palette, body font, radius into a brand ---------- */
+  function emailStack(name) {          // email-safe: the brand family first, classic fallbacks behind it
+    // whitelist, not blacklist: the value lands in raw style="" attributes, where &#NN; would decode into CSS delimiters
+    const n = String(name || '').replace(CTRL_RE, ' ').replace(/[^A-Za-z0-9 -]/g, '').replace(/\s+/g, ' ').trim().slice(0, 48);
+    if (!n) return BRAND_DEFAULT().font;
+    if (/mono|code/i.test(n)) return `'${n}', Menlo, Consolas, 'Courier New', monospace`;
+    if (/serif|fraunces|spectral|lora|literata|crimson|alegreya|zilla|newsreader/i.test(n)) return `'${n}', Georgia, 'Times New Roman', serif`;
+    return `'${n}', 'Helvetica Neue', Helvetica, Arial, sans-serif`;
+  }
+  function importZestBrand(z) {
+    const pal = z && z.light && typeof z.light === 'object' ? z.light : null;
+    if (!z || z.zest !== 1 || !pal || !BRAND_ROLES.every(k => BRAND_HEX.test(String(pal[k] || '')))) { toast('Not a zest-brand.json.', 'nope'); return false; }
+    const name = String(z.name || 'Zest brand').replace(CTRL_RE, ' ').slice(0, 48).trim() || 'Zest brand';
+    const tokens = {};
+    for (const k of BRAND_ROLES) tokens[k] = String(pal[k]).toLowerCase();
+    tokens.font = emailStack(z.fonts && z.fonts.body);
+    tokens.radius = Math.max(0, Math.min(24, Number.isFinite(+z.radius) ? Math.round(+z.radius) : 8));
+    const ex = brands.find(b => String(b.name).toLowerCase() === name.toLowerCase());
+    const target = ex || Object.assign(BRAND_DEFAULT(), { name });
+    Object.assign(target, tokens, { name });                         // §7.3: identity fields stay the user's own
+    if (!ex) brands.push(target);
+    state.brandId = target.id;
+    store.set('brands', brands);
+    renderBrandPanel(); renderInspector(); renderCanvas(); run(); showTab('brand');
+    persist();                         // run() skips persist() on an empty canvas — the selection must survive a reload regardless
+    toast(`${name} ${ex ? 'updated' : 'created'} from zest-brand.json — identity fields stay yours.`, 'pop');
+    return true;
+  }
+  /* a .json can be dropped anywhere — the §7.3 interchange; block drags carry no files and are untouched */
+  const wantsFile = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+  const dropJson = e => {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!f || !/\.json$/i.test(f.name)) return;   // the dot matters: "notes json" is somebody's text file
+    e.preventDefault(); importJson(f);
+  };
+  document.addEventListener('dragover', e => { if (wantsFile(e)) e.preventDefault(); });
+  document.addEventListener('drop', dropJson);
+  // the Desktop/Mobile/Outlook previews are an iframe: drag events land in its srcdoc document, so hook each load (same-origin)
+  frame.addEventListener('load', () => {
+    sizeFrame();
+    try {
+      const fd = frame.contentDocument; if (!fd) return;
+      $$('img', fd).forEach(i => { if (!i.complete) i.addEventListener('load', sizeFrame); });   // a logo that arrives late makes the email taller
+      fd.addEventListener('dragover', e => { if (wantsFile(e)) e.preventDefault(); });
+      fd.addEventListener('drop', dropJson);
+    } catch {}
+  });
+
+  
+
+
+
+  /* ---------- toast ---------- */
+  let toastT, toastAct = null;   // toastAct: the action of the toast on screen, so ⌘Z can run it too
+  function hideToast() { const t = $('#toast'); t.classList.remove('show'); toastAct = null; const b = $('button', t); if (b) b.remove(); }   // a hidden toast keeps no button in the tab order
+  function toast(msg, action) { if (typeof action === 'string') { snd(action); action = null; }   // a string is a sound name; an object is the action button
+    const t = $('#toast'), hide = hideToast;
+    t.textContent = ''; const m = document.createElement('span'); m.textContent = msg; t.appendChild(m); toastAct = action ? () => { hide(); snd('tap'); action.fn(); } : null;
+    if (action) { const b = document.createElement('button'); b.type = 'button'; b.textContent = action.label; b.onclick = toastAct; t.appendChild(b); } t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(hide, action ? 6000 : 2400); }
+
+  /* ---------- boot ---------- */
+  const draft = store.get('draft', null);
+  if (draft && typeof draft === 'object') { state.blocks = sanitizeBlocks(draft.blocks); if (brands.find(b => b.id === draft.brandId)) state.brandId = draft.brandId; $('#subject').value = cleanLine(draft.subject, 500); $('#preheader').value = cleanLine(draft.preheader, 500); setWidth(draft.width); setBg(draft.bg); src.value = typeof draft.src === 'string' ? draft.src : ''; state.designId = cleanId(draft.designId); state.designName = cleanLine(draft.designName, 120).trim() || 'Untitled'; }   // the draft comes back from storage: same checks as an import
+  renderSaved(); renderModules(); renderInspector(); renderBrandPanel(); renderCanvas(); setMode('build');
+  booted = true; // from here on, showTab may open the bottom sheet on narrow screens
+})();
+</script>
+</body>
+</html>

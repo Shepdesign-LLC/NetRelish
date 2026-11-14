@@ -87,3 +87,54 @@ Append-only. Newest entries at the bottom.
   answer a question, and what a web page can ask for in 1.0. `building-without-a-mac` gained
   a trap on where a `.xcprivacy` must live. `docs/notarization.md` lost a row that blamed a
   JIT entitlement WKWebView doesn't need
+
+## [2026-11-13] zest-window added
+
+- A page for the Zest window host (ADR 0033 moved ADR 0015's Zest window into 1.0): the
+  zest:// scheme and its path rules, Zest's reserved store, the offline rule list, the stub,
+  where links go, and the gating of the page commands while the window is key. Ten traps,
+  among them the scheme handler's isolation, realpath over `resolvingSymlinksInPath`, and
+  `pageInFront` rather than `benchTab`
+
+## [2026-11-13] zest-window: review fixes
+
+- A download link to the web is now routed as a web link, never a `WKDownload`; gating
+  follows the main window, so a color panel or save panel no longer switches it off; a web
+  link brings forward the registered main window, not the first window in the list; the
+  jar that spells Zest's UUID moves under a namespace of its own; the integration tests use
+  throwaway stores. The page now says plainly what CI doesn't show (storage surviving a
+  relaunch, IndexedDB) and that `zest/build.sh --app` is phase 2's, not yet written. Four
+  new traps
+
+## [2026-11-13] rearranging and building-without-a-mac re-verified
+
+- The Zest review fixes grew Workbench's Zest block by nine lines, so rearranging's
+  Workbench citations below it moved by nine; nothing they describe changed. project.yml
+  changed only in a comment, so building-without-a-mac's `verified_at` moved alone
+
+## [2026-11-14] zest-window: the bundle is real
+
+- `Resources/Zest` now holds the built tools (143 files, 6.89 MB), so the page and ADR 0033
+  describe what exists instead of what phase 2 would write. New rows for content types and
+  Help › Acknowledgments; `ZestBundleTests` and the policy check in `zest/tests/inapp.js`
+  under Tests. Four new traps: `zest/tests/inapp.js` parses the policy and types out of
+  `Sources/Zest/ZestFiles.swift`, no `'unsafe-eval'`, a new extension needs a type, and
+  `NOTICE` is edited at the root only
+
+## [2026-11-14] building-without-a-mac re-verified
+
+- Since `a9ac3a1`, `project.yml` changed only in a comment (the Zest folder reference is now
+  described as generated, not to be generated), and the page cites no line below it, so
+  `verified_at` moved alone. Help › Acknowledgments adds `Sources/App/Acknowledgments.swift`:
+  the page's first trap applies, and the Xcode project is regenerated before merge
+
+## [2026-11-14] zest-window: review fixes; rearranging re-verified
+
+- zest-window: a Printing row (File › Print… for the tool in front), the tool's view now
+  takes WebRTC away in every frame, and two traps: the rule list and the policy don't stop
+  peer connections, and `window.print()` does nothing in the Zest window. The bundle is
+  7,250,832 bytes (6.91 MB), NOTICE having grown by the appendix of what mermaid.min.js
+  bundles; ADR 0033's size follows. Citations into ZestWebView, ZestWindow, Workbench and
+  NetRelishApp moved with the new lines
+- rearranging: Workbench grew by two lines above its Rearranging block (`printZest`), so its
+  citations below line 164 moved by two; nothing they describe changed

@@ -28,6 +28,7 @@ Nothing here yet.
 
 ## subsystems
 
+- [[zest-window]] -- Window › Zest: the zest:// scheme, Zest's own store, the offline rule list, and what stands down while it's in front
 - [[zest-sound]] -- the sound kit inlined in the four Zest web tools, the Sound toggle, and how its suite runs
 - [[rearranging]] -- right-click menus and drag on the Shelf and tab strip; what moves, what is left behind, and the multi-window trap
 

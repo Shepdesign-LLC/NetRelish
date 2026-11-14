@@ -1,11 +1,12 @@
 name: Zest tests
 
+# Sources/Zest is here because inapp.js runs every export under the host's policy and content types, read from ZestFiles.swift.
 on:
   pull_request:
-    paths: ['zest/**', '.github/workflows/zest-tests.yml']
+    paths: ['zest/**', 'Resources/Zest/**', 'Sources/Zest/**', 'NOTICE', '.github/workflows/zest-tests.yml']
   push:
     branches: [main]
-    paths: ['zest/**', '.github/workflows/zest-tests.yml']
+    paths: ['zest/**', 'Resources/Zest/**', 'Sources/Zest/**', 'NOTICE', '.github/workflows/zest-tests.yml']
 
 # Tests only: npm and Playwright's packages run here, so the token can only read.
 permissions:
@@ -42,3 +43,72 @@ jobs:
           done
           exit 1
       - run: npm test
+
+  # The copy NetRelish.app bundles (ADR 0015): Resources/Zest, built by `bash zest/build.sh --app` and committed.
+  # Every step reads the committed Resources/Zest, the bytes that ship; nothing here rebuilds it in place.
+  # Every step gates the merge: the vendor check, which holds zest/vendor/ AND Resources/Zest/vendor/ to
+  # VENDOR.lock.json (and npm), and Resources/Zest/NOTICE to the root NOTICE; the rebuild-and-diff; and the two
+  # offline gates. ZEST_OFFLINE_ENFORCE: 'false' would report the last three without failing (an emergency
+  # switch only; the tools load nothing from the network on any surface).
+  app-bundle:
+    name: App bundle + offline gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ZEST_OFFLINE_ENFORCE: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          persist-credentials: false   # read-only job: leave no token in .git/config
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: zest/tests/package-lock.json
+      # zest/vendor/ against VENDOR.lock.json and a fresh fetch from npm; Resources/Zest/vendor/ against the
+      # lock; Resources/Zest/NOTICE against NOTICE; Zest MD's DOMPurify tag against the lock; NOTICE names
+      # every vendored release.
+      - name: Vendored files (zest/vendor and the shipped Resources/Zest/vendor) match the lock and npm
+        run: node zest/scripts/vendor.mjs --check
+      - name: 'Offline gate 1: static scan of the committed Resources/Zest'
+        id: scan
+        continue-on-error: ${{ env.ZEST_OFFLINE_ENFORCE != 'true' }}
+        run: node zest/scripts/offline-scan.mjs Resources/Zest
+      # Builds into a temp folder, so the committed copy stays what the gates read.
+      - name: Resources/Zest matches a fresh build --app
+        id: bundle
+        continue-on-error: ${{ env.ZEST_OFFLINE_ENFORCE != 'true' }}
+        run: |
+          ZEST_APP_OUT="$RUNNER_TEMP/zest-app" bash zest/build.sh --app
+          if ! diff -rq "$RUNNER_TEMP/zest-app" Resources/Zest; then
+            diff -r "$RUNNER_TEMP/zest-app" Resources/Zest | head -200 || true
+            echo "::error file=Resources/Zest::stale: run bash zest/build.sh --app and commit Resources/Zest"
+            exit 1
+          fi
+      - run: npm ci
+        working-directory: zest/tests
+      - name: Install Chromium
+        working-directory: zest/tests
+        run: |
+          for attempt in 1 2 3; do
+            npx playwright install --with-deps chromium && exit 0
+            echo "Browser install failed (attempt $attempt of 3)"
+            sleep 15
+          done
+          exit 1
+      - name: 'Offline gate 2: every tool in the committed Resources/Zest with the network blocked'
+        id: offline
+        continue-on-error: ${{ env.ZEST_OFFLINE_ENFORCE != 'true' }}
+        working-directory: zest/tests
+        run: node offline.js
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Zest app bundle (enforced: $ZEST_OFFLINE_ENFORCE)"
+            echo "| Step | Outcome |"
+            echo "|---|---|"
+            echo "| Offline gate 1: static scan | ${{ steps.scan.outcome }} |"
+            echo "| Resources/Zest matches build --app | ${{ steps.bundle.outcome }} |"
+            echo "| Offline gate 2: network blocked | ${{ steps.offline.outcome }} |"
+          } >> "$GITHUB_STEP_SUMMARY"

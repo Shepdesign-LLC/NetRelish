@@ -1,5 +1,6 @@
-// NetRelishApp.swift — the app. SwiftUI lifecycle, one main window, and the
-// DEBUG-only Design Kit as a second Window scene (Window → Design Kit).
+// NetRelishApp.swift — the app. SwiftUI lifecycle, one main window, the Zest window
+// (Window › Zest, ADR 0033), Help › Acknowledgments, and the DEBUG-only Design Kit as
+// another Window scene (Window → Design Kit).
 
 import AppIntents
 import AppKit
@@ -10,6 +11,9 @@ import SwiftUI
 @main
 struct NetRelishApp: App {
     @State private var workbench: Workbench
+
+    /// The main window's scene id, so the Zest window can open it again for a web link.
+    static let mainWindowId = "main"
 
     /// The Share extension's inbox, except when this app is hosting the tests: they must never
     /// take what you've shared into the Pantry.
@@ -72,7 +76,7 @@ struct NetRelishApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("NetRelish") {
+        WindowGroup("NetRelish", id: NetRelishApp.mainWindowId) {
             ContentView(workbench: workbench)
         }
         .defaultSize(width: 1180, height: 820)
@@ -83,9 +87,18 @@ struct NetRelishApp: App {
             }
             // App Review 5.1.1(i): the privacy policy, one click away for everyone, not only
             // for someone who opens Pro (ADR 0032). It replaces the default Help item, which
-            // has no help book to open.
+            // has no help book to open. Acknowledgments sits beside it: the third-party notices (NOTICE).
             CommandGroup(replacing: .help) {
                 Button(ProText.privacy) { NSWorkspace.shared.open(ProText.privacyURL) }
+                AcknowledgmentsCommand()
+            }
+            // File › Print…: the Zest tool in front, Save as PDF included (Zest MD's PDF export).
+            // A tool's window.print() has nothing to call in the app's web view. It stands down
+            // while a jar's page is in front; a page that handles ⌘P itself still gets it first.
+            CommandGroup(replacing: .printItem) {
+                Button("Print…") { workbench.printZest?() }
+                    .keyboardShortcut("p", modifiers: .command)
+                    .disabled(!workbench.zestInFront)
             }
             CommandMenu("Jars") {
                 ForEach(Array(workbench.jars.prefix(9).enumerated()), id: \.element.id) { index, jar in
@@ -105,25 +118,28 @@ struct NetRelishApp: App {
                 Button("Command Palette…") { workbench.showPalette = true }.keyboardShortcut("k", modifiers: .command)
                 Button(workbench.showPanel ? "Hide Panel" : "Show Panel") { workbench.showPanel.toggle() }
                     .keyboardShortcut("i", modifiers: [.command, .option])
+                // pageInFront is nil while the Zest window is in front: these act on a tab, and
+                // the page in front is then a tool (ADR 0015).
                 Button("Capture This Page") { workbench.captureActivePage() }.keyboardShortcut("d", modifiers: .command)
-                    .disabled(workbench.benchTab == nil)
+                    .disabled(workbench.pageInFront == nil)
                 Button("Seal") { Task { await workbench.sealActiveTab() } }.keyboardShortcut("s", modifiers: .command)
-                    .disabled(workbench.benchTab == nil)
+                    .disabled(workbench.pageInFront == nil)
                 Button(workbench.isReading ? "Back to the Page" : "Reader View") { Task { await workbench.toggleReader() } }
                     .keyboardShortcut("r", modifiers: [.command, .shift])
-                    .disabled(workbench.benchTab == nil)
+                    .disabled(workbench.pageInFront == nil)
                 Divider()
                 Button("Fill from Me") { workbench.fillFromMe() }.keyboardShortcut("f", modifiers: [.command, .shift])
-                    .disabled(workbench.benchTab == nil || workbench.isReading)
+                    .disabled(workbench.pageInFront == nil || workbench.isReading)
             }
             CommandMenu("Tab") {
                 Button("New Tab") { workbench.newTab() }.keyboardShortcut("t", modifiers: .command)
                 Button(workbench.comparison != nil ? "Close Comparison"
                        : workbench.savedCopy != nil ? "Close Saved Copy" : "Close Tab") { workbench.closeActiveTab() }
                     .keyboardShortcut("w", modifiers: .command)
-                    .disabled(workbench.benchTab == nil && workbench.savedCopy == nil && workbench.comparison == nil)
-                Button(workbench.benchTab?.isPinned == true ? "Unpin Tab" : "Pin Tab") { workbench.togglePinActiveTab() }
-                    .keyboardShortcut("p", modifiers: [.command, .shift]).disabled(workbench.benchTab == nil)
+                    .disabled(workbench.zestInFront
+                              || (workbench.benchTab == nil && workbench.savedCopy == nil && workbench.comparison == nil))
+                Button(workbench.pageInFront?.isPinned == true ? "Unpin Tab" : "Pin Tab") { workbench.togglePinActiveTab() }
+                    .keyboardShortcut("p", modifiers: [.command, .shift]).disabled(workbench.pageInFront == nil)
             }
         }
 
@@ -131,6 +147,20 @@ struct NetRelishApp: App {
         Settings {
             MeSettingsView(vault: workbench.vault)
         }
+
+        // Window › Zest: the four free Zest tools, offline (ADR 0015, ADR 0033). A `Window`
+        // scene gets its Window-menu item from SwiftUI. No keyboard shortcut: ⌘⇧Z is Redo.
+        Window("Zest", id: "zest") {
+            ZestWindow(workbench: workbench)
+        }
+        .defaultSize(width: 1180, height: 820)
+
+        // Help › Acknowledgments opens it; it keeps no item of its own in the Window menu.
+        Window("Acknowledgments", id: Acknowledgments.windowId) {
+            AcknowledgmentsView()
+        }
+        .defaultSize(width: 680, height: 720)
+        .commandsRemoved()
 
         #if DEBUG
         // A secondary `Window` scene gets its item in the Window menu from SwiftUI.
@@ -160,6 +190,9 @@ struct ContentView: View {
         .navigationSubtitle("\(workbench.itemCount) \(workbench.itemCount == 1 ? "item" : "items")")
         .task { await workbench.observe() }
         .task { await workbench.runSweep() }
+        // Registers this window as the main one, so a web link from Zest brings it forward.
+        // A view leaving its window says nil, which is ignored: the reference is weak.
+        .background(WindowReader { window in if let window { workbench.mainWindow = window } })
         .sheet(isPresented: $workbench.showPalette) {
             PaletteView(workbench: workbench)
         }

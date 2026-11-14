@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>zest fixture</title>
+</head>
+<body>
+<p>Zest host fixture. ZestHostTests serves this through the real zest: scheme handler.</p>
+<script>
+  // What this page found in Zest's store when it loaded, before writing anything itself.
+  // The key comes from the query string, so every test run uses its own; the page writes
+  // only when asked to (?write=1), so a second view proves it reads what the first wrote.
+  var params = new URLSearchParams(location.search);
+  var key = params.get('key') || 'zest-fixture';
+  window.fixtureFound = String(localStorage.getItem(key));
+  if (params.get('write') === '1') localStorage.setItem(key, 'kept');
+</script>
+</body>
+</html>

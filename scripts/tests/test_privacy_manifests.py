@@ -26,7 +26,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 BUNDLES = {
     "NetRelish.app": {
         "manifest": "Resources/PrivacyInfo.xcprivacy",
-        "sources": ["Sources/App", "Sources/UI", "Sources/Shelf", "Sources/Bench", "Sources/Vault",
+        "sources": ["Sources/App", "Sources/UI", "Sources/Shelf", "Sources/Bench", "Sources/Vault", "Sources/Zest",
                     "Sources/Pantry"],
     },
     "NetRelishShare.appex": {

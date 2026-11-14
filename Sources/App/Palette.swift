@@ -43,7 +43,7 @@ enum PaletteSource {
 
     static func commands(_ workbench: Workbench) -> [PaletteRow] {
         var rows: [PaletteRow] = []
-        if workbench.benchTab != nil {
+        if workbench.pageInFront != nil {
             rows.append(PaletteRow(id: "cmd.capture", kind: .command, title: "Capture this page",
                                    subtitle: "Into Brine", shortcut: "⌘D") { workbench.captureActivePage() })
             rows.append(PaletteRow(id: "cmd.seal", kind: .command, title: "Seal this page",
@@ -59,7 +59,7 @@ enum PaletteSource {
                                        subtitle: "From your card", shortcut: "⌘⇧F") { workbench.fillFromMe() })
             }
             rows.append(PaletteRow(id: "cmd.close", kind: .command, title: "Close Tab", shortcut: "⌘W") { workbench.closeActiveTab() })
-            let pinned = workbench.benchTab?.isPinned == true
+            let pinned = workbench.pageInFront?.isPinned == true
             rows.append(PaletteRow(id: "cmd.pin", kind: .command, title: pinned ? "Unpin Tab" : "Pin Tab",
                                    shortcut: "⌘⇧P") { workbench.togglePinActiveTab() })
         }
