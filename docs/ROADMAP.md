@@ -81,7 +81,7 @@ Launch target: **Dec 14, 2026**. On Nov 1 Ryan held the date and cut the scope
 | P2 Seal | Saved copies, search, Reader view, Smart Jars, the Panel | Oct 5–16 | Done |
 | P3 Recipes + Shortcuts + Share | Share menu, Shortcuts, Seal & Summarize | Oct 19–30 | Done. Seal & Summarize merged Nov 5 |
 | P4 Pro | Reseal & diff, provenance export, buying Pro | Nov 2–13 | Reseal & diff, provenance export and buying Pro (StoreKit 2) merged. The Direct build's license key is built (Creem, ADR 0027); it goes live once the Creem products and key are set up |
-| P5 App Store prep | Sandbox and privacy review, StoreKit 2, accessibility, onboarding | Nov 16–25 | Not started |
+| P5 App Store prep | Sandbox and privacy review, StoreKit 2, accessibility, onboarding | Nov 16–25 | StoreKit 2 done in P4. Sandbox and privacy review in review (ADR 0032) |
 | P6 TestFlight + launch | Testers, App Store listing, submission | Nov 30 – Dec 11 | Not started |
 
 Previews 0.4.0–0.4.2 ship the finished phases as a signed direct download

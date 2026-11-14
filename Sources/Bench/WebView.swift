@@ -198,6 +198,16 @@ final class JarWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     }
 
     func webViewDidClose(_ webView: WKWebView) { onClose?() }
+
+    /// A page asking for the camera or microphone. 1.0 says no, every time, without asking
+    /// macOS: the app has no camera or microphone entitlement, and a capture request that
+    /// reached the system without one could end the app (ADR 0032). The page sees a refusal.
+    func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+                 initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType,
+                 decisionHandler: @escaping @MainActor @Sendable (WKPermissionDecision) -> Void) {
+        log.info("refused capture type \(type.rawValue, privacy: .public) for \(origin.host, privacy: .private) in jar \(self.jarId, privacy: .public)")
+        decisionHandler(.deny)
+    }
 }
 
 extension WKWebView {

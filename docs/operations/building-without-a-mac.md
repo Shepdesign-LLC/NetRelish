@@ -11,6 +11,8 @@ sources:
   - code: scripts/gen-pantry.swift
   - code: design/symbols.svg
   - code: design/NetRelish.json
+  - code: Resources/PrivacyInfo.xcprivacy
+  - code: Sources/ShareExtension/PrivacyInfo.xcprivacy
 verified_at: 36f74b2
 ---
 
@@ -70,6 +72,14 @@ suites do run in the session.
 > `@MainActor`. A `static let` on a type that is not `Sendable`, or a captured `var` in a
 > closure that may run elsewhere, is a compile error, not a warning, and the session will
 > not tell you.
+
+> ⚠️ **Only the app's privacy manifest goes in `Resources/`.** Everything in `Resources/` is
+> copied flat into the app's Contents/Resources (`project.yml:84`), so a second
+> `PrivacyInfo.xcprivacy` anywhere in the app's folders fails the build with "Multiple
+> commands produce". XcodeGen treats a `.xcprivacy` it doesn't know as a resource of the
+> target whose folder holds it: the Share extension's sits in `Sources/ShareExtension`, the
+> Pantry framework's in `Sources/Pantry`. CI checks all three landed in the built app. What
+> they say is [[privacy-and-sandbox]].
 
 > ⚠️ **Some checks on a pull request are not `.github/workflows/ci.yml`.** "Vercel Security Review" reports
 > only that findings exist and links to the Vercel dashboard, which a cloud session cannot

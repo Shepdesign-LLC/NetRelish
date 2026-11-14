@@ -157,6 +157,7 @@ change this definition, fix the pathspec in
 | `Sources/Zest/`, `Resources/Zest/`, Zest's store in `JarProfile`, `pageInFront` and the Zest gating in the Workbench | [[zest-window]] |
 | CI workflows, `project.yml`, the generator scripts, how generated files are checked | [[building-without-a-mac]] |
 | The Release workflow, release notes, the license address a release is built with | [[releasing-a-preview]] |
+| Entitlements, Info.plist privacy keys, a `PrivacyInfo.xcprivacy`, a new UserDefaults/file-date/disk-space/boot-time call, a WebKit permission delegate | [[privacy-and-sandbox]] |
 
 The table grows with the wiki. An area with no row has no page yet.
 
