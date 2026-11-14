@@ -219,7 +219,7 @@ const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
   await zi.focus('#cRest summary'); await zi.keyboard.press('Enter');
   ok(await zi.$eval('#cRest', d => d.open) && await ziVis('#cTitle') && await zi.inputValue('#cTitle') === 'Kept across layouts', 'ZestImage: that disclosure opens by keyboard, and the hidden Title kept what was typed');
   await zi.click('#layoutGrid [data-l="title"]');
-  ok(await ziShown() === 'title byline' && await zi.inputValue('#cTitle') === 'Kept across layouts' && (await zi.$eval('#stageSvg', e => e.textContent)).includes('Kept across'), 'ZestImage: switching back shows Title again with its value, and the stage draws it');
+  ok(await ziShown() === 'title byline' && await zi.inputValue('#cTitle') === 'Kept across layouts' && (await zi.$eval('#stageSvg', e => [...e.querySelectorAll('tspan')].map(t => t.textContent).join(' '))).includes('Kept across'), 'ZestImage: switching back shows Title again with its value, and the stage draws it');   // read line by line: a balanced headline may break between the two words, and textContent glues lines without the space
 
   ok(await ziVis('#bExport') && await zi.$eval('#exMenu', d => !d.open) && !(await ziVis('#bAlt')) && !(await ziVis('#bManifest')) && !(await ziVis('#bOg')), 'ZestImage: one Export button; alt.txt, Manifest and the OG snippet wait behind More');
   await zi.focus('#exMenu summary'); await zi.keyboard.press('Enter');

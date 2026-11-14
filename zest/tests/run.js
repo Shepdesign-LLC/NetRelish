@@ -65,7 +65,7 @@ function runNode(args, capture) {
   const servers = await Promise.all(Object.entries(SERVERS).map(([p, d]) => serve(+p, d)));
   let failed = 0;
 
-  const ALL = ['test.js', 'handoff2.js', 'topology.js', 'mobile.js', 'sound.js'];
+  const ALL = ['test.js', 'handoff2.js', 'topology.js', 'mobile.js', 'sound.js', 'cards.js'];
   const picked = process.argv.slice(2).filter(a => a.endsWith('.js'));
   for (const suite of picked.length ? picked : ALL) {
     console.log(`\n=== ${suite} ===`);

@@ -41,6 +41,29 @@ series (Part 3 of 7) · Logo lockup only.
 Each layout is a small template function over the tokens, the same way ZestMail
 blocks are. A new layout is one function.
 
+The eight share one grid and one set of parts, so a set of cards reads as one
+series:
+
+- **Grid.** Margins come from both sides of the canvas, and each layout picks a
+  wide, square or tall composition from the ratio, so a 3:1 banner and a story
+  are both composed, not stretched.
+- **Color.** The brand's 11-step `ramp` (derived from the primary the way the
+  studio does when a file has none) gives the tints, deep tones and the ladder
+  of steps where a color field meets the page. The primary is always the
+  brand's literal value. Every line of type is set in the color that reads on
+  what it sits on: 4.5:1, or 3:1 for big bold type.
+- **Type.** Every line is measured before it is set. A word never breaks
+  across lines; a headline steps down in size, then the picture or field gives
+  it room, before anything is cut. Bylines and labels never go under 0.042 of
+  the short side, about 11px when a 1200px card shows in a feed.
+- **Parts.** A footer rail (brand mark and byline), a kicker chip with the
+  brand's radius, the brand initial set tone-on-tone, and the logo placed by
+  its measured shape.
+
+The layout picker shows each one live, in the current brand, mode and target.
+`tests/cards.js` checks all eight across every target, both modes and both
+sample brands.
+
 ## Ratios and targets (one click renders all)
 
 | Target | Size | Notes |
