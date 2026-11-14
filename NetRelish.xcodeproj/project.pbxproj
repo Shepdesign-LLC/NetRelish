@@ -18,6 +18,7 @@
 		0D3D276ECCC65CD9DB85C29F /* PantryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3088C168536BDBDBD5110E0 /* PantryStore.swift */; };
 		108C759123D279973DE41590 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA87391BDD78F0632B08A29 /* ShareViewController.swift */; };
 		114158F3743BA3992CCE19BB /* Pantry.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3D40C86B7681871F9D11011A /* Pantry.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		156769DAB89CA2CEEC5F3F7D /* ZestHostTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9916EE7250F5748A7E32C279 /* ZestHostTests.swift */; };
 		185E141DECA1F9081D1894B2 /* Summarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B2C759915C3BCD24B445D73 /* Summarizer.swift */; };
 		1AA0272D59E073AAB9154DF5 /* VaultStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18574D3272AE9DCF11A5F999 /* VaultStore.swift */; };
 		1CF9373273D94B6D52B49ACE /* JarIsolationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80AA83881FEF26447C9DDD1E /* JarIsolationTests.swift */; };
@@ -29,12 +30,15 @@
 		25876C40D8B8A69067C6E12E /* FormFill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43E13803770E245554A7C7A2 /* FormFill.swift */; };
 		2A048A04EBC2F87C7E0A38EB /* TokenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C5376395DE69F85C624CDC9 /* TokenTests.swift */; };
 		2A2DE6B7BCD41683B2C96321 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = A71E55B24F31AB432801A1C5 /* KeyboardShortcuts */; };
+		2A88B505A684B364D3FBD014 /* ZestWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97F22385C75BBD530C9DD352 /* ZestWebView.swift */; };
 		2D5596839C173E99928E6E39 /* V2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C8DF881C400CE48467D0C06 /* V2.swift */; };
 		2F038A14DE14347D6726F9AA /* ShareInboxTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83AC47E2C1EB9AD46ED486B0 /* ShareInboxTests.swift */; };
 		2F0962B6C3B05D3F219EF56B /* SealPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41206D34D0C5D9D693B0EC0 /* SealPerformanceTests.swift */; };
 		3082C4319551742BC2271B52 /* MeOnboardingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98A9AC161F49C3D3FBDEC67 /* MeOnboardingSheet.swift */; };
+		328F722AAF4DFDB3A6D9FC30 /* ZestSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 084CC73B9E9E2DBC7825A0E1 /* ZestSchemeHandler.swift */; };
 		33BF82DDE63475727CBC6DB1 /* PaletteSourceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 740668DF1C9796AB0B920873 /* PaletteSourceTests.swift */; };
 		3449309B5250DB469701ACEB /* Pantry.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D40C86B7681871F9D11011A /* Pantry.framework */; };
+		362CC087D04DE7890139488A /* ZestFilesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23D50061D31EE5C508DDE71F /* ZestFilesTests.swift */; };
 		38430566B9E533B17C33E529 /* ProvenanceWorker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BE4B6CC1B5D041353ECB4AE /* ProvenanceWorker.swift */; };
 		3B3EC063044298EED335234E /* AssetSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93BF3FF36A0C57425D7F9B4C /* AssetSections.swift */; };
 		3D8A5BF4A9D27DB30A466463 /* SealDemo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1348DA8E44DDB79358705C26 /* SealDemo.swift */; };
@@ -65,6 +69,7 @@
 		6C7A3D2528E20349BCF75357 /* SummaryWorker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E682B029A297D165B7E4BF7 /* SummaryWorker.swift */; };
 		6DF98DD9B52E6A421EB0B763 /* Tab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F9C3D5AFFA1CE9A9EE3EBAF /* Tab.swift */; };
 		7131964397BDD2A3E1BF68F6 /* IdentityFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = 141FB6A827355E5480CE90CE /* IdentityFields.swift */; };
+		722252E5EBA10986C9C18FBE /* Acknowledgments.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF7CAE477CFD59CA325127EF /* Acknowledgments.swift */; };
 		7286B110EE05E86E28BE14CE /* defuddle.js in Resources */ = {isa = PBXBuildFile; fileRef = 931BEC49FE1F306E1011076C /* defuddle.js */; };
 		74492C9667F54D60BB05534B /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AA2B804BABD2B9C3897FC5F /* Environment.swift */; };
 		765643BE637A54F040FDAAA5 /* ShareTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14523A88FA996CC27AD1768F /* ShareTests.swift */; };
@@ -89,6 +94,7 @@
 		9C9666B8D0D43BECB130C95A /* Identity.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEF61F8EFF0301292F4271D2 /* Identity.swift */; };
 		A0550C98BFEF10D0BF6261AB /* ShelfView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D46826672F74157C7DA0109F /* ShelfView.swift */; };
 		A1022716C1E913FFADAAE23E /* CaptureIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519B39C9B1F8B4F5028C925E /* CaptureIntent.swift */; };
+		A10C1DCAA94902EC17ED940B /* Zest in Resources */ = {isa = PBXBuildFile; fileRef = 93596693269CCB3B9D645955 /* Zest */; };
 		A236840F375E1EFCAAAF3122 /* Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7294EB62C146D80E801CB46E /* Support.swift */; };
 		A2F447CE15F775DC1CA148C6 /* Pantry.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3D40C86B7681871F9D11011A /* Pantry.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A318FBCB7D7AAE549B1503F6 /* PantryEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FFDF4D28CFACA14CA04CA4F /* PantryEvent.swift */; };
@@ -114,12 +120,16 @@
 		C80B7DD1C500A7282051CEA4 /* FormFillTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C8701B85E904123842490DA /* FormFillTests.swift */; };
 		C8ECFD97153ED6108D0911A0 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B185230C821E9D622126BE3B /* PrivacyInfo.xcprivacy */; };
 		C995251DFE082D9FDDC43ED9 /* ShareInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D2B029B0B3F6D38E4A33B8 /* ShareInbox.swift */; };
+		CA68E4A4AE6F4A0688678199 /* ZestFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD3FD485C9BF82EFDC44739C /* ZestFiles.swift */; };
 		CD72776B669DF8E7757DA298 /* MeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9E93C49D40CA6F315D82D1 /* MeSettingsView.swift */; };
+		CE1557C011D4DFD9ACD3BD6F /* zest-fixture.html in Resources */ = {isa = PBXBuildFile; fileRef = 1F6C1E4DE37A900586BB24FD /* zest-fixture.html */; };
 		D1D77CDC285C08CD6FC1CDC6 /* VaultStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA78418D6AA0380B5C0C6CA0 /* VaultStoreTests.swift */; };
+		D261F76E1E0CFCA774369122 /* ZestRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2400B21457B1F42422F06917 /* ZestRules.swift */; };
 		D414D4C7DAC49650ABFFAE74 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 993CF81100D71BB382CD6AF1 /* Item.swift */; };
 		D74580988D778E4067BB11BA /* Provenance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D4FDF42568C0F2CA629E428 /* Provenance.swift */; };
 		D7C610F19C06EA2B34D7CBA1 /* DesignKitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B72B425EB474AE8FD25283C /* DesignKitView.swift */; };
 		D7D65C41E37B8F01A300D15B /* Recipe.swift in Sources */ = {isa = PBXBuildFile; fileRef = A17F82A86D0AE3E64EE396B1 /* Recipe.swift */; };
+		DA4C9E69AD11803E35D3B231 /* ZestWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2301D04CBD573E11B6B1C1B1 /* ZestWindow.swift */; };
 		DF5AE705B24A50299541ABC3 /* BrineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E5F151CB304C2E1710BDAFF /* BrineView.swift */; };
 		DF6ADC4BFB101F5FC27CF09C /* TokenSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98236E4D7EDD3E89F974042 /* TokenSections.swift */; };
 		DF7A46767854071B046DF46F /* SearchIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB9DBDAEEDD75CD2D0C73003 /* SearchIntent.swift */; };
@@ -212,6 +222,7 @@
 		0463DF5285B0BBF00DBF245A /* NetRelish+Behavior.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NetRelish+Behavior.swift"; sourceTree = "<group>"; };
 		06D9E228D99FDB9EFB636D2F /* ShortcutsQueryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsQueryTests.swift; sourceTree = "<group>"; };
 		07FF70502E5A8CE3DFA58804 /* NetRelish.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetRelish.swift; sourceTree = "<group>"; };
+		084CC73B9E9E2DBC7825A0E1 /* ZestSchemeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZestSchemeHandler.swift; sourceTree = "<group>"; };
 		09FC5F2BD5E382917A40D33D /* Label.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Label.swift; sourceTree = "<group>"; };
 		0BC546FDE3391574CD6970C8 /* NetRelishShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NetRelishShare.entitlements; sourceTree = "<group>"; };
 		0E7C64098202D9F54E20DBDD /* NetRelish.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NetRelish.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -226,10 +237,14 @@
 		1945281CFAD12D88F79278C7 /* Workbench.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workbench.swift; sourceTree = "<group>"; };
 		1B2C759915C3BCD24B445D73 /* Summarizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Summarizer.swift; sourceTree = "<group>"; };
 		1EFD43D9BDEBCE6AECDB40DE /* DesignKitSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignKitSnapshot.swift; sourceTree = "<group>"; };
+		1F6C1E4DE37A900586BB24FD /* zest-fixture.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "zest-fixture.html"; sourceTree = "<group>"; };
 		1F9C3D5AFFA1CE9A9EE3EBAF /* Tab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tab.swift; sourceTree = "<group>"; };
 		1FFDF4D28CFACA14CA04CA4F /* PantryEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PantryEvent.swift; sourceTree = "<group>"; };
 		218FB43BD5082731DA57EAA4 /* ComponentGallery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentGallery.swift; sourceTree = "<group>"; };
+		2301D04CBD573E11B6B1C1B1 /* ZestWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZestWindow.swift; sourceTree = "<group>"; };
 		2382FFC6AE4886B09524B28A /* ProTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProTests.swift; sourceTree = "<group>"; };
+		23D50061D31EE5C508DDE71F /* ZestFilesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZestFilesTests.swift; sourceTree = "<group>"; };
+		2400B21457B1F42422F06917 /* ZestRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZestRules.swift; sourceTree = "<group>"; };
 		24EC69005E95FF330AF6DAB1 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
 		27D2B029B0B3F6D38E4A33B8 /* ShareInbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareInbox.swift; sourceTree = "<group>"; };
 		2A27FE12151DE78EF403416A /* Summary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Summary.swift; sourceTree = "<group>"; };
@@ -287,9 +302,12 @@
 		8EE83596F73D04918B8FBF71 /* NetRelishIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetRelishIntents.swift; sourceTree = "<group>"; };
 		925A75FA2063A43C84060387 /* PantryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PantryTests.swift; sourceTree = "<group>"; };
 		931BEC49FE1F306E1011076C /* defuddle.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = defuddle.js; sourceTree = "<group>"; };
+		93596693269CCB3B9D645955 /* Zest */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Zest; path = Resources/Zest; sourceTree = SOURCE_ROOT; };
 		93BF3FF36A0C57425D7F9B4C /* AssetSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetSections.swift; sourceTree = "<group>"; };
 		953B97315E6F69B886F253AD /* WebViewTitleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewTitleTests.swift; sourceTree = "<group>"; };
+		97F22385C75BBD530C9DD352 /* ZestWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZestWebView.swift; sourceTree = "<group>"; };
 		984980283B9ECA8368B80E51 /* SealTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SealTests.swift; sourceTree = "<group>"; };
+		9916EE7250F5748A7E32C279 /* ZestHostTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZestHostTests.swift; sourceTree = "<group>"; };
 		993CF81100D71BB382CD6AF1 /* Item.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
 		9BA168573E80003B6999EE2C /* Recipe+Behavior.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Recipe+Behavior.swift"; sourceTree = "<group>"; };
 		9D9D4F8D3B930BF6EAF57A8F /* AppIntents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
@@ -325,6 +343,7 @@
 		DB94C5E4D22999E2CE6A97ED /* ProofExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProofExport.swift; sourceTree = "<group>"; };
 		DD00490801AACE6526C5F44E /* GeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorTests.swift; sourceTree = "<group>"; };
 		DD5099EA2A36C261D6DFAF15 /* BenchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchView.swift; sourceTree = "<group>"; };
+		DF7CAE477CFD59CA325127EF /* Acknowledgments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Acknowledgments.swift; sourceTree = "<group>"; };
 		E3088C168536BDBDBD5110E0 /* PantryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PantryStore.swift; sourceTree = "<group>"; };
 		E62DA08CCC33F51D240D052F /* PageDiffTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageDiffTests.swift; sourceTree = "<group>"; };
 		E90F2185D73165C21FF2FB83 /* Schema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Schema.swift; sourceTree = "<group>"; };
@@ -339,6 +358,7 @@
 		F5D49A2BFCFE81078325CCF0 /* PaletteMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaletteMatcher.swift; sourceTree = "<group>"; };
 		F90136E09BA2F6D18415C368 /* OKLCHTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OKLCHTests.swift; sourceTree = "<group>"; };
 		FA76A0DEB6C0ACEB1CC3313B /* V3.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V3.swift; sourceTree = "<group>"; };
+		FD3FD485C9BF82EFDC44739C /* ZestFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZestFiles.swift; sourceTree = "<group>"; };
 		FE46A525A1828AEFEDABF24D /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		FEEC4CF61D3952AB4C374DBC /* TimestampService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimestampService.swift; sourceTree = "<group>"; };
 		FEF61F8EFF0301292F4271D2 /* Identity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Identity.swift; sourceTree = "<group>"; };
@@ -386,6 +406,18 @@
 			path = Intents;
 			sourceTree = "<group>";
 		};
+		029326B01D1E24E5FDCAE2A7 /* Zest */ = {
+			isa = PBXGroup;
+			children = (
+				FD3FD485C9BF82EFDC44739C /* ZestFiles.swift */,
+				2400B21457B1F42422F06917 /* ZestRules.swift */,
+				084CC73B9E9E2DBC7825A0E1 /* ZestSchemeHandler.swift */,
+				97F22385C75BBD530C9DD352 /* ZestWebView.swift */,
+				2301D04CBD573E11B6B1C1B1 /* ZestWindow.swift */,
+			);
+			path = Zest;
+			sourceTree = "<group>";
+		};
 		146CA189A5E0CAD46E4CFFC3 /* Diff */ = {
 			isa = PBXGroup;
 			children = (
@@ -400,6 +432,7 @@
 				753728FA4781BBFCA0A35FA2 /* Extraction */,
 				C61649A4E36CCBE8276372C9 /* AppIcon.icns */,
 				6C7317EF5FFB5B794B8C879E /* PrivacyInfo.xcprivacy */,
+				93596693269CCB3B9D645955 /* Zest */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -459,6 +492,7 @@
 				D1F4912E46C27B6695564D55 /* Provenance */,
 				C3C24B8A095CBA7AF7491018 /* Seal */,
 				D492BD29A2E197107C5631B8 /* Vault */,
+				A40AFEF77983A9CB503576D6 /* Zest */,
 				80AA83881FEF26447C9DDD1E /* JarIsolationTests.swift */,
 				4202F97AB8C354B96FD03F49 /* LicenseTests.swift */,
 				F90136E09BA2F6D18415C368 /* OKLCHTests.swift */,
@@ -502,6 +536,7 @@
 		47FC7E5ADBD65861931ADF7F /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				F0C1C07237B3DFFA82588323 /* Fixtures */,
 				3D5856915087BB81AB666502 /* GeneratorTests */,
 				3CEA8E909AC71CE83B7814DE /* NetRelishTests */,
 				AF945A85977CAA135ACE9385 /* PantryTests */,
@@ -579,6 +614,7 @@
 				27A1D2D795588F25BAC99162 /* Shelf */,
 				30F8F8026066413CCE91F78A /* UI */,
 				41BFD33DCEB98DB130019492 /* Vault */,
+				029326B01D1E24E5FDCAE2A7 /* Zest */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -629,6 +665,15 @@
 			path = DesignKit;
 			sourceTree = "<group>";
 		};
+		A40AFEF77983A9CB503576D6 /* Zest */ = {
+			isa = PBXGroup;
+			children = (
+				23D50061D31EE5C508DDE71F /* ZestFilesTests.swift */,
+				9916EE7250F5748A7E32C279 /* ZestHostTests.swift */,
+			);
+			path = Zest;
+			sourceTree = "<group>";
+		};
 		AB8A0C95C34CB4DC7B3F6AB8 /* Pantry */ = {
 			isa = PBXGroup;
 			children = (
@@ -673,6 +718,7 @@
 		B46443A4D81C208E7E10A0FE /* App */ = {
 			isa = PBXGroup;
 			children = (
+				DF7CAE477CFD59CA325127EF /* Acknowledgments.swift */,
 				1EFD43D9BDEBCE6AECDB40DE /* DesignKitSnapshot.swift */,
 				83A0FA70EC9D9597C5C56145 /* Info.plist */,
 				78C81F2C612BAEDD03DC4936 /* License.swift */,
@@ -760,6 +806,14 @@
 				01EAEAFFCC711D2B3090AFD1 /* SealDrip.swift */,
 			);
 			path = Seal;
+			sourceTree = "<group>";
+		};
+		F0C1C07237B3DFFA82588323 /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				1F6C1E4DE37A900586BB24FD /* zest-fixture.html */,
+			);
+			path = Fixtures;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -953,6 +1007,7 @@
 			files = (
 				0AD4F161E0451C3360A98861 /* AppIcon.icns in Resources */,
 				E731F6EA41675098C8A640FD /* PrivacyInfo.xcprivacy in Resources */,
+				A10C1DCAA94902EC17ED940B /* Zest in Resources */,
 				BFC508A3F37E9D09E5C82C4B /* defuddle-LICENSE.txt in Resources */,
 				7286B110EE05E86E28BE14CE /* defuddle.js in Resources */,
 			);
@@ -963,6 +1018,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BFF64CB23220037A4F48B102 /* NetRelish.storekit in Resources */,
+				CE1557C011D4DFD9ACD3BD6F /* zest-fixture.html in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1011,6 +1067,8 @@
 				2A048A04EBC2F87C7E0A38EB /* TokenTests.swift in Sources */,
 				D1D77CDC285C08CD6FC1CDC6 /* VaultStoreTests.swift in Sources */,
 				7E5E44B7C50F88A69AA2B191 /* WebViewTitleTests.swift in Sources */,
+				362CC087D04DE7890139488A /* ZestFilesTests.swift in Sources */,
+				156769DAB89CA2CEEC5F3F7D /* ZestHostTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1018,6 +1076,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				722252E5EBA10986C9C18FBE /* Acknowledgments.swift in Sources */,
 				3B3EC063044298EED335234E /* AssetSections.swift in Sources */,
 				EE398B6FA8AA4A3011A5396A /* BenchView.swift in Sources */,
 				DF5AE705B24A50299541ABC3 /* BrineView.swift in Sources */,
@@ -1059,6 +1118,11 @@
 				1AA0272D59E073AAB9154DF5 /* VaultStore.swift in Sources */,
 				A91B7E331C81CC4162052AA0 /* WebView.swift in Sources */,
 				C0289B2F4C89841CDA57E227 /* Workbench.swift in Sources */,
+				CA68E4A4AE6F4A0688678199 /* ZestFiles.swift in Sources */,
+				D261F76E1E0CFCA774369122 /* ZestRules.swift in Sources */,
+				328F722AAF4DFDB3A6D9FC30 /* ZestSchemeHandler.swift in Sources */,
+				2A88B505A684B364D3FBD014 /* ZestWebView.swift in Sources */,
+				DA4C9E69AD11803E35D3B231 /* ZestWindow.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
