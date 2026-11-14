@@ -69,6 +69,21 @@ final class ZestWindowModel {
 
     /// Tools made so far, for tests.
     var madeTools: Set<ZestTool> { Set(views.keys) }
+
+    /// File › Print… for the tool in front, with Save as PDF in the print panel. A tool's own
+    /// `window.print()` has nothing to call in the app's web view, so this is how Zest MD's
+    /// PDF export happens in the app.
+    func printTool(in window: NSWindow?) {
+        guard let web = views[tool]?.webView else { return }
+        let operation = web.printOperation(with: NSPrintInfo.shared)
+        // WebKit lays the page out for paper itself, but its print view comes out blank with no frame.
+        operation.view?.frame = web.bounds
+        if let window {
+            operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
+        } else {
+            _ = operation.run()
+        }
+    }
 }
 
 struct ZestWindow: View {
@@ -99,6 +114,7 @@ struct ZestWindow: View {
                 model.openInJar = { [workbench, openWindow] url in
                     Self.openInActiveJar(url, workbench: workbench, openWindow: openWindow)
                 }
+                workbench.printZest = { [model, workbench] in model.printTool(in: workbench.zestWindow) }
             }
     }
 

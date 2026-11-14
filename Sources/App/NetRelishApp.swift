@@ -88,6 +88,14 @@ struct NetRelishApp: App {
             CommandGroup(after: .help) {
                 AcknowledgmentsCommand()
             }
+            // File › Print…: the Zest tool in front, Save as PDF included (Zest MD's PDF export).
+            // A tool's window.print() has nothing to call in the app's web view. It stands down
+            // while a jar's page is in front; a page that handles ⌘P itself still gets it first.
+            CommandGroup(replacing: .printItem) {
+                Button("Print…") { workbench.printZest?() }
+                    .keyboardShortcut("p", modifiers: .command)
+                    .disabled(!workbench.zestInFront)
+            }
             CommandMenu("Jars") {
                 ForEach(Array(workbench.jars.prefix(9).enumerated()), id: \.element.id) { index, jar in
                     Button(jar.name) { workbench.activate(index: index) }

@@ -137,10 +137,19 @@ private func emptyRoot() throws -> URL {
         config.userContentController.userScripts.contains { ZestWebView.isStub($0) || $0.source.contains("netrelish") }
     }
 
+    private func dropsPeerConnections(_ config: WKWebViewConfiguration) -> Bool {
+        config.userContentController.userScripts.contains { $0.source == ZestWebView.noPeerConnectionsSource }
+    }
+
     @Test("A Zest view carries the stub, the zest: scheme, the rule list's store and Zest's store")
     func zestConfiguration() async throws {
         let config = ZestWebView.configuration(rules: try await compiledRules(), root: try emptyRoot())
         #expect(config.userContentController.userScripts.contains { ZestWebView.isStub($0) })
+        // No peer connections, in every frame: WebRTC reaches the network with no URL load.
+        #expect(config.userContentController.userScripts.contains {
+            $0.source == ZestWebView.noPeerConnectionsSource && !$0.isForMainFrameOnly
+                && $0.injectionTime == .atDocumentStart
+        })
         #expect(config.urlSchemeHandler(forURLScheme: "zest") != nil)
         #expect(config.websiteDataStore.identifier == JarProfile.zestStoreIdentifier)
         #expect(config.preferences.javaScriptCanOpenWindowsAutomatically == false)
@@ -164,6 +173,7 @@ private func emptyRoot() throws -> URL {
     func jarConfigurationIsClean() throws {
         let tab = JarWebView(jarId: "stub-test-\(UUID().uuidString)").webView.configuration
         #expect(!carriesStub(tab))
+        #expect(!dropsPeerConnections(tab))
         #expect(tab.urlSchemeHandler(forURLScheme: "zest") == nil)
         #expect(tab.websiteDataStore.identifier != JarProfile.zestStoreIdentifier)
 
@@ -190,6 +200,9 @@ private func emptyRoot() throws -> URL {
         try #require(web.webView.title == "jar page", "the jar page never loaded")
         let seen = try await web.webView.evaluateJavaScript("typeof window.netrelish")
         #expect(seen as? String == "undefined")
+        // Zest takes peer connections away; a jar's pages keep what WebKit gives them.
+        let rtc = try await web.webView.evaluateJavaScript("typeof window.RTCPeerConnection")
+        #expect(rtc as? String == "function")
         window.orderOut(nil)
     }
 }
@@ -581,6 +594,23 @@ private func emptyRoot() throws -> URL {
         })()
         """
         #expect(try await string(web, probe) == "true,true,false,app,0,undefined")
+        await discard(store, windows: [window])
+    }
+
+    @Test("A Zest page has no peer connections, and can't put them back")
+    func noPeerConnections() async throws {
+        let rules = try await compiledRules()
+        let store = UUID()
+        let (web, window) = zestView(rules: rules, root: try fixtureRoot(), store: store)
+        try await load(web, try #require(URL(string: "zest://app/")))
+        let probe = """
+        (() => {
+          try { window.RTCPeerConnection = function () {}; } catch (e) {}
+          return [typeof RTCPeerConnection, typeof webkitRTCPeerConnection, typeof RTCDataChannel,
+                  typeof RTCIceCandidate].join(',');
+        })()
+        """
+        #expect(try await string(web, probe) == "undefined,undefined,undefined,undefined")
         await discard(store, windows: [window])
     }
 

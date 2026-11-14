@@ -3,6 +3,11 @@
 // of Zest's offline rule, under the static scan and the Content-Security-Policy, and the one
 // that holds even if a tool's markup is wrong. Non-negotiable 5: the tools add no endpoint.
 //
+// A rule list matches URL loads only. WebRTC reaches the network with none (a STUN or TURN
+// server, over UDP), and no policy directive governs it, so this list doesn't stop it:
+// ZestWebView takes the peer-connection constructors away in every frame instead, and the
+// static scan fails on any use of them in the tools.
+//
 // Compiled once per launch, asynchronously. A Zest web view is never made before the list
 // is here (ZestWebView takes it as a non-optional argument), so nothing loads unblocked.
 

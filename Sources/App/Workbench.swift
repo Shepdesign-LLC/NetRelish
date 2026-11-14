@@ -162,6 +162,8 @@ final class Workbench {
     private(set) var zestInFront = false
     /// The Zest window, once it has been shown. Weak: closing it lets it go.
     @ObservationIgnored weak var zestWindow: NSWindow?
+    /// File › Print… for the Zest tool in front, set by the Zest window when it appears.
+    @ObservationIgnored var printZest: (@MainActor () -> Void)?
     /// The main window (the Shelf and the Bench), registered by `ContentView`, so a web link
     /// from a tool brings that window forward and never Settings or the Design Kit. Weak.
     @ObservationIgnored weak var mainWindow: NSWindow?

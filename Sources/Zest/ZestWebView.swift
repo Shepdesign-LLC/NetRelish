@@ -49,9 +49,24 @@ final class ZestWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     /// Whether a user script is the stub. Tests use it to look for the stub in a configuration.
     static func isStub(_ script: WKUserScript) -> Bool { script.source == stubSource }
 
+    /// No peer connections, in every frame, before any page script runs. WebRTC reaches the
+    /// network over UDP (a STUN or TURN server) with no URL load, so the rule list can't see it
+    /// and the policy header has no directive for it (non-negotiable 5). The tools use none.
+    /// Each name becomes a fixed `undefined`, so a page can't put a constructor back.
+    static let noPeerConnectionsSource = """
+    (() => {
+      for (const name of ['RTCPeerConnection', 'webkitRTCPeerConnection', 'RTCDataChannel',
+                          'RTCIceCandidate', 'RTCIceTransport', 'RTCSctpTransport', 'RTCDtlsTransport']) {
+        try { delete window[name]; } catch (e) {}
+        try { Object.defineProperty(window, name, {value: undefined, writable: false, configurable: false}); } catch (e) {}
+      }
+    })();
+    """
+
     /// The configuration every Zest view is built on: Zest's data store (never a jar's,
-    /// non-negotiable 6), the zest: scheme over `root`, the offline rule list, and the stub.
-    /// The list is not optional: without it there is no configuration, so no view loads.
+    /// non-negotiable 6), the zest: scheme over `root`, the offline rule list, the stub, and
+    /// no peer connections. The list is not optional: without it there is no configuration,
+    /// so no view loads.
     /// `dataStore` is for tests only, so they never write into, or wipe, the person's real
     /// Zest store; the app always passes nil and gets Zest's.
     static func configuration(rules: WKContentRuleList, root: URL,
@@ -62,6 +77,8 @@ final class ZestWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
         config.userContentController.add(rules)
         config.userContentController.addUserScript(
             WKUserScript(source: stubSource, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        config.userContentController.addUserScript(
+            WKUserScript(source: noPeerConnectionsSource, injectionTime: .atDocumentStart, forMainFrameOnly: false))
         config.preferences.javaScriptCanOpenWindowsAutomatically = false
         return config
     }
