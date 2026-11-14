@@ -45,17 +45,16 @@ jobs:
 
   # The copy NetRelish.app bundles (ADR 0015): Resources/Zest, built by `bash zest/build.sh --app` and committed.
   # Every step reads the committed Resources/Zest, the bytes that ship; nothing here rebuilds it in place.
-  # Enforced now: the vendor check, which holds zest/vendor/ AND Resources/Zest/vendor/ to VENDOR.lock.json
-  # (and npm), and Resources/Zest/NOTICE to the root NOTICE. Reported but not failing the PR until the tools
-  # stop loading Google Fonts and cdnjs and drop their pricing links in the app (phase 2): the rebuild-and-diff
-  # of the tools' HTML and the two offline gates. Phase 2 sets ZEST_OFFLINE_ENFORCE to 'true' below and then
-  # every step here gates the merge.
+  # Every step gates the merge: the vendor check, which holds zest/vendor/ AND Resources/Zest/vendor/ to
+  # VENDOR.lock.json (and npm), and Resources/Zest/NOTICE to the root NOTICE; the rebuild-and-diff; and the two
+  # offline gates. ZEST_OFFLINE_ENFORCE: 'false' would report the last three without failing (an emergency
+  # switch only; the tools load nothing from the network on any surface).
   app-bundle:
     name: App bundle + offline gates
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      ZEST_OFFLINE_ENFORCE: 'false'   # phase 2 flips this to 'true'
+      ZEST_OFFLINE_ENFORCE: 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
         with:
