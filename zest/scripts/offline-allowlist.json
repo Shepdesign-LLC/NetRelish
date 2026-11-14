@@ -1,7 +1,7 @@
 {
   "about": "Exceptions for scripts/offline-scan.mjs. Keep it small and narrow: every entry names the file it applies to where it can, what it lets through, and why that is not a network load and not a price or upgrade prompt. A URL in a load position (src=, srcset, srcdoc, <link href>, url(), image-set(), @import, fetch(, …) is never allowed, whatever this file says. No entry passes a URL whose path ends in a resource extension (.png, .js, .css, .woff2, …) unless it sets allowResourcePath and its match names that one exact URL (^…$, no wildcards). A library bump that brings a URL on a new host fails the scan until a reviewed entry here names it.",
   "budgetBytes": 8388608,
-  "budgetWhy": "Proposed size budget for Resources/Zest (ADR 0015, risk 3): 8 MB. Measured at 6.81 MB on 2026-11-13, of which Mermaid is 3.41 MB and the fonts 2.00 MB; the headroom covers phase 2's in-app switches and a library bump, not a new library.",
+  "budgetWhy": "Size budget for Resources/Zest (ADR 0015, risk 3): 8 MB. Measured at 6.81 MB on 2026-11-13 and, with the in-app switches, 6.89 MB (7,225,942 bytes, 143 files) on 2026-11-14, of which Mermaid is 3.41 MB and the fonts 2.00 MB; the headroom covers a library bump, not a new library.",
   "urls": [
     { "match": "^http://www\\.w3\\.org/(2000/svg|1999/xhtml|1999/xlink|2000/xmlns/|1998/Math/MathML|XML/1998/namespace)$",
       "why": "XML namespace names (xmlns): identifiers, never fetched" },

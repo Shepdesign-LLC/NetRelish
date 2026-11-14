@@ -340,7 +340,7 @@ Pricing-page one-liner: *Pick the colors and type once. Every tool inherits them
 {
   "zest": 1,
   "name": "Shepdesign",
-  "fonts": { "head": "Bricolage Grotesque", "body": "Geist", "mono": "Geist Mono", "googleFontsUrl": "…", "custom": [] },
+  "fonts": { "head": "Bricolage Grotesque", "body": "Geist", "mono": "Geist Mono", "googleFontsUrl": "", "custom": [] },
   "light": { "primary": "#1f4ed8", "ink": "#1b2130", "muted": "#4b5363", "paper": "#f2f3f5", "sheet": "#ffffff", "line": "#dde0e6", "dark": "#1b2130" },
   "dark":  { "primary": "#8fb0ff", "ink": "#e7e9ee", "muted": "#b4bac6", "paper": "#111419", "sheet": "#181c22", "line": "#2a3039", "dark": "#0f1420" },
   "ramp": ["#eef2fd", "…", "#0a1f5c"],
@@ -352,6 +352,8 @@ Pricing-page one-liner: *Pick the colors and type once. Every tool inherits them
 ```
 
 ZestMail reads `light` (its brands are single-mode: email) plus `fonts.body`, `radius`, and the identity fields it already has. Zest MD reads `light` and `dark` into its custom skin plus `fonts` into its typeface picker. ZestImage reads the palettes, `fonts`, `radius` and `type`, plus `logo`. Zest writes it; the tools import it, and — with Pro — pick it up automatically from the cloud when the same account opens them. In NetRelish, "Send to ZestMail" is a bridge call; in the browser it's a download and an import button until cloud sync lands.
+
+`fonts.googleFontsUrl` stays in the format and is always empty: every family the studio offers ships with the tools in `vendor/fonts/`, on the web and in the app, so no tool loads a font host (ADR 0015). The studio's `@font-face` export embeds the faces instead.
 
 Roles map one-to-one on purpose. Zest's four role swatches become `primary`, `ink`, `paper` (surface) and `dark` (panel); `muted`, `sheet` and `line` are derived the same way ZestMail's custom skin already derives them. No translation layer to maintain.
 

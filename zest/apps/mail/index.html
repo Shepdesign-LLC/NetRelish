@@ -6,9 +6,12 @@
 <title>ZestMail — email builder and generator</title>
 <link rel="icon" href="icons/icon-64.png" type="image/png">
 <meta name="color-scheme" content="light dark">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../vendor/fonts/fonts.css"><!-- Geist and Geist Mono for the UI, from this origin (zest/vendor): no font host on any surface -->
+<script>/* The in-app switch (ADR 0015): true in the copy NetRelish.app serves on zest://, or under the host's
+   window.netrelish stub. Parts only the web has are marked, and build.sh --app strips them from that
+   copy; .web-only hides what is left of them here, .app-only shows only here. */
+window.ZEST_IN_APP = location.protocol === 'zest:' || !!(window.netrelish && window.netrelish.host === 'app');
+if (window.ZEST_IN_APP) document.documentElement.classList.add('in-app');</script>
 <style>
 :root{ /* ZestMail wears orange (fruits.json): one fruit-dark chrome, like every Zest tool — the emails on the canvas stay whatever the brand says */
   --paper:#160d05; --sheet:#211408; --ink:#f4ede1; --ink-2:#c3b7a4; --ink-3:#a2967f; --rule:#3c2a16; /* ink-3 ≥4.5:1 on paper and sheet — verified by the contrast harness */
@@ -171,6 +174,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
 .issue code{font-family:var(--mono); font-size:11px; background:var(--sheet); padding:1px 4px; border-radius:3px}
 .stats{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px}
 .stat{background:var(--paper); border-radius:6px; padding:8px 10px} .stat b{display:block; font-size:16px; font-weight:600} .stat span{font-size:11px; color:var(--ink-3)}
+.in-app .web-only{display:none!important} html:not(.in-app) .app-only{display:none!important}
 .claude textarea{width:100%; min-height:80px; resize:vertical; background:var(--paper); border:1px solid var(--rule); border-radius:6px; padding:8px 10px; font:13px/1.45 var(--ui); color:var(--ink)}
 .claude .note{font-size:11.5px; color:var(--ink-3); margin-top:8px; line-height:1.45} .claude .note code{font-family:var(--mono)}
 .busy{display:inline-block; width:14px; height:14px; border:2px solid var(--rule); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; vertical-align:middle}
@@ -403,7 +407,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
         <button data-t="brand">Brand</button>
         <button data-t="message">Message</button>
         <button data-t="lint">Lint<span class="pill" id="lintCount">0</span></button>
-        <button data-t="claude">Claude</button>
+        <!-- web:start --><button class="web-only" data-t="claude">Claude</button><!-- web:end -->
         <button class="sheet-x" id="sheetClose" aria-label="Close panel"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
       </div>
       <div class="panel" data-active="true" id="panelBlock"></div>
@@ -425,7 +429,8 @@ button{cursor:pointer; background:none; border:0; padding:0}
         </details>
       </div>
       <div class="panel" id="panelLint"><div class="issues" id="issues"></div><div class="stats" id="stats"></div></div>
-      <div class="panel claude" id="panelClaude">
+      <!-- web:start -->
+      <div class="panel claude web-only" id="panelClaude">
         <h4>Draft <span class="pill" id="claudePill">optional</span></h4>
         <textarea id="brief" aria-label="Brief" placeholder="Describe the email: audience, purpose, sections, tone, CTA. The current brand's colors and footer are sent along."></textarea>
         <div class="row-btns"><button class="btn primary" id="btnDraft">Draft from brief</button><button class="btn" id="btnFix">Fix flagged issues</button></div>
@@ -439,6 +444,7 @@ button{cursor:pointer; background:none; border:0; padding:0}
           <div class="note" id="routeNote"></div>
         </details>
       </div>
+      <!-- web:end -->
     </aside>
   </div>
   <div class="blockbar" id="blockBar" role="group" aria-label="Selected block"><b id="blockName"></b><button type="button" data-act="up" aria-label="Move up"><svg viewBox="0 0 24 24"><path d="m6 14 6-6 6 6"/></svg></button><button type="button" data-act="down" aria-label="Move down"><svg viewBox="0 0 24 24"><path d="m6 10 6 6 6-6"/></svg></button><button type="button" data-act="dup" aria-label="Duplicate"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button><button type="button" data-act="del" aria-label="Delete"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3m-7 4v6m4-6v6M6 7l1 13h10l1-13"/></svg></button><button type="button" class="props" data-act="props"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span class="w">Properties</span></button></div>
@@ -549,6 +555,9 @@ button{cursor:pointer; background:none; border:0; padding:0}
   'use strict';
   const PRODUCT = 'ZestMail';
   const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const IN_APP = window.ZEST_IN_APP === true;   // set in <head>: the copy inside NetRelish.app
+  // Drafting calls a model over the network, so the app's copy has none of it: no tab, no panel, no request.
+  if (IN_APP) { $('#tabs [data-t="claude"]')?.remove(); $('#panelClaude')?.remove(); }
   const store = { get(k, d) { try { const v = localStorage.getItem('mailpress:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem('mailpress:' + k, JSON.stringify(v)); } catch {} } };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const uid = () => Math.random().toString(36).slice(2, 9);
@@ -1577,75 +1586,79 @@ ${preheader}${content}
     } catch {}
   });
 
-  /* ---------- Claude (bring your own key) ---------- */
-  $('#apiKey').value = store.get('apiKey', ''); $('#apiKey').addEventListener('change', () => store.set('apiKey', $('#apiKey').value.trim()));
-  $('#proxyToken').value = store.get('proxyToken', ''); $('#proxyToken').addEventListener('change', () => store.set('proxyToken', $('#proxyToken').value.trim()));
-  $('#route').value = store.get('route', 'auto'); $('#route').addEventListener('change', () => { store.set('route', $('#route').value); describeRoute(); showSetup(); });
-  const CTX = {
-    file: location.protocol === 'file:',
-    sandbox: /^(blob:|about:)/.test(location.protocol) || /\.(claudeusercontent|anthropic)\.com$/.test(location.hostname) || location.hostname === '',
-    hosted: /^https?:$/.test(location.protocol) && !!location.hostname
-  };
-  function pickRoute() {
-    const r = $('#route').value, key = $('#apiKey').value.trim();
-    if (r !== 'auto') return r;
-    if (CTX.sandbox && !key) return 'sandbox';   // claude.ai artifact preview injects its own key
-    if (key) return 'direct';
-    if (CTX.hosted) return 'proxy';
-    return 'direct';
+  /* web:start */
+  if (!IN_APP) {   // never in the app: no key, no model call, no address to call
+    /* ---------- Claude (bring your own key) ---------- */
+    $('#apiKey').value = store.get('apiKey', ''); $('#apiKey').addEventListener('change', () => store.set('apiKey', $('#apiKey').value.trim()));
+    $('#proxyToken').value = store.get('proxyToken', ''); $('#proxyToken').addEventListener('change', () => store.set('proxyToken', $('#proxyToken').value.trim()));
+    $('#route').value = store.get('route', 'auto'); $('#route').addEventListener('change', () => { store.set('route', $('#route').value); describeRoute(); showSetup(); });
+    const CTX = {
+      file: location.protocol === 'file:',
+      sandbox: /^(blob:|about:)/.test(location.protocol) || /\.(claudeusercontent|anthropic)\.com$/.test(location.hostname) || location.hostname === '',
+      hosted: /^https?:$/.test(location.protocol) && !!location.hostname
+    };
+    function pickRoute() {
+      const r = $('#route').value, key = $('#apiKey').value.trim();
+      if (r !== 'auto') return r;
+      if (CTX.sandbox && !key) return 'sandbox';   // claude.ai artifact preview injects its own key
+      if (key) return 'direct';
+      if (CTX.hosted) return 'proxy';
+      return 'direct';
+    }
+    function describeRoute() {
+      const r = pickRoute(), n = $('#routeNote');
+      n.innerHTML = {
+        direct: CTX.file
+          ? '<b style="color:var(--err)">This page is open as a local file (file://).</b> Browsers block API calls from file:// with a CORS error. Serve it over http instead — <code>npx serve</code> in the folder, or the Vercel deploy — and Direct will work. Your key is stored only in this browser and sent only to <code>api.anthropic.com</code>.'
+          : 'Direct: your key is stored only in this browser and sent straight to <code>api.anthropic.com</code>. Fine for personal use; never ship a page with a key in it.',
+        proxy: 'Server proxy: the page calls <code>/api/claude</code> on this domain and the key lives in a Vercel environment variable. This is the production route — nothing secret reaches the browser.',
+        sandbox: 'Sandboxed viewer detected: calls go to the API without a key and the viewer supplies its own. Leave the key field empty here.'
+      }[r];
+    }
+    $('#apiKey').addEventListener('input', describeRoute); describeRoute();
+    // The connection fields fold away under the brief. The fold opens by itself whenever the picked route cannot work as it stands
+    // (Direct with no key, or a file:// page) and after a call the connection refused. It never closes by itself.
+    const usable = () => pickRoute() !== 'direct' || (!!$('#apiKey').value.trim() && !CTX.file);
+    function showSetup(force) { if (force || !usable()) $('#claudeSetup').open = true; }
+    $('#apiKey').addEventListener('change', () => showSetup()); showSetup();
+    const SYSTEM = `You are a senior email developer. You output ONLY a complete HTML email document — no prose, no markdown fences.
+  Rules: table-based layout for anything side-by-side (role="presentation", cellpadding/cellspacing/border=0); a single <style> block with class-based CSS that will be inlined later; media queries for mobile stacking using the classes .container and .stack; max-width container 600px; px units only; every <img> has width, alt and style="display:block"; background-color on any cell that has a background-image; include an unsubscribe link in the footer; no flexbox, grid, position, float, SVG, forms or scripts. Modern, editorial visual design: generous spacing, one clear CTA, strong type hierarchy, restrained palette.`;
+    async function callClaude(user) {
+      const route = pickRoute(), key = $('#apiKey').value.trim();
+      if (route === 'direct' && !key) { toast('Add your Anthropic API key, or switch Route to the server proxy'); showSetup(true); $('#apiKey').focus(); return null; }
+      if (route === 'direct' && CTX.file) { toast('Local file (file://) can\'t call the API — serve the page over http first. See the note under the key field.'); showSetup(true); return null; }
+      const body = JSON.stringify({ model: $('#model').value, max_tokens: 8000, system: SYSTEM, messages: [{ role: 'user', content: user }] });
+      const headers = { 'content-type': 'application/json' };
+      let url = 'https://api.anthropic.com/v1/messages';
+      if (route === 'direct') Object.assign(headers, { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' });
+      else if (route === 'proxy') { url = '/api/claude'; const t = $('#proxyToken').value.trim(); if (t) headers['x-mailpress-token'] = t; }
+      $('#claudePill').innerHTML = '<span class="busy"></span>'; $('#btnDraft').disabled = $('#btnFix').disabled = true;
+      try {
+        let r;
+        try { r = await fetch(url, { method: 'POST', headers, body }); }
+        catch (e) { showSetup(true); throw new Error(route === 'proxy' ? 'Could not reach /api/claude — is the function deployed on this domain?' : `The browser blocked the request (CORS). This happens on file:// pages and inside sandboxed viewers. Open ${PRODUCT} over http(s) — npx serve, or the Vercel deploy — and try again.`); }
+        const data = await r.json().catch(() => ({}));
+        if ([401, 403, 404].includes(r.status)) showSetup(true);   // no key that works, or no proxy at this address: show the fields that fix it
+        if (!r.ok) throw new Error(data.error?.message || data.error || `${r.status} ${r.statusText}`);
+        const text = data.content.filter(c => c.type === 'text').map(c => c.text).join('\n');
+        const m = text.match(/```(?:html)?\s*([\s\S]*?)```/); return (m ? m[1] : text).trim();
+      } catch (e) { toast('Claude: ' + e.message, 'nope'); return null; }
+      finally { $('#claudePill').textContent = 'optional'; $('#btnDraft').disabled = $('#btnFix').disabled = false; }
+    }
+    $('#btnDraft').addEventListener('click', async () => {
+      const brief = $('#brief').value.trim(); if (!brief) return toast('Write a brief first');
+      const b = brand(); const html = await callClaude(`Brief:\n${brief}\n\nSubject line (if set): ${$('#subject').value || 'none'}. Container width: ${$('#width').value}px.\nBrand: ${b.name}. Primary ${b.primary}, text ${b.ink}, muted ${b.muted}, dark panel ${b.dark}, sheet ${b.sheet}, page ${b.paper}. Font stack: ${b.font}. Corner radius ${b.radius}px. Company ${b.company}, ${b.address}. Website ${b.website}.${b.logo ? ' Logo image: ' + b.logo + ' at ' + b.logoWidth + 'px wide.' : ''}\nPlatform: ${ESP[b.esp || 'bento'].name}. Use these merge tags verbatim where relevant: first name ${tag('first') || '(none)'}, unsubscribe URL ${tag('unsubscribe') || b.unsubscribe}, view-in-browser URL ${tag('browser') || '(none)'}. Never wrap a tag URL in extra quotes or HTML.`);
+      if (html) { src.value = html; setMode('source'); showTab('lint'); toast('Draft landed in Source — review it, then check the lint.', 'done'); }
+    });
+    $('#btnFix').addEventListener('click', async () => {
+      if (!last) return toast('Nothing to fix yet'); if (state.mode === 'build') { src.value = last.html; }
+      const flags = last.issues.filter(i => i[0] !== 'ok').map(i => `- ${i[1]}: ${i[2].replace(/<[^>]+>/g, '')}`).join('\n');
+      if (!flags) return toast('Nothing flagged');
+      const html = await callClaude(`Rewrite this email so every flagged issue is resolved while preserving the visual design as closely as email clients allow. Return the full document.\n\nFlags:\n${flags}\n\nHTML:\n${state.mode === 'build' ? last.html : src.value}`);
+      if (html) { src.value = html; setMode('source'); showTab('lint'); toast('Rewritten — compare the lint count before and after.', 'done'); }
+    });
   }
-  function describeRoute() {
-    const r = pickRoute(), n = $('#routeNote');
-    n.innerHTML = {
-      direct: CTX.file
-        ? '<b style="color:var(--err)">This page is open as a local file (file://).</b> Browsers block API calls from file:// with a CORS error. Serve it over http instead — <code>npx serve</code> in the folder, or the Vercel deploy — and Direct will work. Your key is stored only in this browser and sent only to <code>api.anthropic.com</code>.'
-        : 'Direct: your key is stored only in this browser and sent straight to <code>api.anthropic.com</code>. Fine for personal use; never ship a page with a key in it.',
-      proxy: 'Server proxy: the page calls <code>/api/claude</code> on this domain and the key lives in a Vercel environment variable. This is the production route — nothing secret reaches the browser.',
-      sandbox: 'Sandboxed viewer detected: calls go to the API without a key and the viewer supplies its own. Leave the key field empty here.'
-    }[r];
-  }
-  $('#apiKey').addEventListener('input', describeRoute); describeRoute();
-  // The connection fields fold away under the brief. The fold opens by itself whenever the picked route cannot work as it stands
-  // (Direct with no key, or a file:// page) and after a call the connection refused. It never closes by itself.
-  const usable = () => pickRoute() !== 'direct' || (!!$('#apiKey').value.trim() && !CTX.file);
-  function showSetup(force) { if (force || !usable()) $('#claudeSetup').open = true; }
-  $('#apiKey').addEventListener('change', () => showSetup()); showSetup();
-  const SYSTEM = `You are a senior email developer. You output ONLY a complete HTML email document — no prose, no markdown fences.
-Rules: table-based layout for anything side-by-side (role="presentation", cellpadding/cellspacing/border=0); a single <style> block with class-based CSS that will be inlined later; media queries for mobile stacking using the classes .container and .stack; max-width container 600px; px units only; every <img> has width, alt and style="display:block"; background-color on any cell that has a background-image; include an unsubscribe link in the footer; no flexbox, grid, position, float, SVG, forms or scripts. Modern, editorial visual design: generous spacing, one clear CTA, strong type hierarchy, restrained palette.`;
-  async function callClaude(user) {
-    const route = pickRoute(), key = $('#apiKey').value.trim();
-    if (route === 'direct' && !key) { toast('Add your Anthropic API key, or switch Route to the server proxy'); showSetup(true); $('#apiKey').focus(); return null; }
-    if (route === 'direct' && CTX.file) { toast('Local file (file://) can\'t call the API — serve the page over http first. See the note under the key field.'); showSetup(true); return null; }
-    const body = JSON.stringify({ model: $('#model').value, max_tokens: 8000, system: SYSTEM, messages: [{ role: 'user', content: user }] });
-    const headers = { 'content-type': 'application/json' };
-    let url = 'https://api.anthropic.com/v1/messages';
-    if (route === 'direct') Object.assign(headers, { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' });
-    else if (route === 'proxy') { url = '/api/claude'; const t = $('#proxyToken').value.trim(); if (t) headers['x-mailpress-token'] = t; }
-    $('#claudePill').innerHTML = '<span class="busy"></span>'; $('#btnDraft').disabled = $('#btnFix').disabled = true;
-    try {
-      let r;
-      try { r = await fetch(url, { method: 'POST', headers, body }); }
-      catch (e) { showSetup(true); throw new Error(route === 'proxy' ? 'Could not reach /api/claude — is the function deployed on this domain?' : `The browser blocked the request (CORS). This happens on file:// pages and inside sandboxed viewers. Open ${PRODUCT} over http(s) — npx serve, or the Vercel deploy — and try again.`); }
-      const data = await r.json().catch(() => ({}));
-      if ([401, 403, 404].includes(r.status)) showSetup(true);   // no key that works, or no proxy at this address: show the fields that fix it
-      if (!r.ok) throw new Error(data.error?.message || data.error || `${r.status} ${r.statusText}`);
-      const text = data.content.filter(c => c.type === 'text').map(c => c.text).join('\n');
-      const m = text.match(/```(?:html)?\s*([\s\S]*?)```/); return (m ? m[1] : text).trim();
-    } catch (e) { toast('Claude: ' + e.message, 'nope'); return null; }
-    finally { $('#claudePill').textContent = 'optional'; $('#btnDraft').disabled = $('#btnFix').disabled = false; }
-  }
-  $('#btnDraft').addEventListener('click', async () => {
-    const brief = $('#brief').value.trim(); if (!brief) return toast('Write a brief first');
-    const b = brand(); const html = await callClaude(`Brief:\n${brief}\n\nSubject line (if set): ${$('#subject').value || 'none'}. Container width: ${$('#width').value}px.\nBrand: ${b.name}. Primary ${b.primary}, text ${b.ink}, muted ${b.muted}, dark panel ${b.dark}, sheet ${b.sheet}, page ${b.paper}. Font stack: ${b.font}. Corner radius ${b.radius}px. Company ${b.company}, ${b.address}. Website ${b.website}.${b.logo ? ' Logo image: ' + b.logo + ' at ' + b.logoWidth + 'px wide.' : ''}\nPlatform: ${ESP[b.esp || 'bento'].name}. Use these merge tags verbatim where relevant: first name ${tag('first') || '(none)'}, unsubscribe URL ${tag('unsubscribe') || b.unsubscribe}, view-in-browser URL ${tag('browser') || '(none)'}. Never wrap a tag URL in extra quotes or HTML.`);
-    if (html) { src.value = html; setMode('source'); showTab('lint'); toast('Draft landed in Source — review it, then check the lint.', 'done'); }
-  });
-  $('#btnFix').addEventListener('click', async () => {
-    if (!last) return toast('Nothing to fix yet'); if (state.mode === 'build') { src.value = last.html; }
-    const flags = last.issues.filter(i => i[0] !== 'ok').map(i => `- ${i[1]}: ${i[2].replace(/<[^>]+>/g, '')}`).join('\n');
-    if (!flags) return toast('Nothing flagged');
-    const html = await callClaude(`Rewrite this email so every flagged issue is resolved while preserving the visual design as closely as email clients allow. Return the full document.\n\nFlags:\n${flags}\n\nHTML:\n${state.mode === 'build' ? last.html : src.value}`);
-    if (html) { src.value = html; setMode('source'); showTab('lint'); toast('Rewritten — compare the lint count before and after.', 'done'); }
-  });
+  /* web:end */
 
 
 

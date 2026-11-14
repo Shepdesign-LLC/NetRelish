@@ -88,14 +88,28 @@ cd tests && ZEST_CHROMIUM=… node offline.js   # gate 2: each tool with every o
   `package.json`, and the icon sizes only the install manifest names. It
   copies only the files git tracks, so a `.DS_Store` or a scratch file in
   `apps/` never reaches the app (a new file must be `git add`ed before it
-  ships). Same input, same bytes. Never edit `Resources/Zest` by hand; rebuild it and
-  commit it with the change that caused it. `bash build.sh` with no argument
-  still builds `dist/` for the web, unchanged.
+  ships). It strips the parts only the web has, which the tools mark
+  `<!-- web:start -->` … `<!-- web:end -->` in HTML and `/* web:start */` …
+  `/* web:end */` in script and style (pricing, Pro prompts, drafting with a
+  model, the service worker, the install manifest), and writes
+  `Resources/Zest/README.md`. Same input, same bytes. Never edit
+  `Resources/Zest` by hand; rebuild it and commit it with the change that
+  caused it. `bash build.sh` with no argument builds `dist/` for the web,
+  with `vendor/` copied to `dist/vendor/` (the lock stays out).
+- **One switch in each tool.** `IN_APP` is true on `zest:` or under the
+  host's `window.netrelish` stub (`host: 'app'`); it sets `html.in-app`. In the
+  app the tools register no service worker, ZestMail has no drafting tab, and
+  the studio's and ZestImage's cloud and Pro rows stay in view, greyed and
+  disabled, under one line: "These need a Zest account, so the app leaves them
+  out." `.web-only` hides what the build did not strip; `.app-only` shows only
+  in the app.
 - **Not in the app target yet.** `project.yml` excludes `Resources/Zest` from
   the flat Resources group. The Zest window adds it as one folder reference.
-- **Vendored, pinned.** `vendor/` holds DOMPurify 3.4.17, KaTeX 0.16.11 and
-  Mermaid 11.17.2 (the releases Zest MD loads from cdnjs; each file's sha384
-  equals the integrity hash in `apps/md/index.html`), and 38 font families as
+- **Vendored, pinned, on every surface.** Every page loads its fonts and
+  libraries from `vendor/` on its own origin, on the web and in the app: no
+  font host, no CDN. `vendor/` holds DOMPurify 3.4.17, KaTeX 0.16.11 and
+  Mermaid 11.17.2 (each file's sha384 equals the integrity hash in
+  `apps/md/index.html`), and 38 font families as
   latin-subset woff2 from `@fontsource` / `@fontsource-variable`, only the
   weights and styles the tools ask for, with `fonts/fonts.css` and
   `fonts/fonts.json`. To bump one, change `scripts/vendor.config.json`, run
@@ -107,16 +121,22 @@ cd tests && ZEST_CHROMIUM=… node offline.js   # gate 2: each tool with every o
   release, or if Zest MD's tag, hashes or the tests' DOMPurify pin disagree
   with the lock. It does not compare the tools' HTML in `Resources/Zest` with
   `apps/`; CI does that by rebuilding into a temp folder and diffing.
-- **Size.** 6.82 MB today: Mermaid 3.41 MB, fonts 2.00 MB, KaTeX 0.54 MB,
-  the four tools with NOTICE 0.84 MB. Proposed budget: 8 MB, in
-  `scripts/offline-allowlist.json`; the scan fails above it.
-- **The gates fail today, by design.** The tools still load Google Fonts and
-  cdnjs, and the studio and ZestImage still link to pricing. Switching them to
-  `vendor/` in the app is the next phase. CI's `app-bundle` job in
+- **Size.** 6.89 MB (7,225,942 bytes, 143 files) on 2026-11-14, 86% of
+  the 8 MB budget in `scripts/offline-allowlist.json` (the scan fails above
+  it): Mermaid 3.41 MB, fonts 2.00 MB, KaTeX 0.54 MB, Zest MD 0.42 MB, the
+  studio with NOTICE and the README 0.16 MB, ZestMail 0.17 MB, ZestImage
+  0.16 MB.
+- **Exports carry their own type.** The studio's `@font-face` export and Zest
+  MD's HTML export embed the faces they name as `data:` URIs read from
+  `vendor/`, so a saved file loads nothing; ZestImage embeds the brand faces
+  in its SVG the same way. The brand file's `googleFontsUrl` stays in the
+  format, empty.
+- **The gates pass, and they block.** CI's `app-bundle` job in
   `.github/workflows/zest-tests.yml` reads the committed `Resources/Zest`
-  (never a rebuild of it): the vendor check blocks the PR now; the two gates
-  and the rebuild-and-diff report without blocking until
-  `ZEST_OFFLINE_ENFORCE: 'true'` there.
+  (never a rebuild of it). The vendor check, the rebuild-and-diff, the static
+  scan and `offline.js` all fail the PR (`ZEST_OFFLINE_ENFORCE: 'true'`).
+  `npm test` in `tests/` runs `offline.js` and `inapp.js` too, on a fresh
+  build in a temp folder.
 
 ## Sound
 
