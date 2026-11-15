@@ -21,6 +21,14 @@ columns stacked; tap text to type, tap a block's edge or **Properties** for
 its settings. Merge tags show as chips on the canvas and export as the exact
 tag. `docs/MAIL-PRESS.md` §2.1 has the details.
 
+## Recover a draft
+
+If a restored draft prevents the editor from opening, open the same ZestMail
+address with `?recover-draft` appended (for example, `/mail/?recover-draft`).
+Confirm **Discard your current draft?** to clear only the draft before it is
+read or rendered. Saved designs and brands stay. Cancel restores the draft as
+usual. The recovery option is removed from the address after either choice.
+
 ## Run locally
 
 ZestMail loads its fonts from `../vendor/`, the folder `zest/build.sh` puts

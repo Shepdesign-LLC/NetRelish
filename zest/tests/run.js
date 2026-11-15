@@ -75,7 +75,7 @@ const APP_OUT = fs.mkdtempSync(path.join(os.tmpdir(), 'zest-app-'));
   const servers = await Promise.all(Object.entries(SERVERS).map(([p, d]) => serve(+p, d)));
   let failed = 0;
 
-  const ALL = ['test.js', 'handoff2.js', 'topology.js', 'mobile.js', 'desktop.js', 'sound.js', 'cards.js', 'inapp.js', 'offline.js'];
+  const ALL = ['test.js', 'handoff2.js', 'topology.js', 'mobile.js', 'desktop.js', 'mail-tags.js', 'sound.js', 'cards.js', 'inapp.js', 'offline.js'];
   const picked = process.argv.slice(2).filter(a => a.endsWith('.js'));
   for (const suite of picked.length ? picked : ALL) {
     console.log(`\n=== ${suite} ===`);

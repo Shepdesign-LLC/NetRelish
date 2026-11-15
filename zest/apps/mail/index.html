@@ -1069,22 +1069,41 @@ ${preheader}${content}
   }
   // a merge tag on the canvas becomes a chip: one piece the caret can't land inside, read back as the exact tag
   const tagLabel = t => { const m = t.match(/\{\{\s*([\w.]+)/); if (!m) { const own = TAG_MENU.find(([k]) => tag(k) === t); return own ? own[1].replace(/ URL$/, '').toLowerCase() : 'tag'; } const k = m[1].split('.').pop(); return k.replace(/_url$/, '').replace(/_/g, ' '); };
-  const reEsc = v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  function tagPattern() {   // {{ … }} always; a custom platform's own tags as well (*|FNAME|*, %recipient.first%, …)
-    const own = TAG_MENU.map(([k]) => tag(k)).filter(v => v && v.length >= 3 && !/^\{\{/.test(v) && !/^https?:/i.test(v)).sort((a, b) => b.length - a.length).map(reEsc);   // under 3 characters a tag would chip ordinary text
-    return new RegExp(['\\{\\{[^}]+\\}\\}', ...own].join('|'), 'g');
+  function tagMatches(text, own) {   // same leftmost, longest custom-tag precedence as before
+    const hits = []; let close = 0;
+    for (let i = 0; i < text.length;) {
+      let end = i;
+      if (text.startsWith('{{', i)) {
+        // Keep the first closing brace ahead of this opener. Neither cursor ever moves back,
+        // even when thousands of openers share a missing or invalid closing delimiter.
+        close = Math.max(close, i + 2);
+        while (close < text.length && text[close] !== '}') close++;
+        if (close > i + 2 && text.startsWith('}}', close)) end = close + 2;
+      }
+      if (end === i) {
+        const literal = own.find(t => text.startsWith(t, i));
+        if (literal) end = i + literal.length;
+      }
+      if (end > i) { hits.push([i, end]); i = end; } else i++;
+    }
+    return hits;
   }
   function chipTags(root) {
-    const pat = tagPattern();
+    // Custom tags stay literal strings, never regex syntax. There are at most TAG_MENU.length of them.
+    const own = TAG_MENU.map(([k]) => tag(k)).filter(v => v && v.length >= 3 && !v.startsWith('{{') && !/^https?:/i.test(v)).sort((a, b) => b.length - a.length);
     $$('[data-edit]', root).forEach(ed => {
       const walker = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT), hits = [];
-      while (walker.nextNode()) { pat.lastIndex = 0; if (pat.test(walker.currentNode.nodeValue)) hits.push(walker.currentNode); }
-      hits.forEach(n => {
-        const frag = document.createDocumentFragment(), re = new RegExp(pat.source, 'g'); let at = 0, m;
-        while ((m = re.exec(n.nodeValue))) {
-          if (m.index > at) frag.appendChild(document.createTextNode(n.nodeValue.slice(at, m.index)));
-          const c = document.createElement('span'); c.className = 'mtag'; c.contentEditable = 'false'; c.dataset.tag = m[0]; c.title = m[0]; c.textContent = tagLabel(m[0]);
-          frag.appendChild(c); at = m.index + m[0].length;
+      while (walker.nextNode()) {
+        const n = walker.currentNode, matches = tagMatches(n.nodeValue, own);
+        if (matches.length) hits.push([n, matches]);
+      }
+      hits.forEach(([n, matches]) => {
+        const frag = document.createDocumentFragment(); let at = 0;
+        for (const [start, end] of matches) {
+          if (start > at) frag.appendChild(document.createTextNode(n.nodeValue.slice(at, start)));
+          const raw = n.nodeValue.slice(start, end);
+          const c = document.createElement('span'); c.className = 'mtag'; c.contentEditable = 'false'; c.dataset.tag = raw; c.title = raw; c.textContent = tagLabel(raw);
+          frag.appendChild(c); at = end;
         }
         if (at < n.nodeValue.length) frag.appendChild(document.createTextNode(n.nodeValue.slice(at)));
         n.replaceWith(frag);
@@ -1698,6 +1717,14 @@ ${preheader}${content}
     if (action) { const b = document.createElement('button'); b.type = 'button'; b.textContent = action.label; b.onclick = toastAct; t.appendChild(b); } t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(hide, action ? 6000 : 2400); }
 
   /* ---------- boot ---------- */
+  // Recovery runs before reading or rendering the draft; saved designs and brands are untouched.
+  // A link alone must not erase work: the author must confirm the discard.
+  const bootUrl = new URL(location.href);
+  if (bootUrl.searchParams.has('recover-draft')) {
+    if (confirm('Discard your current draft? Your saved designs and brands will stay.')) store.set('draft', null);
+    bootUrl.searchParams.delete('recover-draft');
+    window.history.replaceState(null, '', bootUrl);
+  }
   const draft = store.get('draft', null);
   if (draft && typeof draft === 'object') { state.blocks = sanitizeBlocks(draft.blocks); if (brands.find(b => b.id === draft.brandId)) state.brandId = draft.brandId; $('#subject').value = cleanLine(draft.subject, 500); $('#preheader').value = cleanLine(draft.preheader, 500); setWidth(draft.width); setBg(draft.bg); src.value = typeof draft.src === 'string' ? draft.src : ''; state.designId = cleanId(draft.designId); state.designName = cleanLine(draft.designName, 120).trim() || 'Untitled'; }   // the draft comes back from storage: same checks as an import
   renderSaved(); renderModules(); renderInspector(); renderBrandPanel(); renderCanvas(); setMode('build');
