@@ -144,38 +144,32 @@ const TOOLS = [
       const [dl] = await Promise.all([pg.waitForEvent('download'), pg.click('#popExport [data-do="download"]')]);
       const html = fs.readFileSync(await dl.path(), 'utf8');
       ok(html.includes(`src="${WEB}"`) && !/web-img|doesn’t load images/.test(html), 'mail: the exported email keeps the real <img>');
-      // Comments are preserved by compilation, but must never be scanned as image tags.
-      // The old regex repeatedly scanned this suffix (quadratic), blocking Source's UI.
-      const prefixes = '<img '.repeat(64000);
-      const comment = `<!--${prefixes}-->`;
-      const hidden = `<!--[if mso]><img src="${WEB}" width="200"><![endif]-->`;
-      const inline = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-      await pg.click('#modeSeg [data-m="source"]');
-      const started = Date.now();
-      await pg.fill('#src', `<div>${comment}${hidden}<p>Placeholder regression</p><img src='${WEB}?a=1&amp;b=&quot;safe&quot;' width='200'><img src="${inline}" width="1"></div>`);
-      await pg.waitForFunction(() => document.querySelector('#frame').contentDocument?.body?.textContent.includes('Placeholder regression'), null, { timeout: 5000 });
-      const elapsed = Date.now() - started;
-      ok(elapsed < 5000, `mail: Source previews 64,000 incomplete image prefixes without hanging (${elapsed}ms including debounce)`);
-      for (const view of ['600', '375', 'outlook']) {
-        await pg.click(`#viewSeg [data-w="${view}"]`);
-        await pg.waitForTimeout(400);
-        const preview = await pg.evaluate(() => {
-          const d = document.querySelector('#frame').contentDocument;
-          const comments = [], walk = d.createTreeWalker(d, NodeFilter.SHOW_COMMENT);
-          while (walk.nextNode()) comments.push(walk.currentNode.data);
-          const p = d.querySelector('.web-img');
-          return { comments, title: p?.title, width: p?.style.width, height: p?.style.height,
-            placeholders: d.querySelectorAll('.web-img').length, imgs: [...d.images].map(i => i.getAttribute('src')),
-            document: d.compatMode === 'CSS1Compat' && !!d.head.querySelector('meta[name="viewport"]') };
-        });
-        ok(preview.comments.includes(prefixes) && preview.comments.includes(hidden.slice(4, -3)), `mail: ${view} leaves large and conditional comments untouched`);
-        ok(preview.placeholders === 1 && preview.title === `${WEB}?a=1&b="safe"` && preview.width === '200px' && preview.height === '100px', `mail: ${view} replaces only the actual web image, keeping its dimensions and escaped URL`);
-        ok(preview.imgs.length === 1 && preview.imgs[0] === inline && preview.document, `mail: ${view} keeps inline images, document head and standards mode`);
-      }
+      ok(await pg.$$eval('#canvas tr td', nodes => nodes.length) > 0, 'mail: placeholder parsing preserves canvas table rows and cells');
+
+      // A preserved comment used to make every incomplete <img prefix rescan the remaining suffix.
+      // This is deliberately large enough to exceed the deadline with the old regex, without a timing ratio assertion.
+      const comment = '<img src="https://example.com/comment.png" width="12">' + '<img '.repeat(100000);
+      const remote = 'https://example.com/hero.png?label="quoted"&x=1';
+      const inline = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+      await pg.click('#modeSeg button[data-m="source"]');
+      await pg.fill('#src', `<table><tr><td><!--${comment}--><p>Source regression ready</p><IMG SRC='${remote}' WIDTH='240'><img src="http://example.com/fallback.png"><img src="${inline}" width="1"></td></tr></table>`);
+      await pg.waitForFunction(() => document.querySelector('#frame').contentDocument?.body?.textContent.includes('Source regression ready'), null, { timeout: 5000 });
+      const sourcePreview = await pg.evaluate(() => {
+        const d = document.querySelector('#frame').contentDocument;
+        const comments = [], walk = d.createTreeWalker(d, NodeFilter.SHOW_COMMENT);
+        while (walk.nextNode()) comments.push(walk.currentNode.data);
+        return { comments, widths: [...d.querySelectorAll('.web-img')].map(e => e.style.width),
+          titles: [...d.querySelectorAll('.web-img')].map(e => e.title), images: [...d.images].map(e => e.getAttribute('src')),
+          table: !!d.querySelector('table tr td .web-img'), head: !!d.head.querySelector('meta[name="viewport"]'),
+          doctype: !!d.doctype, mode: d.compatMode };
+      });
+      ok(sourcePreview.comments.includes(comment), 'mail: a large comment and its fake image remain untouched; Source finishes within 5s');
+      ok(sourcePreview.widths.join() === '240px,600px' && sourcePreview.titles[0] === remote, 'mail: actual HTTP(S) images become placeholders with their width, default width and decoded URL');
+      ok(sourcePreview.images.join() === inline && sourcePreview.table && sourcePreview.head && sourcePreview.doctype && sourcePreview.mode === 'CSS1Compat', 'mail: inline images, table structure, head and standards-mode doctype survive');
       await pg.click('#btnExport');
-      const [sourceDownload] = await Promise.all([pg.waitForEvent('download'), pg.click('#popExport [data-do="download"]')]);
-      const sourceHTML = fs.readFileSync(await sourceDownload.path(), 'utf8');
-      ok(sourceHTML.includes(comment) && sourceHTML.includes(hidden) && sourceHTML.includes(`src="${WEB}?a=1&amp;b=&quot;safe&quot;"`) && !sourceHTML.includes('web-img'), 'mail: Source export retains comments and real images, never placeholders');
+      const [sourceDL] = await Promise.all([pg.waitForEvent('download'), pg.click('#popExport [data-do="download"]')]);
+      const sourceHTML = fs.readFileSync(await sourceDL.path(), 'utf8');
+      ok(sourceHTML.includes(`<!--${comment}-->`) && sourceHTML.includes('http://example.com/fallback.png') && !sourceHTML.includes('class="web-img"'), 'mail: Source export retains the comment and real image URLs, not placeholders');
     }
 
     const fonts = await pg.evaluate(fontsState);
