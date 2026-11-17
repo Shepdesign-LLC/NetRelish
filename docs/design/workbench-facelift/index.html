@@ -1,0 +1,1156 @@
+<!doctype html>
+<!--
+  NetRelish — Workbench facelift comp (v2.1 proposal)
+  =====================================================================
+  What this is: the whole window, in Ryan's beta-art language (art-hero-window.png,
+  art-ask-the-pantry.png, the beta welcome email), extended to every surface of the
+  shipped structure. Once Ryan signs it off it becomes the design of record for the
+  SwiftUI build, and design/DESIGN_MANIFEST.md moves to v2.1 with the changes below.
+
+  Every effect here maps to SwiftUI on macOS 27 without blur or glass:
+  Shapes + fills + 1pt strokes, one flat scrim, two float shadows (floating things only),
+  gradients nowhere (not even in the jar: the art's jar is flat), and transforms/opacity
+  on the token curves. No backdrop-filter, no mask gradients, no CSS-only tricks.
+
+  RELISH — every use in this comp (anything else is a bug)
+  ---------------------------------------------------------------------
+   §4 #1  Primary button: none in Page/Ask/Brine. On the jar board the one filled
+          button (New Tab) takes the jar's color, so it is relish only for a Relish jar.
+          The empty state's one primary button is relish (#93E413, ink text).
+   §4 #2  (stays retired) The tab in front carries a LIP on its TOP edge in the JAR'S
+          color (relish for a Relish jar). Moves "2pt bottom bar" -> "top lip" in the
+          jar-color list. --lip-h 3 -> 4 (art: 5).
+   §4 #3  Shelf: the active jar's tile = wash (jar 100 step) + 1pt border (jar 300 step);
+          for a Relish jar that is relish-100 + relish-300, exactly the art. Smart-jar
+          row selected = relish-100 (unchanged).
+   §4 #4  Seal: the #nr-seal glyph in the address row (relish-500); the Seal animation
+          (band + drops in relish-500, highlight and gloss in relish-300); and NEW the
+          "Sealed" pill (relish-100 fill, relish-300 border, relish-500 disc, ink check).
+   §4 #5  Shelf-life bar in the Panel (relish-500, track hairline).
+   §4 #6  Count badges = relish-100 + 1pt relish-300 border, ink numerals (art), used
+          for Ask result ranks and their inline citation markers.
+   §4 #7  Focus ring, and the Ask field caret (= --nr-focus).
+   §4 #9  Drop mark (only while dragging; not shown in the comp).
+   §4 #11 NARROWED: the address field's leading glyph (relish-700) and the Ask field's
+          sparkle (relish-500 fill, relish-700 outline). Zest glyphs go neutral.
+   §4 #13 The Brine pill while something has sunk: relish-100 fill, relish-300 border.
+   RETIRED: #10 (the 2pt relish line over the address row), #12 (relish section tiles).
+   Jar fill drip uses the JAR'S tint (relish only for a Relish jar) — the second drip.
+
+  PROPOSED v2.1 TOKEN DELTAS (light / dark)
+  ---------------------------------------------------------------------
+   --nr-canvas  #F6F6F3 / #141413   board, Brine, Ask scrim (new; art backdrop)
+   --nr-chrome  #FFFFFF / #1C1C1A   title strip, address row, page frame (= surface)
+   --nr-rail    #FAFAF8 / #181817   Shelf, Panel, bottom bar (was surface-2 #F5F5F3)
+   --nr-tab     #F3F3F0 / #262624   tab behind, idle field, hover rows
+   --nr-hairline #E5E5E2 / #3B3B38  window, tab sides, cards
+   --nr-hairline-soft #EEEEEB / #2A2A28  under strip / address row
+   --nr-fg-3    #6C6C65 / #8F8F88   (was #93938B / #77776F: failed AA as text)
+   --nr-jar-line #2A2A2A / #DADAD5  jar outline + the active jar's lid
+   --r-2 10 (cards) stays; tabs use 8.  --lip-h 4.
+   --shadow-float-1  0 1 2 /4% + 0 4 16 /5%   (Ask result cards only)
+   --shadow-float-2  0 4 20 /8% + 0 1 3 /4%   (Ask field, menus, sheets, this control)
+   --ease-drip cubic-bezier(.5,0,.9,.6)  gravity, for things that fall
+   --t-seal 480 is the drop phase; the whole Seal sequence runs ~1.95s (see below).
+
+  MOTION (all routed through Reduce Motion: Seal = fade, fill = plain level change)
+  ---------------------------------------------------------------------
+   Seal  t0 glyph pulse 1->1.18->1 200 ease-out
+         t60 lip rises to the window edge (120), band runs out from the tab across the
+             top edge 260 ease-out
+         t200 five drops form, staggered 40ms outward from the tab (one always hangs
+             from the lip, 68% across the tab, as in the art): large 480 (= t-seal),
+             small 340; scaleY 0->1.08 on ease-drip, settle on ease-jar; gloss fades in
+         t700 page freeze flash (white 12%, 160)
+         t720 Sealed pill lands: scale .6->1.04->1 320 ease-jar, disc pops, check draws
+         t980 band + drops retract into the lip 240 ease-out
+         t1300 tab closes (width 200 ease-out, fade 160), neighbours slide
+         t1300 the jar on the Shelf runs its fill drip + the board count ticks
+         ≈1.95s total (t1300 + the 660 fill): the longest animation in the app, and the only relish drip.
+   Fill  tinted drop falls 300 ease-drip (scaleY .7->1.15); at 240 the level rises
+         420 ease-jar; tile bumps 1->1.05->1 420 ease-jar; bubbles fade in at full.
+         660 total, shorter than Seal.
+   Tabs  lip slides/resizes 200 ease-out; fills cross-fade 120; height 32<->37 200;
+         open = width 0->w 200 ease-out; close = width->0 200 + fade 160.
+   Jar switch  tile wash/border 120, lid ink 120, tile bump 320 ease-jar, tabs
+         cross-fade out 120 / in 200 (+6pt slide), lip color 200, Bench cross-fade 200.
+   Sink  tab dips 4pt + fades 160, a chip falls to the Brine pill 620 (x ease-out,
+         y ease-drip), pill bumps once 1->1.06->1 ease-jar, count rolls. No ambient glow.
+   Ask   scrim 200, field opacity + scale .98->1 200 ease-out, cards stagger 40ms
+         (y+6->0, 200). Panel width 0<->300 200 ease-out.
+-->
+<html lang="en-US">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workbench Facelift</title>
+<style>
+:root{
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+
+  /* relish (unchanged values) */
+  --relish-100:#EFFCCB; --relish-300:#C4F26B; --relish-500:#93E413; --relish-700:#4E9110; --relish-ink:#1D3506;
+  --relish-edge: var(--relish-300);            /* border on relish-100 shapes */
+
+  /* neutrals, v2.1 proposal */
+  --backdrop:#ECECE9;
+  --canvas:#F6F6F3; --chrome:#FFFFFF; --rail:#FAFAF8; --tab:#F3F3F0; --tab-hover:#EDEDEA;
+  --float:#FFFFFF;
+  --hair:#E5E5E2; --hair-soft:#EEEEEB; --rail-hair:#EBEBE9;
+  --fg:#1D1D1B; --fg-2:#56564F; --fg-3:#6C6C65;
+  --skel:#E9E9E5;
+  --jar-line:#2A2A2A; --jar-glass:#FFFFFF; --jar-lid-idle:#CFCFCA; --jar-gloss:#E3E3DF;
+  --g-fill:#E3E3DE; --g-men:#D7D7D2; --g-gloss:#BCBCB8;
+  --scrim: rgba(246,246,243,.94);
+  --danger:#D9432E; --warn:#E4A72A;
+  --focus: var(--relish-500);
+
+  /* page (website) wireframe colors */
+  --pg-ink:#1C1C1C; --pg-line:#E9E9E5; --pg-img:#ECECE8; --pg-mark:#D8D8D3; --pg-soft:#F5F5F2;
+
+  --shadow-1: 0 1px 2px rgba(17,17,17,.04), 0 4px 16px rgba(17,17,17,.05);
+  --shadow-2: 0 4px 20px rgba(17,17,17,.08), 0 1px 3px rgba(17,17,17,.04);
+  --win-shadow: 0 0 0 .5px rgba(0,0,0,.14), 0 24px 70px rgba(0,0,0,.16), 0 6px 18px rgba(0,0,0,.06);
+  --inner-hi: none;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-jar: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-drip: cubic-bezier(0.5, 0, 0.9, 0.6);
+  --t-fast:120ms; --t-base:200ms; --t-seal:480ms;
+  --lip-h:4px;
+
+  color-scheme: light;
+}
+:root[data-theme="dark"]{
+  --relish-100:#1F3308; --relish-ink:#0D1206; --relish-edge: var(--relish-700);
+  --backdrop:#0E0E0D;
+  --canvas:#141413; --chrome:#1C1C1A; --rail:#181817; --tab:#262624; --tab-hover:#2C2C2A;
+  --float:#232321;
+  --hair:#3B3B38; --hair-soft:#2A2A28; --rail-hair:#2E2E2B;
+  --fg:#F0F0EE; --fg-2:#B5B5AF; --fg-3:#8F8F88;
+  --skel:#2E2E2B;
+  --jar-line:#DADAD5; --jar-glass:#232321; --jar-lid-idle:#4A4A47; --jar-gloss:#34342F;
+  --g-fill:#3A3A37; --g-men:#45453F; --g-gloss:#2C2C2A;
+  --scrim: rgba(20,20,19,.94);
+  --pg-ink:#E6E6E2; --pg-line:#2E2E2B; --pg-img:#262624; --pg-mark:#3A3A37; --pg-soft:#202020;
+  --shadow-1: 0 1px 2px rgba(0,0,0,.40), 0 4px 12px rgba(0,0,0,.25);
+  --shadow-2: 0 8px 28px rgba(0,0,0,.45), 0 1px 3px rgba(0,0,0,.3);
+  --win-shadow: 0 0 0 .5px rgba(255,255,255,.10), 0 0 0 1px rgba(0,0,0,.6), 0 30px 80px rgba(0,0,0,.55);
+  --inner-hi: inset 0 1px 0 rgba(255,255,255,.04);
+  color-scheme: dark;
+}
+
+/* ---------- jar colors (the user's data). 500 = face, 100 = wash, 300 = edge ---------- */
+.j-relish{--jc:#93E413; --jw:#EFFCCB; --je:#C4F26B; --jt:#4E9110}
+.j-amber {--jc:oklch(74.9% 0.148 78.2); --jw:oklch(96.6% 0.04 84); --je:oklch(87% 0.105 82); --jt:oklch(52% 0.11 70)}
+.j-sky   {--jc:oklch(62.3% 0.188 259.8); --jw:oklch(96.4% 0.022 259.8); --je:oklch(85% 0.075 259.8); --jt:oklch(50% 0.17 259.8)}
+.j-rose  {--jc:oklch(65.7% 0.193 20);  --jw:oklch(96.4% 0.022 20); --je:oklch(86% 0.075 20); --jt:oklch(52% 0.17 20)}
+.j-violet{--jc:oklch(70.9% 0.159 293.5); --jw:oklch(96.4% 0.022 293.5); --je:oklch(86% 0.07 293.5); --jt:oklch(52% 0.14 293.5)}
+.j-teal  {--jc:oklch(78.5% 0.133 181.9); --jw:oklch(96.6% 0.03 181.9); --je:oklch(88% 0.075 181.9); --jt:oklch(52% 0.1 181.9)}
+:root[data-theme="dark"] .j-relish{--jw:#1F3308; --je:#4E9110}
+:root[data-theme="dark"] .j-amber {--jw:oklch(30% 0.05 78.2); --je:oklch(55% 0.11 78.2)}
+:root[data-theme="dark"] .j-sky   {--jw:oklch(29% 0.06 259.8); --je:oklch(52% 0.15 259.8)}
+:root[data-theme="dark"] .j-rose  {--jw:oklch(29% 0.06 20); --je:oklch(52% 0.14 20)}
+:root[data-theme="dark"] .j-violet{--jw:oklch(29% 0.06 293.5); --je:oklch(52% 0.13 293.5)}
+:root[data-theme="dark"] .j-teal  {--jw:oklch(30% 0.045 181.9); --je:oklch(55% 0.1 181.9)}
+
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--backdrop);font-family:var(--font-ui);color:var(--fg);-webkit-font-smoothing:antialiased;overflow:hidden;
+  font-feature-settings:"cv11","ss01";}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:default}
+button:focus-visible,.tile:focus-visible,[tabindex]:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 55%,transparent)}
+.tnum{font-variant-numeric:tabular-nums}
+svg{display:block}
+
+/* ---------- stage: 1440×900, scaled to fit ---------- */
+#stage{position:absolute;left:0;top:0;width:1440px;height:900px;transform-origin:0 0}
+
+/* ---------- the window ---------- */
+.win{position:absolute;left:80px;top:34px;width:1280px;height:784px;border-radius:14px;overflow:hidden;
+  background:var(--chrome);box-shadow:var(--win-shadow);isolation:isolate}
+.strip{position:absolute;left:0;top:0;right:0;height:44px;background:var(--chrome)}
+.strip::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--hair-soft)}
+.lights{position:absolute;left:18px;top:16px;display:flex;gap:8px;z-index:3}
+.lights i{width:12px;height:12px;border-radius:50%;background:#FF5F57;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.12)}
+.lights i:nth-child(2){background:#FEBC2E}.lights i:nth-child(3){background:#28C840}
+
+/* tabs */
+.tabs{position:absolute;left:120px;top:0;right:8px;height:44px}
+.tab{position:absolute;top:11px;height:33px;border-radius:8px 8px 0 0;background:var(--tab);display:flex;align-items:center;
+  gap:8px;padding:0 8px 0 12px;font-size:12px;font-weight:500;color:var(--fg-2);white-space:nowrap;overflow:hidden;z-index:1;
+  transition:left var(--t-base) var(--ease-out),width var(--t-base) var(--ease-out),top var(--t-base) var(--ease-out),
+             height var(--t-base) var(--ease-out),background-color var(--t-fast) var(--ease-out),color var(--t-fast) var(--ease-out),opacity 160ms var(--ease-out)}
+.tab:hover{background:var(--tab-hover)}
+.tab.on{top:7px;height:38px;background:var(--chrome);color:var(--fg);z-index:2;box-shadow:inset 1px 0 0 var(--hair),inset -1px 0 0 var(--hair),inset 0 1px 0 var(--hair)}
+.tab.on{padding-top:1px}
+.tab .mk{width:14px;height:14px;flex:none;color:var(--fg-3)}
+.tab.on .mk{color:var(--fg)}
+.tab .tt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.tab .x{width:18px;height:18px;border-radius:5px;flex:none;display:grid;place-items:center;color:var(--fg-3);opacity:0;transition:opacity var(--t-fast) var(--ease-out),background-color var(--t-fast)}
+.tab:hover .x{opacity:1}.tab .x:hover{background:var(--tab-hover)}
+.tab.pin{padding:0;justify-content:center}
+.tab.pin .tt,.tab.pin .x{display:none}
+.tab.sinking .tt,.tab.sinking .mk{color:var(--fg-3)}
+.newtab{position:absolute;top:13px;width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--fg-3);
+  transition:left var(--t-base) var(--ease-out),background-color var(--t-fast)}
+.newtab:hover{background:var(--tab)}
+.lip{position:absolute;top:7px;height:12px;border-radius:8px 8px 0 0;overflow:hidden;z-index:3;pointer-events:none;
+  transition:left var(--t-base) var(--ease-out),width var(--t-base) var(--ease-out),opacity var(--t-fast)}
+.lip b{display:block;height:var(--lip-h);background:var(--jc);transition:background-color var(--t-base) var(--ease-out)}
+
+/* body grid */
+.body{position:absolute;left:0;right:0;top:44px;bottom:32px;display:flex}
+.rail{width:120px;flex:none;background:var(--rail);box-shadow:inset -1px 0 0 var(--rail-hair);display:flex;flex-direction:column;padding:12px 10px 10px}
+.bench{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;background:var(--chrome)}
+.panel{width:0;flex:none;overflow:hidden;background:var(--rail);box-shadow:inset 1px 0 0 var(--rail-hair);transition:width var(--t-base) var(--ease-out)}
+.panel.open{width:300px}
+.bottom{position:absolute;left:0;right:0;bottom:0;height:32px;background:var(--rail);box-shadow:inset 0 1px 0 var(--hair-soft);
+  display:flex;align-items:center;padding:0 10px 0 12px;gap:12px;font-size:12px;color:var(--fg-3)}
+
+/* ---------- Shelf (rail) ---------- */
+.tile{position:relative;width:100px;height:86px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  padding-top:10px;gap:6px;margin-bottom:6px;box-shadow:inset 0 0 0 1px transparent;
+  transition:background-color var(--t-fast) var(--ease-out),box-shadow var(--t-fast) var(--ease-out)}
+.tile:hover{background:var(--tab)}
+.tile.on{background:var(--jw);box-shadow:inset 0 0 0 1px var(--je)}
+.tile .nm{font-size:11px;font-weight:500;color:var(--fg-2);max-width:94px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.05px}
+.tile.on .nm{color:var(--fg);font-weight:600}
+.tile .ct{position:absolute;top:6px;right:6px;min-width:18px;height:16px;padding:0 4px;border-radius:5px;background:var(--float);
+  box-shadow:inset 0 0 0 1px var(--hair);font-size:10px;font-weight:600;line-height:16px;text-align:center;color:var(--fg);opacity:0;
+  transition:opacity var(--t-base) var(--ease-out)}
+.tile .ct.show{opacity:1}
+.addjar{height:28px;width:100px;border-radius:8px;display:grid;place-items:center;color:var(--fg-3)}
+.addjar:hover{background:var(--tab)}
+.rule{height:1px;background:var(--rail-hair);margin:10px 2px}
+.srow{height:26px;border-radius:7px;display:flex;align-items:center;gap:7px;padding:0 7px;font-size:11.5px;font-weight:500;color:var(--fg-2);white-space:nowrap}
+.srow svg{color:var(--fg-3);flex:none}
+.srow:hover{background:var(--tab)}
+.srow.on{background:var(--relish-100);color:var(--fg)}
+.rail .spacer{flex:1}
+
+/* ---------- jar drawing ---------- */
+.jar .glass,.jar .neck{fill:var(--jar-glass)}
+.jar .ol,.jar .neck,.jar .lid{stroke:var(--jar-line);stroke-linejoin:round}
+.jar .lid{fill:var(--jar-lid-idle);transition:fill var(--t-fast) var(--ease-out)}
+.jar.on .lid{fill:var(--jar-line)}
+.jar .gls{fill:var(--jar-gloss)}
+.jar .lf,.jar .drop{fill:var(--jc)}
+.jar .lm{fill:color-mix(in oklab,var(--jc) 86%,#000)}
+.jar .lg{fill:color-mix(in oklab,var(--jc) 80%,#000);opacity:.55}
+.jar .bub circle{fill:#fff}
+.jar .bub{opacity:0;transition:opacity var(--t-base) var(--ease-out)}
+.jar.full .bub{opacity:1}
+:root[data-graphite] .jar.idle .lf,:root[data-graphite] .jar.idle .drop{fill:var(--g-fill)}
+:root[data-graphite] .jar.idle .lm{fill:var(--g-men)}
+:root[data-graphite] .jar.idle .lg{fill:var(--g-gloss);opacity:1}
+.jar .liq,.jar .drop{transform-box:view-box}
+
+/* ---------- address row ---------- */
+.addr{height:44px;flex:none;display:flex;align-items:center;gap:6px;padding:0 10px 0 12px;background:var(--chrome);box-shadow:inset 0 -1px 0 var(--hair-soft);position:relative;z-index:2}
+.chip{height:28px;display:flex;align-items:center;gap:7px;padding:0 10px 0 7px;border-radius:8px;background:var(--jw);box-shadow:inset 0 0 0 1px var(--je);
+  font-size:12px;font-weight:600;color:var(--fg);white-space:nowrap;transition:background-color var(--t-base),box-shadow var(--t-base)}
+.ib{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--fg-3);flex:none;transition:background-color var(--t-fast) var(--ease-out),color var(--t-fast)}
+.ib:hover{background:var(--tab);color:var(--fg-2)}
+.ib.dim{opacity:.45}
+.ib.on{color:var(--fg);background:var(--tab)}
+.field{flex:1;min-width:0;height:30px;border-radius:8px;background:var(--tab);display:flex;align-items:center;gap:8px;padding:0 4px 0 10px;font-size:13px;color:var(--fg-3);position:relative}
+.field .lead{color:var(--relish-700);flex:none}
+:root[data-theme="dark"] .field .lead{color:var(--relish-500)}
+.field .url{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.05px}
+.field .url b{font-weight:500;color:var(--fg)}
+.field .url span{color:var(--fg-3)}
+.field .in{display:flex;gap:0;transition:opacity var(--t-fast) var(--ease-out)}
+.field .in .ib{width:26px;height:26px}
+.field .in .ib:hover{background:var(--tab-hover)}
+.sealslot{position:relative;width:28px;height:28px;flex:none}
+.sealbtn{position:absolute;inset:0;color:var(--relish-500)}
+.sealbtn svg{transform-origin:center}
+.sealbtn.off{opacity:.35;pointer-events:none;color:var(--fg-3)}
+.pill{position:absolute;right:0;top:0;height:28px;display:flex;align-items:center;gap:7px;padding:0 12px 0 7px;border-radius:14px;white-space:nowrap;
+  background:var(--relish-100);box-shadow:inset 0 0 0 1px var(--relish-edge);font-size:13px;font-weight:600;color:var(--fg);transform-origin:100% 50%}
+.pill .disc{width:16px;height:16px;border-radius:50%;background:var(--relish-500);display:grid;place-items:center;color:#111}
+:root[data-theme="dark"] .pill .disc{color:var(--relish-ink)}
+.pill.sm{height:22px;padding:0 9px 0 4px;gap:5px;font-size:11.5px;position:static;flex:none;text-transform:none;letter-spacing:0}
+.pill.sm .disc{width:14px;height:14px}
+.hidden{display:none!important}
+
+/* ---------- bench content ---------- */
+.view{position:absolute;left:0;right:0;top:44px;bottom:0;overflow:hidden}
+.page{background:var(--chrome)}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:5}
+
+/* website wireframe — page content, never brand-colored */
+.site{position:absolute;inset:0;padding:0 64px}
+.site-nav{height:62px;display:flex;align-items:center;gap:26px;box-shadow:inset 0 -1px 0 var(--pg-line);margin:0 -64px;padding:0 64px}
+.site-nav .logo{display:flex;align-items:center;gap:9px;color:var(--pg-ink)}
+.bar{border-radius:5px;background:var(--pg-ink)}
+.ln{height:9px;border-radius:5px;background:var(--pg-line)}
+.ln.sm{height:7px}
+.img{border-radius:14px;background:var(--pg-img);display:grid;place-items:center;color:var(--pg-mark)}
+.btnsk{height:38px;border-radius:19px}
+.btnsk.solid{background:var(--pg-ink)}
+.btnsk.line{box-shadow:inset 0 0 0 1.5px var(--pg-line)}
+.cols{display:grid;gap:24px}
+
+/* ---------- board ---------- */
+.board{background:var(--canvas);overflow:hidden}
+.board-in{padding:34px 44px 40px;max-width:1120px}
+.bh{display:flex;align-items:flex-start;gap:18px}
+.bh h1{margin:2px 0 0;font-size:28px;line-height:1.15;font-weight:600;letter-spacing:-.4px}
+.bh .meta{font-size:12px;font-weight:500;color:var(--fg-3);margin-top:6px}
+.bh .acts{margin-left:auto;display:flex;gap:8px;padding-top:6px}
+.btn{height:28px;padding:0 12px;border-radius:8px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+  transition:background-color var(--t-fast) var(--ease-out),box-shadow var(--t-fast)}
+.btn.sec{background:var(--float);box-shadow:inset 0 0 0 1px var(--hair);color:var(--fg)}
+.btn.sec:hover{background:var(--tab)}
+.btn.jar{background:var(--jc);color:#1D1D1B;font-weight:600}
+.btn.jar:hover{background:var(--je)}
+.btn.primary{background:var(--relish-500);color:#111;font-weight:600}
+.btn.primary:hover{background:var(--relish-300)}
+.fillbar{display:flex;align-items:center;gap:10px;margin:14px 0 0 49px}
+.fillbar .tr{width:240px;height:6px;border-radius:3px;background:var(--skel);overflow:hidden}
+.fillbar .tr i{display:block;height:100%;border-radius:3px;background:var(--jc);transition:width 420ms var(--ease-jar)}
+.fillbar span{font-size:11px;font-weight:500;color:var(--fg-3)}
+.sec-h{display:flex;align-items:baseline;gap:8px;margin:30px 0 12px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3)}
+.sec-h b{font-weight:600;color:var(--fg-3)}
+.grid{display:grid;gap:12px}
+.card{background:var(--float);border-radius:10px;box-shadow:inset 0 0 0 1px var(--hair),var(--inner-hi);transition:box-shadow var(--t-fast) var(--ease-out)}
+.card:hover{box-shadow:inset 0 0 0 1px var(--jc),var(--inner-hi)}
+.ttile{display:flex;align-items:center;gap:11px;padding:12px 14px;height:64px}
+.fav{width:30px;height:30px;border-radius:8px;background:var(--tab);display:grid;place-items:center;color:var(--fg);flex:none}
+.ttile .t{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ttile .h{font-size:12px;color:var(--fg-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ttile .pinm{color:var(--fg-3);margin-left:auto;flex:none}
+.kcard{padding:14px 16px 14px;display:flex;flex-direction:column;min-height:168px}
+.prov{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3);white-space:nowrap;height:22px}
+.prov .dot{width:7px;height:7px;border-radius:2px;background:var(--jc);flex:none}
+.kcard .pill.sm{margin-left:auto}
+.kcard h3{margin:10px 0 0;font-size:14px;line-height:1.3;font-weight:600;letter-spacing:-.1px}
+.kcard p{margin:6px 0 0;font-size:12.5px;line-height:1.5;color:var(--fg-2)}
+.kcard .ft{margin-top:auto;padding-top:12px;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--fg-3)}
+.kcard .ft svg{color:var(--fg-2)}
+
+/* ---------- Brine ---------- */
+.brine{background:var(--canvas)}
+.list{background:var(--float);border-radius:10px;box-shadow:inset 0 0 0 1px var(--hair),var(--inner-hi);overflow:hidden}
+.brow{height:56px;display:flex;align-items:center;gap:12px;padding:0 10px 0 14px;box-shadow:inset 0 -1px 0 var(--hair-soft);position:relative}
+.brow:last-child{box-shadow:none}
+.brow:hover{background:color-mix(in srgb,var(--tab) 50%,transparent)}
+.brow .tx{flex:1;min-width:0}
+.brow .t{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brow .h{font-size:12px;color:var(--fg-3);margin-top:2px}
+.from{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--fg-2);width:150px;flex:none;white-space:nowrap}
+.when{width:118px;flex:none;font-size:12px;color:var(--fg-3);text-align:right}
+.restore{height:26px;padding:0 9px;border-radius:7px;display:flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--fg-2);opacity:0;
+  transition:opacity var(--t-fast) var(--ease-out),background-color var(--t-fast)}
+.brow:hover .restore,.restore:focus-visible{opacity:1}
+.restore:hover{background:var(--tab)}
+
+
+/* ---------- empty state ---------- */
+.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--canvas)}
+.empty p{margin:0;font-size:15px;color:var(--fg-2)}
+
+/* ---------- bottom bar ---------- */
+.brinepill{height:24px;display:flex;align-items:center;gap:6px;padding:0 10px 0 8px;border-radius:12px;background:var(--tab);color:var(--fg-2);font-size:12px;font-weight:500;
+  transition:background-color var(--t-base) var(--ease-out),box-shadow var(--t-base) var(--ease-out)}
+.brinepill svg{color:var(--fg-3)}
+.brinepill.lit{background:var(--relish-100);box-shadow:inset 0 0 0 1px var(--relish-edge);color:var(--fg)}
+.brinepill.lit svg{color:var(--fg-2)}
+.brinepill .n{font-weight:600;color:var(--fg);min-width:7px;display:inline-block}
+.brinepill.on{box-shadow:inset 0 0 0 1px var(--fg-3)}
+.bottom .grow{flex:1}
+.askbtn{height:24px;display:flex;align-items:center;gap:7px;padding:0 6px 0 8px;border-radius:7px;color:var(--fg-2);font-size:12px;font-weight:500}
+.askbtn:hover{background:var(--tab)}
+.askbtn svg{color:var(--fg-3)}
+.kbd{height:18px;padding:0 5px;border-radius:5px;box-shadow:inset 0 0 0 1px var(--hair);font-size:11px;font-weight:500;color:var(--fg-3);display:inline-flex;align-items:center;font-family:var(--font-ui)}
+
+/* ---------- Panel ---------- */
+.panel-in{width:300px;height:100%;overflow:hidden;padding:20px 20px}
+.panel h2{margin:0;font-size:20px;line-height:1.2;font-weight:600;letter-spacing:-.2px}
+.panel .pm{font-size:12px;font-weight:500;color:var(--fg-3);margin-top:6px}
+.psec{margin-top:18px;padding-top:16px;box-shadow:inset 0 1px 0 var(--hair-soft)}
+.plab{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3);margin-bottom:10px}
+.prow{display:flex;justify-content:space-between;font-size:12.5px;margin:7px 0;color:var(--fg-2)}
+.prow b{font-weight:500;color:var(--fg)}
+.life{height:2px;border-radius:1px;background:var(--hair);margin-top:10px}
+.life i{display:block;height:100%;width:62%;background:var(--relish-500);border-radius:1px}
+.labels{display:flex;flex-wrap:wrap;gap:6px}
+.lab{height:24px;padding:0 9px;border-radius:7px;background:var(--tab);font-size:12px;font-weight:500;display:flex;align-items:center;color:var(--fg)}
+.lab.add{color:var(--fg-3);background:none;box-shadow:inset 0 0 0 1px var(--hair)}
+.sw{display:flex;gap:10px}
+.sw i{width:22px;height:22px;border-radius:6px;background:var(--jc)}
+.sw i.sel{box-shadow:0 0 0 2px var(--rail),0 0 0 4px var(--fg)}
+
+/* ---------- Ask the Pantry ---------- */
+.ask{position:absolute;left:120px;right:0;top:44px;bottom:32px;z-index:20;background:var(--scrim);display:flex;flex-direction:column;align-items:center;padding-top:72px}
+.askfield{width:640px;height:54px;border-radius:27px;background:var(--float);box-shadow:inset 0 0 0 1px var(--hair),var(--shadow-2),var(--inner-hi);
+  display:flex;align-items:center;padding:0 14px 0 22px;gap:14px;font-size:16px;color:var(--fg)}
+.askfield .q{display:flex;align-items:center;flex:1;letter-spacing:-.1px}
+.caret{display:inline-block;width:2px;height:22px;border-radius:1px;background:var(--focus);margin-left:3px;animation:blink 1.06s steps(1) infinite}
+:root[data-reduce] .caret{animation:none}
+@keyframes blink{50%{opacity:0}}
+.askmeta{width:640px;margin:16px 0 0;font-size:12px;color:var(--fg-3);display:flex;align-items:center;gap:7px;padding:0 22px}
+.answer{width:640px;margin:10px 0 0;padding:0 22px;font-size:14px;line-height:1.6;color:var(--fg-2)}
+.answer b{color:var(--fg);font-weight:600}
+.cite{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:5px;background:var(--relish-100);box-shadow:inset 0 0 0 1px var(--relish-edge);
+  font-size:10.5px;font-weight:600;color:var(--fg);vertical-align:2px;margin:0 1px;font-variant-numeric:tabular-nums}
+.results{width:640px;margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.rcard{background:var(--float);border-radius:10px;box-shadow:inset 0 0 0 1px var(--hair),var(--shadow-1),var(--inner-hi);padding:15px 16px 16px;transition:box-shadow var(--t-fast) var(--ease-out)}
+.rcard:hover{box-shadow:inset 0 0 0 1px var(--jc),var(--shadow-1),var(--inner-hi)}
+.rcard .badge{width:18px;height:18px;font-size:11px;vertical-align:0;margin:0}
+.rcard h4{margin:10px 0 0;font-size:14px;font-weight:600;letter-spacing:-.1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rcard p{margin:5px 0 0;font-size:12.5px;line-height:1.5;color:var(--fg-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rcard .prov{gap:8px}
+.esc{margin-left:auto}
+
+/* ---------- Seal overlay ---------- */
+.sealfx{position:absolute;left:0;top:0;width:1280px;height:96px;z-index:30;pointer-events:none;overflow:visible}
+.sealfx .band,.sealfx .drop,.sealfx .conn{fill:var(--relish-500)}
+.sealfx .hl,.sealfx .gl{fill:var(--relish-300)}
+.sealfx .drop,.sealfx .conn,.sealfx .bandg{transform-box:fill-box}
+
+/* ---------- sink ghost ---------- */
+.ghost{position:absolute;z-index:40;height:30px;padding:0 12px 0 10px;border-radius:9px;background:var(--float);box-shadow:inset 0 0 0 1px var(--hair),var(--shadow-2);
+  display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:var(--fg-2);white-space:nowrap;pointer-events:none}
+
+/* ---------- comp control (not product UI) ---------- */
+.ctl{position:absolute;left:50%;top:838px;transform:translateX(-50%);height:38px;display:flex;align-items:center;gap:2px;padding:0 5px;border-radius:19px;
+  background:var(--float);box-shadow:inset 0 0 0 1px var(--hair),var(--shadow-2);font-size:12px;font-weight:500;color:var(--fg-2);white-space:nowrap;z-index:50;
+  transition:opacity var(--t-base)}
+.ctl button{height:28px;padding:0 10px;border-radius:14px;transition:background-color var(--t-fast),color var(--t-fast)}
+.ctl button:hover{background:var(--tab);color:var(--fg)}
+.ctl button.sel{background:var(--fg);color:var(--chrome)}
+.ctl .sep{width:1px;height:18px;background:var(--hair);margin:0 6px}
+.ctl .k{color:var(--fg-3);font-weight:400;margin-left:4px}
+.ctl.gone{opacity:0;pointer-events:none}
+.caption{position:absolute;left:80px;top:10px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3);z-index:50}
+.caption span{font-weight:500;letter-spacing:0;text-transform:none;margin-left:8px}
+.ctl.gone ~ .caption{opacity:0}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="win" id="win">
+    <div class="strip" id="strip">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="tabs" id="tabs"></div>
+    </div>
+    <div class="body">
+      <aside class="rail" id="rail" aria-label="Shelf"></aside>
+      <main class="bench" id="bench">
+        <div class="addr" id="addr"></div>
+        <div id="views"></div>
+      </main>
+      <aside class="panel" id="panel" aria-label="Panel"><div class="panel-in" id="panelIn"></div></aside>
+    </div>
+    <footer class="bottom" id="bottom"></footer>
+    <div class="ask hidden" id="ask"></div>
+    <svg class="sealfx" id="sealfx" viewBox="0 0 1280 96" aria-hidden="true"></svg>
+  </div>
+  <div class="ctl" id="ctl"></div>
+  <div class="caption" id="caption">Workbench facelift<span>comp for sign-off · v2.1 proposal</span></div>
+</div>
+
+<script>
+/* =====================================================================
+   Icons — stand-ins for SF Symbols (the app uses the real ones).
+   ===================================================================== */
+const P = (d, w=1.5) => `<path d="${d}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+const ICONS = {
+  chevL: P('M14.5 5.5 8 12l6.5 6.5',1.7), chevR: P('M9.5 5.5 16 12l-6.5 6.5',1.7),
+  plus: P('M12 5.5v13M5.5 12h13',1.6), x: P('M7 7l10 10M17 7 7 17',1.8),
+  lock: `<rect x="6.5" y="10.5" width="11" height="9" rx="2.2" fill="currentColor"/>`+P('M9 10.5V8.3a3 3 0 0 1 6 0v2.2',1.7),
+  capture: P('M12 4.5v9M8.5 10l3.5 3.5 3.5-3.5M5 14.5v2.5A2.5 2.5 0 0 0 7.5 19.5h9a2.5 2.5 0 0 0 2.5-2.5v-2.5'),
+  reader: P('M7.5 4h9A1.5 1.5 0 0 1 18 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 18.5v-13A1.5 1.5 0 0 1 7.5 4ZM9 8.5h6M9 12h6M9 15.5h3.5'),
+  reload: P('M18.5 12a6.5 6.5 0 1 1-1.9-4.6M18.5 4.8v3.4h-3.4'),
+  side: P('M5.5 5h13A2 2 0 0 1 20.5 7v10a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2ZM14.5 5v14'),
+  search: P('M10.8 4.5a6.3 6.3 0 1 1 0 12.6 6.3 6.3 0 0 1 0-12.6ZM15.5 15.5 20 20'),
+  cal: P('M6 5.5h12A2 2 0 0 1 20 7.5v10.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7.5a2 2 0 0 1 2-2ZM4 10h16M8.5 3.5V7M15.5 3.5V7'),
+  hour: P('M7 4h10M7 20h10M8.2 4c0 4.5 7.6 4.5 7.6 8s-7.6 3.5-7.6 8M15.8 4c0 4.5-7.6 4.5-7.6 8s7.6 3.5 7.6 8'),
+  grid: P('M5 4.5h4.5a.5.5 0 0 1 .5.5v4.5a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5ZM14.5 4.5H19a.5.5 0 0 1 .5.5v4.5a.5.5 0 0 1-.5.5h-4.5a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5ZM5 14h4.5a.5.5 0 0 1 .5.5V19a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5v-4.5A.5.5 0 0 1 5 14ZM14.5 14H19a.5.5 0 0 1 .5.5V19a.5.5 0 0 1-.5.5h-4.5a.5.5 0 0 1-.5-.5v-4.5a.5.5 0 0 1 .5-.5Z'),
+  pin: P('M9.5 4h5M10.5 4v5.2L7.5 13h9l-3-3.8V4M12 13v7'),
+  restore: P('M9 6.5 5 10.5l4 4M5 10.5h9.5a4.5 4.5 0 0 1 0 9H12'),
+  check: P('M7.5 12.5l3 3 6-6.5',2.4),
+  pencil: P('M5 19l1-4L15.5 5.5a2 2 0 0 1 3 3L9 18Z'),
+  clock: P('M12 4.5a7.5 7.5 0 1 1 0 15 7.5 7.5 0 0 1 0-15ZM12 8v4.5l3 1.8'),
+  note: P('M6.5 4h11A1.5 1.5 0 0 1 19 5.5V15l-5 5H6.5A1.5 1.5 0 0 1 5 18.5v-13A1.5 1.5 0 0 1 6.5 4ZM19 15h-3.5a1.5 1.5 0 0 0-1.5 1.5V20'),
+  img: P('M5 6h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1ZM4.5 15.5l4.5-4.5 4 4 2.5-2.5 4 4'),
+  sparkle: `<path d="M12 2.8c.55 5.2 3.45 8.1 8.7 8.7-5.25.6-8.15 3.5-8.7 8.7-.55-5.2-3.45-8.1-8.7-8.7 5.25-.6 8.15-3.5 8.7-8.7Z" fill="currentColor"/>`,
+  sparkleLine: P('M12 3.5c.5 4.6 3.4 7.5 8 8-4.6.5-7.5 3.4-8 8-.5-4.6-3.4-7.5-8-8 4.6-.5 7.5-3.4 8-8Z',1.4),
+  /* NetRelish symbols (symbols.svg), stroke weight matched to SF at this size */
+  seal: `<circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="4.2" fill="currentColor"/>`+P('M12 2.2v1.6M12 20.2v1.6M2.2 12h1.6M20.2 12h1.6',1.7),
+  sink: P('M8 3.5h6l3 3V13H8Z')+P('M2.5 16.5c2-1.7 3.5-1.7 5.5 0s3.5 1.7 5.5 0 3.5-1.7 5.5 0c1 .8 1.8 1.1 2.5 1.1M2.5 20c2-1.7 3.5-1.7 5.5 0s3.5 1.7 5.5 0 3.5-1.7 5.5 0c1 .8 1.8 1.1 2.5 1.1'),
+  jarSmart: `<rect x="7.5" y="2.5" width="9" height="3" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M6.5 8.5C6.5 6.6 7.4 5.5 9 5.5h6c1.6 0 2.5 1.1 2.5 3V18c0 2.2-1.3 3.5-3.5 3.5h-4c-2.2 0-3.5-1.3-3.5-3.5ZM9 11.5h6l-2.2 3V18l-1.6-1v-2.5Z" fill="currentColor" fill-rule="evenodd"/>`,
+};
+const ic = (n, s=16, cls='') => `<svg class="${cls}" width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
+
+/* site marks: tiny monochrome logos so tabs read as real sites (page content, not brand) */
+const MARKS = {
+  juniper: `<circle cx="12" cy="12" r="8" fill="currentColor"/><circle cx="12" cy="12" r="3" fill="var(--chrome)"/>`,
+  harbor: `<path d="M3 15c3-3 6-3 9 0s6 3 9 0M3 10c3-3 6-3 9 0s6 3 9 0" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>`,
+  fieldnote: `<rect x="4" y="4" width="16" height="16" rx="4" fill="currentColor"/><path d="M8 9h8M8 13h5" stroke="var(--chrome)" stroke-width="2" stroke-linecap="round"/>`,
+  trails: `<path d="M3 19 10 6l4 7 2-3 5 9Z" fill="currentColor"/>`,
+  portal: `<rect x="4" y="4" width="16" height="16" rx="8" fill="none" stroke="currentColor" stroke-width="3"/>`,
+  ledger: `<path d="M5 4h4v12h10v4H5Z" fill="currentColor"/>`,
+  cab: `<rect x="4" y="4" width="7" height="16" rx="1.5" fill="currentColor"/><rect x="13" y="4" width="7" height="16" rx="1.5" fill="currentColor"/>`,
+  stone: `<path d="M12 3 21 12 12 21 3 12Z" fill="currentColor"/>`,
+  lumen: `<path d="M12 3v5M6 13a6 6 0 0 1 12 0Z" fill="currentColor" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="18" r="2" fill="currentColor"/>`,
+  essays: `<path d="M5 5h14v3H5zM5 11h14v3H5zM5 17h9v3H5z" fill="currentColor"/>`,
+  calm: `<circle cx="9" cy="12" r="6" fill="currentColor"/><circle cx="16" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="2.4"/>`,
+  shelf: `<path d="M4 5h3v14H4zM9 5h3v14H9zM14 7l3-1 3 13-3 1z" fill="currentColor"/>`,
+  walks: `<path d="M4 18c4-10 12-10 16 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="12" cy="7" r="2.5" fill="currentColor"/>`,
+  rail: `<rect x="5" y="4" width="14" height="12" rx="3" fill="currentColor"/><path d="M8 20l2-4M16 20l-2-4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>`,
+  tile: `<path d="M4 4h7v7H4zM13 13h7v7h-7z" fill="currentColor"/><path d="M13 4h7v7h-7zM4 13h7v7H4z" fill="none" stroke="currentColor" stroke-width="2"/>`,
+  tax: `<path d="M6 3h12v18l-3-2-3 2-3-2-3 2Z" fill="currentColor"/>`,
+  blank: `<circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4.5 12h15M12 4.5c-3 3.5-3 11.5 0 15M12 4.5c3 3.5 3 11.5 0 15" fill="none" stroke="currentColor" stroke-width="1.6"/>`,
+};
+const mk = (m, s=14) => `<svg class="mk" width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true">${MARKS[m]||MARKS.blank}</svg>`;
+
+/* =====================================================================
+   Data (made up; every domain is .example)
+   ===================================================================== */
+let uid = 0; const nid = () => ++uid;
+const T = (title, host, path, mark, v, extra={}) => ({ id:nid(), title, host, path, mark, v, ...extra });
+const JARS = [
+  { id:'client', name:'Client work', color:'relish', count:7,
+    tabs:[ T('Client portal','portal.example','/','portal','c',{pinned:true}),
+           T('Juniper Bakery — Order a cake','juniperbakery.example','/order','juniper','a'),
+           T('Harbor Signs — Projects','harborsigns.example','/projects','harbor','d'),
+           T('Plans & pricing · Fieldnote','fieldnote.example','/pricing','fieldnote','c'),
+           T('Staging · Bright Trails','staging.brighttrails.example','/','trails','b') ], active:1,
+    pool:[ T('Invoices · Ledgerly','ledgerly.example','/invoices','ledger','c'), T('Bright Trails — Winter menu','brighttrails.example','/winter','trails','a') ],
+    kept:[ {kind:'Page', when:'Nov 12', sealed:true, title:'Pricing — plans compared', text:'Starter $12, Studio $29, Agency $79 a month. Annual billing saves two months on every plan.', host:'fieldnote.example', mark:'fieldnote'},
+           {kind:'Note', when:'Nov 10', title:'Juniper Bakery — before the holidays', text:'Split the order page in two before Dec 1. Hosting renews Nov 3; update the card on file first.', host:'Note', mark:'note'},
+           {kind:'Page', when:'Nov 6', sealed:true, title:'Harbor Signs — brand sheet', text:'Navy, sand and one orange. Logo needs 24px clear space; never on photos.', host:'harborsigns.example', mark:'harbor'},
+           {kind:'Page', when:'Nov 3', sealed:true, title:'Bright Trails — seasonal menu', text:'Winter set due mid-November. Reuse the autumn layout, change the palette only.', host:'brighttrails.example', mark:'trails'},
+           {kind:'Message', when:'Oct 30', title:'Re: launch date for the bakery site', text:'Thursday works. Can we keep the cake gallery but drop the blog for now?', host:'From Dana', mark:'note'},
+           {kind:'Page', when:'Oct 28', title:'Accessible color contrast checklist', text:'Large text 3:1, body text 4.5:1. Check focus rings separately.', host:'a11y.example', mark:'calm'} ] },
+  { id:'kitchen', name:'Kitchen remodel', color:'amber', count:4,
+    tabs:[ T('Shaker cabinet doors, painted','cabinetry.example','/shaker','cab','d'),
+           T('Quartz vs. soapstone counters','stoneyard.example','/compare','stone','b'),
+           T('Pendant lights over an island','lumen.example','/pendants','lumen','d') ], active:0,
+    pool:[ T('Tile for a backsplash','tilehouse.example','/subway','tile','d') ],
+    kept:[ {kind:'Page', when:'Nov 9', sealed:true, title:'Cabinet quote — 14 doors', text:'Painted maple, soft-close hinges. Lead time six weeks from the deposit.', host:'cabinetry.example', mark:'cab'},
+           {kind:'Note', when:'Nov 4', title:'Measurements', text:'Island 96 × 42 in. Pendants 30 in above the counter, 24 in apart.', host:'Note', mark:'note'} ] },
+  { id:'reading', name:'Reading', color:'sky', count:10,
+    tabs:[ T('The long tail of small software','essays.example','/small-software','essays','b'),
+           T('Notes on calm interfaces','calm.example','/notes','calm','b') ], active:0,
+    pool:[ T('Why we keep things','shelfpress.example','/keep','shelf','b') ],
+    kept:[ {kind:'Page', when:'Nov 14', sealed:true, title:'Pricing small software', text:'Charge once for the tool, yearly for the service. Make the lifetime price easy to find.', host:'essays.example', mark:'essays'} ] },
+  { id:'lisbon', name:'Trip to Lisbon', color:'rose', count:3,
+    tabs:[ T('Alfama on foot — a morning route','walks.example','/alfama','walks','a'),
+           T('Train to Sintra — timetable','rail.example','/sintra','rail','c'),
+           T('Azulejo museum — tickets','tilemuseum.example','/visit','tile','d') ], active:0,
+    pool:[ T('Where to eat near Rossio','walks.example','/rossio','walks','a') ],
+    kept:[ {kind:'Page', when:'Nov 1', sealed:true, title:'Flights — Mar 12 to 19', text:'Two seats, one checked bag. Confirmation in the PDF.', host:'Saved copy', mark:'rail'} ] },
+  { id:'taxes', name:'Taxes 2026', color:'teal', count:2,
+    tabs:[ T('Estimated payments — Q4','tax.example','/estimates','tax','c') ], active:0,
+    pool:[], kept:[] },
+];
+let SUNK = [
+  { title:'Wedding cake gallery — Juniper', host:'juniperbakery.example', mark:'juniper', jar:'client', when:'Sank 2 hours ago', group:'Today' },
+  { title:'Annual vs. monthly billing', host:'ledgerly.example', mark:'ledger', jar:'client', when:'Sank 6 days ago', group:'Earlier this week' },
+  { title:'Grout colors, compared', host:'tilehouse.example', mark:'tile', jar:'kitchen', when:'Sank yesterday', group:'Yesterday' },
+  { title:'A field guide to slow web', host:'calm.example', mark:'calm', jar:'reading', when:'Sank yesterday', group:'Yesterday' },
+  { title:'Tram 28 — when to ride it', host:'walks.example', mark:'walks', jar:'lisbon', when:'Sank 4 days ago', group:'Earlier this week' },
+  { title:'Dishwasher panel sizes', host:'cabinetry.example', mark:'cab', jar:'kitchen', when:'Sank 5 days ago', group:'Earlier this week' },
+];
+const PANTRY_COUNT = 1284;
+
+const S = { jar:0, scene:'browse', panel:false, ask:false, reduce:false, graphite:false, theme:'light', busy:false };
+const J = () => JARS[S.jar];
+const jarById = id => JARS.find(j => j.id === id);
+const level = j => Math.min(1, j.count / 12);
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+/* =====================================================================
+   The jar, drawn (line art from the beta art). Never an image: its fill is data.
+   viewBox 32×47: lid 21×6.5, neck 16×4.5, body 30×33 (shoulder r5, base r7).
+   ===================================================================== */
+const BODY = 'M1 17.5A5 5 0 0 1 6 12.5H26A5 5 0 0 1 31 17.5V38.5A7 7 0 0 1 24 45.5H8A7 7 0 0 1 1 38.5Z';
+const surfaceY = L => 45.5 - L * 30;
+function jarSVG(j, h, on){
+  const u = nid(), w = Math.round(h * 32 / 47 * 10) / 10;
+  const px = h >= 40 ? 1.35 : h >= 24 ? 1.2 : 1.05;  // on-screen stroke
+  const sw = (px * 47 / h).toFixed(2);
+  const L = level(j);
+  return `<svg class="jar j-${j.color} ${on?'on':'idle'} ${L>=1?'full':''}" data-jar="${j.id}" width="${w}" height="${h}" viewBox="-0.5 0 33 47" aria-hidden="true">
+    <defs><clipPath id="cb${u}"><path d="${BODY}"/></clipPath></defs>
+    <rect class="neck" x="8" y="7.5" width="16" height="5.5" rx="1" stroke-width="${sw}"/>
+    <path class="glass" d="${BODY}"/>
+    <g clip-path="url(#cb${u})">
+      <rect class="gls" x="5" y="16.5" width="1.8" height="25" rx=".9"/>
+      <g class="liq" style="transform:translateY(${surfaceY(L)}px)">
+        <rect class="lf" x="-2" y="0" width="36" height="52"/>
+        <rect class="lm" x="-2" y="0" width="36" height="1.9"/>
+        <rect class="lg" x="5" y="3.4" width="1.8" height="22" rx=".9"/>
+        <g class="bub"><circle cx="21.5" cy="9" r="1.7" opacity=".32"/><circle cx="13" cy="17" r="1.15" opacity=".24"/></g>
+      </g>
+      <ellipse class="drop" cx="16" cy="15" rx="2" ry="2.8" opacity="0"/>
+    </g>
+    <path class="ol" d="${BODY}" fill="none" stroke-width="${sw}"/>
+    <rect class="lid" x="5.5" y="1.5" width="21" height="6.5" rx="2" stroke-width="${sw}"/>
+  </svg>`;
+}
+
+/* =====================================================================
+   Render
+   ===================================================================== */
+function renderRail(){
+  const r = $('#rail');
+  r.innerHTML = JARS.map((j,i) => `
+    <button class="tile j-${j.color} ${i===S.jar?'on':''}" data-i="${i}" title="${esc(j.name)} — ${j.count} kept · ⌘${i+1}">
+      ${jarSVG(j, 46, i===S.jar)}
+      <span class="nm">${esc(j.name)}</span>
+      <span class="ct tnum"></span>
+    </button>`).join('') +
+    `<button class="addjar" title="New Jar">${ic('plus',15)}</button>
+     <div class="rule"></div>
+     <button class="srow" title="Today · ⌃⌘1">${ic('jarSmart',14)}Today</button>
+     <button class="srow" title="Sealed · ⌃⌘2">${ic('jarSmart',14)}Sealed</button>
+     <button class="srow" title="Sinking soon · ⌃⌘3">${ic('jarSmart',14)}Sinking soon</button>
+     <div class="spacer"></div>
+     <button class="srow" title="Opens the Zest window">${ic('grid',14)}Zest</button>`;
+  r.querySelectorAll('.tile').forEach(t => t.onclick = () => switchJar(+t.dataset.i));
+}
+
+/* ---- tabs: absolute layout so open/close/lip can animate in step ---- */
+const TAB = { pin:38, min:116, max:224, gap:4, area:1152 - 36 };
+function tabLayout(tabs){
+  const pins = tabs.filter(t => t.pinned).length, k = tabs.length - pins;
+  const free = TAB.area - pins * TAB.pin - (tabs.length) * TAB.gap;
+  const w = Math.max(TAB.min, Math.min(TAB.max, k ? free / k : TAB.max));
+  let x = 8; const out = [];
+  for (const t of tabs){ const tw = t.pinned ? TAB.pin : w; out.push({x, w:tw}); x += tw + TAB.gap; }
+  return { pos:out, end:x };
+}
+function activeTab(){ const j = J(); return (S.scene==='browse'||S.ask) ? j.tabs[j.active] : null; }
+function tabHTML(t, on){
+  return `<div class="tab ${on?'on':''} ${t.pinned?'pin':''} ${t.sinking?'sinking':''}" data-id="${t.id}" title="${esc(t.title)}">
+    ${mk(t.mark)}<span class="tt">${esc(t.title)}</span><button class="x" title="Close Tab">${ic('x',10)}</button></div>`;
+}
+function renderTabs(fresh){
+  const j = J(), el = $('#tabs'), at = activeTab();
+  const { pos, end } = tabLayout(j.tabs);
+  // keep existing nodes (so transitions run), add new, drop stale
+  const have = new Map([...el.querySelectorAll('.tab')].map(n => [+n.dataset.id, n]));
+  j.tabs.forEach((t, i) => {
+    let n = have.get(t.id);
+    if (!n){
+      el.insertAdjacentHTML('beforeend', tabHTML(t, false)); n = el.lastElementChild;
+      n.style.left = pos[i].x + 'px'; n.style.width = fresh ? pos[i].w + 'px' : '0px';
+      n.onclick = e => { if (e.target.closest('.x')) closeTab(t.id); else activate(t.id); };
+      if (!fresh) { n.getBoundingClientRect(); }
+    }
+    have.delete(t.id);
+    n.classList.toggle('on', !!at && at.id === t.id);
+    n.classList.toggle('sinking', !!t.sinking);
+    n.style.left = pos[i].x + 'px'; n.style.width = pos[i].w + 'px';
+  });
+  have.forEach(n => n.remove());
+  let nb = el.querySelector('.newtab');
+  if (!nb){ el.insertAdjacentHTML('beforeend', `<button class="newtab" title="New Tab · ⌘T">${ic('plus',15)}</button>`); nb = el.lastElementChild; nb.onclick = () => newTab(); }
+  nb.style.left = end + 2 + 'px';
+  // the lip: one shared element that slides to the tab in front
+  let lip = el.querySelector('.lip');
+  if (!lip){ el.insertAdjacentHTML('beforeend', `<div class="lip"><b></b></div>`); lip = el.lastElementChild; }
+  lip.className = `lip j-${j.color}`;
+  if (at){ const i = j.tabs.indexOf(at); lip.style.left = pos[i].x + 'px'; lip.style.width = pos[i].w + 'px'; lip.style.opacity = 1; }
+  else lip.style.opacity = 0;
+}
+
+function renderAddr(){
+  const j = J(), t = activeTab(), a = $('#addr');
+  const board = !t;
+  a.className = 'addr';
+  a.innerHTML = `
+    <button class="chip j-${j.color}" title="Open the board · ${esc(j.name)}">${jarSVG(j, 18, true)}${esc(j.name)}</button>
+    <button class="ib ${board?'dim':''}" title="Back">${ic('chevL',16)}</button>
+    <button class="ib dim" title="Forward">${ic('chevR',16)}</button>
+    <div class="field">
+      ${t ? `<span class="lead">${ic('lock',13)}</span><span class="url"><b>${esc(t.host)}</b><span>${esc(t.path==='/'?'':t.path)}</span></span>
+         <span class="in" id="fin"><button class="ib" title="Capture to ${esc(j.name)}">${ic('capture',15)}</button><button class="ib" title="Reader · ⌘⇧R">${ic('reader',15)}</button><button class="ib" title="Reload">${ic('reload',15)}</button></span>`
+       : `<span class="lead" style="color:var(--fg-3)">${ic('search',14)}</span><span class="url">Search or type a web address — it opens in ${esc(j.name)}</span>`}
+    </div>
+    <div class="sealslot" id="sealslot">
+      <button class="ib sealbtn ${t?'':'off'}" id="sealbtn" title="Seal · ⌘S">${ic('seal',18)}</button>
+    </div>
+    <button class="ib ${S.panel?'on':''}" id="panelbtn" title="Panel · ⌘⌥I">${ic('side',17)}</button>`;
+  a.querySelector('.chip').onclick = () => setScene('board');
+  a.querySelector('#sealbtn').onclick = () => seal();
+  a.querySelector('#panelbtn').onclick = () => togglePanel();
+}
+
+/* ---- the page in front: a website drawn as an elegant wireframe ---- */
+const IMGMARK = `<svg width="44" height="44" viewBox="0 0 24 24">${ICONS.img}</svg>`;
+function siteNav(t){
+  return `<div class="site-nav"><div class="logo">${mk(t.mark,22)}<div class="bar" style="width:92px;height:11px;border-radius:4px"></div></div>
+    <div style="display:flex;gap:22px;margin-left:24px">${[52,44,60,40].map(w=>`<div class="ln sm" style="width:${w}px"></div>`).join('')}</div>
+    <div style="margin-left:auto;display:flex;gap:10px"><div class="btnsk line" style="width:84px;height:32px"></div><div class="btnsk solid" style="width:96px;height:32px"></div></div></div>`;
+}
+const lines = (ws, h=9, gap=14) => `<div style="display:flex;flex-direction:column;gap:${gap}px">${ws.map(w=>`<div class="ln" style="width:${w}%;height:${h}px"></div>`).join('')}</div>`;
+function siteHTML(t){
+  const v = t.v;
+  if (v === 'a') return `<div class="site">${siteNav(t)}
+    <div style="display:grid;grid-template-columns:1fr 440px;gap:56px;margin-top:54px;align-items:start">
+      <div><div class="ln sm" style="width:110px;background:var(--pg-mark)"></div>
+        <div class="bar" style="width:92%;height:24px;margin-top:22px"></div><div class="bar" style="width:64%;height:24px;margin-top:12px"></div>
+        <div style="margin-top:30px">${lines([96,90,98,62])}</div>
+        <div style="display:flex;gap:12px;margin-top:34px"><div class="btnsk solid" style="width:150px"></div><div class="btnsk line" style="width:128px"></div></div></div>
+      <div class="img" style="height:330px">${IMGMARK}</div></div>
+    <div class="cols" style="grid-template-columns:repeat(3,1fr);margin-top:56px">${[0,1,2].map(()=>`<div><div class="img" style="height:150px;border-radius:12px"></div><div class="bar" style="width:60%;height:11px;margin-top:16px;border-radius:4px"></div><div style="margin-top:12px">${lines([92,70],7,10)}</div></div>`).join('')}</div></div>`;
+  if (v === 'b') return `<div class="site">${siteNav(t)}
+    <div style="max-width:640px;margin:58px auto 0">
+      <div class="ln sm" style="width:90px;background:var(--pg-mark)"></div>
+      <div class="bar" style="width:100%;height:26px;margin-top:20px"></div><div class="bar" style="width:72%;height:26px;margin-top:12px"></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:26px"><div style="width:32px;height:32px;border-radius:50%;background:var(--pg-img)"></div><div class="ln sm" style="width:150px"></div></div>
+      <div class="img" style="height:250px;margin-top:30px">${IMGMARK}</div>
+      <div style="margin-top:30px">${lines([100,96,99,93,58],9,15)}</div></div></div>`;
+  if (v === 'c') return `<div class="site">${siteNav(t)}
+    <div style="text-align:center;margin-top:54px;display:flex;flex-direction:column;align-items:center">
+      <div class="bar" style="width:420px;height:26px"></div><div style="width:520px;margin-top:22px">${lines([100,74].map(x=>x),9,13).replace(/width:74%/,'width:74%;margin:0 auto')}</div></div>
+    <div class="cols" style="grid-template-columns:repeat(3,1fr);max-width:920px;margin:44px auto 0">${[0,1,2].map(i=>`
+      <div style="border-radius:16px;padding:26px;box-shadow:inset 0 0 0 ${i===1?2:1}px ${i===1?'var(--pg-ink)':'var(--pg-line)'}">
+        <div class="ln sm" style="width:70px;background:var(--pg-mark)"></div>
+        <div class="bar" style="width:${[90,110,124][i]}px;height:30px;margin-top:18px"></div>
+        <div style="margin-top:24px">${lines([92,80,86,64],7,12)}</div>
+        <div class="btnsk ${i===1?'solid':'line'}" style="width:100%;margin-top:28px"></div></div>`).join('')}</div></div>`;
+  return `<div class="site">${siteNav(t)}
+    <div style="display:flex;align-items:end;justify-content:space-between;margin-top:48px"><div><div class="bar" style="width:360px;height:24px"></div><div class="ln" style="width:300px;margin-top:18px"></div></div><div class="btnsk line" style="width:120px"></div></div>
+    <div class="cols" style="grid-template-columns:repeat(3,1fr);margin-top:34px;gap:20px">${[0,1,2,3,4,5].map(i=>`<div><div class="img" style="height:${i<3?190:150}px;border-radius:12px">${i===0?IMGMARK:''}</div><div class="bar" style="width:${[52,64,44,58,48,60][i]}%;height:10px;margin-top:14px;border-radius:4px"></div><div class="ln sm" style="width:${[34,28,40,30,36,26][i]}%;margin-top:9px"></div></div>`).join('')}</div></div>`;
+}
+
+function boardHTML(){
+  const j = J();
+  const open = j.tabs, kept = j.kept;
+  if (!open.length && !kept.length) return emptyHTML(j);
+  return `<div class="board-in">
+    <div class="bh j-${j.color}">${jarSVG(j, 46, true)}
+      <div><h1>${esc(j.name)}</h1><div class="meta tnum" id="bmeta">${open.length} tabs · ${j.count} kept</div></div>
+      <div class="acts"><button class="btn sec">Edit Jar…</button><button class="btn jar j-${j.color}" id="bnew">${ic('plus',13)}New Tab</button></div></div>
+    <div class="fillbar j-${j.color}"><div class="tr"><i id="bfill" style="width:${level(j)*100}%"></i></div><span class="tnum" id="bfilln">${Math.min(j.count,12)} of 12</span></div>
+    <div class="sec-h">Open tabs <b class="tnum">${open.length}</b></div>
+    <div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">${open.map(t=>`
+      <div class="card ttile j-${j.color}" data-id="${t.id}"><div class="fav">${mk(t.mark,16)}</div><div style="min-width:0"><div class="t">${esc(t.title)}</div><div class="h">${esc(t.host)}</div></div>${t.pinned?`<span class="pinm" title="Pinned — never sinks">${ic('pin',13)}</span>`:''}</div>`).join('')}</div>
+    <div class="sec-h">Kept <b class="tnum">${kept.length}</b></div>
+    <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">${kept.slice(0,6).map(k=>`
+      <div class="card kcard j-${j.color}">
+        <div class="prov"><span class="dot"></span>${k.kind} · ${k.when}${k.sealed?`<span class="pill sm"><span class="disc">${ic('check',10)}</span>Sealed</span>`:''}</div>
+        <h3>${esc(k.title)}</h3><p>${esc(k.text)}</p>
+        <div class="ft">${k.mark==='note'?ic('note',13):mk(k.mark,12)}${esc(k.host)}</div></div>`).join('')}</div>
+  </div>`;
+}
+function emptyHTML(j){
+  return `<div class="empty">${jarSVG({...j,count:0}, 64, true)}<p>Nothing in here yet.</p><button class="btn primary" id="enew">${ic('plus',13)}New Tab</button></div>`;
+}
+function brineHTML(){
+  const groups = ['Today','Yesterday','Earlier this week'];
+  return `<div class="board-in">
+    <div class="bh"><div style="width:46px;height:46px;border-radius:12px;background:var(--tab);display:grid;place-items:center;color:var(--fg-2);flex:none">${ic('sink',26)}</div>
+      <div><h1>Brine</h1><div class="meta tnum">${SUNK.length} sunk · tabs sink here after their jar's shelf life. Pinned tabs never sink.</div></div>
+      <div class="acts"><button class="btn sec">${ic('restore',13)}Restore All</button></div></div>
+    ${groups.map(g => { const rows = SUNK.map((s,i)=>({...s,i})).filter(s => s.group === g); if (!rows.length) return '';
+      return `<div class="sec-h">${g} <b class="tnum">${rows.length}</b></div><div class="list">${rows.map(s => { const j = jarById(s.jar);
+        return `<div class="brow" data-i="${s.i}"><div class="fav">${mk(s.mark,16)}</div><div class="tx"><div class="t">${esc(s.title)}</div><div class="h">${esc(s.host)}</div></div>
+          <div class="from">${jarSVG(j,18,false)}${esc(j.name)}</div><div class="when">${s.when}</div>
+          <button class="restore" title="Restore to ${esc(j.name)}">${ic('restore',13)}Restore</button></div>`; }).join('')}</div>`; }).join('')}
+  </div>`;
+}
+
+function renderView(cross){
+  const host = $('#views'), t = activeTab();
+  let cls, html;
+  if (S.scene === 'board'){ cls='board'; html = boardHTML(); }
+  else if (S.scene === 'brine'){ cls='brine'; html = brineHTML(); }
+  else if (t){ cls='page'; html = siteHTML(t); }
+  else { cls='board'; html = emptyHTML(J()); }
+  const old = host.firstElementChild;
+  const v = document.createElement('div');
+  v.className = 'view ' + cls; v.innerHTML = html + `<div class="flash" id="flash"></div>`;
+  host.appendChild(v);
+  wireView(v);
+  if (old){
+    if (cross && !S.reduce){
+      v.animate([{opacity:0},{opacity:1}],{duration:200,easing:'cubic-bezier(0.16,1,0.3,1)'});
+      old.animate([{opacity:1},{opacity:0}],{duration:200,easing:'cubic-bezier(0.16,1,0.3,1)'}).onfinish = () => old.remove();
+    } else old.remove();
+  }
+}
+function wireView(v){
+  v.querySelectorAll('.ttile').forEach(n => n.onclick = () => activate(+n.dataset.id));
+  const bn = v.querySelector('#bnew'), en = v.querySelector('#enew');
+  if (bn) bn.onclick = () => newTab(); if (en) en.onclick = () => newTab();
+  v.querySelectorAll('.restore').forEach(b => b.onclick = e => restore(+e.target.closest('.brow').dataset.i));
+}
+
+function renderBottom(){
+  const b = $('#bottom'), n = SUNK.length;
+  b.innerHTML = `<button class="brinepill ${n?'lit':''} ${S.scene==='brine'?'on':''}" id="brinepill" title="Brine — tabs that sank">${ic('sink',13)}Brine${n?` <span class="n tnum" id="brinen">${n}</span>`:''}</button>
+    <div class="grow"></div>
+    <span class="tnum">${PANTRY_COUNT.toLocaleString('en-US')} in the Pantry</span>
+    <button class="askbtn" id="askbtn">${ic('sparkleLine',13)}Ask the Pantry <span class="kbd">⌘K</span></button>`;
+  $('#brinepill').onclick = () => setScene('brine');
+  $('#askbtn').onclick = () => openAsk();
+}
+
+function renderPanel(){
+  const j = J(), t = activeTab();
+  $('#panel').classList.toggle('open', S.panel);
+  $('#panelIn').innerHTML = t ? `
+    <h2>${esc(t.title)}</h2><div class="pm">${esc(t.host)}</div>
+    <div class="psec"><div class="plab">Jar</div><div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500">${jarSVG(j,22,true)}${esc(j.name)}</div>
+      <div class="prow" style="margin-top:12px"><span>Shelf life</span><b>Sinks in 3 days</b></div><div class="life"><i></i></div></div>
+    <div class="psec"><div class="plab">Page</div>
+      <div class="prow"><span>Kind</span><b>Page</b></div><div class="prow"><span>Opened</span><b>Today, 9:41</b></div><div class="prow"><span>Saved copies</span><b class="tnum">2</b></div></div>
+    <div class="psec"><div class="plab">Labels</div><div class="labels"><span class="lab">proposal</span><span class="lab">holidays</span><span class="lab add">${ic('plus',11)}&nbsp;Add</span></div></div>`
+  : `<h2>${esc(j.name)}</h2><div class="pm tnum">${j.tabs.length} tabs · ${j.count} kept</div>
+    <div class="psec"><div class="plab">Color</div><div class="sw">${['relish','amber','sky','rose','violet','teal'].map(c=>`<i class="j-${c} ${c===j.color?'sel':''}"></i>`).join('')}</div></div>
+    <div class="psec"><div class="plab">Shelf life</div><div class="prow"><span>Tabs sink after</span><b>7 days idle</b></div><div class="prow"><span>Holds</span><b class="tnum">12</b></div></div>
+    <div class="psec"><div class="plab">Recipe</div><div class="prow"><span>When sealed</span><b>Add to proposals</b></div></div>`;
+}
+
+function renderAsk(){
+  const a = $('#ask');
+  a.classList.toggle('hidden', !S.ask);
+  if (!S.ask) return;
+  const cw = jarById('client'), rd = jarById('reading');
+  const R = [
+    {n:1, prov:`Sealed · ${jarMini(cw)}Client work`, j:cw, title:'Pricing — plans compared', text:'Starter $12, Studio $29, Agency $79 a month. Annual billing saves two months on every plan.'},
+    {n:2, prov:'Brine · 6 days ago', j:cw, title:'Annual vs. monthly billing', text:'When yearly makes sense for a small studio, and what to tell a client who wants to switch mid-year.'},
+    {n:3, prov:`Sealed · ${jarMini(rd)}Reading`, j:rd, title:'Pricing small software', text:'Charge once for the tool, yearly for the service. Make the lifetime price easy to find.'},
+    {n:4, prov:`Kept · ${jarMini(cw)}Client work`, j:cw, title:'Juniper Bakery — before the holidays', text:'Split the order page in two before Dec 1. Hosting renews Nov 3; update the card first.'},
+  ];
+  a.innerHTML = `
+    <div class="askfield"><span style="color:var(--relish-500);display:grid;filter:none">${sparkle()}</span>
+      <span class="q">that pricing page I saved last week<span class="caret"></span></span><span class="kbd esc">esc</span></div>
+    <div class="askmeta">${ic('lock',12)}Answered on this Mac, from what you've sealed and what's in Brine.</div>
+    <div class="answer">You sealed <b>Pricing — plans compared</b> into Client work on Nov 12 <span class="cite">1</span>. The page you were comparing it with, <b>Annual vs. monthly billing</b>, sank to Brine six days ago <span class="cite">2</span>.</div>
+    <div class="results">${R.map(r=>`<div class="rcard j-${r.j.color}"><div class="prov"><span class="cite badge">${r.n}</span>${r.prov}</div><h4>${esc(r.title)}</h4><p>${esc(r.text)}</p></div>`).join('')}</div>`;
+  a.onclick = e => { if (e.target === a) closeAsk(); };
+}
+const jarMini = j => `<span style="display:inline-block;vertical-align:-3px;margin-right:-2px">${jarSVG(j,14,false)}</span>`;
+function sparkle(){ // relish-500 fill, relish-700 outline (placement 11), plus the dot from the art
+  return `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2.6c.55 5 3.25 7.7 8.2 8.2-4.95.55-7.65 3.25-8.2 8.2-.55-4.95-3.25-7.65-8.2-8.2C7.75 10.3 10.45 7.6 11 2.6Z" fill="var(--relish-500)" stroke="var(--relish-700)" stroke-width="1.1" stroke-linejoin="round"/><circle cx="19.6" cy="19.4" r="1.9" fill="var(--relish-500)"/></svg>`;
+}
+
+function renderCtl(){
+  const sc = [['browse','Page'],['board','Board'],['ask','Ask'],['brine','Brine']];
+  const cur = S.ask ? 'ask' : S.scene;
+  $('#ctl').innerHTML = sc.map(([k,l]) => `<button data-s="${k}" class="${cur===k?'sel':''}">${l}</button>`).join('') +
+    `<span class="sep"></span>
+     <button data-a="seal">Seal<span class="k">S</span></button>
+     <button data-a="fill">Add to jar<span class="k">D</span></button>
+     <button data-a="new">New tab<span class="k">T</span></button>
+     <button data-a="close">Close tab<span class="k">W</span></button>
+     <button data-a="sink">Sink<span class="k">X</span></button>
+     <span class="sep"></span>
+     <button data-a="theme">${S.theme==='dark'?'Light':'Dark'}</button>
+     <button data-a="reduce" class="${S.reduce?'sel':''}">Reduce Motion</button>
+     <button data-a="graphite" title="Decision 5: idle jars in their color, or graphite like the art">Idle jars: ${S.graphite?'Graphite':'Color'}</button>
+     <button data-a="panel" class="${S.panel?'sel':''}">Panel</button>
+     <button data-a="hide" title="Hide this bar (H)">Hide<span class="k">H</span></button>`;
+  $('#ctl').querySelectorAll('button').forEach(b => b.onclick = () => {
+    if (b.dataset.s) { b.dataset.s === 'ask' ? openAsk() : setScene(b.dataset.s); return; }
+    ({seal, fill:() => addToJar(), new:() => newTab(), close:() => { const t = activeTab() || J().tabs.filter(x=>!x.pinned).slice(-1)[0]; if (t) closeTab(t.id); },
+      sink:() => sinkTab(), theme:toggleTheme, reduce:toggleReduce, graphite:toggleGraphite, panel:togglePanel, hide:toggleCtl})[b.dataset.a]();
+  });
+}
+
+function renderAll(cross){ renderRail(); renderTabs(true); renderAddr(); renderView(cross); renderBottom(); renderPanel(); renderAsk(); renderCtl(); }
+
+/* =====================================================================
+   Navigation
+   ===================================================================== */
+function setScene(s){
+  if (S.busy) return;
+  S.ask = false; S.scene = s;
+  if (s === 'browse' && !J().tabs.length) S.scene = 'board';
+  renderTabs(); renderAddr(); renderView(true); renderBottom(); renderPanel(); renderAsk(); renderCtl();
+}
+function activate(id){
+  if (S.busy) return;
+  const j = J(); j.active = j.tabs.findIndex(t => t.id === id); S.scene = 'browse'; S.ask = false;
+  renderTabs(); renderAddr(); renderView(true); renderBottom(); renderPanel(); renderAsk(); renderCtl();
+}
+function switchJar(i){
+  if (S.busy || i === S.jar || !JARS[i]) return;
+  const prevTiles = [...document.querySelectorAll('.tile')];
+  S.jar = i; if (S.scene === 'brine') S.scene = 'board';
+  if (S.scene === 'browse' && !J().tabs.length) S.scene = 'board';
+  // Shelf: crossfade wash + border (CSS 120ms), lid flips to ink, the new tile settles
+  prevTiles.forEach((t, k) => { t.classList.toggle('on', k === i); const s = t.querySelector('.jar'); s.classList.toggle('on', k === i); s.classList.toggle('idle', k !== i); });
+  if (!S.reduce) prevTiles[i].animate([{transform:'scale(1)'},{transform:'scale(1.045)'},{transform:'scale(1)'}],{duration:320,easing:'cubic-bezier(0.34,1.4,0.64,1)'});
+  // tabs: old set fades out, new set fades in with a 6pt slide
+  const el = $('#tabs'), old = [...el.querySelectorAll('.tab')];
+  const go = () => {
+    old.forEach(n => n.remove());
+    renderTabs(true);
+    if (!S.reduce) [...el.querySelectorAll('.tab')].forEach((n, k) => n.animate([{opacity:0, transform:'translateX(-6px)'},{opacity:1, transform:'none'}],{duration:200, delay:k*18, easing:'cubic-bezier(0.16,1,0.3,1)', fill:'backwards'}));
+    renderAddr(); renderView(true); renderBottom(); renderPanel(); renderAsk(); renderCtl();
+  };
+  if (S.reduce) go();
+  else { old.forEach(n => n.animate([{opacity:1},{opacity:0}],{duration:120,easing:'cubic-bezier(0.16,1,0.3,1)',fill:'forwards'})); setTimeout(go, 110); }
+}
+function togglePanel(){ S.panel = !S.panel; renderPanel(); renderAddr(); renderCtl(); }
+function toggleTheme(){ S.theme = S.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = S.theme; renderCtl(); }
+function toggleReduce(){ S.reduce = !S.reduce; document.documentElement.toggleAttribute('data-reduce', S.reduce); renderCtl(); }
+function toggleGraphite(){ S.graphite = !S.graphite; document.documentElement.toggleAttribute('data-graphite', S.graphite); renderCtl(); }
+function toggleCtl(){ $('#ctl').classList.toggle('gone'); }
+function openAsk(){
+  if (S.busy) return;
+  if (!J().tabs.length) S.scene = 'board';
+  S.ask = true; renderTabs(); renderAddr(); renderAsk(); renderCtl();
+  if (S.reduce) { $('#ask').animate([{opacity:0},{opacity:1}],{duration:200}); return; }
+  const E = 'cubic-bezier(0.16,1,0.3,1)';
+  $('#ask').animate([{opacity:0},{opacity:1}],{duration:200,easing:E});
+  $('.askfield').animate([{opacity:0,transform:'scale(.98)'},{opacity:1,transform:'none'}],{duration:200,easing:E});
+  document.querySelectorAll('.askmeta,.answer,.rcard').forEach((n,k) => n.animate([{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'none'}],{duration:200,delay:80+k*40,easing:E,fill:'backwards'}));
+}
+function closeAsk(){
+  if (!S.ask) return;
+  const a = $('#ask');
+  a.animate([{opacity:1},{opacity:0}],{duration:S.reduce?120:160,easing:'cubic-bezier(0.16,1,0.3,1)'}).onfinish = () => { S.ask = false; renderAsk(); renderCtl(); renderTabs(); renderAddr(); };
+}
+
+/* =====================================================================
+   Tabs: open / close / sink
+   ===================================================================== */
+function newTab(){
+  if (S.busy) return;
+  const j = J();
+  const base = j.pool.length ? j.pool[(j.tabs.length) % j.pool.length] : T('New Tab','start.example','/','blank','b');
+  const t = { ...base, id:nid() };
+  j.tabs.push(t); j.active = j.tabs.length - 1; S.scene = 'browse'; S.ask = false;
+  if (S.reduce){ renderTabs(true); const n = $(`.tab[data-id="${t.id}"]`); n.animate([{opacity:0},{opacity:1}],{duration:200}); }
+  else renderTabs(false);   // width 0 -> w over --t-base, lip follows
+  renderAddr(); renderView(true); renderPanel(); renderAsk(); renderCtl();
+}
+function closeTab(id, opts={}){
+  const j = J(), i = j.tabs.findIndex(t => t.id === id); if (i < 0) return;
+  const n = $(`.tab[data-id="${id}"]`);
+  const wasActive = activeTab() && activeTab().id === id;
+  j.tabs.splice(i, 1);
+  if (j.active >= j.tabs.length) j.active = Math.max(0, j.tabs.length - 1);
+  else if (i < j.active) j.active--;
+  if (wasActive && j.tabs[j.active] && j.tabs[j.active].pinned && j.tabs.length > 1) j.active = Math.min(j.tabs.length-1, i);
+  if (!j.tabs.length && S.scene === 'browse') S.scene = 'board';
+  if (n){
+    n.dataset.id = 'gone-' + id; n.classList.remove('on');
+    if (S.reduce) n.animate([{opacity:1},{opacity:0}],{duration:200,fill:'forwards'}).onfinish = () => n.remove();
+    else { n.style.opacity = 0; n.style.width = '0px'; n.style.paddingLeft = n.style.paddingRight = '0px'; setTimeout(() => n.remove(), 220); }
+  }
+  renderTabs(); if (wasActive || !opts.keepView){ renderAddr(); renderView(true); } renderPanel(); renderCtl();
+}
+function sinkTab(){
+  if (S.busy) return;
+  const j = J(), at = activeTab();
+  const cand = [...j.tabs].reverse().find(t => !t.pinned && (!at || t.id !== at.id)) || j.tabs.find(t => !t.pinned);
+  if (!cand) return;
+  const n = $(`.tab[data-id="${cand.id}"]`), pill = $('#brinepill');
+  const stage = $('#stage').getBoundingClientRect(), sc = stage.width / 1440;
+  const r = n.getBoundingClientRect(), p = pill.getBoundingClientRect();
+  SUNK.unshift({ title:cand.title, host:cand.host, mark:cand.mark, jar:j.id, when:'Sank just now', group:'Today' });
+  const done = () => { renderBottom(); if (S.scene==='brine') renderView(true);
+    if (!S.reduce) $('#brinepill').animate([{transform:'scale(1)'},{transform:'scale(1.06)'},{transform:'scale(1)'}],{duration:360,easing:'cubic-bezier(0.34,1.4,0.64,1)'});
+    const nn = $('#brinen'); if (nn && !S.reduce) nn.animate([{transform:'translateY(-6px)',opacity:0},{transform:'none',opacity:1}],{duration:200,easing:'cubic-bezier(0.16,1,0.3,1)'}); };
+  if (S.reduce){ closeTab(cand.id, {keepView:true}); done(); return; }
+  // 1) the tab dips and fades (it is sinking) 2) a chip falls to the Brine pill 3) the pill settles once
+  n.animate([{transform:'none',opacity:1},{transform:'translateY(4px)',opacity:.3}],{duration:160,easing:'cubic-bezier(0.16,1,0.3,1)',fill:'forwards'});
+  const g = document.createElement('div'); g.className = 'ghost';
+  g.innerHTML = `${mk(cand.mark,13)}${esc(cand.title.length>26?cand.title.slice(0,25)+'…':cand.title)}`;
+  const x0 = (r.left - stage.left)/sc + 4, y0 = (r.top - stage.top)/sc + 4;
+  const x1 = (p.left - stage.left)/sc, y1 = (p.top - stage.top)/sc - 3;
+  g.style.left = x0 + 'px'; g.style.top = y0 + 'px';
+  const wrap = document.createElement('div'); wrap.style.cssText = 'position:absolute;left:0;top:0;z-index:40;pointer-events:none'; wrap.appendChild(g);
+  $('#stage').appendChild(wrap);
+  setTimeout(() => closeTab(cand.id, {keepView:true}), 140);
+  wrap.animate([{transform:'translateX(0)'},{transform:`translateX(${x1-x0}px)`}],{duration:620,easing:'cubic-bezier(0.16,1,0.3,1)',fill:'forwards'});
+  g.animate([{transform:'translateY(0) scale(1)',opacity:1},{transform:`translateY(${y1-y0}px) scale(.62)`,opacity:.5}],{duration:620,easing:'cubic-bezier(0.5,0,0.9,0.6)',fill:'forwards'})
+    .onfinish = () => { wrap.remove(); done(); };
+}
+function restore(i){
+  const s = SUNK[i]; if (!s) return;
+  const row = document.querySelector(`.brow[data-i="${i}"]`);
+  const j = jarById(s.jar);
+  SUNK.splice(i, 1);
+  j.tabs.push(T(s.title, s.host, '/', s.mark, 'b'));
+  const after = () => { renderView(false); renderBottom(); if (j === J()) renderTabs(false); jarFill(JARS.indexOf(j)); };
+  if (row && !S.reduce){
+    row.style.overflow = 'hidden';
+    row.animate([{height:'56px',opacity:1},{height:'0px',opacity:0}],{duration:200,easing:'cubic-bezier(0.16,1,0.3,1)',fill:'forwards'}).onfinish = after;
+  } else after();
+}
+
+/* =====================================================================
+   Jar fill — the jar's own tint drips in and the level rises (660ms)
+   ===================================================================== */
+function jarFill(i = S.jar, add = 1){
+  const j = JARS[i]; if (!j) return;
+  const tile = document.querySelectorAll('.tile')[i]; if (!tile) return;
+  const svg = tile.querySelector('.jar'), liq = svg.querySelector('.liq'), drop = svg.querySelector('.drop');
+  const L0 = level(j); j.count += add; const L1 = level(j);
+  const y0 = surfaceY(L0), y1 = surfaceY(L1);
+  const ct = tile.querySelector('.ct'); ct.textContent = j.count; ct.classList.add('show'); clearTimeout(ct._t); ct._t = setTimeout(() => ct.classList.remove('show'), 1600);
+  const finish = () => { liq.style.transform = `translateY(${y1}px)`; svg.classList.toggle('full', L1 >= 1); syncBoardCount(); };
+  setTimeout(() => syncJarGlyphs(j, S.reduce ? null : y0), S.reduce ? 0 : 240);
+  if (S.reduce){ liq.style.transform = `translateY(${y1}px)`; liq.animate([{opacity:.4},{opacity:1}],{duration:200}); finish(); return; }
+  // the drop: born under the neck, falls to the surface on gravity, stretched
+  drop.setAttribute('opacity', 1);
+  drop.style.transformBox = 'fill-box'; drop.style.transformOrigin = '50% 50%';
+  drop.animate([{transform:'translateY(0) scaleY(.7)', opacity:.95},{transform:`translateY(${Math.max(0, y0 - 17.5)}px) scaleY(1.15)`, opacity:.9}],
+    {duration:300, easing:'cubic-bezier(0.5,0,0.9,0.6)', fill:'forwards'}).onfinish = () => drop.setAttribute('opacity', 0);
+  // the level rises on ease-jar (overshoots, settles)
+  liq.animate([{transform:`translateY(${y0}px)`},{transform:`translateY(${y1}px)`}],{duration:420, delay:240, easing:'cubic-bezier(0.34,1.4,0.64,1)', fill:'backwards'}).onfinish = finish;
+  liq.style.transform = `translateY(${y1}px)`;
+  tile.animate([{transform:'scale(1)'},{transform:'scale(1.05)'},{transform:'scale(1)'}],{duration:420, delay:240, easing:'cubic-bezier(0.34,1.4,0.64,1)'});
+  setTimeout(syncBoardCount, 260);
+}
+function syncJarGlyphs(j, y0){
+  // every other drawing of this jar (board header, chip, Brine rows) follows the level
+  document.querySelectorAll(`.jar[data-jar="${j.id}"]`).forEach(svg => {
+    if (svg.closest('.tile')) return;
+    const liq = svg.querySelector('.liq'), y1 = surfaceY(level(j));
+    if (!S.reduce && y0 != null) liq.animate([{transform:`translateY(${y0}px)`},{transform:`translateY(${y1}px)`}],{duration:420,easing:'cubic-bezier(0.34,1.4,0.64,1)'});
+    liq.style.transform = `translateY(${y1}px)`; svg.classList.toggle('full', level(j) >= 1);
+  });
+}
+function syncBoardCount(){
+  const j = J(), m = $('#bmeta'), f = $('#bfill'), fn = $('#bfilln');
+  if (m) m.textContent = `${j.tabs.length} tabs · ${j.count} kept`;
+  if (f) f.style.width = level(j)*100 + '%';
+  if (fn) fn.textContent = `${Math.min(j.count,12)} of 12`;
+}
+function addToJar(){ if (!S.busy) jarFill(S.jar); }
+
+/* =====================================================================
+   SEAL — stamps sealedAt, freezes the .webarchive, closes the tab, fires onSeal,
+   runs the jar's Recipe. Visually: lip -> band -> drops -> pill -> close -> fill.
+   ===================================================================== */
+function dropPath(cx, w, L, f){
+  const r = w * 0.36, y = 9.5; // band bottom
+  return `M${cx-w/2-f} ${y-1}C${cx-w/2} ${y-1} ${cx-w/2} ${y+f*.55} ${cx-w/2} ${y+f}`+
+         `L${cx-r} ${y+L-r}A${r} ${r} 0 0 0 ${cx+r} ${y+L-r}`+
+         `L${cx+w/2} ${y+f}C${cx+w/2} ${y+f*.55} ${cx+w/2} ${y-1} ${cx+w/2+f} ${y-1}Z`;
+}
+function seal(){
+  const t = activeTab(); if (S.busy || !t || S.ask) { if (S.ask) closeAsk(); return; }
+  S.busy = true;
+  const j = J(), jarIdx = S.jar;
+  const tabEl = $(`.tab[data-id="${t.id}"]`), btn = $('#sealbtn'), slot = $('#sealslot');
+  const tx = parseFloat(tabEl.style.left) + 120, tw = parseFloat(tabEl.style.width), cx = tx + tw/2;
+  const EO = 'cubic-bezier(0.16,1,0.3,1)', EJ = 'cubic-bezier(0.34,1.4,0.64,1)', ED = 'cubic-bezier(0.5,0,0.9,0.6)';
+  // the Sealed pill (address row, trailing), check drawn on
+  const pill = document.createElement('span'); pill.className = 'pill';
+  pill.innerHTML = `<span class="disc"><svg width="11" height="11" viewBox="0 0 24 24"><path d="M6.5 12.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="${S.reduce?0:1}"/></svg></span>Sealed`;
+  pill.style.opacity = 0; slot.appendChild(pill);
+  const fin = $('#fin');
+
+  if (S.reduce){
+    // Reduce Motion: Seal is a fade.
+    btn.animate([{opacity:1},{opacity:0}],{duration:200,fill:'forwards'});
+    if (fin) fin.style.opacity = 0;
+    pill.animate([{opacity:0},{opacity:1}],{duration:200,fill:'forwards'});
+    setTimeout(() => { closeTab(t.id); jarFill(jarIdx); S.busy = false; }, 900);
+    return;
+  }
+
+  // t0: the glyph pulses
+  btn.querySelector('svg').animate([{transform:'scale(1)'},{transform:'scale(1.18)'},{transform:'scale(1)'}],{duration:200,easing:EO});
+
+  // build the band + drops (one Path family in SwiftUI)
+  const fx = $('#sealfx');
+  const W = 1280;
+  // one large drop always hangs from the lip, ~68% across the tab (the art's lip drip);
+  // the rest follow the art's rhythm across the top edge, skipping any that would crowd it
+  const lipX = tx + tw * 0.68;
+  const drops = [{cx:lipX, w:30, L:54, big:true}];
+  [{f:.105, w:17, L:16}, {f:.38, w:19, L:22}, {f:.74, w:28, L:46, big:true}, {f:.955, w:18, L:19}, {f:.17, w:17, L:15}]
+    .forEach(d => { const x = d.f * W; if (Math.abs(x - lipX) > 120 && drops.length < 5) drops.push({...d, cx:x, big:!!d.big}); });
+  // stagger outward from the tab
+  drops.forEach(d => { d.dist = Math.abs(d.cx - cx); });
+  [...drops].sort((a,b) => a.dist - b.dist).forEach((d,k) => d.k = k);
+  fx.innerHTML = `
+    <rect class="conn" x="${tx+6}" y="0" width="${tw-12}" height="11"/>
+    <g class="bandg"><rect class="band" x="0" y="0" width="${W}" height="10"/><rect class="hl" x="0" y="0" width="${W}" height="3"/></g>
+    ${drops.map((d,i) => `<g class="dg" data-i="${i}"><path class="drop" d="${dropPath(d.cx, d.w, d.L, d.w*.55)}"/>${d.big?`<rect class="gl" x="${d.cx - d.w*.26}" y="${9.5+11}" width="4" height="${d.L*.45}" rx="2" opacity="0"/>`:''}</g>`).join('')}`;
+  const conn = fx.querySelector('.conn'), bandg = fx.querySelector('.bandg');
+  conn.style.transformOrigin = '50% 100%';
+  bandg.style.transformBox = 'view-box'; bandg.style.transformOrigin = `${cx}px 0px`;
+  // t60: the lip rises to the window's edge, then the band runs out both ways
+  conn.animate([{transform:'scaleY(0)'},{transform:'scaleY(1)'}],{duration:120,delay:60,easing:EO,fill:'both'});
+  bandg.animate([{transform:'scaleX(0)'},{transform:'scaleX(1)'}],{duration:260,delay:120,easing:EO,fill:'both'});
+  // t200: drops form and fall — gravity, then a jar-ease wobble as they settle
+  fx.querySelectorAll('.dg').forEach(g => {
+    const d = drops[+g.dataset.i], p = g.querySelector('.drop'), gl = g.querySelector('.gl');
+    p.style.transformOrigin = '50% 0%';
+    const dur = d.big ? 480 : 340, delay = 200 + d.k * 40;
+    p.animate([{transform:'scaleY(0) scaleX(.85)', easing:ED},{transform:'scaleY(1.08) scaleX(1)', offset:.7, easing:EJ},{transform:'scaleY(1)'}],{duration:dur, delay, fill:'both'});
+    if (gl) gl.animate([{opacity:0},{opacity:1}],{duration:160, delay:delay+dur-160, fill:'forwards'});
+  });
+  // t700: the page freezes (the .webarchive is written)
+  setTimeout(() => { const f = $('#flash'); if (f) f.animate([{opacity:0},{opacity:S.theme==='dark'?.06:.12},{opacity:0}],{duration:160,easing:EO}); }, 700);
+  // t720: the Sealed pill lands; the seal button steps aside
+  setTimeout(() => {
+    btn.animate([{opacity:1},{opacity:0}],{duration:120,fill:'forwards'});
+    if (fin) fin.animate([{opacity:1},{opacity:0}],{duration:120,fill:'forwards'});
+    pill.style.opacity = 1;
+    pill.animate([{transform:'scale(.6)',opacity:0},{transform:'scale(1.04)',opacity:1,offset:.6},{transform:'scale(1)',opacity:1}],{duration:320,easing:EJ});
+    pill.querySelector('.disc').animate([{transform:'scale(0)'},{transform:'scale(1)'}],{duration:200,delay:40,easing:EJ,fill:'backwards'});
+    pill.querySelector('path').animate([{strokeDashoffset:1},{strokeDashoffset:0}],{duration:180,delay:140,easing:EO,fill:'forwards'});
+  }, 720);
+  // t980: band and drops drain back into the lip
+  setTimeout(() => {
+    fx.querySelectorAll('.dg').forEach(g => { const d = drops[+g.dataset.i];
+      g.querySelector('.drop').animate([{transform:'scaleY(1)'},{transform:'scaleY(0)'}],{duration:240,delay:(drops.length-1-d.k)*20,easing:EO,fill:'forwards'});
+      const gl = g.querySelector('.gl'); if (gl) gl.animate([{opacity:1},{opacity:0}],{duration:100,fill:'forwards'}); });
+    bandg.animate([{transform:'scaleX(1)'},{transform:'scaleX(0)'}],{duration:240,delay:100,easing:EO,fill:'forwards'});
+    conn.animate([{transform:'scaleY(1)'},{transform:'scaleY(0)'}],{duration:140,delay:300,easing:EO,fill:'forwards'});
+  }, 980);
+  // t1300: the tab closes (non-negotiable 3) and the jar fills with its own drip
+  setTimeout(() => {
+    fx.innerHTML = '';
+    closeTab(t.id);
+    jarFill(jarIdx);
+    S.busy = false;
+  }, 1300);
+}
+
+/* =====================================================================
+   Keys, scale, boot
+   ===================================================================== */
+document.addEventListener('keydown', e => {
+  const mod = e.metaKey || e.ctrlKey, k = e.key.toLowerCase();
+  if (mod && k === 's'){ e.preventDefault(); seal(); return; }
+  if (mod && k === 'k'){ e.preventDefault(); S.ask ? closeAsk() : openAsk(); return; }
+  if (mod && /^[1-5]$/.test(k)){ e.preventDefault(); switchJar(+k - 1); return; }
+  if (k === 'escape'){ closeAsk(); return; }
+  if (mod || e.altKey) return;
+  const map = { s:seal, d:addToJar, t:()=>newTab(), w:()=>{ const t = activeTab(); if (t) closeTab(t.id); }, x:sinkTab, k:openAsk,
+    p:()=>setScene('browse'), b:()=>setScene('board'), r:()=>setScene('brine'), l:toggleTheme, m:toggleReduce, g:toggleGraphite, i:togglePanel, h:toggleCtl };
+  if (/^[1-5]$/.test(k)) switchJar(+k - 1);
+  else if (map[k]) map[k]();
+});
+function fit(){ const s = Math.min(innerWidth/1440, innerHeight/900); const st = $('#stage'); st.style.transform = `scale(${s})`; st.style.left = (innerWidth - 1440*s)/2 + 'px'; st.style.top = (innerHeight - 900*s)/2 + 'px'; }
+addEventListener('resize', fit);
+
+(function boot(){
+  const q = new URLSearchParams(location.search);
+  if (q.get('theme') === 'dark' || (!q.get('theme') && matchMedia('(prefers-color-scheme: dark)').matches)) S.theme = 'dark';
+  document.documentElement.dataset.theme = S.theme;
+  if (q.has('reduce') || matchMedia('(prefers-reduced-motion: reduce)').matches){ S.reduce = true; document.documentElement.setAttribute('data-reduce',''); }
+  if (q.has('graphite')){ S.graphite = true; document.documentElement.setAttribute('data-graphite',''); }
+  if (q.has('panel')) S.panel = true;
+  if (q.get('jar')) S.jar = Math.max(0, JARS.findIndex(j => j.id === q.get('jar')));
+  const sc = q.get('scene');
+  if (sc === 'ask') S.ask = true; else if (['browse','board','brine'].includes(sc)) S.scene = sc;
+  fit(); renderAll(false);
+  if (q.has('clean')) toggleCtl();
+  window.__nr = { seal, jarFill, newTab, closeTab, sinkTab, switchJar, setScene, openAsk, S, JARS };
+})();
+</script>
+</body>
+</html>
