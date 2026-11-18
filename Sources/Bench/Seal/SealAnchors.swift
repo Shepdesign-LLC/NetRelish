@@ -38,7 +38,8 @@ extension View {
     }
 
     /// The window's one Seal overlay, over everything this view holds. It never takes a click
-    /// and is hidden from VoiceOver: the field's status line says what Seal did.
+    /// and is hidden from VoiceOver, drops, band, chip and pill alike: what Seal did is said
+    /// instead ("Sealing" as it starts, then the result line the field shows, at write return).
     func sealOverlay(_ workbench: Workbench) -> some View {
         overlayPreferenceValue(SealAnchorKey.self) { anchors in
             GeometryReader { proxy in

@@ -18,8 +18,11 @@ struct MeSettingsView: View {
             IdentityFields(identity: $identity)
             HStack(spacing: NRSpace.sp3) {
                 Button(importing ? "Importing…" : "Import from my card") { importFromContacts() }
-                    .buttonStyle(.nrSecondary).disabled(importing)
-                Button("Clear") { identity = Identity() }.buttonStyle(.nrSecondary).disabled(identity.isEmpty)
+                    .buttonStyle(.nrSecondary).nrFocusRing().disabled(importing)
+                Button("Clear") { identity = Identity() }.buttonStyle(.nrSecondary).nrFocusRing().disabled(identity.isEmpty)
+                    // It goes at once, with no confirmation: say what goes. The name stays
+                    // "Clear", so Voice Control still matches what's on the button.
+                    .accessibilityHint("Removes your card from the Keychain.")
                 Spacer()
             }
             if let message {
@@ -29,12 +32,19 @@ struct MeSettingsView: View {
         .padding(NRSpace.sp6)
         .frame(width: 560)
         .background(NRColor.surface)
+        // Settings has one pane and no tabs, so nothing else says which pane this is.
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Me")
+        // Import's result and a Keychain failure are only this line: VoiceOver says it too.
+        .onChange(of: message) { _, new in
+            if let new { NRAnnounce.post(new) }
+        }
         .onAppear(perform: load)
         .onChange(of: identity) { _, new in persist(new) }
     }
 
     private func load() {
-        do { identity = try vault.identity(for: nil) ?? Identity() } catch { message = "\(error)" }
+        do { identity = try vault.identity(for: nil) ?? Identity() } catch { message = MeText.couldntLoad }
         loaded = true
     }
 
@@ -43,7 +53,7 @@ struct MeSettingsView: View {
         do {
             if new.isEmpty { try vault.remove(for: nil) } else { try vault.save(new, for: nil) }
             message = nil
-        } catch { message = "\(error)" }
+        } catch { message = MeText.couldntSave }
     }
 
     private func importFromContacts() {
@@ -53,7 +63,15 @@ struct MeSettingsView: View {
             do {
                 identity = try await ContactsImport.meCard()
                 message = identity.isEmpty ? "Your Contacts card is empty." : "Imported. Contacts won't be read again."
-            } catch { message = "\(error)" }
+            } catch { message = MeText.couldntReadContacts }
         }
     }
+}
+
+/// What the Me sheets say when the Keychain or Contacts fails: a sentence, never the error's
+/// own description, which is a log line (docs/voice). Shown, and said by VoiceOver.
+enum MeText {
+    static let couldntReadContacts = "Couldn’t read your card in Contacts."
+    static let couldntSave = "Couldn’t save your card in the Keychain. Try again in a moment."
+    static let couldntLoad = "Couldn’t read your card from the Keychain."
 }

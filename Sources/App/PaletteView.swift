@@ -41,6 +41,15 @@ struct PaletteView: View {
             selection = 0
             pantry = PaletteSource.pantryRows(for: new, workbench: workbench)
         }
+        // How many rows match and which one Return would run, once typing pauses. Medium, so
+        // it waits behind VoiceOver's echo of the typed letters.
+        .task(id: query) {
+            guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
+            let rows = self.rows
+            NRAnnounce.post(PaletteSource.resultsLine(count: rows.count, first: rows.first))
+        }
         .onExitCommand(perform: close)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Command Palette")
@@ -61,7 +70,17 @@ struct PaletteView: View {
                 .onSubmit(run)
                 .onKeyPress(.upArrow) { move(-1); return .handled }
                 .onKeyPress(.downArrow) { move(1); return .handled }
+                // Tab would take the keyboard to the window behind the scrim while ⌘K stays
+                // open: the rows are reached with the arrows, so Tab stays here.
+                .onKeyPress(.tab) { .handled }
+                // Shift-Tab arrives as backtab (U+0019), not as Tab.
+                .onKeyPress(KeyEquivalent("\u{19}")) { .handled }
+                // The placeholder is too long to be a name; the hint says how the list works.
+                .accessibilityLabel("Search the Pantry")
+                .accessibilityHint("Up and down arrows choose a result. Return opens it. Escape closes.")
+            // Decoration: the field's hint says what Escape does.
             PaletteKeyCap("esc")
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, NRSpace.sp4)
         .frame(height: 52)
@@ -83,6 +102,8 @@ struct PaletteView: View {
                                 .id(row.id)
                                 .contentShape(Rectangle())
                                 .onTapGesture { selection = index; run() }
+                                // VO-Space on a row runs it, as a click does.
+                                .accessibilityAction { selection = index; run() }
                         }
                     }
                 }
@@ -98,9 +119,15 @@ struct PaletteView: View {
     }
 
     private func move(_ delta: Int) {
+        let rows = self.rows
         let count = rows.count
         guard count > 0 else { return }
         selection = (selection + delta + count) % count
+        // The keyboard stays in the field, so VoiceOver hears nothing of the move: say the row
+        // Return would now run. High, so fast arrowing cuts off the row before.
+        if rows.indices.contains(selection) {
+            NRAnnounce.post(rows[selection].spokenLabel, priority: .high)
+        }
     }
 
     private func run() {
@@ -157,6 +184,12 @@ private struct PaletteKeyCap: View {
 private struct PaletteRowView: View {
     let row: PaletteRow
     let selected: Bool
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiate
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    /// The tab grey alone is about 1.1:1 on the float. Under Differentiate Without Color or
+    /// Increase Contrast the selected row gets a neutral edge as well.
+    private var edged: Bool { selected && (differentiate || contrast == .increased) }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -180,7 +213,15 @@ private struct PaletteRowView: View {
         .padding(.horizontal, 10)
         .frame(height: 40)
         .background(selected ? NRColor.tab : Color.clear, in: RoundedRectangle(cornerRadius: 8))
-        .accessibilityElement(children: .combine)
+        .overlay {
+            if edged {
+                RoundedRectangle(cornerRadius: 8).strokeBorder(NRColor.fg2, lineWidth: 1)
+            }
+        }
+        // One spoken line, composed, rather than the pieces as they happen to be laid out
+        // ("Sealed ·", the sink image, a key cap).
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(row.spokenLabel)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : [.isButton])
     }
 

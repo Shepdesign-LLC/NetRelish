@@ -4,7 +4,8 @@ name: CI
 #   1. generated files match their sources (Tokens.swift, Symbols.swift, Sources/Pantry/Models, NetRelish.xcodeproj and its plists),
 #      and the vendored defuddle.js matches its recorded checksum
 #   2. both product flavors build — AppStore and Direct (DIRECT_BUILD) — and carry their privacy manifests
-#   3. the tests pass (hosted NetRelishTests + unhosted GeneratorTests)
+#   3. the tests pass (hosted NetRelishTests + unhosted GeneratorTests), and capture → jar → seal
+#      runs in the built app through the accessibility tree (NetRelishUITests)
 #   4. the non-negotiable-5 gate still enforces what it claims to
 #   5. the Pantry core builds, tests and iOS-compiles as the PantryKit package (ADR 0009)
 
@@ -145,6 +146,43 @@ jobs:
         with:
           name: design-kit-snapshots
           path: design-kit-snapshots/*.png
+
+  ui-tests:
+    name: UI tests (capture → jar → seal)
+    # The UI test CLAUDE.md asks for, driven only through the accessibility tree, so it is also
+    # the proof that VoiceOver can complete the path (P5). Its own scheme, "NetRelish UI Tests",
+    # so the Test job above is unchanged. The Debug app launches with -NRUITestFixture: a
+    # throwaway Pantry, two jars and a page served from inside the app, so nothing comes from
+    # the network (non-negotiable 5). xcode-27 for the same SDK reason as `build`. A UI test that
+    # hangs waits on nothing that will ever come, so it gets a limit the others don't need.
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          persist-credentials: false   # read-only job: leave no token in .git/config
+      - name: Let XCUITest drive the app without a password prompt
+        # A UI test asks macOS for automation mode, which wants a password unless this is set.
+        # Hosted runners usually have it already; a warning, not a failure, if this one can't.
+        run: |
+          sudo -n automationmodetool enable-automationmode-without-authentication \
+            || echo "::warning::couldn't set automation mode; the UI tests may stop at a password prompt"
+      # Signed ad hoc, as the Test job is, with the same entitlements left off: XCUITest's runner
+      # must be signed to launch, and the app behaves as it does under the unit tests.
+      - name: UI tests (Debug-AppStore; signed ad hoc, as the Test job is)
+        run: |
+          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish UI Tests" \
+            -configuration Debug-AppStore -derivedDataPath "$DERIVED" \
+            -destination 'platform=macOS' -onlyUsePackageVersionsFromResolvedFile \
+            CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- \
+            CODE_SIGNING_REQUIRED=NO CODE_SIGN_ENTITLEMENTS= ENABLE_APP_SANDBOX=NO \
+            -resultBundlePath UITestResults.xcresult -quiet test
+      - name: Keep the UI test results when they fail, so the errors can be read
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (node24)
+        with:
+          name: ui-test-results
+          path: UITestResults.xcresult
 
   pantrykit:
     name: PantryKit package (macOS test + iOS compile)

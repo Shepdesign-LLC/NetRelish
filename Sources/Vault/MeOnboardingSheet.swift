@@ -15,21 +15,30 @@ struct MeOnboardingSheet: View {
     var body: some View {
         VStack(spacing: NRSpace.sp4) {
             NRLogo.cog.image.resizable().frame(width: 48, height: 48)
+                .accessibilityHidden(true)   // the mark, not something to hear
             Text("Fill forms from your card").font(NRType.font(NRType.fsLg, weight: .semibold)).foregroundStyle(NRColor.fg)
+                .accessibilityAddTraits(.isHeader)
             Text("Your card stays in your Keychain. NetRelish fills forms only when you ask.")
                 .font(NRType.font(NRType.fsMd)).foregroundStyle(NRColor.fg2).multilineTextAlignment(.center)
             if let message {
                 Text(message).font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2).multilineTextAlignment(.center)
             }
             HStack(spacing: NRSpace.sp3) {
-                Button("Fill it in by hand") { dismiss(); openSettings() }.buttonStyle(.nrSecondary)
+                Button("Fill it in by hand") { dismiss(); openSettings() }.buttonStyle(.nrSecondary).nrFocusRing()
                 Button(importing ? "Importing…" : "Import from my card") { importFromContacts() }
-                    .buttonStyle(.nrPrimary).keyboardShortcut(.defaultAction).disabled(importing)
+                    .buttonStyle(.nrPrimary).nrFocusRing().keyboardShortcut(.defaultAction).disabled(importing)
             }
         }
         .padding(NRSpace.sp6)
         .frame(width: 420)
         .background(NRColor.surface)
+        // No button carries the cancel role, so Escape closes the sheet here: leaving takes
+        // no choice between the two buttons.
+        .onExitCommand { dismiss() }
+        // The result of Import is only this line: VoiceOver says it as it's shown.
+        .onChange(of: message) { _, new in
+            if let new { NRAnnounce.post(new, priority: .high) }
+        }
     }
 
     private func importFromContacts() {
@@ -42,7 +51,7 @@ struct MeOnboardingSheet: View {
                 try vault.save(me, for: nil)
                 dismiss()
                 imported()
-            } catch { message = "\(error)" }
+            } catch { message = MeText.couldntReadContacts }
         }
     }
 }

@@ -5,6 +5,7 @@ created: 2026-11-13
 updated: 2026-11-18
 sources:
   - code: Sources/App/Workbench.swift
+  - code: Sources/App/NetRelishApp.swift
   - code: Sources/Shelf/ShelfView.swift
   - code: Sources/Bench/BenchView.swift
   - code: Sources/Bench/TabStrip.swift
@@ -36,6 +37,12 @@ Workbench directly and never a view.
 | Tab onto a tab | `.draggable` + `.dropDestination` on `TabChip` (`Sources/Bench/TabStrip.swift:191`) | `drop(_:onTab:)` (`Sources/App/Workbench.swift:945`) |
 | Tab or Brine row onto a jar | `.dropDestination` on `JarTile` (`Sources/Shelf/ShelfView.swift:99`) | `drop(_:onJar:)` (`Sources/App/Workbench.swift:925`) |
 | Tab menu | `menu(for:)` (`Sources/Bench/TabStrip.swift:206`) | `togglePin`, `setGlyph`, `copyLink`, `moveTab(_:toJar:)`, `closeOtherTabs` |
+| Jars › Move Jar Up / Down, Tab › Move Tab Left / Right, Tab › Move Tab to Jar | menu bar (`Sources/App/NetRelishApp.swift`) | `moveJar(_:by:)`, `moveTab(_:onto:)`, `drop(_:onJar:)` |
+
+> ⚠️ **Every drag and every right-click item needs a menu-bar route too.** A right-click
+> menu can't be opened from the keyboard without VoiceOver, so a move that lives only in a
+> context menu or a VoiceOver action is out of reach with Keyboard navigation on and no
+> pointer. The menu-bar items act on the jar or tab in front and are off at the ends.
 
 ## Two kinds of drag, on purpose
 
