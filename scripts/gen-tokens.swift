@@ -206,6 +206,7 @@ enum Home { case color, space, radius, type, motion }
 func home(of name: String) -> Home? {
     let n = String(name.dropFirst(2))
     if n.hasPrefix("relish-") || ["nr-bg", "nr-surface", "nr-surface-2", "nr-hairline", "nr-fg", "nr-fg-2", "nr-fg-3",
+                                    "nr-canvas", "nr-rail", "nr-tab", "nr-tab-hover", "nr-float", "nr-hairline-soft", "nr-jar-line", "nr-jar-lid",
                                     "nr-squircle", "nr-steel", "nr-danger", "nr-warn", "nr-focus"].contains(n) { return .color }
     if n.hasPrefix("sp-") || ["shelf-w", "inspector-w", "tab-h", "lip-h", "hairline"].contains(n) { return .space }
     if n.hasPrefix("r-") || n == "superellipse-n" { return .radius }

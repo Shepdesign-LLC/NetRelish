@@ -40,6 +40,40 @@ enum DragPayload: Equatable {
     }
 }
 
+/// One press of Seal, as the window's Seal overlay presents it (ADR 0035). Everything it needs
+/// is captured when Seal starts, because the tab closes when the write returns, long before
+/// its chip has flown to the jar.
+struct SealRun: Equatable, Identifiable {
+    let id: Int          // increases with every press of Seal
+    let tab: Tab         // the tab as it was when Seal started
+    let jarId: String    // the jar it seals into
+    let index: Int       // its place in `tabs` when Seal started
+    let glyph: String?   // its picked icon, captured before the tab closes
+    let startedAt: Date
+}
+
+/// Where the Seal in front stands, for its two-phase motion. Presentation only: Seal's effects
+/// (non-negotiable 3) happen when they always did, and this only reports them.
+enum SealPhase: Equatable {
+    case idle
+    case started(SealRun)   // phase A: Seal was pressed and the page is freezing
+    case frozen(SealRun)    // phase B: written to the Pantry; the tab already closed (non-negotiable 3)
+    case failed(SealRun)    // phase B: nothing written; the tab stays open
+
+    var run: SealRun? {
+        switch self {
+        case .idle: nil
+        case .started(let run), .frozen(let run), .failed(let run): run
+        }
+    }
+
+    var isIdle: Bool { self == .idle }
+}
+
+/// Something landed in a jar: the Shelf plays the jar-fill drip in that jar. `serial` makes
+/// two landings in the same jar two events.
+struct JarFillEvent: Equatable { let jarId: String; let serial: Int }
+
 /// The Shelf's smart jars, ⌃⌘1–4. None is a row: each is a query that fills itself, and
 /// nothing is ever moved into one (non-negotiable 2: Brine is a query, not a place).
 enum SmartJar: String, CaseIterable, Identifiable {
@@ -305,6 +339,15 @@ final class Workbench {
         let authority = pro.isUnlocked ? timestamps : nil
         self.provenanceWorker = ProvenanceWorker(store: store, authority: authority)
         tabGlyphs = defaults.dictionary(forKey: Self.tabGlyphsKey) as? [String: String] ?? [:]
+        // The first launch with the Brine pill's "fresh" count starts from now, so nothing
+        // already in Brine lights it.
+        if let seen = defaults.object(forKey: Self.brineSeenKey) as? Date {
+            brineSeenAt = seen
+        } else {
+            let now = Date()
+            defaults.set(now, forKey: Self.brineSeenKey)
+            brineSeenAt = now
+        }
         load()
         if inbox != nil { watchInbox() }
         if summaries != nil {
@@ -525,6 +568,7 @@ final class Workbench {
             self.itemCount = count
             self.brine = brine
             self.activeJarId = root.activeJarId ?? jars.first?.id
+            seeBrineIfShowing()
             loadTabs()
             refreshKept()
         } catch {
@@ -581,6 +625,7 @@ final class Workbench {
                 }
                 self.itemCount = count
                 self.brine = brine
+                seeBrineIfShowing()
                 self.todayItems = today
                 self.sealedItems = sealed
                 self.allTabs = allTabs
@@ -627,11 +672,17 @@ final class Workbench {
     func activateBrine() { activate(.brine) }
     func activate(_ smart: SmartJar) { activate(jarId: smart.id) }
 
-    private func activate(jarId: String) {
+    /// `brineWasShowing` comes from a caller that already cleared a saved copy or comparison
+    /// covering Brine (⌘T, a link from a saved copy), so leaving doesn't count as having seen it.
+    private func activate(jarId: String, brineWasShowing shown: Bool? = nil) {
+        let brineWasShowing = shown ?? brineShowing   // read before the saved copy and comparison go
+        releaseSealFront()
         savedCopy = nil                   // picking a jar always leaves a saved copy
         comparison = nil
         reader = nil
         showingBoard = false              // a jar opens on its page, as it always has; so does the one you're in
+        // Opening Brine, or leaving it, counts as having seen what sank (the bottom bar's pill).
+        if jarId == SmartJar.brineId || brineWasShowing { markBrineSeen() }
         guard jarId != activeJarId else { return }
         touchActiveTab()
         activeJarId = jarId
@@ -681,14 +732,16 @@ final class Workbench {
     /// gets no tab. `openedBy` is the tab whose page opened this one as a new window.
     @discardableResult
     func newTab(url: String? = nil, interactionState: Data? = nil, in jarId: String? = nil,
-                openedBy openerId: String? = nil) -> Tab? {
+                openedBy openerId: String? = nil, brineWasShowing shown: Bool? = nil) -> Tab? {
+        let brineWasShowing = shown ?? brineShowing   // before the saved copy and comparison go
+        releaseSealFront()
         savedCopy = nil
         comparison = nil
         reader = nil
         showingBoard = false
         let target = jarId ?? (showingSmartJar ? jars.first?.id : activeJarId)
         guard let target, jars.contains(where: { $0.id == target }) else { return nil }
-        if activeJarId != target { activate(jarId: target) }
+        if activeJarId != target { activate(jarId: target, brineWasShowing: brineWasShowing) }
         // After the last tab, wherever that is: closing or moving a tab leaves gaps in the order.
         var tab = Tab(interactionState: interactionState, isPinned: false,
                       sortOrder: (tabs.map(\.sortOrder).max() ?? -1) + 1,
@@ -706,6 +759,7 @@ final class Workbench {
     }
 
     func activateTab(_ tab: Tab) {
+        releaseSealFront()
         savedCopy = nil
         comparison = nil
         reader = nil
@@ -889,6 +943,7 @@ final class Workbench {
                 landed = true
             }
         }
+        if landed { fillJar(jar.id) }
         return landed
     }
 
@@ -978,28 +1033,66 @@ final class Workbench {
         loadTabs()
     }
 
+    /// When Brine was last open. Anything that landed in Brine after it is "fresh", and only
+    /// that lights the bottom bar's Brine pill (manifest v2.1 §4 #13). Kept in `defaults`.
+    private(set) var brineSeenAt: Date = .distantPast
+    private static let brineSeenKey = "brine.seenAt"
+
+    /// Brine items that landed since Brine was last open: sunk tabs, captures and pages
+    /// shared from another app all count. Always 0 while Brine is showing.
+    var brineFresh: Int {
+        brineShowing ? 0 : brine.reduce(0) { $0 + ($1.updatedAt > brineSeenAt ? 1 : 0) }
+    }
+
+    /// Brine is on the Bench and nothing covers it: a saved copy or a comparison opened from
+    /// Brine leaves it selected but out of sight, so what lands meanwhile is still fresh.
+    var brineShowing: Bool { activeSmartJar == .brine && savedCopy == nil && comparison == nil }
+
+    private func markBrineSeen() {
+        brineSeenAt = Date()
+        defaults.set(brineSeenAt, forKey: Self.brineSeenKey)
+    }
+
+    /// Something landed in Brine while it is on the Bench: it is seen as it arrives.
+    private func seeBrineIfShowing() {
+        if brineShowing, brine.contains(where: { $0.updatedAt > brineSeenAt }) { markBrineSeen() }
+    }
+
     // MARK: Seal (⌘S)
 
     /// Set by the Bench: freezes the tab's page and pulls its text out. Stubbed in tests.
     var sealProvider: ((Tab) async throws -> (Data, Extraction.Result))?
     /// Set by the Bench: whether a tab's page is loaded in a live web view right now.
     var livePageAvailable: ((Tab) -> Bool)?
-    /// Increments to run the drip. The Bench watches it; nothing else does.
-    private(set) var sealTrigger = 0
-    /// The jar the drip is falling into, so its badge can tick over.
-    private(set) var sealingJarId: String?
+
+    /// Where the Seal in front stands. The window's Seal overlay plays phase A on `.started`
+    /// and phase B on `.frozen` or `.failed`; nothing else changes it (ADR 0035).
+    private(set) var sealPhase: SealPhase = .idle
+    /// A sealed tab the strip still draws, at its old place, until its chip leaves for the jar.
+    /// The tab itself closed when the write returned; this is only its picture. Let go by the
+    /// overlay, or after 4 seconds whatever happens.
+    private(set) var sealHeldTab: SealRun?
+    @ObservationIgnored private var sealSerial = 0
+    /// The last thing that landed in a jar. The Shelf plays the jar-fill drip when it changes.
+    private(set) var jarFill: JarFillEvent?
+    @ObservationIgnored private var jarFillSerial = 0
 
     /// Seal: stamp `sealedAt`, freeze the `.webarchive`, close the tab, fire `onSeal`, and run
-    /// the jar's default Recipe (non-negotiable 3). The drip starts first and the disk work
-    /// happens behind it, so the gesture feels instant however heavy the page is.
+    /// the jar's default Recipe (non-negotiable 3). It shows in two phases: `.started` as soon
+    /// as it's pressed, while the page freezes, then `.frozen` or `.failed` when the write
+    /// returns. The tab closes when the write returns, never later; the window's Seal overlay
+    /// presents the rest, and the motion never changes when or whether any of it happens.
     @discardableResult
     func sealActiveTab(into chosenJarId: String? = nil) async -> Bool {
         guard let tab = pageInFront, let jarId = chosenJarId ?? tab.jarId, let provider = sealProvider else {
             report("Nothing to seal — open a page first")
             return false
         }
-        sealingJarId = jarId
-        sealTrigger += 1
+        sealSerial += 1
+        let run = SealRun(id: sealSerial, tab: tab, jarId: jarId,
+                          index: tabs.firstIndex { $0.id == tab.id } ?? tabs.count,
+                          glyph: glyph(of: tab), startedAt: Date())
+        sealPhase = .started(run)
 
         do {
             let (archive, extracted) = try await provider(tab)
@@ -1012,18 +1105,113 @@ final class Workbench {
                     body: extracted.body, excerpt: extracted.excerpt,
                     archive: archive, jarId: jarId, source: .browse)
             }
-            closeIfStillOn(tab)
+            // Whether the sealed page was still the one on the Bench when the write returned:
+            // picking a tab or ⌘T while it froze means the person has moved on, and the
+            // sealed tab must not take the front (and the address field) back from them.
+            let stillInFront = benchTab?.id == tab.id
+            let closed = closeIfStillOn(tab)
+            if sealPhase.run?.id == run.id {
+                if closed { sealHeldTab = run; sealFrontHeld = stillInFront }
+                sealPhase = .frozen(run)
+            } else {
+                // A newer press took over the overlay. This one plays nothing, but its jar
+                // still fills.
+                fillJar(jarId)
+            }
             report("Sealed into \(jars.first { $0.id == jarId }?.name ?? "the jar")")
             summarizeWaiting()
             stampWaiting()
+            endSealLater(run)
             return true
         } catch is CancellationError {
+            if sealPhase.run?.id == run.id { sealPhase = .failed(run) }
+            endSealLater(run)
             return false
         } catch {
             log.error("seal: \(errorKind(error), privacy: .public) \(String(describing: error), privacy: .private)")
-            report("Couldn’t seal this page")
+            if sealPhase.run?.id == run.id { sealPhase = .failed(run) }
+            reportSealFailure(of: run)
+            endSealLater(run)
             return false
         }
+    }
+
+    /// The failure line, said with phase B: never sooner than `SealTiming.minimumA` after the
+    /// press, so it lands with the drain and never while the drops are still forming. Only
+    /// the line waits; nothing about the write does.
+    private func reportSealFailure(of run: SealRun) {
+        let wait = run.startedAt.addingTimeInterval(SealTiming.minimumA).timeIntervalSinceNow
+        // A newer Seal owns the line: a retry that succeeds within phase A must not be
+        // reported as this run's failure.
+        guard wait > 0 else {
+            if run.id == sealSerial { report("Couldn’t seal this page") }
+            return
+        }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(wait))
+            guard let self, run.id == self.sealSerial else { return }
+            self.report("Couldn’t seal this page")
+        }
+    }
+
+    /// The safety net: whatever the overlay does (no window, an inactive window, Reduce
+    /// Motion), a run lets go of its held tab and goes back to idle within 4 seconds.
+    private func endSealLater(_ run: SealRun) {
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(4))
+            self?.sealPresentationEnded(run.id)
+        }
+    }
+
+    /// The strip may stop drawing the sealed tab: its chip has left for the jar.
+    func releaseSealedTab(_ runId: Int) {
+        if sealHeldTab?.id == runId { sealHeldTab = nil; sealFrontHeld = false }
+    }
+
+    /// Whether the sealed tab still stands in front. Only for the tab Seal moved to on its own:
+    /// picking a tab, ⌘T or switching jars hands the front (and the address field) back at
+    /// once, while the strip keeps drawing the sealed tab until its chip leaves.
+    private var sealFrontHeld = false
+
+    /// You chose where to go: the sealed tab stops standing in front.
+    private func releaseSealFront() { sealFrontHeld = false }
+
+    /// The overlay finished presenting a run (or the safety net did): let go of its tab and,
+    /// if it is still the Seal in front, go back to idle.
+    func sealPresentationEnded(_ runId: Int) {
+        releaseSealedTab(runId)
+        if sealPhase.run?.id == runId { sealPhase = .idle }
+    }
+
+    /// The tabs the strip draws: `tabs`, with a sealed tab put back at its old place until its
+    /// chip leaves. Only in the jar it was sealed from, and only once it has really closed.
+    var stripTabs: [Tab] {
+        guard let held = sealHeldTab, held.tab.jarId == activeJarId,
+              !tabs.contains(where: { $0.id == held.tab.id }) else { return tabs }
+        var drawn = tabs
+        drawn.insert(held.tab, at: min(held.index, drawn.count))
+        return drawn
+    }
+
+    /// Whether the strip is drawing this tab only as the picture of a sealed one.
+    func isHeldBySeal(_ tab: Tab) -> Bool {
+        sealHeldTab?.tab.id == tab.id && !tabs.contains { $0.id == tab.id }
+    }
+
+    /// The sealed tab the strip and the address field still show in front, until its chip
+    /// leaves: the tab really closed when the write returned and `activeTabId` moved on, but
+    /// the comp keeps the sealed tab in front, with its address, until then. Presentation
+    /// only; nil when the strip isn't drawing a held tab (another jar, Seal from Shortcuts).
+    var sealHeldFrontTab: Tab? {
+        guard sealFrontHeld, let held = sealHeldTab, held.tab.jarId == activeJarId, activeSmartJar == nil,
+              isHeldBySeal(held.tab) else { return nil }
+        return held.tab
+    }
+
+    /// Something landed in a jar: publishes a new event, and the Shelf plays the drip.
+    func fillJar(_ jarId: String) {
+        jarFillSerial += 1
+        jarFill = JarFillEvent(jarId: jarId, serial: jarFillSerial)
     }
 
     // MARK: Seal from Shortcuts
@@ -1127,12 +1315,15 @@ final class Workbench {
 
     /// Closes a tab after Seal, unless it went to another page while Seal worked: then only
     /// the page it was on is sealed, and the page it's on now stays open.
-    private func closeIfStillOn(_ tab: Tab) {
+    /// True only when it closed the tab.
+    @discardableResult
+    private func closeIfStillOn(_ tab: Tab) -> Bool {
         let now = tabs.first { $0.id == tab.id } ?? (try? store.read { db in try Tab.fetchOne(db, key: tab.id) })
         // Same page, same jar. A tab that navigated on, or was moved to another jar while the
         // page was being frozen, is no longer the tab that was sealed, and stays open.
-        guard let now, now.url == tab.url, now.jarId == tab.jarId else { return }
+        guard let now, now.url == tab.url, now.jarId == tab.jarId else { return false }
         closeTab(now)
+        return true
     }
 
     /// Shortcuts' "Open a Jar": shows the jar on the Bench. False if it no longer exists.
@@ -1216,9 +1407,9 @@ final class Workbench {
 
     // MARK: The Panel (⌘⌥I)
 
-    /// The right column (manifest §8, ADR 0010 row 9: "Panel", never "Inspector"). Shown
-    /// unless you hide it; the choice is remembered.
-    var showPanel: Bool = UserDefaults.standard.object(forKey: "panel.visible") as? Bool ?? true {
+    /// The right column (manifest §8, ADR 0010 row 9: "Panel", never "Inspector"). Closed
+    /// until you open it, and the choice is remembered (manifest v2.1 §10).
+    var showPanel: Bool = UserDefaults.standard.object(forKey: "panel.visible") as? Bool ?? false {
         didSet { UserDefaults.standard.set(showPanel, forKey: "panel.visible") }
     }
 
@@ -1386,15 +1577,13 @@ final class Workbench {
     /// The live page behind a saved copy, in a new tab in the item's jar, or in the jar
     /// you're in if that one is gone.
     func openLivePage(_ item: Item) {
-        savedCopy = nil
-        guard let url = item.url else { return }
-        newTab(url: url, in: item.jarId.flatMap { id in jars.first { $0.id == id }?.id })
+        guard let url = item.url else { savedCopy = nil; return }
+        newTab(url: url, in: item.jarId.flatMap { id in jars.first { $0.id == id }?.id })   // it leaves the copy
     }
 
     /// A link clicked inside a saved copy: the live page, in a new tab in the copy's jar.
     func openLink(_ url: URL, from item: Item) {
-        savedCopy = nil
-        newTab(url: url.absoluteString, in: item.jarId.flatMap { id in jars.first { $0.id == id }?.id })
+        newTab(url: url.absoluteString, in: item.jarId.flatMap { id in jars.first { $0.id == id }?.id })   // it leaves the copy
     }
 
     /// The archive bytes for a sealed item, or nil if the file is gone.
@@ -1407,7 +1596,7 @@ final class Workbench {
     /// over. Only the touch is written, so the tab keeps the scroll and history it had.
     func open(_ tab: Tab) {
         guard let jarId = tab.jarId, jars.contains(where: { $0.id == jarId }) else { return }
-        activate(jarId: jarId)
+        activate(jarId: jarId)            // lets go of a held Seal front tab too
         guard var fresh = tabs.first(where: { $0.id == tab.id }) else { return }
         showingBoard = false
         activeTabId = fresh.id

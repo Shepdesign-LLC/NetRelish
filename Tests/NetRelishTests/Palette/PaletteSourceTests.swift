@@ -64,6 +64,45 @@ import Testing
         bench.captureActivePage()
         #expect(PaletteSource.pantryRows(for: "Exam", workbench: bench).first?.subtitle == "Brine")
     }
+
+    @Test("⌘K finds an open tab in another jar by its title, under Open tabs, and goes there")
+    func tabRowsAcrossJars() throws {
+        let bench = try workbench()
+        _ = bench.newTab(url: "https://walks.example/tram-28")
+        let tab = try #require(bench.activeTab)
+        bench.tabDidNavigate(tab.id, url: URL(string: "https://walks.example/tram-28"), title: "Tram 28, when to ride it")
+        bench.newJar(name: "Lisbon", tint: nil, shelfLifeDays: nil)      // now the jar in front
+        #expect(bench.activeJar?.name == "Lisbon")
+
+        let row = try #require(PaletteSource.tabRows(for: "tram", workbench: bench).first)
+        #expect(row.title == "Tram 28, when to ride it")
+        #expect(row.subtitle == "Meridian")
+        #expect(row.kind == .tab)
+        #expect(row.group == .tabs)
+        #expect(PaletteSource.tabRows(for: "", workbench: bench).isEmpty)   // the strip already shows them
+        #expect(PaletteSource.tabRows(for: "zzzz", workbench: bench).isEmpty)
+
+        row.run()
+        #expect(bench.activeJar?.name == "Meridian")
+        #expect(bench.activeTabId == tab.id)
+    }
+
+    @Test("Commands and jars are grouped as Commands; Pantry hits as Pantry")
+    func groups() throws {
+        let bench = try workbench()
+        _ = bench.newTab(url: "https://example.com")
+        bench.tabDidNavigate(bench.activeTab!.id, url: URL(string: "https://example.com"), title: "Example Domain")
+        bench.captureActivePage()
+
+        let commands = PaletteSource.rows(for: "", workbench: bench)
+        #expect(!commands.isEmpty)
+        #expect(commands.allSatisfy { $0.group == .commands })
+        let hit = try #require(PaletteSource.pantryRows(for: "Exam", workbench: bench).first)
+        #expect(hit.group == .pantry)
+        #expect(hit.url != nil)          // the letter tile comes from it
+        #expect(hit.jarId == nil)        // Brine: no jar
+        #expect(!hit.sealed)
+    }
 }
 
 /// ⌃⌘1–4 and the Shelf: four smart jars, each a query, none a place to put things.

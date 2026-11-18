@@ -7,6 +7,9 @@
  * v1.1.2 (2026-09-21): relish-100/300/700/ink take the Sept 15 Design Kit values (the manifest says the
  * earlier file wins on values): #EFFCCB, #C4F26B, #4E9110, #1D3506; dark relish-100 #1F3308, dark ink #0D1206.
  * v2.0 (2026-11-14): the Workstation v5 shell (ADR 0034). --shelf-w 56px → 238px, --inspector-w 320px → 322px.
+ * v2.1 (2026-11-18): the workbench facelift (ADR 0035). New neutrals (canvas, rail, tab, tab-hover, float, hairline-soft,
+ * jar-line, jar-lid); hairline #E5E5E2; fg-3 #6C6C65 / #96968F (the old values failed AA as text; dark #96968F holds 4.5:1 on --nr-tab-hover); --shelf-w 238 → 120;
+ * --lip-h 3 → 5; --ease-drip.
  */
 
 :root {
@@ -14,15 +17,23 @@
   --nr-bg:            oklch(99.1% 0.001 106.4);   /* #FCFCFB  window */
   --nr-surface:       oklch(100% 0 0);     /* #FFFFFF  cards, bench chrome */
   --nr-surface-2:     oklch(97% 0.003 106.4);   /* #F5F5F3  shelf, inspector */
-  --nr-hairline:      oklch(91.5% 0.004 106.5);   /* #E3E3E0  1px borders */
+  --nr-hairline:      oklch(92.1% 0.004 106.5);   /* #E5E5E2  1px borders: window, tab sides, cards */
   --nr-fg:            oklch(23% 0.004 106.7);   /* #1D1D1B  primary text */
   --nr-fg-2:          oklch(50.8% 0.011 106.8);   /* #66665F  secondary */
-  --nr-fg-3:          oklch(66.1% 0.012 106.7);   /* #93938B  tertiary / placeholders */
+  --nr-fg-3:          oklch(52.9% 0.011 106.8);   /* #6C6C65  tertiary / placeholders */
+  --nr-canvas:        oklch(97.2% 0.004 106.5);   /* #F6F6F3  board, Brine, palette scrim */
+  --nr-rail:          oklch(98.5% 0.003 106.4);   /* #FAFAF8  Shelf, Panel, bottom bar */
+  --nr-tab:           oklch(96.3% 0.004 106.5);   /* #F3F3F0  tab behind, idle field, chip, hover rows */
+  --nr-tab-hover:     oklch(94.5% 0.004 106.5);   /* #EDEDEA  tab behind, under the pointer */
+  --nr-float:         oklch(100% 0 0);     /* #FFFFFF  cards, palette box, jar glass, tile badge */
+  --nr-hairline-soft: oklch(94.8% 0.004 106.5);   /* #EEEEEB  under the strip and address row, rail edges */
+  --nr-jar-line:      oklch(28.5% 0 0);     /* #2A2A2A  jar outline, the active jar's lid */
+  --nr-jar-lid:       oklch(85.3% 0.007 106.5);   /* #CFCFCA  an idle jar's lid */
 
   /* ---------- Relish — the single accent ---------- */
-  --relish-100:       oklch(96.9% 0.065 119.7);   /* #EFFCCB  active-jar tint, badge bg */
+  --relish-100:       oklch(96.9% 0.065 119.7);   /* #EFFCCB  Sealed pill, selected smart row, lit Brine pill */
   --relish-300:       oklch(90.2% 0.17 125.4);   /* #C4F26B  hover on primary */
-  --relish-500:       oklch(83.4% 0.224 130.9);   /* #93E413  THE relish. primary button, tab lip, seal glyph */
+  --relish-500:       oklch(83.4% 0.224 130.9);   /* #93E413  THE relish. primary button, Seal glyph and animation */
   --relish-700:       oklch(58.9% 0.165 134.7);   /* #4E9110  relish on light bg where contrast needs it */
   --relish-ink:       oklch(29.8% 0.077 133.1);   /* #1D3506  text on relish-500 */
 
@@ -47,10 +58,10 @@
   --superellipse-n: 5;   /* squircle exponent — mark, jar shoulders, app icon */
 
   /* ---------- Layout ---------- */
-  --shelf-w: 238px;      /* the Shelf */
+  --shelf-w: 120px;      /* the Shelf, a rail of jars */
   --inspector-w: 322px;
   --tab-h: 34px;
-  --lip-h: 3px;          /* relish tab lip, active tab only */
+  --lip-h: 5px;          /* the front tab's lip, in its jar's color */
   --hairline: 1px;
 
   /* ---------- Type (system stack in product; Bricolage only on the site hero) ---------- */
@@ -64,6 +75,7 @@
   /* ---------- Motion ---------- */
   --ease-out:  cubic-bezier(0.16, 1, 0.3, 1);
   --ease-jar:  cubic-bezier(0.34, 1.4, 0.64, 1);   /* jar drop / settle */
+  --ease-drip: cubic-bezier(0.5, 0, 0.9, 0.6);   /* gravity: things that fall */
   --t-fast: 120ms; --t-base: 200ms; --t-seal: 480ms;   /* seal is the ONE drip */
 }
 
@@ -76,15 +88,26 @@
     --nr-hairline:  oklch(35.1% 0.005 106.7);   /* #3B3B38 */
     --nr-fg:        oklch(95.5% 0.003 106.4);   /* #F0F0EE */
     --nr-fg-2:      oklch(73% 0.009 106.6);   /* #A8A8A2 */
-    --nr-fg-3:      oklch(56.7% 0.012 106.8);   /* #77776F */
-    --relish-100:   oklch(29.4% 0.07 131.3);   /* #1F3308  active-jar tint on dark */
+    --nr-fg-3:      oklch(67% 0.01 106.7);   /* #96968F */
+    --nr-canvas:    oklch(19.1% 0.002 106.6);   /* #141413 */
+    --nr-rail:      oklch(20.9% 0.002 106.6);   /* #181817 */
+    --nr-tab:       oklch(26.8% 0.004 106.6);   /* #262624 */
+    --nr-tab-hover: oklch(29.2% 0.004 106.6);   /* #2C2C2A */
+    --nr-float:     oklch(25.5% 0.004 106.7);   /* #232321 */
+    --nr-hairline-soft: oklch(28.4% 0.004 106.6);   /* #2A2A28 */
+    --nr-jar-line:  oklch(88.7% 0.007 106.5);   /* #DADAD5 */
+    --nr-jar-lid:   oklch(40.8% 0.005 106.6);   /* #4A4A47 */
+    --relish-100:   oklch(29.4% 0.07 131.3);   /* #1F3308  the same three, dark */
     --relish-ink:   oklch(17.3% 0.026 126.6);   /* #0D1206  text on relish-500, dark */
   }
 }
 :root[data-theme="dark"] {
   --nr-bg: oklch(20.4% 0.002 106.6); --nr-surface: oklch(23% 0.004 106.7); --nr-surface-2: oklch(26.8% 0.004 106.6);
   --nr-hairline: oklch(35.1% 0.005 106.7); --nr-fg: oklch(95.5% 0.003 106.4); --nr-fg-2: oklch(73% 0.009 106.6);
-  --nr-fg-3: oklch(56.7% 0.012 106.8); --relish-100: oklch(29.4% 0.07 131.3); --relish-ink: oklch(17.3% 0.026 126.6);
+  --nr-fg-3: oklch(67% 0.01 106.7); --relish-100: oklch(29.4% 0.07 131.3); --relish-ink: oklch(17.3% 0.026 126.6);
+  --nr-canvas: oklch(19.1% 0.002 106.6); --nr-rail: oklch(20.9% 0.002 106.6); --nr-tab: oklch(26.8% 0.004 106.6);
+  --nr-tab-hover: oklch(29.2% 0.004 106.6); --nr-float: oklch(25.5% 0.004 106.7); --nr-hairline-soft: oklch(28.4% 0.004 106.6);
+  --nr-jar-line: oklch(88.7% 0.007 106.5); --nr-jar-lid: oklch(40.8% 0.005 106.6);
 }
 
 /* Contrast rule carried from earlier work: pick text polarity by OKLab L > 0.62 first, then verify WCAG.

@@ -113,8 +113,35 @@ import Testing
     func lines() {
         #expect(JarBoard.summary(tabs: 1, kept: 0) == "1 tab · 0 kept")
         #expect(JarBoard.summary(tabs: 3, kept: 12) == "3 tabs · 12 kept")
-        #expect(JarBoard.fillLine(count: 4, holds: 12) == "4 in this jar")
-        #expect(JarBoard.fillLine(count: 12, holds: 12) == "12 in this jar. It's full")
+        #expect(JarBoard.sinkLine(days: 7) == "tabs sink after 7 idle days")
+        #expect(JarBoard.sinkLine(days: 1) == "tabs sink after 1 idle day")
+        #expect(JarBoard.sinkLine(days: 0.5) == "tabs sink after 12 idle hours")
+    }
+
+    @Test("Smart jar rows fall under Today, Yesterday and Earlier, in their own order")
+    func smartJarDays() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? .current
+        let now = Date(timeIntervalSince1970: 1_763_467_200)            // Nov 18 2025, 12:00 UTC
+        let hour: TimeInterval = 3_600
+        #expect(SmartJarDay.of(now.addingTimeInterval(-2 * hour), now: now, calendar: calendar) == .today)
+        #expect(SmartJarDay.of(now.addingTimeInterval(-20 * hour), now: now, calendar: calendar) == .yesterday)
+        #expect(SmartJarDay.of(now.addingTimeInterval(-60 * hour), now: now, calendar: calendar) == .earlier)
+        #expect(SmartJarDay.of(now.addingTimeInterval(hour), now: now, calendar: calendar) == .today)
+
+        let items = [
+            Item(state: .brined, title: "Old"),
+            Item(state: .brined, title: "New"),
+            Item(state: .brined, title: "Older"),
+        ]
+        let dates: [String: Date] = [
+            "Old": now.addingTimeInterval(-60 * hour),
+            "New": now.addingTimeInterval(-hour),
+            "Older": now.addingTimeInterval(-90 * hour),
+        ]
+        let groups = SmartJarDay.groups(items, date: { dates[$0.title] ?? now }, now: now, calendar: calendar)
+        #expect(groups.map(\.day) == [.today, .earlier])                  // no empty Yesterday
+        #expect(groups.last?.items.map(\.title) == ["Old", "Older"])
     }
 
     @Test("A tab's icon is its site's first letter, never the w of www")

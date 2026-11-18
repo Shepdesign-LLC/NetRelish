@@ -146,3 +146,24 @@ Append-only. Newest entries at the bottom.
   all grew. rearranging (15 citations), zest-window (4) and privacy-and-sandbox (2) had
   their line numbers moved to the same lines' new places; nothing those lines do changed.
   rearranging's one "rail" now reads "the list of jars"
+
+## [2026-11-18] the workbench facelift: workbench-shell, citations moved
+
+- New page [[workbench-shell]] for the facelift (ADR 0035, manifest v2.1): where the title
+  strip, tabs, address row, bottom bar, Shelf tiles, drawn jar, Seal overlay, jar fill and
+  ⌘K live, and eleven traps (the close stays at write return and the strip holds a picture
+  of the tab; the failure line waits for phase B; `.sealOverlay` before `.ignoresSafeArea`;
+  `sealAnchor` merges with its children's anchors; the window buttons lean on AppKit's
+  private title bar; the double-click is AppKit's; the address field's real TextField; the
+  Panel inset changes once; ⌘K gives the keyboard back; measures in `NRShell`; hover-only
+  controls and VoiceOver). A row for it in `docs/CLAUDE.md`, a link in the index
+- rearranging: the tab strip moved to `Sources/Bench/TabStrip.swift` and `JarRow` became
+  `JarTile`; every citation re-cited, and one trap added: every way into a jar plays the jar
+  fill through `fillJar(_:)`
+- privacy-and-sandbox: the Brine pill's `brine.seenAt` date joins the NetRelish.app row
+  under `CA92.1`; tab icons, the Panel and Export Proof re-cited; a trap: only read defaults
+  the app wrote itself (why the title strip's double-click is AppKit's)
+- zest-window (3) and releasing-a-preview (1): citations into Workbench and NetRelishApp
+  moved; nothing those lines do changed
+- Checked against the working tree on top of `38edcae`, before the facelift was committed:
+  move `verified_at` to the facelift's commit, and re-cite, if its lines move on the way in

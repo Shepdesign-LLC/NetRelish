@@ -1,0 +1,1483 @@
+<!doctype html>
+<!--
+  NetRelish — Workbench facelift comp (v2.1 proposal)
+  =====================================================================
+  What this is: the whole window, in Ryan's beta-art language (art-hero-window.png,
+  art-ask-the-pantry.png, the beta welcome email), extended to every surface of the
+  shipped structure. Once Ryan signs it off it becomes the design of record for the
+  SwiftUI build, and design/DESIGN_MANIFEST.md moves to v2.1 with the changes below.
+
+  Every effect here maps to SwiftUI on macOS 27 without blur or glass:
+  Shapes + fills + 1pt strokes, one flat scrim (the Command Palette), two float shadows
+  (floating things only), gradients nowhere (the jar is flat; the cog in the empty state
+  is the mark, never redrawn), and transforms/opacity on the token curves.
+
+  RELISH — every use in this comp (anything else is a bug)
+  ---------------------------------------------------------------------
+   §4 #1  Primary button: the empty state's one button. On a jar board the one filled
+          button (New Tab) takes the JAR's color, so it is relish only for a Relish jar.
+   §4 #2  (stays retired) The front tab's LIP is on its TOP edge in the JAR's color.
+   §4 #3  Shelf: the active jar's tile = jar wash (100) + 1pt jar edge (300); for a Relish
+          jar that is exactly the art's relish-100 + relish-300. Dark: a neutral float tile
+          with the 1pt jar edge (no dark-green panel). Smart-jar selected row = relish-100.
+   §4 #4  Seal: the #nr-seal glyph (relish-500); the Seal animation (band + drops relish-500,
+          highlight and gloss relish-300; the flying chip's check disc); NEW the "Sealed"
+          pill (relish-100 fill, relish-300 border, relish-500 disc, ink check), in the
+          address row during Seal and on sealed cards.
+   §4 #5  Shelf-life bar in the Panel.
+   §4 #6  NARROWED: Ask rank badges and citation markers (relish-100, 1pt relish-300 edge,
+          ink numerals, as in the art). The Shelf tile's count badge moves to the jar-color
+          list (white, 1pt jar edge, ink numerals).
+   §4 #7  Focus ring, and the caret in Ask and the Command Palette (= --nr-focus).
+   §4 #8  The cog mark in the empty state (manifest §8 empty states).
+   §4 #9  Drop mark (only while dragging; not shown).
+   §4 #11 NARROWED: the address field's lock (relish-700) and the Ask sparkle (relish-500
+          fill, relish-700 outline). Zest glyphs go neutral.
+   §4 #13 NARROWED: the Brine pill is lit only for tabs that sank since Brine was last
+          opened (try Simulate sink); otherwise it is neutral with its count.
+   RETIRED: #10 (the 2pt relish line over the address row), #12 (relish section tiles).
+   NOT relish any more: the jar chip (neutral --tab fill; its drawn jar carries the color),
+   the kept-card dot (gone), the board fill bar (gone: the drawn jar shows the level).
+
+  JAR COLOR — where a jar's own color appears (ADR 0005)
+  ---------------------------------------------------------------------
+   the drawn jar; the active tile's wash + edge; the front tab's lip; the board's New Tab;
+   a board card's border under the pointer; the tile count badge's edge; the jar-fill drip.
+   Any user color derives its steps (JarPaint gains .wash100/.edge300/.text700):
+     wash = oklch(L .964, C min(c, .022–.04), h)   edge = oklch(L .86, C .075, h)
+     text = oklch(L .52, C ≤ .17, h)                dark: wash L .29–.30, edge L .52–.55
+   Relish is pinned to the token values so a Relish tile is exactly relish-100/300.
+   Contrast for any color is checked through JarPaint.inkContrast (ink on the 500 step).
+
+  PROPOSED v2.1 TOKEN DELTAS (light / dark)
+  ---------------------------------------------------------------------
+   --nr-canvas  #F6F6F3 / #141413   board, Brine, Ask (new; art backdrop)
+   --nr-chrome  #FFFFFF / #1C1C1A   title strip, address row (= surface)
+   --nr-rail    #FAFAF8 / #181817   Shelf, Panel, bottom bar (was surface-2 #F5F5F3)
+   --nr-tab     #F3F3F0 / #262624   tab behind, idle field, chip, hover rows
+   --nr-hairline #E5E5E2 / #3B3B38  window, tab sides, cards
+   --nr-hairline-soft #EEEEEB / #2A2A28  under strip / address row
+   --nr-fg-3    #6C6C65 / #8F8F88   (was #93938B / #77776F: failed AA as text)
+   --nr-jar-line #2A2A2A / #DADAD5  jar outline + the active jar's lid
+   --r-2 10 (cards) stays; tabs use 8.  --lip-h 3 -> 5 (the art).
+   --shadow-float-1  0 1 2 /4% + 0 4 16 /5%   (Ask result cards only)
+   --shadow-float-2  0 4 20 /8% + 0 1 3 /4%   (Ask field, palette, menus, sheets)
+   --ease-drip cubic-bezier(.5,0,.9,.6)  gravity, for things that fall
+   Layout: title strip 44 (was 48), the cog mark at 28pt after the window buttons (Ryan, Nov 17); address row 44 (was 46), field 28 (was 32);
+   Shelf 120 (was 238), tiles 100×88 with the jar drawn at 58; bottom bar 32 (was 44).
+
+  MOTION (all routed through Reduce Motion: Seal = fade, fill = plain level change)
+  ---------------------------------------------------------------------
+   Seal is TWO PHASES, because the app can't keep a fixed clock (Workbench.sealActiveTab
+   closes the tab only after Extraction + dataForWebArchive + store.write return; it can fail).
+   SwiftUI: Workbench.sealPhase (.started / .frozen / .failed) drives phase B, never a sleep.
+    A, on ⌘S:  t0 glyph pulse 1->1.18->1 200 ease-out
+               t60 the lip rises to the window's top edge (120)
+               t120 a 14pt capsule band runs out of the lip, both ways, 260 ease-out. It starts
+                    at the tab strip's leading edge (x 128), never over the window buttons.
+               t200 drops form, 40ms apart outward from the tab: a short nub on the lip ~68%
+                    across (centered on a pinned tab), small drops on the seams between tabs,
+                    and the big ones (with gloss) in the open strip after "+". No drop crosses
+                    a tab's title; one drop may pass the strip and stops above the field (y 50).
+                    Large 480 (= --t-seal), small 340; scaleY on ease-drip, settle on ease-jar.
+               …the drops HANG while the write runs (try "Write: slow page" / Shift+S).
+    B, when the write returns and t ≥ 700:
+               +0 the page blinks once (ink 7%, 160): the copy is frozen
+               +20 the Sealed pill pops in at the trailing end of the address row, check draws
+               +280 drain: highlight leaves, drops retract (240), the band shrinks to the lip's
+                    own width and fades in its last 80ms, the lip lowers
+               +640 the tab closes (width 200) and a chip of it (title + check disc) flies to
+                    its jar on the Shelf: 560, y ease-out first so it never crosses the window
+                    buttons, x ease-in-out, shrinking late. It lands as the jar-fill drip.
+               ≈2.5s total on a fast page. A second ⌘S lands the running Seal at once (close +
+               fill) and seals the next tab: nothing ever ignores the key.
+    Failure:   at B the drops drain, no pill, the tab stays open, and the field shows the
+               shipped status line "Couldn’t seal this page" for 2.5s (try "Write: fails" / F).
+   Fill  tinted drop falls 300 ease-drip (scaleY .7->1.15); at 240 the level rises
+         420 ease-jar; tile bumps 1->1.05->1 420 ease-jar; badge shows for 2.4s. 660 total.
+   Tabs  lip slides/resizes 200 ease-out; fills cross-fade 120; height 33<->38 200;
+         open = width 0->w 200 ease-out; close = width->0 200 + fade 160.
+   Jar switch  tile wash/border 120, lid ink 120, tile bump 320 ease-jar, tabs
+         cross-fade out 120 / in 200 (+6pt slide), lip color 200, Bench cross-fade 200.
+   Sink  (the shelf-life sweep; there is no Sink command) the tabs dip 4pt + fade 160, ONE
+         chip falls to the Brine pill 620 ("2 tabs" for a batch), the pill bumps once.
+         Skipped when the window isn't key or the tabs aren't in the jar on screen.
+   Panel slides OVER the Bench's trailing edge (transform, 200 ease-out); the web view
+         resizes once, when the slide ends. Never a per-frame width change on a real page.
+   Ask / Palette  fade 200, field scale .98->1, Ask cards stagger 40ms (y+6->0, 200).
+
+  BUILD NOTES (SwiftUI honesty)
+  ---------------------------------------------------------------------
+   Window buttons: the window keeps .hiddenTitleBar; a small AppKit WindowChrome helper
+     (NSViewRepresentable that grabs view.window) moves standardWindowButton(.close/
+     .miniaturize/.zoom) to y-center 22, re-applied on didResize, didEndLiveResize,
+     didExitFullScreen and didBecomeKey (watch for a one-frame flicker). They draw above
+     all SwiftUI content, so the comp keeps them above the Seal overlay too.
+   Title strip: empty stretches move the window (WindowDragGesture) and also take
+     .onTapGesture(count: 2), following AppleActionOnDoubleClick (zoom / minimize).
+   Tab strip: a horizontal ScrollView 45pt tall (overlaps the address row by 1pt so the
+     front tab covers the strip hairline; the hairline is drawn inside the scroll content
+     under every tab but the front one, and outside the ScrollView for the rest of the
+     strip). Min tab 116, "+" outside the scroll and pinned at its end, scrollTo the front
+     tab on change and before Seal starts, flat 1pt hairlines at clipped edges (no
+     gradient mask). The front tab grows to fit its title up to 260 before others shrink.
+     ?tabs=12 shows the overflow state.
+   Tab icon: the shipped TabIcon: the site's first letter on a tile, or the SF Symbol
+     picked for the tab (Client portal: key; Staging: hammer). No favicons: that would be
+     a separate decision (read <link rel=icon> from the loaded page, no new endpoint).
+     The art's dark square on the front tab = the letter tile in ink.
+   Seal overlay: ONE root overlay on ContentView, above the strip, address row and
+     WKWebView, .allowsHitTesting(false). It reads the front tab's frame through
+     anchorPreference(.bounds). It is not hosted in TabPane (that view is .id(tab.id) and
+     dies when Seal closes the tab). Each drop is one animatable Shape (formation progress),
+     scaled from its top anchor with keyframeAnimator; gloss is a RoundedRectangle. The
+     flying chips (Seal, Sink) live in the same overlay.
+   Seal from Shortcuts (Workbench.sealFrontPage) with no visible window plays nothing.
+   The page: a real WKWebView draws its own colors, so the page stays light in dark mode
+     (most sites are white) and one tab (Staging) is a dark site in light mode. Judge the
+     seam against the chrome here before taking dark screenshots.
+   Ask the Pantry is 1.1 (ADR 0012). Its answer is Foundation Models over SEALED snapshots
+     only (non-negotiable 4) and cites only sealed results; Brine and Kept rows are plain
+     search matches, ranked, never summarized. In 1.0, ⌘K is the Command Palette.
+   Keys in this comp are single letters (S D T W X K A F, 1–5) because a browser keeps
+     ⌘T/⌘W; the app's are ⌘S ⌘D ⌘T ⌘W ⌘K ⌘1–9 ⌘⌥I. Shift+S: slow page. F: Seal fails.
+     Shift+X: two tabs sink at once. URL: ?scene=browse|board|brine|ask|palette
+     &theme=dark &jar=client|kitchen|reading|lisbon|taxes &panel &color &reduce &tabs=12 &clean
+-->
+<html lang="en-US">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workbench Facelift</title>
+<style>
+:root{
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+
+  /* relish (unchanged values) */
+  --relish-100:#EFFCCB; --relish-300:#C4F26B; --relish-500:#93E413; --relish-700:#4E9110; --relish-ink:#1D3506;
+  --relish-edge: var(--relish-300);            /* border on relish-100 shapes */
+
+  /* neutrals, v2.1 proposal */
+  --backdrop:#ECECE9;
+  --canvas:#F6F6F3; --chrome:#FFFFFF; --rail:#FAFAF8; --tab:#F3F3F0; --tab-hover:#EDEDEA;
+  --float:#FFFFFF;
+  --hair:#E5E5E2; --hair-soft:#EEEEEB; --rail-hair:#EBEBE9;
+  --fg:#1D1D1B; --fg-2:#56564F; --fg-3:#6C6C65;
+  --skel:#E9E9E5; --lt-bg:#E3E3DE;
+  --jar-line:#2A2A2A; --jar-glass:#FFFFFF; --jar-lid-idle:#CFCFCA; --jar-gloss:#E3E3DF;
+  --g-fill:#E3E3DE; --g-men:#D7D7D2; --g-gloss:#BCBCB8;
+  --scrim: rgba(246,246,243,.72);
+  --danger:#D9432E; --warn:#E4A72A;
+  --focus: var(--relish-500);
+
+  /* page (website) wireframe colors */
+  --pg-ink:#1C1C1C; --pg-line:#E9E9E5; --pg-img:#ECECE8; --pg-mark:#D8D8D3; --pg-soft:#F5F5F2;
+
+  --shadow-1: 0 1px 2px rgba(17,17,17,.04), 0 4px 16px rgba(17,17,17,.05);
+  --shadow-2: 0 4px 20px rgba(17,17,17,.08), 0 1px 3px rgba(17,17,17,.04);
+  --win-shadow: 0 0 0 .5px rgba(0,0,0,.14), 0 24px 70px rgba(0,0,0,.16), 0 6px 18px rgba(0,0,0,.06);
+  --inner-hi: none;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-jar: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-drip: cubic-bezier(0.5, 0, 0.9, 0.6);
+  --t-fast:120ms; --t-base:200ms; --t-seal:480ms;
+  --lip-h:5px;
+
+  color-scheme: light;
+}
+:root[data-theme="dark"]{
+  --relish-100:#1F3308; --relish-ink:#0D1206; --relish-edge: var(--relish-700);
+  --backdrop:#0E0E0D;
+  --canvas:#141413; --chrome:#1C1C1A; --rail:#181817; --tab:#262624; --tab-hover:#2C2C2A;
+  --float:#232321;
+  --hair:#3B3B38; --hair-soft:#2A2A28; --rail-hair:#2E2E2B;
+  --fg:#F0F0EE; --fg-2:#B5B5AF; --fg-3:#8F8F88;
+  --skel:#2E2E2B; --lt-bg:#3A3A37;
+  --jar-line:#DADAD5; --jar-glass:#232321; --jar-lid-idle:#4A4A47; --jar-gloss:#34342F;
+  --g-fill:#3A3A37; --g-men:#45453F; --g-gloss:#2C2C2A;
+  --scrim: rgba(20,20,19,.72);
+  --pg-ink:#E6E6E2; --pg-line:#2E2E2B; --pg-img:#262624; --pg-mark:#3A3A37; --pg-soft:#202020;
+  --shadow-1: 0 1px 2px rgba(0,0,0,.40), 0 4px 12px rgba(0,0,0,.25);
+  --shadow-2: 0 8px 28px rgba(0,0,0,.45), 0 1px 3px rgba(0,0,0,.3);
+  --win-shadow: 0 0 0 .5px rgba(255,255,255,.10), 0 0 0 1px rgba(0,0,0,.6), 0 30px 80px rgba(0,0,0,.55);
+  --inner-hi: inset 0 1px 0 rgba(255,255,255,.04);
+  color-scheme: dark;
+}
+
+/* ---------- jar colors (the user's data). 500 = face, 100 = wash, 300 = edge ---------- */
+.j-relish{--jc:#93E413; --jw:#EFFCCB; --je:#C4F26B; --jt:#4E9110}
+.j-amber {--jc:oklch(74.9% 0.148 78.2); --jw:oklch(96.6% 0.04 84); --je:oklch(87% 0.105 82); --jt:oklch(52% 0.11 70)}
+.j-sky   {--jc:oklch(62.3% 0.188 259.8); --jw:oklch(96.4% 0.022 259.8); --je:oklch(85% 0.075 259.8); --jt:oklch(50% 0.17 259.8)}
+.j-rose  {--jc:oklch(65.7% 0.193 20);  --jw:oklch(96.4% 0.022 20); --je:oklch(86% 0.075 20); --jt:oklch(52% 0.17 20)}
+.j-violet{--jc:oklch(70.9% 0.159 293.5); --jw:oklch(96.4% 0.022 293.5); --je:oklch(86% 0.07 293.5); --jt:oklch(52% 0.14 293.5)}
+.j-teal  {--jc:oklch(78.5% 0.133 181.9); --jw:oklch(96.6% 0.03 181.9); --je:oklch(88% 0.075 181.9); --jt:oklch(52% 0.1 181.9)}
+:root[data-theme="dark"] .j-relish{--jw:#1F3308; --je:#4E9110}
+:root[data-theme="dark"] .j-amber {--jw:oklch(30% 0.05 78.2); --je:oklch(55% 0.11 78.2)}
+:root[data-theme="dark"] .j-sky   {--jw:oklch(29% 0.06 259.8); --je:oklch(52% 0.15 259.8)}
+:root[data-theme="dark"] .j-rose  {--jw:oklch(29% 0.06 20); --je:oklch(52% 0.14 20)}
+:root[data-theme="dark"] .j-violet{--jw:oklch(29% 0.06 293.5); --je:oklch(52% 0.13 293.5)}
+:root[data-theme="dark"] .j-teal  {--jw:oklch(30% 0.045 181.9); --je:oklch(55% 0.1 181.9)}
+
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--backdrop);font-family:var(--font-ui);color:var(--fg);-webkit-font-smoothing:antialiased;overflow:hidden;
+  font-feature-settings:"cv11","ss01";}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:default}
+button:focus-visible,.tile:focus-visible,[tabindex]:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 55%,transparent)}
+.tnum{font-variant-numeric:tabular-nums}
+svg{display:block}
+
+/* ---------- stage: 1440×900, scaled to fit ---------- */
+#stage{position:absolute;left:0;top:0;width:1440px;height:900px;transform-origin:0 0}
+
+/* ---------- the window ---------- */
+.win{position:absolute;left:80px;top:34px;width:1280px;height:784px;border-radius:14px;overflow:hidden;
+  background:var(--chrome);box-shadow:var(--win-shadow);isolation:isolate}
+.strip{position:absolute;left:0;top:0;right:0;height:44px;background:var(--chrome)}
+.strip::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--hair-soft)}
+.lights{position:absolute;left:18px;top:16px;display:flex;gap:8px;z-index:31}
+.lights i{width:12px;height:12px;border-radius:50%;background:#FF5F57;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.12)}
+.mark{position:absolute;left:80px;top:8px;width:28px;height:28px;padding:0;border:0;background:none;z-index:31;cursor:default;border-radius:6px}
+.mark svg{width:28px;height:28px;display:block}
+.mark:focus-visible{outline:2px solid var(--relish-500);outline-offset:2px}
+.lights i:nth-child(2){background:#FEBC2E}.lights i:nth-child(3){background:#28C840}
+
+/* tabs */
+.tabs{position:absolute;left:120px;top:0;width:1118px;height:45px;overflow:hidden;z-index:2}
+.tabrow{position:absolute;left:0;top:0;height:45px;width:4000px;transition:transform var(--t-base) var(--ease-out)}
+.tabs.over::before,.tabs.over::after{content:"";position:absolute;top:13px;width:1px;height:26px;background:var(--hair);z-index:4;opacity:0;transition:opacity var(--t-fast)}
+.tabs.over::before{left:0}.tabs.over::after{right:0}
+.tabs.over.l::before,.tabs.over.r::after{opacity:1}
+.tab{position:absolute;top:11px;height:33px;border-radius:8px 8px 0 0;background:var(--tab);display:flex;align-items:center;
+  gap:8px;padding:0 8px 0 12px;font-size:12px;font-weight:500;color:var(--fg-2);white-space:nowrap;overflow:hidden;z-index:1;
+  transition:left var(--t-base) var(--ease-out),width var(--t-base) var(--ease-out),top var(--t-base) var(--ease-out),
+             height var(--t-base) var(--ease-out),background-color var(--t-fast) var(--ease-out),color var(--t-fast) var(--ease-out),opacity 160ms var(--ease-out)}
+.tab:hover{background:var(--tab-hover)}
+.tab.on{top:7px;height:38px;background:var(--chrome);color:var(--fg);z-index:2;box-shadow:inset 1px 0 0 var(--hair),inset -1px 0 0 var(--hair),inset 0 1px 0 var(--hair)}
+.tab.on{padding-top:1px}
+/* a tab's icon: the shipped TabIcon — its site's first letter on a tile, or the SF Symbol picked for it.
+   Behind: grey tile; in front: ink tile (the art's dark square). */
+.lt{width:16px;height:16px;border-radius:4.5px;flex:none;display:grid;place-items:center;font-size:9.5px;font-weight:600;line-height:1;
+  background:var(--lt-bg);color:var(--fg-2);transition:background-color var(--t-fast),color var(--t-fast)}
+.lt.g{background:none;color:var(--fg-2)}
+.tab.on .lt:not(.g){background:var(--fg);color:var(--chrome)}
+.tab.on .lt.g{color:var(--fg)}
+.pinmark{position:absolute;right:4px;bottom:5px;width:12px;height:12px;border-radius:50%;background:var(--chrome);display:grid;place-items:center;color:var(--fg-2)}
+.tab.pin .pinmark{background:var(--tab)}.tab.pin.on .pinmark{background:var(--chrome)}
+.tab .tt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.tab .x{width:18px;height:18px;border-radius:5px;flex:none;display:grid;place-items:center;color:var(--fg-3);opacity:0;transition:opacity var(--t-fast) var(--ease-out),background-color var(--t-fast)}
+.tab:hover .x{opacity:1}.tab .x:hover{background:var(--tab-hover)}
+.tab.pin{padding:0;justify-content:center}
+.tab.pin .tt,.tab.pin .x{display:none}
+.tab.sinking .tt{color:var(--fg-3)}
+.newtab{position:absolute;top:13px;z-index:2;width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--fg-3);
+  transition:left var(--t-base) var(--ease-out),background-color var(--t-fast)}
+.newtab:hover{background:var(--tab)}
+.lip{position:absolute;top:7px;height:14px;border-radius:8px 8px 0 0;overflow:hidden;z-index:3;pointer-events:none;
+  transition:left var(--t-base) var(--ease-out),width var(--t-base) var(--ease-out),opacity var(--t-fast)}
+.lip b{display:block;height:var(--lip-h);background:var(--jc);transition:background-color var(--t-base) var(--ease-out)}
+
+/* body grid */
+.body{position:absolute;left:0;right:0;top:44px;bottom:32px;display:flex}
+.rail{width:120px;flex:none;background:var(--rail);box-shadow:inset -1px 0 0 var(--rail-hair);display:flex;flex-direction:column;padding:12px 10px 10px}
+.bench{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;background:var(--chrome)}
+.bench.withpanel{margin-right:300px}
+/* the Panel slides OVER the Bench's trailing edge (transform only), and the web view resizes once,
+   when the slide ends — never a per-frame width animation that would reflow a real page */
+.panel{position:absolute;right:0;top:0;bottom:0;width:300px;overflow:hidden;background:var(--rail);box-shadow:inset 1px 0 0 var(--rail-hair);z-index:3;
+  transform:translateX(100%);visibility:hidden;transition:transform var(--t-base) var(--ease-out),visibility 0s linear var(--t-base)}
+.panel.open{transform:none;visibility:visible;transition:transform var(--t-base) var(--ease-out),visibility 0s}
+.bottom{position:absolute;left:0;right:0;bottom:0;height:32px;background:var(--rail);box-shadow:inset 0 1px 0 var(--hair-soft);
+  display:flex;align-items:center;padding:0 10px 0 12px;gap:12px;font-size:12px;color:var(--fg-3)}
+
+/* ---------- Shelf (rail) ---------- */
+.tile{position:relative;width:100px;height:88px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  padding-top:6px;gap:3px;margin-bottom:8px;box-shadow:inset 0 0 0 1px transparent;
+  transition:background-color var(--t-fast) var(--ease-out),box-shadow var(--t-fast) var(--ease-out)}
+.tile:hover{background:var(--tab)}
+.tile.on{background:var(--jw);box-shadow:inset 0 0 0 1px var(--je)}
+/* dark: the active tile is a neutral float with a 1pt edge in the jar's color — no dark-green panel */
+:root[data-theme="dark"] .tile.on{background:var(--float);box-shadow:inset 0 0 0 1px var(--je)}
+.tile .nm{font-size:12px;line-height:14px;font-weight:500;color:var(--fg-2);max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.15px}
+.tile.on .nm{color:var(--fg);font-weight:600}
+/* the tile's count badge, in the JAR's colors (white, 1pt jar-300 edge, ink numerals): relish only for a
+   Relish jar, so an Amber tile never wears a green badge. Shows for 2.4s after something lands. */
+.tile .ct{position:absolute;top:6px;right:6px;min-width:20px;height:18px;padding:0 5px;border-radius:6px;background:var(--float);
+  box-shadow:inset 0 0 0 1px var(--je);font-size:11px;font-weight:600;line-height:18px;text-align:center;color:var(--fg);opacity:0;
+  transition:opacity var(--t-base) var(--ease-out)}
+.tile .ct.show{opacity:1}
+.addjar{height:28px;width:100px;border-radius:8px;display:grid;place-items:center;color:var(--fg-3)}
+.addjar:hover{background:var(--tab)}
+.rule{height:1px;background:var(--rail-hair);margin:8px 2px}
+.srow{height:28px;border-radius:8px;display:flex;align-items:center;gap:6px;padding:0 6px 0 4px;font-size:12px;font-weight:500;color:var(--fg-2);white-space:nowrap}
+.srow svg{color:var(--fg-3);flex:none}
+.srow:hover{background:var(--tab)}
+.srow.on{background:var(--relish-100);color:var(--fg)}
+.rail .spacer{flex:1}
+
+/* ---------- jar drawing ---------- */
+.jar .glass,.jar .neck{fill:var(--jar-glass)}
+.jar .ol,.jar .neck,.jar .lid{stroke:var(--jar-line);stroke-linejoin:round}
+.jar .lid{fill:var(--jar-lid-idle);transition:fill var(--t-fast) var(--ease-out)}
+.jar.on .lid{fill:var(--jar-line)}
+.jar .gls{fill:var(--jar-gloss)}
+.jar .lf,.jar .drop{fill:var(--jc)}
+.jar .lm{fill:color-mix(in oklab,var(--jc) 86%,#000)}
+.jar .lg{fill:color-mix(in oklab,var(--jc) 80%,#000);opacity:.55}
+.jar .bub circle{fill:#fff}
+.jar .bub{opacity:0;transition:opacity var(--t-base) var(--ease-out)}
+.jar.full .bub{opacity:1}
+/* decision 5: graphite applies to idle jars ON THE SHELF only; a jar named elsewhere (Brine rows, Ask) keeps its color */
+:root[data-graphite] .rail .jar.idle .lf,:root[data-graphite] .rail .jar.idle .drop{fill:var(--g-fill)}
+:root[data-graphite] .rail .jar.idle .lm{fill:var(--g-men)}
+:root[data-graphite] .rail .jar.idle .lg{fill:var(--g-gloss);opacity:1}
+.jar .liq,.jar .drop{transform-box:view-box}
+
+/* ---------- address row ---------- */
+.addr{height:44px;flex:none;display:flex;align-items:center;gap:4px;padding:0 10px 0 12px;background:var(--chrome);box-shadow:inset 0 -1px 0 var(--hair-soft);position:relative;z-index:2}
+.chip{height:28px;display:flex;align-items:center;gap:8px;padding:0 10px 0 8px;border-radius:8px;background:var(--tab);box-shadow:inset 0 0 0 1px var(--hair-soft);
+  font-size:12px;font-weight:600;color:var(--fg);white-space:nowrap;transition:background-color var(--t-base),box-shadow var(--t-base)}
+.ib{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--fg-3);flex:none;transition:background-color var(--t-fast) var(--ease-out),color var(--t-fast)}
+.ib:hover{background:var(--tab);color:var(--fg-2)}
+.ib.dim{opacity:.45}
+.ib.on{color:var(--fg);background:var(--tab)}
+.field{flex:1;min-width:0;height:28px;margin-left:4px;border-radius:8px;background:var(--tab);display:flex;align-items:center;gap:8px;padding:0 4px 0 10px;font-size:13px;color:var(--fg-3);position:relative}
+.field .lead{color:var(--relish-700);flex:none}
+:root[data-theme="dark"] .field .lead{color:var(--relish-500)}
+.field .url{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.05px}
+.field .url b{font-weight:500;color:var(--fg)}
+.field .url span{color:var(--fg-3)}
+.field .in{display:flex;gap:0;transition:opacity var(--t-fast) var(--ease-out)}
+.field .in .ib{width:26px;height:26px}
+.field .in .ib:hover{background:var(--tab-hover)}
+.sealslot{position:relative;width:28px;height:28px;flex:none;margin-left:4px}
+.status{flex:none;font-size:12px;color:var(--fg-2);white-space:nowrap;padding:0 6px}
+.sealbtn{position:absolute;inset:0;color:var(--relish-500)}
+.sealbtn svg{transform-origin:center}
+.sealbtn.off{opacity:.35;pointer-events:none;color:var(--fg-3)}
+.pill{position:absolute;right:0;top:0;height:28px;display:flex;align-items:center;gap:7px;padding:0 12px 0 7px;border-radius:14px;white-space:nowrap;
+  background:var(--relish-100);box-shadow:inset 0 0 0 1px var(--relish-edge);font-size:13px;font-weight:600;color:var(--fg);transform-origin:100% 50%}
+.pill .disc{width:16px;height:16px;border-radius:50%;background:var(--relish-500);display:grid;place-items:center;color:#111}
+:root[data-theme="dark"] .pill .disc{color:var(--relish-ink)}
+.pill.sm{height:22px;padding:0 9px 0 4px;gap:5px;font-size:11.5px;position:static;flex:none;text-transform:none;letter-spacing:0}
+.pill.sm .disc{width:14px;height:14px}
+.hidden{display:none!important}
+:root[data-reduce] .panel,:root[data-reduce] .tabrow{transition:none}
+
+/* ---------- bench content ---------- */
+.view{position:absolute;left:0;right:0;top:44px;bottom:0;overflow:hidden}
+.page{background:#FFFFFF}
+/* A real page draws its own colors: most sites stay white in dark mode, so the page keeps
+   light values whatever the theme (the seam against dark chrome is real; judge it here). */
+.page{--pg-ink:#1C1C1C; --pg-line:#E9E9E5; --pg-img:#ECECE8; --pg-mark:#D8D8D3; --pg-soft:#F5F5F2; color:#1C1C1C}
+/* …and one site in the set is dark, so the light theme shows that seam too */
+.page.darksite{background:#121417; --pg-ink:#ECEDEF; --pg-line:#2A2D31; --pg-img:#1E2125; --pg-mark:#3A3E44; --pg-soft:#191B1E; color:#ECEDEF}
+.flash{position:absolute;inset:0;background:#1D1D1B;opacity:0;pointer-events:none;z-index:5}
+
+/* website wireframe — page content, never brand-colored */
+.site{position:absolute;inset:0;padding:0 64px}
+.site-nav{height:62px;display:flex;align-items:center;gap:26px;box-shadow:inset 0 -1px 0 var(--pg-line);margin:0 -64px;padding:0 64px}
+.site-nav .logo{display:flex;align-items:center;gap:9px;color:var(--pg-ink)}
+.bar{border-radius:5px;background:var(--pg-ink)}
+.ln{height:9px;border-radius:5px;background:var(--pg-line)}
+.ln.sm{height:7px}
+.img{border-radius:14px;background:var(--pg-img);display:grid;place-items:center;color:var(--pg-mark)}
+.btnsk{height:38px;border-radius:19px}
+.btnsk.solid{background:var(--pg-ink)}
+.btnsk.line{box-shadow:inset 0 0 0 1.5px var(--pg-line)}
+.cols{display:grid;gap:24px}
+
+/* ---------- board ---------- */
+.board{background:var(--canvas);overflow:hidden}
+.board-in{padding:34px 44px 40px;max-width:1120px}
+.bh{display:flex;align-items:flex-start;gap:18px}
+.bh h1{margin:2px 0 0;font-size:28px;line-height:1.15;font-weight:600;letter-spacing:-.4px}
+.bh .meta{font-size:12px;font-weight:500;color:var(--fg-3);margin-top:6px}
+.bh .acts{margin-left:auto;display:flex;gap:8px;padding-top:6px}
+.btn{height:28px;padding:0 12px;border-radius:8px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+  transition:background-color var(--t-fast) var(--ease-out),box-shadow var(--t-fast)}
+.btn.sec{background:var(--float);box-shadow:inset 0 0 0 1px var(--hair);color:var(--fg)}
+.btn.sec:hover{background:var(--tab)}
+.btn.jar{background:var(--jc);color:#1D1D1B;font-weight:600}
+.btn.jar:hover{background:var(--je)}
+.btn.primary{background:var(--relish-500);color:#111;font-weight:600}
+.btn.primary:hover{background:var(--relish-300)}
+.sec-h{display:flex;align-items:baseline;gap:8px;margin:32px 0 12px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3)}
+.sec-h b{font-weight:600;color:var(--fg-3)}
+.sec-h .all{margin-left:auto;font-size:12px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--fg-2)}
+.sec-h .all:hover{color:var(--fg)}
+.grid{display:grid;gap:12px}
+.card{background:var(--float);border-radius:10px;box-shadow:inset 0 0 0 1px var(--hair),var(--inner-hi);transition:box-shadow var(--t-fast) var(--ease-out)}
+.card:hover{box-shadow:inset 0 0 0 1px var(--jc),var(--inner-hi)}
+.ttile{display:flex;align-items:center;gap:11px;padding:12px 14px;height:64px}
+.fav{width:32px;height:32px;border-radius:8px;background:var(--tab);display:grid;place-items:center;color:var(--fg-2);flex:none;font-size:14px;font-weight:600}
+.ttile .t{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ttile .h{font-size:12px;color:var(--fg-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ttile .pinm{color:var(--fg-3);margin-left:auto;flex:none}
+.kcard{padding:14px 16px 14px;display:flex;flex-direction:column;min-height:168px}
+.prov{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3);white-space:nowrap;height:22px}
+.kcard .pill.sm{margin-left:auto}
+.kcard h3{margin:10px 0 0;font-size:14px;line-height:1.3;font-weight:600;letter-spacing:-.1px}
+.kcard p{margin:6px 0 0;font-size:12.5px;line-height:1.5;color:var(--fg-2)}
+.kcard .ft{margin-top:auto;padding-top:12px;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--fg-3)}
+.kcard .ft svg{color:var(--fg-2)}
+
+/* ---------- Brine ---------- */
+.brine{background:var(--canvas)}
+.list{background:var(--float);border-radius:10px;box-shadow:inset 0 0 0 1px var(--hair),var(--inner-hi);overflow:hidden}
+.brow{height:56px;display:flex;align-items:center;gap:12px;padding:0 14px 0 14px;box-shadow:inset 0 -1px 0 var(--hair-soft);position:relative}
+.brow:last-child{box-shadow:none}
+.brow:hover{background:color-mix(in srgb,var(--tab) 50%,transparent)}
+.brow .tx{flex:1;min-width:0}
+.brow .t{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brow .h{font-size:12px;color:var(--fg-3);margin-top:2px}
+.from{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--fg-2);width:150px;flex:none;white-space:nowrap}
+.when{width:120px;flex:none;font-size:12px;color:var(--fg-3);text-align:right;padding-right:4px;transition:opacity var(--t-fast) var(--ease-out)}
+.brow:hover .when{opacity:0}
+.restore{position:absolute;right:12px;top:15px;height:26px;padding:0 9px;border-radius:7px;display:flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--fg-2);opacity:0;
+  transition:opacity var(--t-fast) var(--ease-out),background-color var(--t-fast)}
+.brow:hover .restore,.restore:focus-visible{opacity:1}
+.restore:hover{background:var(--tab)}
+
+
+/* ---------- empty state ---------- */
+.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--canvas)}
+.empty p{margin:0;font-size:15px;color:var(--fg-2)}
+.empty .cog{width:56px;height:56px}
+
+/* ---------- bottom bar ---------- */
+.brinepill{height:24px;display:flex;align-items:center;gap:6px;padding:0 10px 0 8px;border-radius:12px;background:var(--tab);color:var(--fg-2);font-size:12px;font-weight:500;
+  transition:background-color var(--t-base) var(--ease-out),box-shadow var(--t-base) var(--ease-out)}
+.brinepill svg{color:var(--fg-3)}
+.brinepill.lit{background:var(--relish-100);box-shadow:inset 0 0 0 1px var(--relish-edge);color:var(--fg)}
+.brinepill.lit svg{color:var(--fg-2)}
+.brinepill .n{font-weight:600;color:var(--fg);min-width:7px;display:inline-block}
+.brinepill.on{box-shadow:inset 0 0 0 1px var(--fg-3)}
+.bottom .grow{flex:1}
+.askbtn{height:24px;display:flex;align-items:center;gap:7px;padding:0 6px 0 8px;border-radius:7px;color:var(--fg-2);font-size:12px;font-weight:500}
+.askbtn:hover{background:var(--tab)}
+.askbtn svg{color:var(--fg-3)}
+.kbd{height:18px;padding:0 5px;border-radius:5px;box-shadow:inset 0 0 0 1px var(--hair);font-size:11px;font-weight:500;color:var(--fg-3);display:inline-flex;align-items:center;font-family:var(--font-ui)}
+
+/* ---------- Panel ---------- */
+.panel-in{width:300px;height:100%;overflow:hidden;padding:20px 20px}
+.panel h2{margin:0;font-size:20px;line-height:1.2;font-weight:600;letter-spacing:-.2px}
+.panel .pm{font-size:12px;font-weight:500;color:var(--fg-3);margin-top:6px}
+.psec{margin-top:18px;padding-top:16px;box-shadow:inset 0 1px 0 var(--hair-soft)}
+.plab{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3);margin-bottom:10px}
+.prow{display:flex;justify-content:space-between;font-size:12.5px;margin:7px 0;color:var(--fg-2)}
+.prow b{font-weight:500;color:var(--fg)}
+.life{height:2px;border-radius:1px;background:var(--hair);margin-top:10px}
+.life i{display:block;height:100%;width:62%;background:var(--relish-500);border-radius:1px}
+.labels{display:flex;flex-wrap:wrap;gap:6px}
+.lab{height:24px;padding:0 9px;border-radius:7px;background:var(--tab);font-size:12px;font-weight:500;display:flex;align-items:center;color:var(--fg)}
+.lab.add{color:var(--fg-3);background:none;box-shadow:inset 0 0 0 1px var(--hair)}
+.sw{display:flex;gap:10px}
+.sw i{width:22px;height:22px;border-radius:6px;background:var(--jc)}
+.sw i.sel{box-shadow:0 0 0 2px var(--rail),0 0 0 4px var(--fg)}
+
+/* ---------- Ask the Pantry ---------- */
+.ask{position:absolute;left:120px;right:0;top:44px;bottom:32px;z-index:20;background:var(--canvas);display:flex;flex-direction:column;align-items:center;padding-top:72px}
+.askfield{width:640px;height:54px;border-radius:27px;background:var(--float);box-shadow:inset 0 0 0 1px var(--hair),var(--shadow-2),var(--inner-hi);
+  display:flex;align-items:center;padding:0 14px 0 22px;gap:14px;font-size:16px;color:var(--fg)}
+.askfield .q{display:flex;align-items:center;flex:1;letter-spacing:-.1px}
+.caret{display:inline-block;width:2px;height:22px;border-radius:1px;background:var(--focus);margin-left:3px;animation:blink 1.06s steps(1) infinite}
+:root[data-reduce] .caret{animation:none}
+@keyframes blink{50%{opacity:0}}
+.askmeta{width:640px;margin:18px 0 0;font-size:12px;color:var(--fg-3);display:flex;align-items:center;gap:7px;padding:0 22px}
+.answer{width:640px;margin:10px 0 0;padding:0 22px;font-size:14px;line-height:1.6;color:var(--fg-2)}
+.answer b{color:var(--fg);font-weight:600}
+.cite{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:5px;background:var(--relish-100);box-shadow:inset 0 0 0 1px var(--relish-edge);
+  font-size:10.5px;font-weight:600;color:var(--fg);vertical-align:2px;margin:0 1px;font-variant-numeric:tabular-nums}
+.results{width:640px;margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.rcard{background:var(--float);border-radius:10px;box-shadow:inset 0 0 0 1px var(--hair),var(--shadow-1),var(--inner-hi);padding:15px 16px 16px;transition:box-shadow var(--t-fast) var(--ease-out)}
+.rcard:hover{box-shadow:inset 0 0 0 1px var(--jc),var(--shadow-1),var(--inner-hi)}
+.rcard .badge{width:18px;height:18px;font-size:11px;vertical-align:0;margin:0}
+.rcard h4{margin:10px 0 0;font-size:14px;font-weight:600;letter-spacing:-.1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rcard p{margin:5px 0 0;font-size:12.5px;line-height:1.5;color:var(--fg-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rcard .prov{gap:8px}
+.esc{margin-left:auto}
+
+.rhead{width:640px;margin:26px 0 0;padding:0 22px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3)}
+.rhead + .results{margin-top:10px}
+
+/* ---------- Command Palette (⌘K, 1.0) ---------- */
+.pal{position:absolute;left:120px;right:0;top:44px;bottom:32px;z-index:20;background:var(--scrim)}
+.palbox{position:absolute;left:50%;top:56px;width:560px;margin-left:-280px;border-radius:12px;background:var(--float);overflow:hidden;
+  box-shadow:inset 0 0 0 1px var(--hair),var(--shadow-2),var(--inner-hi)}
+.palfield{height:52px;display:flex;align-items:center;gap:12px;padding:0 16px;font-size:16px;box-shadow:inset 0 -1px 0 var(--hair-soft)}
+.palfield svg{color:var(--fg-3)}
+.palfield .q{flex:1;display:flex;align-items:center}
+.palrows{padding:6px}
+.prw{height:40px;border-radius:8px;display:flex;align-items:center;gap:10px;padding:0 10px;font-size:13px;color:var(--fg)}
+.prw.sel{background:var(--tab)}
+.prw .ico{width:20px;display:grid;place-items:center;color:var(--fg-2);flex:none}
+.prw .tl{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.prw .src{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--fg-3);white-space:nowrap}
+.palgrp{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3);padding:10px 10px 6px}
+
+/* ---------- local fixture page (real type; no network) ---------- */
+.fx{position:absolute;inset:0;overflow:hidden;font-family:Charter,"Iowan Old Style",Georgia,serif;color:#1F1F1D}
+.fx nav{height:62px;display:flex;align-items:center;gap:28px;padding:0 64px;box-shadow:inset 0 -1px 0 #ECECE8;font:500 13px/1 var(--font-ui);color:#55554F}
+.fx nav .nm{display:flex;align-items:center;gap:10px;font:600 15px/1 var(--font-ui);color:#1F1F1D;margin-right:12px}
+.fx nav .nm i{width:22px;height:22px;border-radius:50%;background:#1F1F1D;position:relative}
+.fx nav .nm i::after{content:"";position:absolute;left:11px;top:5px;width:12px;height:12px;border-radius:50%;box-shadow:inset 0 0 0 2.4px #fff}
+.fx nav .sub{margin-left:auto;height:32px;padding:0 14px;border-radius:16px;background:#1F1F1D;color:#fff;display:flex;align-items:center;font-weight:600}
+.fx article{max-width:660px;margin:52px auto 0}
+.fx .kick{font:600 12px/1 var(--font-ui);letter-spacing:.08em;text-transform:uppercase;color:#7A7A72}
+.fx h1{font-size:40px;line-height:1.12;font-weight:600;letter-spacing:-.5px;margin:16px 0 0}
+.fx .by{display:flex;align-items:center;gap:10px;margin-top:20px;font:13px/1 var(--font-ui);color:#6A6A63}
+.fx .by i{width:28px;height:28px;border-radius:50%;background:#E4E1DA}
+.fx figure{margin:28px 0 0;height:210px;border-radius:12px;background:#EEEBE4;position:relative;overflow:hidden}
+.fx figure b{position:absolute;border-radius:50%;background:#E2DED5}
+.fx figure s{position:absolute;left:0;right:0;bottom:0;height:64px;background:#E6E2DA}
+.fx p{font-size:18px;line-height:1.62;margin:24px 0 0;color:#2E2E2B}
+
+/* ---------- Seal overlay ---------- */
+.sealfx{position:absolute;left:0;top:0;width:1280px;height:96px;z-index:30;pointer-events:none;overflow:visible}
+.sealfx .band,.sealfx .drop,.sealfx .conn{fill:var(--relish-500)}
+.sealfx .hl,.sealfx .gl{fill:var(--relish-300)}
+.sealfx .drop,.sealfx .conn,.sealfx .bandg{transform-box:fill-box}
+
+/* ---------- sink ghost ---------- */
+.ghost{position:absolute;z-index:40;height:30px;padding:0 12px 0 8px;border-radius:9px;background:var(--float);box-shadow:inset 0 0 0 1px var(--hair),var(--shadow-2);
+  display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:var(--fg-2);white-space:nowrap;pointer-events:none}
+
+/* ---------- comp control (not product UI) ---------- */
+.ctl{position:absolute;left:50%;top:838px;transform:translateX(-50%);height:38px;display:flex;align-items:center;gap:2px;padding:0 5px;border-radius:19px;
+  background:var(--float);box-shadow:inset 0 0 0 1px var(--hair),var(--shadow-2);font-size:12px;font-weight:500;color:var(--fg-2);white-space:nowrap;z-index:50;
+  transition:opacity var(--t-base)}
+.ctl button{height:28px;padding:0 10px;border-radius:14px;transition:background-color var(--t-fast),color var(--t-fast)}
+.ctl button:hover{background:var(--tab);color:var(--fg)}
+.ctl button.sel{background:var(--fg);color:var(--chrome)}
+.ctl .sep{width:1px;height:18px;background:var(--hair);margin:0 6px}
+.ctl .k{color:var(--fg-3);font-weight:400;margin-left:4px}
+.ctl.gone{opacity:0;pointer-events:none}
+.caption{position:absolute;left:80px;top:10px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3);z-index:50}
+.caption span{font-weight:500;letter-spacing:0;text-transform:none;margin-left:8px}
+.ctl.gone ~ .caption{opacity:0}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="win" id="win">
+    <div class="strip" id="strip">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <button class="mark" id="mark" title="Show the jar’s board" aria-label="NetRelish — show the jar’s board"></button>
+      <div class="tabs" id="tabs"><div class="tabrow" id="tabrow"></div></div>
+      <button class="newtab" id="newtab" title="New Tab · ⌘T"></button>
+    </div>
+    <div class="body" id="body">
+      <aside class="rail" id="rail" aria-label="Shelf"></aside>
+      <main class="bench" id="bench">
+        <div class="addr" id="addr"></div>
+        <div id="views"></div>
+      </main>
+      <aside class="panel" id="panel" aria-label="Panel"><div class="panel-in" id="panelIn"></div></aside>
+    </div>
+    <footer class="bottom" id="bottom"></footer>
+    <div class="pal hidden" id="pal"></div>
+    <div class="ask hidden" id="ask"></div>
+    <svg class="sealfx" id="sealfx" viewBox="0 0 1280 96" aria-hidden="true"></svg>
+  </div>
+  <div class="ctl" id="ctl"></div>
+  <div class="caption" id="caption"></div>
+</div>
+
+<script>
+/* =====================================================================
+   Icons — stand-ins for SF Symbols (the app uses the real ones).
+   ===================================================================== */
+const P = (d, w=1.5) => `<path d="${d}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+const ICONS = {
+  chevL: P('M14.5 5.5 8 12l6.5 6.5',1.7), chevR: P('M9.5 5.5 16 12l-6.5 6.5',1.7),
+  plus: P('M12 5.5v13M5.5 12h13',1.6), x: P('M7 7l10 10M17 7 7 17',1.8),
+  lock: `<rect x="6.5" y="10.5" width="11" height="9" rx="2.2" fill="currentColor"/>`+P('M9 10.5V8.3a3 3 0 0 1 6 0v2.2',1.7),
+  capture: P('M12 4.5v9M8.5 10l3.5 3.5 3.5-3.5M5 14.5v2.5A2.5 2.5 0 0 0 7.5 19.5h9a2.5 2.5 0 0 0 2.5-2.5v-2.5'),
+  reader: P('M7.5 4h9A1.5 1.5 0 0 1 18 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 18.5v-13A1.5 1.5 0 0 1 7.5 4ZM9 8.5h6M9 12h6M9 15.5h3.5'),
+  reload: P('M18.5 12a6.5 6.5 0 1 1-1.9-4.6M18.5 4.8v3.4h-3.4'),
+  side: P('M5.5 5h13A2 2 0 0 1 20.5 7v10a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2ZM14.5 5v14'),
+  search: P('M10.8 4.5a6.3 6.3 0 1 1 0 12.6 6.3 6.3 0 0 1 0-12.6ZM15.5 15.5 20 20'),
+  grid: P('M5 4.5h4.5a.5.5 0 0 1 .5.5v4.5a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5ZM14.5 4.5H19a.5.5 0 0 1 .5.5v4.5a.5.5 0 0 1-.5.5h-4.5a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5ZM5 14h4.5a.5.5 0 0 1 .5.5V19a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5v-4.5A.5.5 0 0 1 5 14ZM14.5 14H19a.5.5 0 0 1 .5.5V19a.5.5 0 0 1-.5.5h-4.5a.5.5 0 0 1-.5-.5v-4.5a.5.5 0 0 1 .5-.5Z'),
+  pin: P('M9.5 4h5M10.5 4v5.2L7.5 13h9l-3-3.8V4M12 13v7'),
+  pinFill: `<path d="M8 3h8l-1.6 6.2 3.1 3.8H6.5l3.1-3.8Z" fill="currentColor"/><path d="M12 13v8" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>`,
+  restore: P('M9 6.5 5 10.5l4 4M5 10.5h9.5a4.5 4.5 0 0 1 0 9H12'),
+  check: P('M7.5 12.5l3 3 6-6.5',2.4),
+  note: P('M6.5 4h11A1.5 1.5 0 0 1 19 5.5V15l-5 5H6.5A1.5 1.5 0 0 1 5 18.5v-13A1.5 1.5 0 0 1 6.5 4ZM19 15h-3.5a1.5 1.5 0 0 0-1.5 1.5V20'),
+  mail: P('M4.5 6h15A1.5 1.5 0 0 1 21 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 16.5v-9A1.5 1.5 0 0 1 4.5 6ZM3.5 7l8.5 6.5L20.5 7'),
+  doc: P('M7 3.5h7l4 4V19.5a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1ZM14 3.5V8h4M9 12h6M9 15.5h6'),
+  key: P('M8 11a3.75 3.75 0 1 1 0 7.5A3.75 3.75 0 0 1 8 11ZM10.7 12.1 18.5 4.3M15.6 7.2l2.6 2.6M13.4 9.4l1.9 1.9'),
+  hammer: P('M4.5 19.5l8-8M10 7l3.2-3.2a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L17 14M10 7l7 7M8.5 8.5 15.5 15.5'),
+  sparkleLine: P('M12 3.5c.5 4.6 3.4 7.5 8 8-4.6.5-7.5 3.4-8 8-.5-4.6-3.4-7.5-8-8 4.6-.5 7.5-3.4 8-8Z',1.4),
+  /* NetRelish symbols (symbols.svg), stroke weight matched to SF at this size */
+  seal: `<circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="4.2" fill="currentColor"/>`+P('M12 2.2v1.6M12 20.2v1.6M2.2 12h1.6M20.2 12h1.6',1.7),
+  sink: P('M8 3.5h6l3 3V13H8Z')+P('M2.5 16.5c2-1.7 3.5-1.7 5.5 0s3.5 1.7 5.5 0 3.5-1.7 5.5 0c1 .8 1.8 1.1 2.5 1.1M2.5 20c2-1.7 3.5-1.7 5.5 0s3.5 1.7 5.5 0 3.5-1.7 5.5 0c1 .8 1.8 1.1 2.5 1.1'),
+  /* #nr-jar-smart from symbols.svg (jar + filter glyph), lid/shoulder strokes at SF weight */
+  jarSmart: `<rect x="7.5" y="2.5" width="9" height="3" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M6.5 8.5C6.5 6.6 7.4 5.5 9 5.5h6c1.6 0 2.5 1.1 2.5 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M6.5 8.5V18c0 2.2 1.3 3.5 3.5 3.5h4c2.2 0 3.5-1.3 3.5-3.5V8.5ZM9 11.5h6l-2.2 3V18l-1.6-1v-2.5Z" fill="currentColor" fill-rule="evenodd"/>`,
+};
+const ic = (n, s=16, cls='') => `<svg class="${cls}" width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
+
+/* a site's own logo, drawn inside the PAGE (page content: the website's, never ours) */
+const MARKS = {
+  juniper: `<circle cx="12" cy="12" r="8" fill="currentColor"/><circle cx="12" cy="12" r="3" fill="#fff"/>`,
+  harbor: `<path d="M3 15c3-3 6-3 9 0s6 3 9 0M3 10c3-3 6-3 9 0s6 3 9 0" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>`,
+  fieldnote: `<rect x="4" y="4" width="16" height="16" rx="4" fill="currentColor"/>`,
+  trails: `<path d="M3 19 10 6l4 7 2-3 5 9Z" fill="currentColor"/>`,
+  portal: `<rect x="4" y="4" width="16" height="16" rx="8" fill="currentColor"/>`,
+  ledger: `<path d="M5 4h4v12h10v4H5Z" fill="currentColor"/>`,
+  cab: `<rect x="4" y="4" width="7" height="16" rx="1.5" fill="currentColor"/><rect x="13" y="4" width="7" height="16" rx="1.5" fill="currentColor"/>`,
+  stone: `<path d="M12 3 21 12 12 21 3 12Z" fill="currentColor"/>`,
+  lumen: `<path d="M6 13a6 6 0 0 1 12 0Z" fill="currentColor"/><circle cx="12" cy="18" r="2" fill="currentColor"/>`,
+  essays: `<path d="M5 5h14v3H5zM5 11h14v3H5zM5 17h9v3H5z" fill="currentColor"/>`,
+  calm: `<circle cx="9" cy="12" r="6" fill="currentColor"/>`,
+  shelf: `<path d="M4 5h3v14H4zM9 5h3v14H9zM14 7l3-1 3 13-3 1z" fill="currentColor"/>`,
+  walks: `<path d="M4 18c4-10 12-10 16 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>`,
+  rail: `<rect x="5" y="4" width="14" height="12" rx="3" fill="currentColor"/>`,
+  tile: `<path d="M4 4h7v7H4zM13 13h7v7h-7z" fill="currentColor"/>`,
+  tax: `<path d="M6 3h12v18l-3-2-3 2-3-2-3 2Z" fill="currentColor"/>`,
+  blank: `<circle cx="12" cy="12" r="7.5" fill="currentColor"/>`,
+};
+const siteLogo = (m, s=22) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true" style="color:var(--pg-ink)">${MARKS[m]||MARKS.blank}</svg>`;
+
+/* a tab's icon, as shipped (TabIcon): the SF Symbol picked for it, or its site's first letter on a tile */
+const letterOf = host => { const h = String(host).replace(/^www\./,''); return (h[0]||'·').toUpperCase(); };
+const ltile = (t, s=16) => t.glyph
+  ? `<span class="lt g" style="width:${s}px;height:${s}px">${ic(t.glyph, s - 1)}</span>`
+  : `<span class="lt" style="width:${s}px;height:${s}px;font-size:${(s*.6).toFixed(1)}px;border-radius:${(s*.28).toFixed(1)}px">${letterOf(t.host)}</span>`;
+
+const COG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="cog" aria-hidden="true"><defs><defs><linearGradient id="coggGloss" x1="0" y1="0" x2="0" y2="1"> <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"></stop> <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"></stop> </linearGradient><linearGradient id="coggGearSteel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#CBD2DA"></stop><stop offset="1" stop-color="#848D99"></stop></linearGradient><radialGradient id="coggHoleSteel" cx="0.5" cy="0.38" r="0.7"><stop offset="0" stop-color="#39404A"></stop><stop offset="1" stop-color="#59626D"></stop></radialGradient><linearGradient id="coggGoop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A9F12E"></stop><stop offset="1" stop-color="#5CB80F"></stop></linearGradient></defs></defs><g><g transform="translate(0 4.5) " fill="#525A65"><rect x="43.5" y="12" width="13" height="13" rx="4"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(45 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(90 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(135 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(180 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(225 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(270 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(315 50 50)"></rect><circle cx="50" cy="50" r="30"></circle></g><g fill="url(#coggGearSteel)"><rect x="43.5" y="12" width="13" height="13" rx="4"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(45 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(90 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(135 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(180 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(225 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(270 50 50)"></rect><rect x="43.5" y="12" width="13" height="13" rx="4" transform="rotate(315 50 50)"></rect><circle cx="50" cy="50" r="30"></circle></g><circle cx="50" cy="50" r="11" fill="url(#coggHoleSteel)"></circle><path transform="translate(0 3)" opacity="0.2" fill="#000000" d="M15 42 C13 20, 30 7, 50 7 C70 7, 87 20, 85 42 C85 47, 80 49, 76 46 C74 44, 75 46, 74.5 52 C74 60, 65 60, 65 52 C65 47, 66 45, 63 43 C59 41, 57 44, 55 46 C53 49, 47 50, 46 45 C45.5 42, 47 41, 44 40.5 C40 40, 39 42, 38 44 C37 47, 37 49, 36.5 55 C36 63, 27 63, 27 55 C27 49, 28 45, 25 44 C21 43, 17 46, 15 42 Z"></path><path fill="url(#coggGoop)" d="M15 42 C13 20, 30 7, 50 7 C70 7, 87 20, 85 42 C85 47, 80 49, 76 46 C74 44, 75 46, 74.5 52 C74 60, 65 60, 65 52 C65 47, 66 45, 63 43 C59 41, 57 44, 55 46 C53 49, 47 50, 46 45 C45.5 42, 47 41, 44 40.5 C40 40, 39 42, 38 44 C37 47, 37 49, 36.5 55 C36 63, 27 63, 27 55 C27 49, 28 45, 25 44 C21 43, 17 46, 15 42 Z"></path><ellipse cx="37" cy="17" rx="15" ry="6" transform="rotate(-14 37 17)" fill="url(#coggGloss)"></ellipse><circle cx="31" cy="26" r="1.7" fill="#4E9110" opacity="0.85"></circle><circle cx="52" cy="16" r="1.7" fill="#4E9110" opacity="0.85"></circle><circle cx="67" cy="27" r="1.7" fill="#4E9110" opacity="0.85"></circle><circle cx="45" cy="32" r="1.7" fill="#D9F98F" opacity="0.9"></circle><circle cx="60" cy="35" r="1.4" fill="#D9F98F" opacity="0.9"></circle><ellipse cx="31.5" cy="71" rx="2.6" ry="3.4" fill="#5CB80F"></ellipse></g></svg>`;
+
+/* =====================================================================
+   Data (made up; every domain is .example). A jar's count IS its kept list.
+   ===================================================================== */
+let uid = 0; const nid = () => ++uid;
+const T = (title, host, path, mark, v, extra={}) => ({ id:nid(), title, host, path, mark, v, ...extra });
+const K = (kind, when, title, text, host, sealed=false) => ({ kind, when, title, text, host, sealed });
+const JARS = [
+  { id:'client', name:'Client work', color:'relish',
+    tabs:[ T('Client portal','portal.example','/','portal','c',{pinned:true, glyph:'key'}),
+           T('Juniper Bakery — Cakes','juniperbakery.example','/cakes','juniper','a'),
+           T('Harbor Signs — Projects','harborsigns.example','/projects','harbor','d'),
+           T('Plans & pricing · Fieldnote','fieldnote.example','/pricing','fieldnote','c'),
+           T('Staging · Bright Trails','staging.brighttrails.example','/','trails','b',{glyph:'hammer', dark:true}) ], active:1,
+    pool:[ T('Invoices · Ledgerly','ledgerly.example','/invoices','ledger','c'), T('Bright Trails — Winter menu','brighttrails.example','/winter','trails','a') ],
+    kept:[ K('Page','Nov 12','Pricing — plans compared','Starter $12, Studio $29, Agency $79 a month. Annual billing saves two months on every plan.','fieldnote.example',true),
+           K('Note','Nov 10','Juniper Bakery — before the holidays','Split the order page in two before Dec 1. Hosting renews Nov 3; update the card on file first.','Note'),
+           K('Page','Nov 6','Harbor Signs — brand sheet','Navy, sand and one orange. Logo needs 24px clear space; never on photos.','harborsigns.example',true),
+           K('Page','Nov 3','Bright Trails — seasonal menu','Winter set due mid-November. Reuse the autumn layout, change the palette only.','brighttrails.example',true),
+           K('Message','Oct 30','Re: launch date for the bakery site','Thursday works. Can we keep the cake gallery but drop the blog for now?','From Dana'),
+           K('Page','Oct 28','Accessible color contrast checklist','Large text 3:1, body text 4.5:1. Check focus rings separately.','a11y.example'),
+           K('Page','Oct 22','Juniper Bakery — current menu','Twelve cakes in three sizes. The prices on the PDF are from last spring.','juniperbakery.example',true) ] },
+  { id:'kitchen', name:'Kitchen remodel', color:'amber',
+    tabs:[ T('Shaker cabinet doors','cabinetry.example','/shaker','cab','d'),
+           T('Quartz vs. soapstone','stoneyard.example','/compare','stone','b'),
+           T('Pendants over an island','lumen.example','/pendants','lumen','d') ], active:0,
+    pool:[ T('Subway tile, glazed','tilehouse.example','/subway','tile','d') ],
+    kept:[ K('Page','Nov 9','Cabinet quote — 14 doors','Painted maple, soft-close hinges. Lead time is six weeks from the deposit.','cabinetry.example',true),
+           K('Note','Nov 4','Measurements','Island 96 × 42 in. Pendants 30 in above the counter, 24 in apart.','Note'),
+           K('Page','Nov 2','Soapstone care','Oil it once a month for the first year. Scratches sand out with fine paper.','stoneyard.example',true),
+           K('Message','Oct 29','Re: island outlets','Two outlets on the island, one at each end. The permit covers both.','From Sam') ] },
+  { id:'reading', name:'Reading', color:'sky',
+    tabs:[ T('The long tail of small software','essays.example','/small-software','essays','b'),
+           T('Notes on calm interfaces','calm.example','/notes','calm','essay') ], active:1,
+    pool:[ T('Why we keep things','shelfpress.example','/keep','shelf','b') ],
+    kept:[ K('Page','Nov 14','Pricing small software','Charge once for the tool, yearly for the service. Make the lifetime price easy to find.','essays.example',true),
+           K('Page','Nov 11','On keeping fewer tabs','Every open tab is a small promise. Close the ones you have already kept.','calm.example',true),
+           K('Note','Nov 8','Writing for one reader','Pick the person. Cut every sentence they would skip.','Note'),
+           K('Page','Nov 5','A short history of the index card','Libraries filed by hand for a century; the card outlived the cabinet.','shelfpress.example',true),
+           K('Page','Oct 31','Margins and marginalia','Readers argue with books in pencil. Software rarely leaves room.','essays.example'),
+           K('Page','Oct 26','Software that ends','Some tools should finish their job and stop asking for attention.','calm.example',true),
+           K('Note','Oct 21','Slow reading, on screens','Read once for the shape, once for the argument.','Note'),
+           K('Page','Oct 17','The quiet desk','A desk with one thing on it is not empty. It is ready.','shelfpress.example'),
+           K('Page','Oct 12','Notes on naming things','Name it for what it does today, not for what it might become.','essays.example',true) ] },
+  { id:'lisbon', name:'Trip to Lisbon', color:'rose',
+    tabs:[ T('Alfama on foot','walks.example','/alfama','walks','a'),
+           T('Train to Sintra','rail.example','/sintra','rail','c'),
+           T('Azulejo museum','tilemuseum.example','/visit','tile','d') ], active:0,
+    pool:[ T('Eating near Rossio','walks.example','/rossio','walks','a') ],
+    kept:[ K('Page','Nov 1','Flights — Mar 12 to 19','Two seats, one checked bag. The confirmation is in the saved copy.','Saved copy',true),
+           K('Note','Oct 27','Packing list','Rain jacket, walking shoes, a type F adapter.','Note'),
+           K('Page','Oct 20','Hotel in Baixa — 7 nights','Check-in after 3 pm. Breakfast included; late checkout on request.','hotel.example',true) ] },
+  { id:'taxes', name:'Taxes 2026', color:'teal',
+    tabs:[ T('Estimated payments — Q4','tax.example','/estimates','tax','c') ], active:0,
+    pool:[], kept:[ K('Page','Nov 8','Q3 payment receipt','Paid Sep 15. Keep it with the return.','tax.example',true),
+                    K('Note','Nov 2','Questions for the accountant','The home office share, the new laptop, and the Q4 estimate.','Note') ] },
+];
+// newest first; the groups are by recency
+let SUNK = [
+  { title:'Wedding cake gallery — Juniper', host:'juniperbakery.example', jar:'client', when:'Sank 2 hours ago', group:'Today' },
+  { title:'Grout colors, compared', host:'tilehouse.example', jar:'kitchen', when:'Sank yesterday', group:'Yesterday' },
+  { title:'A field guide to the slow web', host:'calm.example', jar:'reading', when:'Sank yesterday', group:'Yesterday' },
+  { title:'Tram 28 — when to ride it', host:'walks.example', jar:'lisbon', when:'Sank 4 days ago', group:'Earlier' },
+  { title:'Dishwasher panel sizes', host:'cabinetry.example', jar:'kitchen', when:'Sank 5 days ago', group:'Earlier' },
+  { title:'Annual vs. monthly billing', host:'ledgerly.example', jar:'client', when:'Sank 6 days ago', group:'Earlier' },
+];
+const PANTRY_COUNT = 1284;
+
+const S = { jar:0, scene:'browse', panel:false, ask:false, pal:false, reduce:false, graphite:true, theme:'light', outcome:'fast', unseen:0 };
+const J = () => JARS[S.jar];
+const jarById = id => JARS.find(j => j.id === id);
+const HOLDS = 12;                                   // Workbench.jarHolds: the drawing's scale, never shown as a number
+const level = j => Math.min(1, j.kept.length / HOLDS);
+const $ = s => document.querySelector(s);
+$('#mark').innerHTML = COG; $('#mark').onclick = () => setScene('board');
+const ESC = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+const esc = s => String(s).replace(/[&<>"']/g, c => ESC[c]);
+const plural = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
+const jarMeta = j => `${plural(j.tabs.length, 'tab')} · ${j.kept.length} kept`;
+let tabScroll = 0;
+
+/* =====================================================================
+   The jar, drawn (line art from the beta art). Never an image: its fill is data.
+   viewBox 32×47: lid 21×6.5, neck 16×4.5, body 30×33 (shoulder r5, base r7).
+   ===================================================================== */
+const BODY = 'M1 17.5A5 5 0 0 1 6 12.5H26A5 5 0 0 1 31 17.5V38.5A7 7 0 0 1 24 45.5H8A7 7 0 0 1 1 38.5Z';
+const surfaceY = L => 45.5 - L * 30;
+function jarSVG(j, h, on){
+  const u = nid(), w = Math.round(h * 32 / 47 * 10) / 10;
+  const px = h >= 40 ? 1.35 : h >= 24 ? 1.2 : 1.05;  // on-screen stroke
+  const sw = (px * 47 / h).toFixed(2);
+  const L = level(j);
+  return `<svg class="jar j-${j.color} ${on?'on':'idle'} ${L>=1?'full':''}" data-jar="${j.id}" width="${w}" height="${h}" viewBox="-0.5 0 33 47" aria-hidden="true">
+    <defs><clipPath id="cb${u}"><path d="${BODY}"/></clipPath></defs>
+    <rect class="neck" x="8" y="7.5" width="16" height="5.5" rx="1" stroke-width="${sw}"/>
+    <path class="glass" d="${BODY}"/>
+    <g clip-path="url(#cb${u})">
+      <rect class="gls" x="5" y="16.5" width="1.8" height="25" rx=".9"/>
+      <g class="liq" style="transform:translateY(${surfaceY(L)}px)">
+        <rect class="lf" x="-2" y="0" width="36" height="52"/>
+        <rect class="lm" x="-2" y="0" width="36" height="1.9"/>
+        <rect class="lg" x="5" y="3.4" width="1.8" height="22" rx=".9"/>
+        <g class="bub"><circle cx="21.5" cy="9" r="1.7" opacity=".32"/><circle cx="13" cy="17" r="1.15" opacity=".24"/></g>
+      </g>
+      <ellipse class="drop" cx="16" cy="15" rx="2" ry="2.8" opacity="0"/>
+    </g>
+    <path class="ol" d="${BODY}" fill="none" stroke-width="${sw}"/>
+    <rect class="lid" x="5.5" y="1.5" width="21" height="6.5" rx="2" stroke-width="${sw}"/>
+  </svg>`;
+}
+
+/* =====================================================================
+   Render
+   ===================================================================== */
+function renderRail(){
+  const r = $('#rail');
+  r.innerHTML = JARS.map((j,i) => `
+    <button class="tile j-${j.color} ${i===S.jar?'on':''}" data-i="${i}" title="${esc(j.name)} — ${jarMeta(j)} · ⌘${i+1}">
+      ${jarSVG(j, 58, i===S.jar)}
+      <span class="nm">${esc(j.name)}</span>
+      <span class="ct tnum"></span>
+    </button>`).join('') +
+    `<button class="addjar" title="New Jar">${ic('plus',15)}</button>
+     <div class="rule"></div>
+     <button class="srow" title="Today · ⌃⌘2">${ic('jarSmart',16)}Today</button>
+     <button class="srow" title="Sealed · ⌃⌘3">${ic('jarSmart',16)}Sealed</button>
+     <button class="srow" title="Sinking soon · ⌃⌘4">${ic('jarSmart',16)}Sinking soon</button>
+     <div class="spacer"></div>
+     <button class="srow" title="Opens the Zest window">${ic('grid',16)}Zest</button>`;
+  r.querySelectorAll('.tile').forEach(t => t.onclick = () => switchJar(+t.dataset.i));
+}
+
+/* ---- tabs: absolute layout so open/close/lip can animate in step ----
+   The strip is a clipping scroller (SwiftUI: a horizontal ScrollView, 45pt tall so the front tab can
+   cover the strip's hairline by 1pt). "+" sits outside it, after the last tab, pinned at the end when
+   the tabs overflow. The front tab grows to fit its title (up to 260) before the others shrink. */
+const TAB = { pin:44, min:116, max:224, front:260, gap:4, clip:1118 };
+const measure = (() => { const c = document.createElement('canvas').getContext('2d');
+  return s => { c.font = `500 12px ${getComputedStyle(document.body).fontFamily}`; return c.measureText(s).width; }; })();
+function tabLayout(tabs, frontId){
+  const pins = tabs.filter(t => t.pinned).length, k = tabs.length - pins;
+  const free = TAB.clip - 44 - pins * TAB.pin - tabs.length * TAB.gap;
+  let w = Math.max(TAB.min, Math.min(TAB.max, k ? free / k : TAB.max)), fw = w;
+  const front = tabs.find(t => t.id === frontId && !t.pinned);
+  if (front){
+    const need = Math.ceil(measure(front.title)) + 72;
+    if (need > w){ fw = Math.min(TAB.front, need); if (k > 1) w = Math.max(TAB.min, Math.min(TAB.max, (free - fw) / (k - 1))); }
+  }
+  let x = 8; const out = [];
+  for (const t of tabs){ const tw = t.pinned ? TAB.pin : (front && t.id === front.id ? fw : w); out.push({x, w:tw}); x += tw + TAB.gap; }
+  return { pos:out, end:x };
+}
+function activeTab(){ const j = J(); return (S.scene==='browse'||S.ask||S.pal) ? j.tabs[j.active] : null; }
+function tabHTML(t){
+  return `<div class="tab ${t.pinned?'pin':''}" data-id="${t.id}" title="${esc(t.title)}${t.pinned?' · pinned, never sinks':''}">
+    ${ltile(t)}<span class="tt">${esc(t.title)}</span><button class="x" title="Close Tab · ⌘W">${ic('x',10)}</button>${t.pinned?`<span class="pinmark">${ic('pinFill',10)}</span>`:''}</div>`;
+}
+function renderTabs(fresh){
+  const j = J(), el = $('#tabrow'), at = activeTab();
+  const { pos, end } = tabLayout(j.tabs, j.tabs[j.active] && j.tabs[j.active].id);
+  const have = new Map([...el.querySelectorAll('.tab')].map(n => [n.dataset.id, n]));
+  j.tabs.forEach((t, i) => {
+    let n = have.get(String(t.id));
+    if (!n){
+      el.insertAdjacentHTML('beforeend', tabHTML(t)); n = el.lastElementChild;
+      n.style.left = pos[i].x + 'px'; n.style.width = fresh ? pos[i].w + 'px' : '0px';
+      n.onclick = e => { if (e.target.closest('.x')) closeTab(t.id); else activate(t.id); };
+      if (!fresh) n.getBoundingClientRect();
+    }
+    have.delete(String(t.id));
+    n.classList.toggle('on', !!at && at.id === t.id);
+    n.classList.toggle('sinking', !!t.sinking);
+    n.style.left = pos[i].x + 'px'; n.style.width = pos[i].w + 'px';
+  });
+  have.forEach((n, id) => { if (!id.startsWith('gone')) n.remove(); });
+  // overflow: keep the front tab in view (ScrollViewReader.scrollTo), hairlines mark clipped edges
+  const over = end > TAB.clip - 36;
+  if (!over) tabScroll = 0;
+  else if (at){ const p = pos[j.tabs.indexOf(at)];
+    if (p.x - 8 < tabScroll) tabScroll = p.x - 8;
+    if (p.x + p.w + 8 > tabScroll + TAB.clip) tabScroll = p.x + p.w + 8 - TAB.clip;
+    tabScroll = Math.max(0, Math.min(tabScroll, end + 4 - TAB.clip)); }
+  el.style.transform = `translateX(${-tabScroll}px)`;
+  const tabs = $('#tabs'); tabs.classList.toggle('over', over); tabs.classList.toggle('l', over && tabScroll > 0); tabs.classList.toggle('r', over && tabScroll < end + 4 - TAB.clip - 1);
+  const nb = $('#newtab'); if (!nb.innerHTML) { nb.innerHTML = ic('plus',15); nb.onclick = () => newTab(); }
+  nb.style.left = 120 + Math.min(end + 2 - tabScroll, TAB.clip + 4) + 'px';
+  // the lip: one shared element that slides to the tab in front
+  let lip = el.querySelector('.lip');
+  if (!lip){ el.insertAdjacentHTML('beforeend', `<div class="lip"><b></b></div>`); lip = el.lastElementChild; }
+  lip.className = `lip j-${j.color}`;
+  if (at){ const i = j.tabs.indexOf(at); lip.style.left = pos[i].x + 'px'; lip.style.width = pos[i].w + 'px'; lip.style.opacity = 1; }
+  else lip.style.opacity = 0;
+}
+
+function renderAddr(){
+  const j = J(), t = activeTab(), a = $('#addr');
+  const board = !t;
+  a.className = 'addr';
+  a.innerHTML = `
+    <button class="chip j-${j.color}" title="Open the board · ${esc(j.name)}">${jarSVG(j, 18, true)}${esc(j.name)}</button>
+    <button class="ib ${board?'dim':''}" title="Back">${ic('chevL',16)}</button>
+    <button class="ib dim" title="Forward">${ic('chevR',16)}</button>
+    <div class="field" id="field">
+      ${t ? `<span class="lead">${ic('lock',13)}</span><span class="url"><b>${esc(t.host)}</b><span>${esc(t.path==='/'?'':t.path)}</span></span>
+         <span class="in" id="fin"><button class="ib" title="Capture This Page · ⌘D">${ic('capture',15)}</button><button class="ib" title="Reader View · ⌘⇧R">${ic('reader',15)}</button><button class="ib" title="Reload">${ic('reload',15)}</button></span>`
+       : `<span class="lead" style="color:var(--fg-3)">${ic('search',14)}</span><span class="url">Search or type a web address — it opens in ${esc(j.name)}</span>`}
+    </div>
+    <div class="sealslot" id="sealslot">
+      <button class="ib sealbtn ${t?'':'off'}" id="sealbtn" title="Seal · ⌘S">${ic('seal',18)}</button>
+    </div>
+    <button class="ib ${S.panel?'on':''}" id="panelbtn" title="Panel · ⌘⌥I">${ic('side',17)}</button>`;
+  a.querySelector('.chip').onclick = () => setScene('board');
+  a.querySelector('#sealbtn').onclick = () => seal();
+  a.querySelector('#panelbtn').onclick = () => togglePanel();
+}
+function showStatus(text){
+  // the shipped fillStatus: one quiet line inside the field, gone after 2.5s
+  const f = $('#field'); if (!f) return;
+  const s = document.createElement('span'); s.className = 'status'; s.textContent = text;
+  const fin = $('#fin'); fin ? f.insertBefore(s, fin) : f.appendChild(s);
+  if (!S.reduce) s.animate([{opacity:0},{opacity:1}],{duration:200,easing:'cubic-bezier(0.16,1,0.3,1)'});
+  setTimeout(() => { const a = s.animate([{opacity:1},{opacity:0}],{duration:S.reduce?0:200,fill:'forwards'}); a.onfinish = () => s.remove(); }, 2500);
+}
+
+/* ---- the page in front: a website drawn as a wireframe (and one real-type fixture) ---- */
+const IMGMARK = `<svg width="44" height="44" viewBox="0 0 24 24">${P('M5 6h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1ZM4.5 15.5l4.5-4.5 4 4 2.5-2.5 4 4')}</svg>`;
+function siteNav(t){
+  return `<div class="site-nav"><div class="logo">${siteLogo(t.mark,22)}<div class="bar" style="width:92px;height:11px;border-radius:4px"></div></div>
+    <div style="display:flex;gap:22px;margin-left:24px">${[52,44,60,40].map(w=>`<div class="ln sm" style="width:${w}px"></div>`).join('')}</div>
+    <div style="margin-left:auto;display:flex;gap:10px"><div class="btnsk line" style="width:84px;height:32px"></div><div class="btnsk solid" style="width:96px;height:32px"></div></div></div>`;
+}
+const lines = (ws, h=9, gap=14) => `<div style="display:flex;flex-direction:column;gap:${gap}px">${ws.map(w=>`<div class="ln" style="width:${w}%;height:${h}px"></div>`).join('')}</div>`;
+function fixtureHTML(){
+  return `<div class="fx"><nav><span class="nm"><i></i>Calm</span><span>Essays</span><span>Notes</span><span>About</span><span class="sub">Subscribe</span></nav>
+    <article><div class="kick">Notes · 6 min read</div><h1>Notes on calm interfaces</h1>
+      <div class="by"><i></i>Ines Marlow · November 9, 2026</div>
+      <figure><b style="left:58%;top:34px;width:92px;height:92px"></b><b style="left:18%;top:70px;width:46px;height:46px;background:#DCD7CC"></b><s></s></figure>
+      <p>A calm interface is one you can stop looking at. It tells you what changed, once, and then gets out of the way. It does not pulse, count down, or ask to be checked again.</p>
+      <p>The test is simple: leave it alone for a week. When you come back, can you tell what happened while you were gone without being told twice?</p></article></div>`;
+}
+function siteHTML(t){
+  const v = t.v;
+  if (v === 'essay') return fixtureHTML();
+  if (v === 'a') return `<div class="site">${siteNav(t)}
+    <div style="display:grid;grid-template-columns:1fr 440px;gap:56px;margin-top:54px;align-items:start">
+      <div><div class="ln sm" style="width:110px;background:var(--pg-mark)"></div>
+        <div class="bar" style="width:92%;height:24px;margin-top:22px"></div><div class="bar" style="width:64%;height:24px;margin-top:12px"></div>
+        <div style="margin-top:30px">${lines([96,90,98,62])}</div>
+        <div style="display:flex;gap:12px;margin-top:34px"><div class="btnsk solid" style="width:150px"></div><div class="btnsk line" style="width:128px"></div></div></div>
+      <div class="img" style="height:330px">${IMGMARK}</div></div>
+    <div class="cols" style="grid-template-columns:repeat(3,1fr);margin-top:56px">${[0,1,2].map(()=>`<div><div class="img" style="height:150px;border-radius:12px"></div><div class="bar" style="width:60%;height:11px;margin-top:16px;border-radius:4px"></div><div style="margin-top:12px">${lines([92,70],7,10)}</div></div>`).join('')}</div></div>`;
+  if (v === 'b') return `<div class="site">${siteNav(t)}
+    <div style="max-width:640px;margin:58px auto 0">
+      <div class="ln sm" style="width:90px;background:var(--pg-mark)"></div>
+      <div class="bar" style="width:100%;height:26px;margin-top:20px"></div><div class="bar" style="width:72%;height:26px;margin-top:12px"></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:26px"><div style="width:32px;height:32px;border-radius:50%;background:var(--pg-img)"></div><div class="ln sm" style="width:150px"></div></div>
+      <div class="img" style="height:250px;margin-top:30px">${IMGMARK}</div>
+      <div style="margin-top:30px">${lines([100,96,99,93,58],9,15)}</div></div></div>`;
+  if (v === 'c') return `<div class="site">${siteNav(t)}
+    <div style="text-align:center;margin-top:54px;display:flex;flex-direction:column;align-items:center">
+      <div class="bar" style="width:420px;height:26px"></div><div style="width:520px;margin-top:22px">${lines([100,74],9,13).replace(/width:74%/,'width:74%;margin:0 auto')}</div></div>
+    <div class="cols" style="grid-template-columns:repeat(3,1fr);max-width:920px;margin:44px auto 0">${[0,1,2].map(i=>`
+      <div style="border-radius:16px;padding:26px;box-shadow:inset 0 0 0 ${i===1?2:1}px ${i===1?'var(--pg-ink)':'var(--pg-line)'}">
+        <div class="ln sm" style="width:70px;background:var(--pg-mark)"></div>
+        <div class="bar" style="width:${[90,110,124][i]}px;height:30px;margin-top:18px"></div>
+        <div style="margin-top:24px">${lines([92,80,86,64],7,12)}</div>
+        <div class="btnsk ${i===1?'solid':'line'}" style="width:100%;margin-top:28px"></div></div>`).join('')}</div></div>`;
+  return `<div class="site">${siteNav(t)}
+    <div style="display:flex;align-items:end;justify-content:space-between;margin-top:48px"><div><div class="bar" style="width:360px;height:24px"></div><div class="ln" style="width:300px;margin-top:18px"></div></div><div class="btnsk line" style="width:120px"></div></div>
+    <div class="cols" style="grid-template-columns:repeat(3,1fr);margin-top:34px;gap:20px">${[0,1,2,3,4,5].map(i=>`<div><div class="img" style="height:${i<3?190:150}px;border-radius:12px">${i===0?IMGMARK:''}</div><div class="bar" style="width:${[52,64,44,58,48,60][i]}%;height:10px;margin-top:14px;border-radius:4px"></div><div class="ln sm" style="width:${[34,28,40,30,36,26][i]}%;margin-top:9px"></div></div>`).join('')}</div></div>`;
+}
+
+/* ---- the jar board ---- */
+const keptIcon = k => k.kind === 'Note' ? ic('note',13) : k.kind === 'Message' ? ic('mail',13) : k.host === 'Saved copy' ? ic('doc',13) : ltile({host:k.host}, 14);
+function keptHTML(j){
+  const k = j.kept; if (!k.length) return '';
+  return `<div class="sec-h">Kept <b class="tnum">${k.length}</b>${k.length > 6 ? `<button class="all">Show all ${k.length}</button>` : ''}</div>
+    <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">${k.slice(0,6).map(c=>`
+      <div class="card kcard j-${j.color}">
+        <div class="prov">${c.kind} · ${c.when}${c.sealed?`<span class="pill sm"><span class="disc">${ic('check',10)}</span>Sealed</span>`:''}</div>
+        <h3>${esc(c.title)}</h3><p>${esc(c.text)}</p>
+        <div class="ft">${keptIcon(c)}${esc(c.host)}</div></div>`).join('')}</div>`;
+}
+function boardHTML(){
+  const j = J(), open = j.tabs;
+  if (!open.length && !j.kept.length) return emptyHTML(j);
+  return `<div class="board-in">
+    <div class="bh j-${j.color}">${jarSVG(j, 46, true)}
+      <div><h1>${esc(j.name)}</h1><div class="meta tnum" id="bmeta">${jarMeta(j)} · tabs sink after 7 idle days</div></div>
+      <div class="acts"><button class="btn sec">Edit Jar…</button><button class="btn jar j-${j.color}" id="bnew">${ic('plus',13)}New Tab</button></div></div>
+    ${open.length ? `<div class="sec-h">Open tabs <b class="tnum">${open.length}</b></div>
+    <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">${open.map(t=>`
+      <div class="card ttile j-${j.color}" data-id="${t.id}"><div class="fav">${t.glyph ? ic(t.glyph,16) : letterOf(t.host)}</div><div style="min-width:0"><div class="t">${esc(t.title)}</div><div class="h">${esc(t.host)}</div></div>${t.pinned?`<span class="pinm" title="Pinned — never sinks">${ic('pin',13)}</span>`:''}</div>`).join('')}</div>` : ''}
+    <div id="bkept">${keptHTML(j)}</div>
+  </div>`;
+}
+function emptyHTML(j){
+  return `<div class="empty">${COG}<p>Nothing in here yet.</p><button class="btn primary" id="enew">${ic('plus',13)}New Tab</button></div>`;
+}
+function brineHTML(){
+  const groups = ['Today','Yesterday','Earlier'];
+  return `<div class="board-in">
+    <div class="bh"><div style="width:46px;height:46px;border-radius:12px;background:var(--tab);display:grid;place-items:center;color:var(--fg-2);flex:none">${ic('sink',26)}</div>
+      <div><h1>Brine</h1><div class="meta tnum">${SUNK.length} sunk · tabs sink here after their jar's shelf life. Pinned tabs never sink.</div></div>
+      <div class="acts"><button class="btn sec">${ic('restore',13)}Restore All</button></div></div>
+    ${groups.map(g => { const rows = SUNK.map((s,i)=>({...s,i})).filter(s => s.group === g); if (!rows.length) return '';
+      return `<div class="sec-h">${g} <b class="tnum">${rows.length}</b></div><div class="list">${rows.map(s => { const j = jarById(s.jar);
+        return `<div class="brow" data-i="${s.i}"><div class="fav">${letterOf(s.host)}</div><div class="tx"><div class="t">${esc(s.title)}</div><div class="h">${esc(s.host)}</div></div>
+          <div class="from">${jarSVG(j,18,false)}${esc(j.name)}</div><div class="when">${s.when}</div>
+          <button class="restore" title="Restore to ${esc(j.name)}">${ic('restore',13)}Restore</button></div>`; }).join('')}</div>`; }).join('')}
+  </div>`;
+}
+
+function renderView(cross){
+  const host = $('#views'), t = activeTab();
+  let cls, html;
+  if (S.scene === 'board'){ cls='board'; html = boardHTML(); }
+  else if (S.scene === 'brine'){ cls='brine'; html = brineHTML(); }
+  else if (t){ cls = 'page' + (t.dark ? ' darksite' : ''); html = siteHTML(t); }
+  else { cls='board'; html = emptyHTML(J()); }
+  const old = host.firstElementChild;
+  const v = document.createElement('div');
+  v.className = 'view ' + cls; v.innerHTML = html + `<div class="flash" id="flash"></div>`;
+  host.appendChild(v);
+  wireView(v);
+  if (old){
+    old.querySelector('#flash')?.removeAttribute('id');
+    if (cross && !S.reduce){
+      v.animate([{opacity:0},{opacity:1}],{duration:200,easing:'cubic-bezier(0.16,1,0.3,1)'});
+      old.animate([{opacity:1},{opacity:0}],{duration:200,easing:'cubic-bezier(0.16,1,0.3,1)'}).onfinish = () => old.remove();
+    } else old.remove();
+  }
+}
+function wireView(v){
+  v.querySelectorAll('.ttile').forEach(n => n.onclick = () => activate(+n.dataset.id));
+  const bn = v.querySelector('#bnew'), en = v.querySelector('#enew');
+  if (bn) bn.onclick = () => newTab(); if (en) en.onclick = () => newTab();
+  v.querySelectorAll('.restore').forEach(b => b.onclick = e => restore(+e.target.closest('.brow').dataset.i));
+}
+
+function renderBottom(){
+  const b = $('#bottom'), n = SUNK.length;
+  // placement 13, narrowed: lit only for tabs that sank since Brine was last opened
+  b.innerHTML = `<button class="brinepill ${S.unseen?'lit':''} ${S.scene==='brine'?'on':''}" id="brinepill" title="Brine — tabs that sank${S.unseen?` · ${S.unseen} new`:''}">${ic('sink',13)}Brine <span class="n tnum" id="brinen">${n}</span></button>
+    <div class="grow"></div>
+    <span class="tnum">${PANTRY_COUNT.toLocaleString('en-US')} in the Pantry</span>
+    <button class="askbtn" id="palbtn" title="Command Palette">${ic('search',13)}Search the Pantry <span class="kbd">⌘K</span></button>`;
+  $('#brinepill').onclick = () => setScene('brine');
+  $('#palbtn').onclick = () => openPal();
+}
+
+function renderPanel(){
+  const j = J(), t = activeTab();
+  $('#panelIn').innerHTML = t ? `
+    <h2>${esc(t.title)}</h2><div class="pm">${esc(t.host)}</div>
+    <div class="psec"><div class="plab">Jar</div><div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500">${jarSVG(j,22,true)}${esc(j.name)}</div>
+      <div class="prow" style="margin-top:12px"><span>Shelf life</span><b>Sinks in 3 days</b></div><div class="life"><i></i></div></div>
+    <div class="psec"><div class="plab">Page</div>
+      <div class="prow"><span>Kind</span><b>Page</b></div><div class="prow"><span>Opened</span><b>Today, 9:41</b></div><div class="prow"><span>Saved copies</span><b class="tnum">2</b></div></div>
+    <div class="psec"><div class="plab">Labels</div><div class="labels"><span class="lab">proposal</span><span class="lab">holidays</span><span class="lab add">${ic('plus',11)}&nbsp;Add</span></div></div>`
+  : `<h2>${esc(j.name)}</h2><div class="pm tnum">${jarMeta(j)}</div>
+    <div class="psec"><div class="plab">Color</div><div class="sw">${['relish','amber','sky','rose','violet','teal'].map(c=>`<i class="j-${c} ${c===j.color?'sel':''}"></i>`).join('')}</div></div>
+    <div class="psec"><div class="plab">Shelf life</div><div class="prow"><span>Tabs sink after</span><b>7 idle days</b></div></div>
+    <div class="psec"><div class="plab">Recipe</div><div class="prow"><span>When sealed</span><b>Seal &amp; Summarize</b></div></div>`;
+}
+
+/* ---- Ask the Pantry (1.1 preview — ADR 0012 moved it out of Dec 14) ----
+   The answer sentence is Foundation Models over SEALED snapshots only (non-negotiable 4), so it
+   cites only sealed results. The other cards are plain search matches: ranked, never summarized. */
+function renderAsk(){
+  const a = $('#ask');
+  a.classList.toggle('hidden', !S.ask);
+  if (!S.ask) return;
+  const cw = jarById('client'), rd = jarById('reading');
+  const R = [
+    {n:1, prov:`Sealed · ${jarMini(cw)}Client work`, j:cw, title:'Pricing — plans compared', text:'Starter $12, Studio $29, Agency $79 a month. Annual billing saves two months on every plan.'},
+    {n:2, prov:'Brine · 6 days ago', j:cw, title:'Annual vs. monthly billing', text:'When yearly makes sense for a small studio, and what to tell a client who wants to switch mid-year.'},
+    {n:3, prov:`Sealed · ${jarMini(rd)}Reading`, j:rd, title:'Pricing small software', text:'Charge once for the tool, yearly for the service. Make the lifetime price easy to find.'},
+    {n:4, prov:`Kept · ${jarMini(cw)}Client work`, j:cw, title:'Juniper Bakery — before the holidays', text:'Split the order page in two before Dec 1. Hosting renews Nov 3; update the card first.'},
+  ];
+  a.innerHTML = `
+    <div class="askfield"><span style="display:grid">${sparkle()}</span>
+      <span class="q">that pricing page I saved last week<span class="caret"></span></span><span class="kbd esc">esc</span></div>
+    <div class="askmeta">${ic('lock',12)}Answered on this Mac from what you've sealed.</div>
+    <div class="answer">You sealed <b>Pricing — plans compared</b> into Client work on Nov 12 <span class="cite">1</span>. <b>Pricing small software</b>, sealed into Reading on Nov 14, covers lifetime pricing <span class="cite">3</span>.</div>
+    <div class="rhead">Matches in the Pantry</div>
+    <div class="results">${R.map(r=>`<div class="rcard j-${r.j.color}"><div class="prov"><span class="cite badge">${r.n}</span>${r.prov}</div><h4>${esc(r.title)}</h4><p>${esc(r.text)}</p></div>`).join('')}</div>`;
+  a.onclick = e => { if (e.target === a) closeOverlay(); };
+}
+const jarMini = j => `<span style="display:inline-block;vertical-align:-3px;margin-right:-2px">${jarSVG(j,14,false)}</span>`;
+function sparkle(){ // relish-500 fill, relish-700 outline (placement 11), plus the dot from the art
+  return `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2.6c.55 5 3.25 7.7 8.2 8.2-4.95.55-7.65 3.25-8.2 8.2-.55-4.95-3.25-7.65-8.2-8.2C7.75 10.3 10.45 7.6 11 2.6Z" fill="var(--relish-500)" stroke="var(--relish-700)" stroke-width="1.1" stroke-linejoin="round"/><circle cx="19.6" cy="19.4" r="1.9" fill="var(--relish-500)"/></svg>`;
+}
+
+/* ---- Command Palette (⌘K, ships in 1.0): field + rows, restyled; no relish but the focus caret ---- */
+function renderPal(){
+  const a = $('#pal');
+  a.classList.toggle('hidden', !S.pal);
+  if (!S.pal) return;
+  const cw = jarById('client'), rd = jarById('reading');
+  const row = (sel, icon, title, src) => `<div class="prw ${sel?'sel':''}"><span class="ico">${icon}</span><span class="tl">${title}</span><span class="src">${src}</span></div>`;
+  a.innerHTML = `<div class="palbox">
+    <div class="palfield">${ic('search',18)}<span class="q">pricing<span class="caret"></span></span><span class="kbd">esc</span></div>
+    <div class="palrows">
+      <div class="palgrp">Pantry</div>
+      ${row(true, ltile({host:'fieldnote.example'},16), 'Pricing — plans compared', `Sealed · ${jarMini(cw)}Client work`)}
+      ${row(false, ltile({host:'essays.example'},16), 'Pricing small software', `Sealed · ${jarMini(rd)}Reading`)}
+      ${row(false, ltile({host:'ledgerly.example'},16), 'Annual vs. monthly billing', `${ic('sink',13)}Brine · 6 days ago`)}
+      <div class="palgrp">Open tabs</div>
+      ${row(false, ltile({host:'fieldnote.example'},16), 'Plans &amp; pricing · Fieldnote', `${jarMini(cw)}Client work`)}
+      <div class="palgrp">Commands</div>
+      ${row(false, ic('seal',16), 'Seal', '<span class="kbd">⌘S</span>')}
+      ${row(false, ic('capture',16), 'Capture This Page', '<span class="kbd">⌘D</span>')}
+    </div></div>`;
+  a.onclick = e => { if (e.target === a) closeOverlay(); };
+}
+
+function renderCaption(){
+  $('#caption').innerHTML = S.ask
+    ? `Ask the Pantry<span>1.1 preview (ADR 0012) — not part of the Dec 14 screenshot set</span>`
+    : `Workbench facelift<span>comp for sign-off · v2.1 proposal · keys here are single letters (S D T W X K A, 1–5); in the app: ⌘S ⌘D ⌘T ⌘W ⌘K ⌘1–9 ⌘⌥I</span>`;
+}
+function renderCtl(){
+  const sc = [['browse','Page'],['board','Board'],['brine','Brine'],['pal','Palette'],['ask','Ask · 1.1']];
+  const cur = S.ask ? 'ask' : S.pal ? 'pal' : S.scene;
+  const out = { fast:'Write: fast', slow:'Write: slow page', fail:'Write: fails' }[S.outcome];
+  $('#ctl').innerHTML = sc.map(([k,l]) => `<button data-s="${k}" class="${cur===k?'sel':''}">${l}</button>`).join('') +
+    `<span class="sep"></span>
+     <button data-a="seal" title="Comp key: S (Shift+S: slow page, F: fails)">Seal<span class="k">⌘S</span></button>
+     <button data-a="outcome" title="What the next Seal's disk write does">${out}</button>
+     <button data-a="fill" title="Comp key: D">Capture<span class="k">⌘D</span></button>
+     <button data-a="new" title="Comp key: T">New tab<span class="k">⌘T</span></button>
+     <button data-a="close" title="Comp key: W">Close<span class="k">⌘W</span></button>
+     <button data-a="sink" title="Comp key: X (Shift+X: two at once). In the app the shelf-life sweep sinks tabs; there is no Sink command.">Simulate sink</button>
+     <span class="sep"></span>
+     <button data-a="theme">${S.theme==='dark'?'Light':'Dark'}</button>
+     <button data-a="reduce" class="${S.reduce?'sel':''}">Reduce Motion</button>
+     <button data-a="graphite" title="Decision 5: idle jars on the Shelf in graphite (the art) or in their color">Idle jars: ${S.graphite?'Graphite':'Color'}</button>
+     <button data-a="panel" class="${S.panel?'sel':''}" title="Comp key: I">Panel</button>
+     <button data-a="hide" title="Comp key: H">Hide</button>`;
+  $('#ctl').querySelectorAll('button').forEach(b => b.onclick = () => {
+    if (b.dataset.s) { b.dataset.s === 'ask' ? openAsk() : b.dataset.s === 'pal' ? openPal() : setScene(b.dataset.s); return; }
+    ({seal:() => seal(), outcome:cycleOutcome, fill:() => addToJar(), new:() => newTab(), close:() => { const t = activeTab() || J().tabs.filter(x=>!x.pinned).slice(-1)[0]; if (t) closeTab(t.id); },
+      sink:() => sinkTab(1), theme:toggleTheme, reduce:toggleReduce, graphite:toggleGraphite, panel:togglePanel, hide:toggleCtl})[b.dataset.a]();
+  });
+  renderCaption();
+}
+
+function renderAll(cross){ renderRail(); renderTabs(true); renderAddr(); renderView(cross); renderBottom(); renderPanel(); renderAsk(); renderPal(); renderCtl(); }
+
+/* =====================================================================
+   Navigation
+   ===================================================================== */
+function setScene(s){
+  if (SEAL) SEAL.land();
+  S.ask = false; S.pal = false; S.scene = s;
+  if (s === 'browse' && !J().tabs.length) S.scene = 'board';
+  if (S.scene === 'brine') S.unseen = 0;
+  renderTabs(); renderAddr(); renderView(true); renderBottom(); renderPanel(); renderAsk(); renderPal(); renderCtl();
+}
+function activate(id){
+  if (SEAL) SEAL.land();
+  const j = J(); j.active = j.tabs.findIndex(t => t.id === id); S.scene = 'browse'; S.ask = false; S.pal = false;
+  renderTabs(); renderAddr(); renderView(true); renderBottom(); renderPanel(); renderAsk(); renderPal(); renderCtl();
+}
+function switchJar(i){
+  if (i === S.jar || !JARS[i]) return;
+  if (SEAL) SEAL.land();
+  const prevTiles = [...document.querySelectorAll('.tile')];
+  S.jar = i; tabScroll = 0; if (S.scene === 'brine') S.scene = 'board';
+  if (S.scene === 'browse' && !J().tabs.length) S.scene = 'board';
+  // Shelf: crossfade wash + border (CSS 120ms), lid flips to ink, the new tile settles
+  prevTiles.forEach((t, k) => { t.classList.toggle('on', k === i); const s = t.querySelector('.jar'); s.classList.toggle('on', k === i); s.classList.toggle('idle', k !== i); });
+  if (!S.reduce) prevTiles[i].animate([{transform:'scale(1)'},{transform:'scale(1.045)'},{transform:'scale(1)'}],{duration:320,easing:'cubic-bezier(0.34,1.4,0.64,1)'});
+  // tabs: old set fades out, new set fades in with a 6pt slide
+  const el = $('#tabrow'), old = [...el.querySelectorAll('.tab')];
+  const go = () => {
+    old.forEach(n => n.remove());
+    renderTabs(true);
+    if (!S.reduce) [...el.querySelectorAll('.tab')].forEach((n, k) => n.animate([{opacity:0, transform:'translateX(-6px)'},{opacity:1, transform:'none'}],{duration:200, delay:k*18, easing:'cubic-bezier(0.16,1,0.3,1)', fill:'backwards'}));
+    renderAddr(); renderView(true); renderBottom(); renderPanel(); renderAsk(); renderPal(); renderCtl();
+  };
+  if (S.reduce) go();
+  else { old.forEach(n => n.animate([{opacity:1},{opacity:0}],{duration:120,easing:'cubic-bezier(0.16,1,0.3,1)',fill:'forwards'})); setTimeout(go, 110); }
+}
+function togglePanel(){
+  S.panel = !S.panel; const p = $('#panel'), b = $('#bench'); clearTimeout(S._pt);
+  if (S.panel){ renderPanel(); p.classList.add('open'); S._pt = setTimeout(() => b.classList.add('withpanel'), S.reduce ? 0 : 200); }  // the web view resizes once, at the end
+  else { b.classList.remove('withpanel'); p.classList.remove('open'); }
+  renderAddr(); renderCtl();
+}
+function toggleTheme(){ S.theme = S.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = S.theme; renderCtl(); }
+function toggleReduce(){ S.reduce = !S.reduce; document.documentElement.toggleAttribute('data-reduce', S.reduce); renderCtl(); }
+function toggleGraphite(){ S.graphite = !S.graphite; document.documentElement.toggleAttribute('data-graphite', S.graphite); renderCtl(); }
+function toggleCtl(){ $('#ctl').classList.toggle('gone'); }
+function cycleOutcome(){ S.outcome = { fast:'slow', slow:'fail', fail:'fast' }[S.outcome]; renderCtl(); }
+const EO = 'cubic-bezier(0.16,1,0.3,1)', EJ = 'cubic-bezier(0.34,1.4,0.64,1)', ED = 'cubic-bezier(0.5,0,0.9,0.6)';
+function openOverlay(kind){
+  if (SEAL) SEAL.land();
+  if (!J().tabs.length) S.scene = 'board';
+  S.ask = kind === 'ask'; S.pal = kind === 'pal';
+  renderTabs(); renderAddr(); renderAsk(); renderPal(); renderCtl();
+  const el = $(kind === 'ask' ? '#ask' : '#pal');
+  el.animate([{opacity:0},{opacity:1}],{duration:S.reduce?120:200,easing:EO});
+  if (S.reduce) return;
+  if (kind === 'ask'){
+    $('.askfield').animate([{opacity:0,transform:'scale(.98)'},{opacity:1,transform:'none'}],{duration:200,easing:EO});
+    document.querySelectorAll('.askmeta,.answer,.rhead,.rcard').forEach((n,k) => n.animate([{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'none'}],{duration:200,delay:80+k*40,easing:EO,fill:'backwards'}));
+  } else $('.palbox').animate([{opacity:0,transform:'scale(.98) translateY(-4px)'},{opacity:1,transform:'none'}],{duration:200,easing:EO});
+}
+const openAsk = () => openOverlay('ask'), openPal = () => openOverlay('pal');
+function closeOverlay(){
+  if (!S.ask && !S.pal) return;
+  const a = $(S.ask ? '#ask' : '#pal');
+  a.animate([{opacity:1},{opacity:0}],{duration:S.reduce?120:160,easing:EO}).onfinish = () => { S.ask = false; S.pal = false; renderAsk(); renderPal(); renderCtl(); renderTabs(); renderAddr(); };
+}
+
+/* =====================================================================
+   Tabs: open / close / sink
+   ===================================================================== */
+function newTab(){
+  if (SEAL) SEAL.land();
+  const j = J();
+  const base = j.pool.length ? j.pool[(j.tabs.length) % j.pool.length] : T('New Tab','start.example','/','blank','b');
+  const t = { ...base, id:nid() };
+  j.tabs.push(t); j.active = j.tabs.length - 1; S.scene = 'browse'; S.ask = false; S.pal = false;
+  if (S.reduce){ renderTabs(true); const n = $(`.tab[data-id="${t.id}"]`); n.animate([{opacity:0},{opacity:1}],{duration:200}); }
+  else renderTabs(false);   // width 0 -> w over --t-base, lip follows
+  renderAddr(); renderView(true); renderPanel(); renderAsk(); renderPal(); renderCtl();
+}
+function closeTab(id, opts={}){
+  const j = J(), i = j.tabs.findIndex(t => t.id === id); if (i < 0) return;
+  const n = $(`.tab[data-id="${id}"]`);
+  const wasActive = activeTab() && activeTab().id === id;
+  j.tabs.splice(i, 1);
+  if (j.active >= j.tabs.length) j.active = Math.max(0, j.tabs.length - 1);
+  else if (i < j.active) j.active--;
+  if (wasActive && j.tabs[j.active] && j.tabs[j.active].pinned && j.tabs.length > 1) j.active = Math.min(j.tabs.length-1, i);
+  if (!j.tabs.length && S.scene === 'browse') S.scene = 'board';
+  if (n){
+    n.dataset.id = 'gone-' + id; n.classList.remove('on');
+    if (S.reduce) n.animate([{opacity:1},{opacity:0}],{duration:200,fill:'forwards'}).onfinish = () => n.remove();
+    else { n.style.opacity = 0; n.style.width = '0px'; n.style.paddingLeft = n.style.paddingRight = '0px'; setTimeout(() => n.remove(), 220); }
+  }
+  renderTabs(); if (wasActive || !opts.keepView){ renderAddr(); renderView(true); } renderPanel(); renderCtl();
+}
+/* a chip that flies from a tab to a target (Sink: the Brine pill; Seal: the jar on the Shelf).
+   SwiftUI: one root overlay above the web view, positions read through anchorPreference. */
+function flyChip(fromEl, toRect, html, {dur=620, scaleTo=.62, fadeTo=.5, xEase=EO, yEase=ED, onDone}={}){
+  const stage = $('#stage').getBoundingClientRect(), sc = stage.width / 1440;
+  const r = fromEl.getBoundingClientRect();
+  const g = document.createElement('div'); g.className = 'ghost'; g.innerHTML = html;
+  const x0 = (r.left - stage.left)/sc + 4, y0 = (r.top - stage.top)/sc + 4;
+  const x1 = (toRect.left - stage.left)/sc, y1 = (toRect.top - stage.top)/sc;
+  g.style.transformOrigin = '0 0';
+  // three layers so x, y and size each keep their own curve: x and y travel, the chip shrinks late
+  const mid = document.createElement('div'); mid.style.cssText = `position:absolute;left:${x0}px;top:${y0}px`; mid.appendChild(g); g.style.position = 'relative';
+  const wrap = document.createElement('div'); wrap.style.cssText = 'position:absolute;left:0;top:0;z-index:40;pointer-events:none'; wrap.appendChild(mid);
+  $('#stage').appendChild(wrap);
+  wrap.animate([{transform:'translateX(0)'},{transform:`translateX(${x1-x0}px)`}],{duration:dur,easing:xEase,fill:'forwards'});
+  mid.animate([{transform:'translateY(0)'},{transform:`translateY(${y1-y0}px)`}],{duration:dur,easing:yEase,fill:'forwards'});
+  g.animate([{transform:'scale(1)',opacity:1},{transform:`scale(${scaleTo})`,opacity:fadeTo}],{duration:dur,easing:'cubic-bezier(0.55,0,0.85,0.4)',fill:'forwards'})
+    .onfinish = () => { wrap.remove(); onDone && onDone(); };
+  return wrap;
+}
+function sinkTab(count = 1){
+  if (SEAL) SEAL.land();
+  const j = J(), at = activeTab();
+  let cands = [...j.tabs].reverse().filter(t => !t.pinned && (!at || t.id !== at.id)).slice(0, count);
+  if (!cands.length) cands = j.tabs.filter(t => !t.pinned).slice(0, 1);
+  if (!cands.length) return;
+  const n = $(`.tab[data-id="${cands[0].id}"]`), pill = $('#brinepill');
+  cands.forEach(c => SUNK.unshift({ title:c.title, host:c.host, jar:j.id, when:'Sank just now', group:'Today' }));
+  S.unseen += cands.length;
+  const done = () => { renderBottom(); if (S.scene==='brine') { S.unseen = 0; renderBottom(); renderView(true); }
+    if (!S.reduce) $('#brinepill').animate([{transform:'scale(1)'},{transform:'scale(1.06)'},{transform:'scale(1)'}],{duration:360,easing:EJ});
+    const nn = $('#brinen'); if (nn && !S.reduce) nn.animate([{transform:'translateY(-6px)',opacity:0},{transform:'none',opacity:1}],{duration:200,easing:EO}); };
+  if (S.reduce){ cands.forEach(c => closeTab(c.id, {keepView:true})); done(); return; }
+  // 1) the tabs dip and fade (they are sinking) 2) ONE chip falls to the Brine pill ("2 tabs" for a batch) 3) the pill settles once
+  cands.forEach(c => { const e = $(`.tab[data-id="${c.id}"]`); e && e.animate([{transform:'none',opacity:1},{transform:'translateY(4px)',opacity:.3}],{duration:160,easing:EO,fill:'forwards'}); });
+  const label = cands.length > 1 ? `${ic('sink',13)}${plural(cands.length,'tab')}` : `${ltile(cands[0],14)}${esc(cands[0].title.length>26?cands[0].title.slice(0,25)+'…':cands[0].title)}`;
+  const p = pill.getBoundingClientRect();
+  flyChip(n, {left:p.left, top:p.top - 3}, label, {onDone:done});
+  setTimeout(() => cands.forEach(c => closeTab(c.id, {keepView:true})), 140);
+}
+function restore(i){
+  const s = SUNK[i]; if (!s) return;
+  const row = document.querySelector(`.brow[data-i="${i}"]`);
+  const j = jarById(s.jar);
+  SUNK.splice(i, 1);
+  j.tabs.push(T(s.title, s.host, '/', 'blank', 'b'));
+  const after = () => { renderView(false); renderBottom(); if (j === J()) renderTabs(false); renderRail(); };
+  if (row && !S.reduce){
+    row.style.overflow = 'hidden';
+    row.animate([{height:'56px',opacity:1},{height:'0px',opacity:0}],{duration:200,easing:EO,fill:'forwards'}).onfinish = after;
+  } else after();
+}
+
+/* =====================================================================
+   Jar fill — the jar's own tint drips in and the level rises (660ms).
+   Something landed in the jar: its kept list grows, and every count follows it.
+   ===================================================================== */
+function captured(j){
+  const t = j.tabs[j.active];
+  return t ? K('Page','Today', t.title, 'Captured just now.', t.host) : K('Page','Today','Shared from Safari','Captured just now.','share.example');
+}
+function jarFill(i = S.jar, items = 1){
+  const j = JARS[i]; if (!j) return;
+  if (typeof items === 'number') items = Array.from({length:items}, () => captured(j));
+  const L0 = level(j); j.kept.unshift(...items); const L1 = level(j);
+  const tile = document.querySelectorAll('.tile')[i]; if (!tile) return;
+  const svg = tile.querySelector('.jar'), liq = svg.querySelector('.liq'), drop = svg.querySelector('.drop');
+  tile.title = `${j.name} — ${jarMeta(j)} · ⌘${i+1}`;
+  const y0 = surfaceY(L0), y1 = surfaceY(L1);
+  const ct = tile.querySelector('.ct'); ct.textContent = j.kept.length; ct.classList.add('show'); clearTimeout(ct._t); ct._t = setTimeout(() => ct.classList.remove('show'), 2400);
+  const finish = () => { liq.style.transform = `translateY(${y1}px)`; svg.classList.toggle('full', L1 >= 1); };
+  setTimeout(() => syncJarGlyphs(j, S.reduce ? null : y0), S.reduce ? 0 : 240);
+  setTimeout(syncBoard, S.reduce ? 0 : 260);
+  if (S.reduce){ finish(); return; }
+  // the drop: born under the neck, falls to the surface on gravity, stretched
+  drop.setAttribute('opacity', 1);
+  drop.style.transformBox = 'fill-box'; drop.style.transformOrigin = '50% 50%';
+  drop.animate([{transform:'translateY(0) scaleY(.7)', opacity:.95},{transform:`translateY(${Math.max(0, y0 - 17.5)}px) scaleY(1.15)`, opacity:.9}],
+    {duration:300, easing:ED, fill:'forwards'}).onfinish = () => drop.setAttribute('opacity', 0);
+  // the level rises on ease-jar (overshoots, settles)
+  liq.animate([{transform:`translateY(${y0}px)`},{transform:`translateY(${y1}px)`}],{duration:420, delay:240, easing:EJ, fill:'backwards'}).onfinish = finish;
+  liq.style.transform = `translateY(${y1}px)`;
+  tile.animate([{transform:'scale(1)'},{transform:'scale(1.05)'},{transform:'scale(1)'}],{duration:420, delay:240, easing:EJ});
+}
+function syncJarGlyphs(j, y0){
+  // every other drawing of this jar (board header, chip, Brine rows) follows the level
+  document.querySelectorAll(`.jar[data-jar="${j.id}"]`).forEach(svg => {
+    if (svg.closest('.tile')) return;
+    const liq = svg.querySelector('.liq'), y1 = surfaceY(level(j));
+    if (!S.reduce && y0 != null) liq.animate([{transform:`translateY(${y0}px)`},{transform:`translateY(${y1}px)`}],{duration:420,easing:EJ});
+    liq.style.transform = `translateY(${y1}px)`; svg.classList.toggle('full', level(j) >= 1);
+  });
+}
+function syncBoard(){
+  // one source for every count: the jar's kept list
+  const j = J(), m = $('#bmeta'), k = $('#bkept');
+  if (m) m.textContent = `${jarMeta(j)} · tabs sink after 7 idle days`;
+  if (k && S.scene === 'board'){ const before = k.querySelectorAll('.kcard').length; k.innerHTML = keptHTML(j);
+    const first = k.querySelector('.kcard'); if (first && !S.reduce && before) first.animate([{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'none'}],{duration:200,easing:EO}); }
+  if (!S.panel) return; renderPanel();
+}
+function addToJar(){ if (SEAL) SEAL.land(); jarFill(S.jar); }
+
+/* =====================================================================
+   SEAL — stamps sealedAt, freezes the .webarchive, closes the tab, fires onSeal, runs the
+   jar's Recipe. Two phases, because the app can't keep a fixed clock:
+     A (on the gesture): pulse, lip rises, band runs out, drops form and HANG
+     B (when the write returns, never before 700ms): flash, Sealed pill, drain, the tab
+       closes and flies to its jar, which fills.   Failure: drain, no pill, tab stays open.
+   SwiftUI: Workbench.sealPhase (.started / .frozen / .failed) drives B, never a sleep.
+   ===================================================================== */
+let SEAL = null;
+const BAND = 14, BX = 128, WW = 1280;   // band height; it starts at the tab strip (the window buttons stay clear)
+function dropPath(cx, w, L, f){
+  const r = w * 0.36, y = BAND - .5;
+  return `M${cx-w/2-f} ${y-1}C${cx-w/2} ${y-1} ${cx-w/2} ${y+f*.55} ${cx-w/2} ${y+f}`+
+         `L${cx-r} ${y+L-r}A${r} ${r} 0 0 0 ${cx+r} ${y+L-r}`+
+         `L${cx+w/2} ${y+f}C${cx+w/2} ${y+f*.55} ${cx+w/2} ${y-1} ${cx+w/2+f} ${y-1}Z`;
+}
+function sealDrops(front, tx, tw){
+  // where drops may fall: never on the window buttons, never across a tab's title
+  const rects = [...document.querySelectorAll('#tabrow .tab')].filter(n => !n.dataset.id.startsWith('gone'))
+    .map(n => ({ x:120 + parseFloat(n.style.left) - tabScroll, w:parseFloat(n.style.width) }))
+    .filter(r => r.x + r.w > BX && r.x < 120 + TAB.clip).sort((a,b) => a.x - b.x);
+  const drops = [];
+  // 1) the nub on the lip, the art's small drip ~68% across (centered on a pinned tab): short, above the title
+  drops.push({ cx: tx + tw * (front.pinned ? .5 : .68), w: front.pinned ? 11 : 14, L: 6 });
+  // 2) small drops on the seams between tabs, where only rounded corners sit underneath
+  const seams = [];
+  for (let i = 0; i < rects.length - 1; i++){ const sx = (rects[i].x + rects[i].w + rects[i+1].x) / 2; if (Math.abs(sx - (tx + tw/2)) > tw/2 + 16) seams.push(sx); }
+  const pick = seams.length <= 3 ? seams : [0, .5, 1].map(f => seams[Math.round(f * (seams.length - 1))]);
+  pick.forEach(sx => drops.push({ cx:sx, w:13, L:10 }));
+  // 3) the big drops fall where nothing sits under them: the open strip after "+"
+  const nbx = parseFloat($('#newtab').style.left), openL = Math.max(BX, nbx + 28 + 12), openR = WW - 16, span = openR - openL;
+  if (span >= 48){
+    drops.push({ cx: openL + Math.min(span * .34, span - 24), w:38, L:36, big:true });   // the one drop allowed past the strip: tip at 50, above the field
+    if (span >= 120) drops.push({ cx: openL + span * .84, w:24, L:20, big:true });
+  }
+  const c = tx + tw/2; drops.forEach(d => d.dist = Math.abs(d.cx - c));
+  [...drops].sort((a,b) => a.dist - b.dist).forEach((d,k) => d.k = k);
+  return drops;
+}
+function seal(mode = S.outcome){
+  if (S.ask || S.pal) { closeOverlay(); return; }
+  if (SEAL) SEAL.land();                       // a second ⌘S lands the running Seal at once, then seals the next tab
+  const t = activeTab(); if (!t) return;
+  const j = J(), jarIdx = S.jar;
+  const tabEl = $(`.tab[data-id="${t.id}"]`), btn = $('#sealbtn'), slot = $('#sealslot'), fin = $('#fin');
+  const tx = 120 + parseFloat(tabEl.style.left) - tabScroll, tw = parseFloat(tabEl.style.width), cx = tx + tw/2;
+  const fail = mode === 'fail', B = Math.max(700, mode === 'slow' ? 2500 : 380);
+  const item = K('Page','Today', t.title, 'Saved copy, sealed just now.', t.host, true);
+  const fx = $('#sealfx');
+  const job = { timers:[], closed:false, landed:false, chip:null };
+  const at = (ms, fn) => job.timers.push(setTimeout(fn, ms));
+  const end = () => { if (SEAL === job) SEAL = null; };
+  const closeAndFill = (fly) => {
+    job.closed = true; closeTab(t.id);
+    const tile = document.querySelectorAll('.tile')[jarIdx], jarEl = tile && tile.querySelector('.jar');
+    const land = () => { if (job.landed) return; job.landed = true; jarFill(jarIdx, [item]); end(); };
+    if (!fly || !jarEl || S.reduce){ land(); return; }
+    const r = jarEl.getBoundingClientRect();
+    job.chip = flyChip(tabEl, {left:r.left + r.width/2 - 8, top:r.top + 4},
+      `${ltile(t,14)}${esc(t.title.length > 24 ? t.title.slice(0,23) + '…' : t.title)}<span class="disc" style="width:14px;height:14px;border-radius:50%;background:var(--relish-500);display:grid;place-items:center;color:#111">${ic('check',9)}</span>`,
+      {dur:560, scaleTo:.4, fadeTo:0, xEase:'cubic-bezier(0.45,0,0.55,1)', yEase:EO, onDone:land});   // drops out of the strip first, so it never crosses the window buttons
+  };
+  job.land = () => {                           // interrupt: jump to the end state now
+    job.timers.forEach(clearTimeout); fx.innerHTML = ''; job.chip && job.chip.remove();
+    if (fail){ if (!job.closed) renderAddr(); }
+    else { if (!job.closed){ job.closed = true; closeTab(t.id); } if (!job.landed){ job.landed = true; jarFill(jarIdx, [item]); } }
+    end();
+  };
+  SEAL = job;
+
+  // the Sealed pill (address row, trailing), check drawn on
+  const pill = document.createElement('span'); pill.className = 'pill';
+  pill.innerHTML = `<span class="disc"><svg width="11" height="11" viewBox="0 0 24 24"><path d="M6.5 12.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="${S.reduce?0:1}"/></svg></span>Sealed`;
+  pill.style.opacity = 0;
+
+  if (S.reduce){
+    // Reduce Motion: Seal is a fade. While the write runs the glyph dims; then the pill fades in.
+    btn.animate([{opacity:1},{opacity:.45}],{duration:120,fill:'forwards'});
+    at(B, () => {
+      if (fail){ btn.getAnimations().forEach(a => a.cancel()); showStatus('Couldn’t seal this page'); end(); return; }
+      slot.appendChild(pill); btn.animate([{opacity:.45},{opacity:0}],{duration:160,fill:'forwards'}); if (fin) fin.style.opacity = 0;
+      pill.animate([{opacity:0},{opacity:1}],{duration:200,fill:'forwards'});
+    });
+    if (!fail) at(B + 700, () => closeAndFill(false));
+    return;
+  }
+
+  /* ---- phase A ---- */
+  btn.querySelector('svg').animate([{transform:'scale(1)'},{transform:'scale(1.18)'},{transform:'scale(1)'}],{duration:200,easing:EO});
+  const drops = sealDrops(t, tx, tw);
+  const BW = WW - BX + 8, lipF = (tw - 8) / BW;
+  fx.innerHTML = `
+    <rect class="conn" x="${tx+4}" y="0" width="${tw-8}" height="${BAND+2}"/>
+    <g class="bandg"><rect class="band" x="${BX}" y="0" width="${BW}" height="${BAND}" rx="${BAND/2}"/><rect class="hl" x="${BX+8}" y="2" width="${BW-16}" height="2.5" rx="1.25"/></g>
+    ${drops.map((d,i) => `<g class="dg" data-i="${i}"><path class="drop" d="${dropPath(d.cx, d.w, d.L, d.w*.55)}"/>${d.big?`<rect class="gl" x="${d.cx - d.w*.24}" y="${BAND+8}" width="${d.w > 30 ? 4 : 3}" height="${d.L*.42}" rx="2" opacity="0"/>`:''}</g>`).join('')}`;
+  const conn = fx.querySelector('.conn'), bandg = fx.querySelector('.bandg'), hl = fx.querySelector('.hl');
+  conn.style.transformOrigin = '50% 100%';
+  bandg.style.transformBox = 'view-box'; bandg.style.transformOrigin = `${cx}px 0px`;
+  // t60: the lip rises to the window's edge; t120: the band runs out of it, both ways
+  conn.animate([{transform:'scaleY(0)'},{transform:'scaleY(1)'}],{duration:120,delay:60,easing:EO,fill:'both'});
+  bandg.animate([{transform:`scaleX(${lipF})`},{transform:'scaleX(1)'}],{duration:260,delay:120,easing:EO,fill:'both'});
+  // t200: drops form on gravity and settle on the jar curve; then they hang until the write returns
+  fx.querySelectorAll('.dg').forEach(g => {
+    const d = drops[+g.dataset.i], p = g.querySelector('.drop'), gl = g.querySelector('.gl');
+    p.style.transformOrigin = '50% 0%';
+    const dur = d.big ? 480 : 340, delay = 200 + d.k * 40;
+    p.animate([{transform:'scaleY(0) scaleX(.85)', easing:ED},{transform:'scaleY(1.08) scaleX(1)', offset:.7, easing:EJ},{transform:'scaleY(1)'}],{duration:dur, delay, fill:'both'});
+    if (gl) gl.animate([{opacity:0},{opacity:1}],{duration:160, delay:delay+dur-160, fill:'forwards'});
+  });
+
+  /* ---- phase B ---- */
+  const drain = () => {
+    hl.remove();                                 // the highlight leaves first: the drain is one flat shape
+    fx.querySelectorAll('.dg').forEach(g => { const d = drops[+g.dataset.i];
+      g.querySelector('.drop').animate([{transform:'scaleY(1)'},{transform:'scaleY(0)'}],{duration:240,delay:(drops.length-1-d.k)*20,easing:EO,fill:'forwards'});
+      const gl = g.querySelector('.gl'); if (gl) gl.animate([{opacity:1},{opacity:0}],{duration:100,fill:'forwards'}); });
+    // the band retracts to the lip's own width (not to nothing), then the lip absorbs it
+    bandg.animate([{transform:'scaleX(1)',opacity:1},{transform:`scaleX(${lipF})`,opacity:1,offset:.75},{transform:`scaleX(${lipF})`,opacity:0}],{duration:320,delay:40,easing:EO,fill:'forwards'});
+    conn.animate([{transform:'scaleY(1)'},{transform:'scaleY(0)'}],{duration:140,delay:300,easing:EO,fill:'forwards'});
+  };
+  if (fail){
+    at(B, () => { drain(); showStatus('Couldn’t seal this page'); });
+    at(B + 480, () => { fx.innerHTML = ''; end(); });
+    return;
+  }
+  at(B, () => { const f = $('#flash'); if (f) f.animate([{opacity:0},{opacity:.07},{opacity:0}],{duration:160,easing:EO}); });   // the copy is frozen
+  at(B + 20, () => {
+    slot.appendChild(pill);
+    btn.animate([{opacity:1},{opacity:0}],{duration:120,fill:'forwards'});
+    if (fin) fin.animate([{opacity:1},{opacity:0}],{duration:120,fill:'forwards'});
+    pill.style.opacity = 1;
+    pill.animate([{transform:'scale(.6)',opacity:0},{transform:'scale(1.04)',opacity:1,offset:.6},{transform:'scale(1)',opacity:1}],{duration:320,easing:EJ});
+    pill.querySelector('.disc').animate([{transform:'scale(0)'},{transform:'scale(1)'}],{duration:200,delay:40,easing:EJ,fill:'backwards'});
+    pill.querySelector('path').animate([{strokeDashoffset:1},{strokeDashoffset:0}],{duration:180,delay:140,easing:EO,fill:'forwards'});
+  });
+  at(B + 280, drain);
+  at(B + 640, () => { fx.innerHTML = ''; closeAndFill(true); });   // the tab closes (non-negotiable 3) and flies to its jar
+}
+
+/* =====================================================================
+   Keys, scale, boot
+   ===================================================================== */
+document.addEventListener('keydown', e => {
+  const mod = e.metaKey || e.ctrlKey, k = e.key.toLowerCase();
+  if (mod && k === 's'){ e.preventDefault(); seal(e.shiftKey ? 'slow' : undefined); return; }
+  if (mod && k === 'k'){ e.preventDefault(); S.pal ? closeOverlay() : openPal(); return; }
+  if (mod && k === 'd'){ e.preventDefault(); addToJar(); return; }
+  if (mod && /^[1-5]$/.test(k)){ e.preventDefault(); switchJar(+k - 1); return; }
+  if (k === 'escape'){ closeOverlay(); return; }
+  if (mod || e.altKey) return;
+  if (k === 's'){ seal(e.shiftKey ? 'slow' : undefined); return; }
+  if (k === 'x'){ sinkTab(e.shiftKey ? 2 : 1); return; }
+  const map = { f:() => seal('fail'), d:addToJar, t:()=>newTab(), w:()=>{ const t = activeTab(); if (t) closeTab(t.id); }, k:openPal, a:openAsk,
+    p:()=>setScene('browse'), b:()=>setScene('board'), r:()=>setScene('brine'), l:toggleTheme, m:toggleReduce, g:toggleGraphite, i:togglePanel, h:toggleCtl };
+  if (/^[1-5]$/.test(k)) switchJar(+k - 1);
+  else if (map[k]) map[k]();
+});
+function fit(){ const s = Math.min(innerWidth/1440, innerHeight/900); const st = $('#stage'); st.style.transform = `scale(${s})`; st.style.left = (innerWidth - 1440*s)/2 + 'px'; st.style.top = (innerHeight - 900*s)/2 + 'px'; }
+addEventListener('resize', fit);
+
+(function boot(){
+  const q = new URLSearchParams(location.search);
+  if (q.get('theme') === 'dark' || (!q.get('theme') && matchMedia('(prefers-color-scheme: dark)').matches)) S.theme = 'dark';
+  document.documentElement.dataset.theme = S.theme;
+  if (q.has('reduce') || matchMedia('(prefers-reduced-motion: reduce)').matches){ S.reduce = true; document.documentElement.setAttribute('data-reduce',''); }
+  if (q.has('color')) S.graphite = false;
+  document.documentElement.toggleAttribute('data-graphite', S.graphite);
+  if (q.get('jar')) S.jar = Math.max(0, JARS.findIndex(j => j.id === q.get('jar')));
+  if (q.get('tabs')){   // e.g. ?tabs=12 — the overflow state
+    const j = J(), extra = [['Invoices · Ledgerly','ledgerly.example'],['Bright Trails — Winter menu','brighttrails.example'],['Harbor Signs — Brand sheet','harborsigns.example'],
+      ['Fieldnote — Changelog','fieldnote.example'],['Juniper Bakery — Contact','juniperbakery.example'],['Ledgerly — Reports','ledgerly.example'],['Staging · Juniper','staging.juniper.example'],
+      ['Harbor Signs — Quote','harborsigns.example'],['Fieldnote — Docs','fieldnote.example'],['Bright Trails — About','brighttrails.example']];
+    for (let i = 0; j.tabs.length < +q.get('tabs') && i < extra.length; i++) j.tabs.push(T(extra[i][0], extra[i][1], '/', 'blank', 'abcd'[i%4]));
+    j.active = j.tabs.length - 2;
+  }
+  const sc = q.get('scene');
+  if (sc === 'ask') S.ask = true; else if (sc === 'palette') S.pal = true; else if (['browse','board','brine'].includes(sc)) S.scene = sc;
+  if (q.has('panel')){ S.panel = true; $('#panel').classList.add('open'); $('#bench').classList.add('withpanel'); }
+  fit(); renderAll(false);
+  if (q.has('clean')) toggleCtl();
+  window.__nr = { seal, jarFill, newTab, closeTab, sinkTab, switchJar, setScene, openAsk, openPal, S, JARS };
+})();
+</script>
+</body>
+</html>

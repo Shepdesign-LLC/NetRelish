@@ -76,10 +76,23 @@ private func close(_ a: (Int, Int, Int), _ b: (Int, Int, Int), tol: Int) -> Bool
     @Test("Scalar tokens carry their CSS values")
     func scalars() {
         #expect(NRSpace.sp1 == 4 && NRSpace.sp12 == 48)
-        #expect(NRSpace.shelfW == 238 && NRSpace.inspectorW == 322 && NRSpace.tabH == 34 && NRSpace.lipH == 3 && NRSpace.hairline == 1)
+        #expect(NRSpace.shelfW == 120 && NRSpace.inspectorW == 322 && NRSpace.tabH == 34 && NRSpace.lipH == 5 && NRSpace.hairline == 1)
         #expect(NRRadius.r1 == 6 && NRRadius.r2 == 10 && NRRadius.r3 == 16 && NRRadius.rJar == 14)
         #expect(NRRadius.superellipseN == 5)
         #expect(NRType.fsXs == 11 && NRType.fs3xl == 40 && NRType.lhBody == 1.5)
         #expect(NRMotion.fast == 0.12 && NRMotion.base == 0.2 && NRMotion.seal == 0.48)
+    }
+
+    /// v2.1 (ADR 0035): the workbench facelift's neutrals. Each must be generated, so the
+    /// round-trip test above checks it against its hex, light and dark.
+    @Test("The v2.1 neutrals are generated")
+    func faceliftNeutrals() {
+        let names = ["--nr-canvas", "--nr-rail", "--nr-tab", "--nr-tab-hover",
+                     "--nr-float", "--nr-hairline-soft", "--nr-jar-line", "--nr-jar-lid"]
+        for name in names {
+            #expect(NRTokenCatalog.allCSSNames.contains(name), "\(name) has no static")
+            #expect(NRTokenCatalog.colors.contains { $0.css == name }, "\(name) is not in the color catalog")
+        }
+        #expect(NRTokenCatalog.motion.contains { $0.css == "--ease-drip" && $0.swift == "easeDrip" })
     }
 }

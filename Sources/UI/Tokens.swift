@@ -20,9 +20,9 @@ public enum NRColor {
     public static let surface2 = Color(nsColor: nr_dynamic(
         light: (0.9614, 0.9614, 0.9533),
         dark: (0.1492, 0.1492, 0.1414)))
-    /// `--nr-hairline` — #E3E3E0 1px borders · light #E3E3E0 · dark #3B3B38
+    /// `--nr-hairline` — #E5E5E2 1px borders: window, tab sides, cards · light #E5E5E2 · dark #3B3B38
     public static let hairline = Color(nsColor: nr_dynamic(
-        light: (0.8902, 0.8902, 0.8796),
+        light: (0.8980, 0.8980, 0.8873),
         dark: (0.2311, 0.2311, 0.2206)))
     /// `--nr-fg` — #1D1D1B primary text · light #1D1D1B · dark #F0F0EE
     public static let fg = Color(nsColor: nr_dynamic(
@@ -32,17 +32,49 @@ public enum NRColor {
     public static let fg2 = Color(nsColor: nr_dynamic(
         light: (0.4000, 0.4000, 0.3747),
         dark: (0.6592, 0.6592, 0.6365)))
-    /// `--nr-fg-3` — #93938B tertiary / placeholders · light #93938B · dark #77776F
+    /// `--nr-fg-3` — #6C6C65 tertiary / placeholders · light #6C6C65 · dark #96968F
     public static let fg3 = Color(nsColor: nr_dynamic(
-        light: (0.5767, 0.5767, 0.5473),
-        dark: (0.4669, 0.4669, 0.4385)))
-    /// `--relish-100` — #EFFCCB active-jar tint, badge bg · light #EFFCCB · dark #1F3309
+        light: (0.4235, 0.4235, 0.3980),
+        dark: (0.5870, 0.5870, 0.5624)))
+    /// `--nr-canvas` — #F6F6F3 board, Brine, palette scrim · light #F6F6F3 · dark #141413
+    public static let canvas = Color(nsColor: nr_dynamic(
+        light: (0.9643, 0.9643, 0.9535),
+        dark: (0.0786, 0.0786, 0.0750)))
+    /// `--nr-rail` — #FAFAF8 Shelf, Panel, bottom bar · light #FAFAF8 · dark #181817
+    public static let rail = Color(nsColor: nr_dynamic(
+        light: (0.9811, 0.9811, 0.9730),
+        dark: (0.0945, 0.0945, 0.0908)))
+    /// `--nr-tab` — #F3F3F0 tab behind, idle field, chip, hover rows · light #F3F3F0 · dark #262624
+    public static let tab = Color(nsColor: nr_dynamic(
+        light: (0.9525, 0.9525, 0.9418),
+        dark: (0.1492, 0.1492, 0.1414)))
+    /// `--nr-tab-hover` — #EDEDEA tab behind, under the pointer · light #EDEDEA · dark #2C2C2A
+    public static let tabHover = Color(nsColor: nr_dynamic(
+        light: (0.9291, 0.9291, 0.9184),
+        dark: (0.1723, 0.1723, 0.1643)))
+    /// `--nr-float` — #FFFFFF cards, palette box, jar glass, tile badge · light #FFFFFF · dark #232321
+    public static let float = Color(nsColor: nr_dynamic(
+        light: (1.0000, 1.0000, 1.0000),
+        dark: (0.1369, 0.1369, 0.1292)))
+    /// `--nr-hairline-soft` — #EEEEEB under the strip and address row, rail edges · light #EEEEEB · dark #2A2A28
+    public static let hairlineSoft = Color(nsColor: nr_dynamic(
+        light: (0.9330, 0.9330, 0.9222),
+        dark: (0.1645, 0.1645, 0.1566)))
+    /// `--nr-jar-line` — #2A2A2A jar outline, the active jar's lid · light #2A2A2A · dark #DADAD5
+    public static let jarLine = Color(nsColor: nr_dynamic(
+        light: (0.1647, 0.1647, 0.1647),
+        dark: (0.8550, 0.8550, 0.8365)))
+    /// `--nr-jar-lid` — #CFCFCA an idle jar's lid · light #CFCFCA · dark #4A4A47
+    public static let jarLid = Color(nsColor: nr_dynamic(
+        light: (0.8117, 0.8117, 0.7934),
+        dark: (0.2901, 0.2901, 0.2792)))
+    /// `--relish-100` — #EFFCCB Sealed pill, selected smart row, lit Brine pill · light #EFFCCB · dark #1F3309
     public static let relish100 = Color(nsColor: nr_dynamic(
         light: (0.9464, 0.9864, 0.8146),
         dark: (0.1396, 0.1982, 0.0609)))
     /// `--relish-300` — #C4F26B hover on primary · #C4F26B
     public static let relish300 = Color(nsColor: nr_p3(0.8049, 0.9440, 0.4935))
-    /// `--relish-500` — #93E413 THE relish. primary button, tab lip, seal glyph · #93E413
+    /// `--relish-500` — #93E413 THE relish. primary button, Seal glyph and animation · #93E413
     public static let relish500 = Color(nsColor: nr_p3(0.6482, 0.8853, 0.2874))
     /// `--relish-700` — #4E9110 relish on light bg where contrast needs it · #4E9111
     public static let relish700 = Color(nsColor: nr_p3(0.3707, 0.5620, 0.1783))
@@ -82,14 +114,14 @@ public enum NRSpace {
     public static let sp10: CGFloat = 40
     /// `--sp-12`
     public static let sp12: CGFloat = 48
-    /// `--shelf-w` — the Shelf
-    public static let shelfW: CGFloat = 238
+    /// `--shelf-w` — the Shelf, a rail of jars
+    public static let shelfW: CGFloat = 120
     /// `--inspector-w`
     public static let inspectorW: CGFloat = 322
     /// `--tab-h`
     public static let tabH: CGFloat = 34
-    /// `--lip-h` — relish tab lip, active tab only
-    public static let lipH: CGFloat = 3
+    /// `--lip-h` — the front tab's lip, in its jar's color
+    public static let lipH: CGFloat = 5
     /// `--hairline`
     public static let hairline: CGFloat = 1
 }
@@ -149,6 +181,8 @@ public enum NRMotion {
     public static let easeOut = UnitCurve.bezier(startControlPoint: UnitPoint(x: 0.16, y: 1.0), endControlPoint: UnitPoint(x: 0.3, y: 1.0))
     /// `--ease-jar` — jar drop / settle
     public static let easeJar = UnitCurve.bezier(startControlPoint: UnitPoint(x: 0.34, y: 1.4), endControlPoint: UnitPoint(x: 0.64, y: 1.0))
+    /// `--ease-drip` — gravity: things that fall
+    public static let easeDrip = UnitCurve.bezier(startControlPoint: UnitPoint(x: 0.5, y: 0.0), endControlPoint: UnitPoint(x: 0.9, y: 0.6))
     /// `--t-fast`
     public static let fast: TimeInterval = 0.12
     /// `--t-base`
@@ -171,10 +205,18 @@ public enum NRTokenCatalog {
         ColorEntry(css: "--nr-bg", swift: "bg", color: NRColor.bg, note: "light #FCFCFB · dark #171716"),
         ColorEntry(css: "--nr-surface", swift: "surface", color: NRColor.surface, note: "light #FFFFFF · dark #1D1D1B"),
         ColorEntry(css: "--nr-surface-2", swift: "surface2", color: NRColor.surface2, note: "light #F5F5F3 · dark #262624"),
-        ColorEntry(css: "--nr-hairline", swift: "hairline", color: NRColor.hairline, note: "light #E3E3E0 · dark #3B3B38"),
+        ColorEntry(css: "--nr-hairline", swift: "hairline", color: NRColor.hairline, note: "light #E5E5E2 · dark #3B3B38"),
         ColorEntry(css: "--nr-fg", swift: "fg", color: NRColor.fg, note: "light #1D1D1B · dark #F0F0EE"),
         ColorEntry(css: "--nr-fg-2", swift: "fg2", color: NRColor.fg2, note: "light #66665F · dark #A8A8A2"),
-        ColorEntry(css: "--nr-fg-3", swift: "fg3", color: NRColor.fg3, note: "light #93938B · dark #77776F"),
+        ColorEntry(css: "--nr-fg-3", swift: "fg3", color: NRColor.fg3, note: "light #6C6C65 · dark #96968F"),
+        ColorEntry(css: "--nr-canvas", swift: "canvas", color: NRColor.canvas, note: "light #F6F6F3 · dark #141413"),
+        ColorEntry(css: "--nr-rail", swift: "rail", color: NRColor.rail, note: "light #FAFAF8 · dark #181817"),
+        ColorEntry(css: "--nr-tab", swift: "tab", color: NRColor.tab, note: "light #F3F3F0 · dark #262624"),
+        ColorEntry(css: "--nr-tab-hover", swift: "tabHover", color: NRColor.tabHover, note: "light #EDEDEA · dark #2C2C2A"),
+        ColorEntry(css: "--nr-float", swift: "float", color: NRColor.float, note: "light #FFFFFF · dark #232321"),
+        ColorEntry(css: "--nr-hairline-soft", swift: "hairlineSoft", color: NRColor.hairlineSoft, note: "light #EEEEEB · dark #2A2A28"),
+        ColorEntry(css: "--nr-jar-line", swift: "jarLine", color: NRColor.jarLine, note: "light #2A2A2A · dark #DADAD5"),
+        ColorEntry(css: "--nr-jar-lid", swift: "jarLid", color: NRColor.jarLid, note: "light #CFCFCA · dark #4A4A47"),
         ColorEntry(css: "--relish-100", swift: "relish100", color: NRColor.relish100, note: "light #EFFCCB · dark #1F3309"),
         ColorEntry(css: "--relish-300", swift: "relish300", color: NRColor.relish300, note: "#C4F26B"),
         ColorEntry(css: "--relish-500", swift: "relish500", color: NRColor.relish500, note: "#93E413"),
@@ -196,10 +238,10 @@ public enum NRTokenCatalog {
         ScalarEntry(css: "--sp-8", swift: "sp8", value: "32px"),
         ScalarEntry(css: "--sp-10", swift: "sp10", value: "40px"),
         ScalarEntry(css: "--sp-12", swift: "sp12", value: "48px"),
-        ScalarEntry(css: "--shelf-w", swift: "shelfW", value: "238px"),
+        ScalarEntry(css: "--shelf-w", swift: "shelfW", value: "120px"),
         ScalarEntry(css: "--inspector-w", swift: "inspectorW", value: "322px"),
         ScalarEntry(css: "--tab-h", swift: "tabH", value: "34px"),
-        ScalarEntry(css: "--lip-h", swift: "lipH", value: "3px"),
+        ScalarEntry(css: "--lip-h", swift: "lipH", value: "5px"),
         ScalarEntry(css: "--hairline", swift: "hairline", value: "1px"),
     ]
     public static let radius: [ScalarEntry] = [
@@ -227,6 +269,7 @@ public enum NRTokenCatalog {
     public static let motion: [ScalarEntry] = [
         ScalarEntry(css: "--ease-out", swift: "easeOut", value: "cubic-bezier(0.16, 1, 0.3, 1)"),
         ScalarEntry(css: "--ease-jar", swift: "easeJar", value: "cubic-bezier(0.34, 1.4, 0.64, 1)"),
+        ScalarEntry(css: "--ease-drip", swift: "easeDrip", value: "cubic-bezier(0.5, 0, 0.9, 0.6)"),
         ScalarEntry(css: "--t-fast", swift: "fast", value: "120ms"),
         ScalarEntry(css: "--t-base", swift: "base", value: "200ms"),
         ScalarEntry(css: "--t-seal", swift: "seal", value: "480ms"),
@@ -241,6 +284,14 @@ public enum NRTokenCatalog {
         "--nr-fg",
         "--nr-fg-2",
         "--nr-fg-3",
+        "--nr-canvas",
+        "--nr-rail",
+        "--nr-tab",
+        "--nr-tab-hover",
+        "--nr-float",
+        "--nr-hairline-soft",
+        "--nr-jar-line",
+        "--nr-jar-lid",
         "--relish-100",
         "--relish-300",
         "--relish-500",
@@ -285,6 +336,7 @@ public enum NRTokenCatalog {
         "--lh-body",
         "--ease-out",
         "--ease-jar",
+        "--ease-drip",
         "--t-fast",
         "--t-base",
         "--t-seal",

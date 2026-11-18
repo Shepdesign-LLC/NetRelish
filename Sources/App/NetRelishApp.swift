@@ -7,6 +7,7 @@ import AppKit
 import GRDB
 import Pantry
 import SwiftUI
+import WebKit
 
 @main
 struct NetRelishApp: App {
@@ -79,7 +80,7 @@ struct NetRelishApp: App {
         WindowGroup("NetRelish", id: NetRelishApp.mainWindowId) {
             ContentView(workbench: workbench)
         }
-        // The title row is the top of the window (manifest v2.0 §10): no title bar of the
+        // The title strip is the top of the window (manifest v2.1 §10): no title bar of the
         // system's over it, only its three buttons.
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1440, height: 900)
@@ -176,42 +177,79 @@ struct NetRelishApp: App {
     }
 }
 
-/// The main window, in four rows (manifest v2.0 §10, Workstation v5 spec §5): the title row
-/// with the tab strip, the address row, then the Shelf, the Bench and the Panel side by
-/// side, then the bottom bar with Brine. The window's title still carries the active jar's
-/// name, for the Window menu and Mission Control; the jar's chip shows it in the window.
+/// The main window (manifest v2.1 §10, ADR 0035): a title strip across the top, with the
+/// window's buttons, the cog mark and the tabs; under it the Shelf, then the Bench column (the
+/// address row over the Bench), with the Panel sliding in over the column's trailing edge; a
+/// bottom bar with Brine across the whole width. ⌘K floats over the Bench column, and the Seal
+/// motion plays in one overlay over the whole window. The window's title still carries the
+/// active jar's name, for the Window menu and Mission Control; the jar's chip shows it in the
+/// window.
 struct ContentView: View {
     @Bindable var workbench: Workbench
     /// This window's web views. Each window keeps its own.
     @State private var webViews = BenchWebViews()
+    /// How much of the Bench column the open Panel takes. It changes once, after the Panel has
+    /// slid in, so a real page reflows once and never per frame (manifest v2.1 §9).
+    @State private var panelInset: CGFloat
+    /// Who had the keyboard when ⌘K opened, so closing it can hand it back.
+    @State private var paletteReturn = PaletteReturn()
+    @Environment(\.nrReduceMotion) private var reduceMotion
+
+    init(workbench: Workbench) {
+        self.workbench = workbench
+        _panelInset = State(initialValue: workbench.showPanel ? NRSpace.inspectorW : 0)
+    }
 
     /// The page in front in this window, if the Bench is showing one.
     private var webInFront: JarWebView? { workbench.benchTab.map { webViews.view(for: $0) } }
 
+    /// The Panel's way in: a 200ms slide on ease-out; under Reduce Motion, a cross-fade of the
+    /// same length (manifest v2.1 §9: slides become cross-fades).
+    private var panelTransition: AnyTransition {
+        reduceMotion ? AnyTransition.opacity : AnyTransition.move(edge: .trailing)
+    }
+
+    /// ⌘K's box fades in and grows from 0.98 to its size; under Reduce Motion it only fades.
+    private var paletteBoxTransition: AnyTransition {
+        reduceMotion ? AnyTransition.opacity
+            : AnyTransition.opacity.combined(with: AnyTransition.scale(scale: 0.98, anchor: .top))
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            TitleRow(workbench: workbench, web: webInFront)
-            SearchRow(workbench: workbench, web: webInFront)
+            TitleRow(workbench: workbench)
             HStack(spacing: 0) {
                 ShelfView(workbench: workbench)
-                BenchView(workbench: workbench, webViews: webViews)
-                if workbench.showPanel { PanelView(workbench: workbench) }
+                benchColumn
             }
             BottomBar(workbench: workbench)
         }
-        .ignoresSafeArea(.container, edges: .top)   // the title row sits where the title bar was
-        .frame(minWidth: 1120, minHeight: 640)
+        // Seal's one overlay, over everything, once (ADR 0035). Inside the safe-area change, so
+        // it covers the title strip too and reads every anchor in the window's own space.
+        .sealOverlay(workbench)
+        .ignoresSafeArea(.container, edges: .top)   // the title strip sits where the title bar was
+        .frame(minWidth: NRShell.windowMinW, minHeight: NRShell.windowMinH)
         .background(NRColor.bg)
         .navigationTitle(workbench.activeSmartJar?.name ?? workbench.activeJar?.name ?? "NetRelish")
         .navigationSubtitle("\(workbench.itemCount) \(workbench.itemCount == 1 ? "item" : "items")")
         .task { await workbench.observe() }
         .task { await workbench.runSweep() }
+        // The Panel takes its room only once it has slid in; closing gives the room back at once.
+        .task(id: workbench.showPanel) {
+            guard workbench.showPanel else {
+                panelInset = 0
+                return
+            }
+            guard panelInset != NRSpace.inspectorW else { return }
+            if !reduceMotion {
+                try? await Task.sleep(for: .seconds(NRMotion.base))
+            }
+            guard !Task.isCancelled, workbench.showPanel else { return }
+            panelInset = NRSpace.inspectorW
+        }
         // Registers this window as the main one, so a web link from Zest brings it forward.
         // A view leaving its window says nil, which is ignored: the reference is weak.
         .background(WindowReader { window in if let window { workbench.mainWindow = window } })
-        .sheet(isPresented: $workbench.showPalette) {
-            PaletteView(workbench: workbench)
-        }
         .sheet(isPresented: $workbench.showMeOnboarding) {
             MeOnboardingSheet(vault: workbench.vault) { workbench.fillFromMe() }
         }
@@ -219,6 +257,64 @@ struct ContentView: View {
             ProView(pro: workbench.pro) { workbench.showingPro = false }
         }
     }
+
+    /// The address row over the Bench. The Panel slides in over its trailing edge, and ⌘K
+    /// floats over all of it on a flat scrim.
+    private var benchColumn: some View {
+        VStack(spacing: 0) {
+            SearchRow(workbench: workbench, web: webInFront)
+            BenchView(workbench: workbench, webViews: webViews)
+        }
+        .padding(.trailing, panelInset)
+        .overlay(alignment: .trailing) {
+            ZStack(alignment: .trailing) {
+                if workbench.showPanel {
+                    PanelView(workbench: workbench)
+                        .transition(panelTransition)
+                }
+            }
+            .frame(maxHeight: .infinity)
+            .animation(NRMotion.animation(duration: NRMotion.base), value: workbench.showPanel)
+        }
+        .overlay {
+            ZStack(alignment: .top) {
+                if workbench.showPalette {
+                    NRColor.canvas.opacity(0.72)
+                        .contentShape(Rectangle())
+                        .onTapGesture { workbench.showPalette = false }
+                        .accessibilityHidden(true)
+                        .transition(.opacity)
+                    PaletteView(workbench: workbench)
+                        .padding(.top, 56)
+                        .transition(paletteBoxTransition)
+                }
+            }
+            // It fades even under Reduce Motion; only the box's scale stays put.
+            .animation(NRMotion.animation(duration: NRMotion.base), value: workbench.showPalette)
+        }
+        // ⌘K is an overlay, not a sheet, so nothing hands the keyboard back when it closes:
+        // give it to the page in front, as a dismissed sheet did.
+        // Whoever had the keyboard when it opened (a tab, Reader view, a saved copy) gets it
+        // back if it is still in the window; otherwise the page in front does.
+        .onChange(of: workbench.showPalette) { _, open in
+            if open {
+                paletteReturn.responder = (webInFront?.webView.window ?? NSApp.keyWindow)?.firstResponder
+                return
+            }
+            let previous = paletteReturn.responder as? NSView
+            paletteReturn.responder = nil
+            if let previous, let window = previous.window, !previous.isHiddenOrHasHiddenAncestor {
+                _ = window.makeFirstResponder(previous)
+            } else if let web = webInFront {
+                _ = web.webView.window?.makeFirstResponder(web.webView)
+            }
+        }
+    }
+}
+
+/// Holds the responder ⌘K took the keyboard from, weakly: a view that has gone stays gone.
+@MainActor final class PaletteReturn {
+    weak var responder: NSResponder?
 }
 
 extension SmartJar {
