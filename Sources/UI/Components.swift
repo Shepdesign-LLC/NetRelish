@@ -1,5 +1,6 @@
 // Components.swift — the smallest reusable pieces of manifest §8: button styles,
-// the badge, the shelf-life bar, the tab lip, the drop mark, and the jar glyph. Hand-written.
+// the badge, the shelf-life bar, the tab lip and tab shape, the drop mark, and the jar glyph.
+// Hand-written.
 // Anything larger (Shelf, Tabs, Bench, Inspector) is P1 feature work.
 
 import SwiftUI
@@ -69,9 +70,11 @@ public extension ButtonStyle where Self == NRSecondaryButtonStyle {
     static var nrSecondary: NRSecondaryButtonStyle { NRSecondaryButtonStyle() }
 }
 
-// MARK: - Badge (§8; relish placement #6)
+// MARK: - Badge (§8; neutral since v2.1, when §4 #6 narrowed)
 
-/// `relish100` background, `relish700` text, `r1`, tabular numerals. "412 preserved".
+/// A count or a short fact: `tab` fill, `fg2` text, `r1`, tabular numerals. "412 preserved".
+/// Neutral since manifest v2.1: §4 #6 narrowed to the Ask rank badges and citation markers,
+/// so a badge in the chrome never wears relish.
 public struct NRBadge: View {
     public var text: String
     public init(_ text: String) { self.text = text }
@@ -80,10 +83,10 @@ public struct NRBadge: View {
         Text(text)
             .font(NRType.font(NRType.fsXs, weight: .medium))
             .monospacedDigit()
-            .foregroundStyle(NRColor.relish700)
+            .foregroundStyle(NRColor.fg2)
             .padding(.horizontal, NRSpace.sp2)
             .padding(.vertical, 2)
-            .background(NRColor.relish100, in: RoundedRectangle(cornerRadius: NRRadius.r1))
+            .background(NRColor.tab, in: RoundedRectangle(cornerRadius: NRRadius.r1))
     }
 }
 
@@ -110,15 +113,30 @@ public struct NRShelfLifeBar: View {
     }
 }
 
-// MARK: - Tab lip (§8; relish placement #2)
+// MARK: - Tab lip and tab shape (§8 Tabs; §4 #2 stays retired in v2.1)
 
-/// The `lipH`-tall relish bar on the top edge of the active tab — and only there.
+/// The `lipH`-tall bar on the top edge of the tab in front, in its jar's color — and only
+/// there. It is relish only for a Relish jar (manifest v2.1 jar-color list). The tab strip
+/// clips it to the tab's rounded top (`NRTabShape`).
 public struct NRTabLip: View {
-    public init() {}
+    public var color: Color
+    public init(color: Color = NRColor.relish500) { self.color = color }
     public var body: some View {
-        RoundedRectangle(cornerRadius: NRSpace.lipH / 2)
-            .fill(NRColor.relish500)
+        Rectangle()
+            .fill(color)
             .frame(height: NRSpace.lipH)
+            .accessibilityHidden(true)
+    }
+}
+
+/// A tab's outline: the top corners rounded, the bottom square, so the tab in front joins
+/// the row under it with no seam.
+public struct NRTabShape: Shape {
+    public var radius: CGFloat
+    public init(radius: CGFloat = 8) { self.radius = radius }
+
+    public func path(in rect: CGRect) -> Path {
+        UnevenRoundedRectangle(topLeadingRadius: radius, topTrailingRadius: radius).path(in: rect)
     }
 }
 

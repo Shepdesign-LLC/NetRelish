@@ -5,6 +5,7 @@ Notable changes to NetRelish. Release notes for each preview are in `docs/releas
 ## Unreleased
 
 ### Added
+- The workbench facelift: attached tabs, the Shelf as a rail of jars, a two-phase Seal, the floating ⌘K (ADR 0035).
 - The Workstation v5 window (#95).
 - The Zest tools inside NetRelish.app, offline, under Window › Zest (#93, ADR 0033).
 - The Direct build's license key (#88, ADR 0027).

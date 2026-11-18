@@ -64,6 +64,36 @@ Brine pill. Ryan chose the v5 look over the flat one that ADR 0010 rows 3 and
 4 had kept, so the manifest is v2.0. Notes, the Dev panel, capacity and the
 guides are not built; ADR 0034 says why for each.
 
+## Workbench facelift comp (2026-11-17/18)
+
+`workbench-facelift/index.html` is one self-contained page: the whole window,
+interactive, redrawn in the language of Ryan's beta art (the hero window and
+Ask the Pantry pictures, and the beta welcome email) and stretched to every
+surface the app ships: the attached tabs, the Shelf as a rail of big jars, the
+jar board, Brine, the ⌘K palette, Ask the Pantry (1.1), and Seal in its two
+phases. Its header comment is the spec in words: every relish use, every place
+a jar's own color appears and how its shades are derived, the token deltas,
+the motion timeline for Seal and the jar fill, and notes on building each
+effect in SwiftUI without blur or glass.
+
+It takes URL parameters, so any state can be opened directly:
+`?scene=browse|board|brine|ask|palette`, `&theme=dark`,
+`&jar=client|kitchen|reading|lisbon|taxes`, `&panel` (the Panel open),
+`&color` (idle jars in their own colors, which is what Ryan approved; without
+it the comp draws them graphite), `&reduce` (Reduce Motion), `&tabs=12` (the
+overflow state) and `&clean`. Its keys are single letters, because a browser
+keeps ⌘T and ⌘W: S seals (Shift+S a slow page, F a Seal that fails), D adds to
+the jar (the jar fill), T opens a tab, W closes one, X sinks one (Shift+X two
+at once), K opens the palette, A opens Ask, and 1–5 switch jars.
+
+Ryan asked for the mark at the top left on Nov 17 ("put our icon on the top
+left") and signed the comp off on Nov 18: "all yes, build it". It is the
+design of record for
+[`../adr/0035-workbench-facelift.md`](../adr/0035-workbench-facelift.md), and
+`design/DESIGN_MANIFEST.md` v2.1 carries its rules. The ADR lists what the comp
+shows that the app does not build (Ask, the Sink motion, favicons, among
+others) and why.
+
 Client data was scrubbed on landing, here and in the older prototype above:
 real client names, domains, a contact, billing details and a login are now
 made-up ones. Earlier commits still hold the originals in git history.

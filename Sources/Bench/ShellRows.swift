@@ -1,63 +1,102 @@
-// ShellRows.swift — the window's three rows of chrome around the Shelf, the Bench and the
-// Panel (manifest v2.0 §8 and §10, Workstation v5 spec §5): the title row (the window's
-// buttons, back and forward, the mark, the tab strip), the address row under it with its
-// relish top line, and the bottom bar with the Brine pill. Hand-written.
+// ShellRows.swift — the window's rows of chrome (manifest v2.1 §8 and §10, the Workbench
+// facelift comp): the 44pt title strip across the whole window (the window's buttons, the
+// cog mark, the tabs over the Bench column), the 44pt address row over the Bench only (the
+// jar's chip, back and forward, the field, Seal, the Panel toggle), and the 32pt bottom bar
+// across the whole window (the Brine pill, the Pantry's count, the way into ⌘K).
+// Hand-written. The tabs themselves are in TabStrip.swift; the window's buttons are moved by
+// WindowChrome.swift.
 
+import AppKit
 import Pantry
 import SwiftUI
 
-/// The shell's measures, from the Workstation v5 spec §3.2. The Shelf and Panel widths and
-/// the tab height are tokens (`NRSpace`); these are the rest.
+/// The shell's measures, from the facelift comp (ADR 0035). The Shelf and Panel widths, the
+/// lip and the hairline are tokens (`NRSpace`); these are the rest.
 enum NRShell {
-    static let titleH: CGFloat = 48
-    static let searchH: CGFloat = 46
-    static let barH: CGFloat = 44
-    static let tabW: CGFloat = 176
-    static let pinnedTabW: CGFloat = 46
-    static let tabGap: CGFloat = 6
-    /// Room for the window's close, minimize and zoom buttons, which sit over the title row.
-    static let windowButtonsW: CGFloat = 78
-    /// The relish line along the top of the address row.
-    static let relishLineH: CGFloat = 2
+    static let titleH: CGFloat = 44
+    static let addressH: CGFloat = 44
+    static let fieldH: CGFloat = 28
+    static let barH: CGFloat = 32
+    static let tabH: CGFloat = 33           // a tab behind
+    static let frontTabH: CGFloat = 38      // the tab in front; its bottom covers the strip's hairline
+    static let tabRadius: CGFloat = 8
+    static let tabMinW: CGFloat = 116
+    static let tabMaxW: CGFloat = 224
+    static let frontTabMaxW: CGFloat = 260
+    static let pinnedTabW: CGFloat = 44
+    static let tabGap: CGFloat = 4
+    static let markSize: CGFloat = 28
+    static let markLeading: CGFloat = 80
+    static let windowButtonsLeading: CGFloat = 18
+    static let windowButtonsCenterY: CGFloat = 22
+    static let windowMinW: CGFloat = 960
+    static let windowMinH: CGFloat = 600
 }
 
-/// Row 1: the window's buttons, back and forward, the mark, then the tab strip. The title
-/// bar is hidden, so this row is the top of the window; its empty stretches move the window.
+/// Row 1, the title strip, across the whole window: the window's buttons (AppKit draws them),
+/// the cog mark at 80pt, then the tabs from the Shelf's width on, so they sit over the Bench
+/// column. The title bar is hidden, so this row is the top of the window; its empty stretches
+/// move the window, and a double-click there zooms or minimizes it.
 struct TitleRow: View {
     @Bindable var workbench: Workbench
-    /// The page in front, if the Bench is showing one.
-    let web: JarWebView?
+    @State private var host = WeakWindowBox()
+    @FocusState private var markFocused: Bool
 
     var body: some View {
-        HStack(spacing: NRSpace.sp2) {
-            Color.clear.frame(width: NRShell.windowButtonsW)
-                .contentShape(Rectangle()).gesture(WindowDragGesture())
-            Button { web?.goBack() } label: { Image(systemName: "chevron.left").frame(width: 24, height: 28).contentShape(Rectangle()) }
-                .disabled(web?.canGoBack != true).help("Back").accessibilityLabel("Back")
-            Button { web?.goForward() } label: { Image(systemName: "chevron.right").frame(width: 24, height: 28).contentShape(Rectangle()) }
-                .disabled(web?.canGoForward != true).help("Forward").accessibilityLabel("Forward")
-            Button { workbench.showBoard() } label: {
-                NRLogo.cog.image.resizable().frame(width: 28, height: 28)
+        GeometryReader { geo in
+            HStack(spacing: 0) {
+                WindowDragArea(onDoubleClick: doubleClick)
+                    .frame(width: NRShell.markLeading)
+                mark
+                WindowDragArea(onDoubleClick: doubleClick)
+                    .frame(width: max(0, NRSpace.shelfW - NRShell.markLeading - NRShell.markSize))
+                TabStrip(workbench: workbench, available: max(0, geo.size.width - NRSpace.shelfW),
+                         onDoubleClick: doubleClick)
             }
-            .disabled(workbench.activeJar == nil)
-            .help("What's in this jar").accessibilityLabel("Jar board")
-            TabStrip(workbench: workbench)
-                .layoutPriority(1)
-            Color.clear.frame(minWidth: NRSpace.sp6, maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Rectangle()).gesture(WindowDragGesture())
+            .frame(width: geo.size.width, height: NRShell.titleH, alignment: .leading)
+        }
+        .frame(height: NRShell.titleH)
+        // Under the tabs: the tab in front covers this line, so it joins the address row.
+        .background(alignment: .bottom) {
+            Rectangle().fill(NRColor.hairlineSoft).frame(height: NRSpace.hairline)
+        }
+        .background(NRColor.surface)
+        .background(WindowButtonsPlacement(onWindow: { [host] window in host.window = window }))
+    }
+
+    /// The cog mark (logo-cog, never redrawn): it opens the jar's board.
+    private var mark: some View {
+        Button { workbench.showBoard() } label: {
+            NRLogo.cog.image.resizable()
+                .frame(width: NRShell.markSize, height: NRShell.markSize)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(NRColor.fg2)
-        .font(.system(size: 13, weight: .medium))
-        .padding(.trailing, NRSpace.sp3)
-        .frame(height: NRShell.titleH)
-        .background(NRColor.surface2)
+        .focusEffectDisabled()
+        .focused($markFocused)
+        .overlay {
+            if markFocused {
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(NRColor.focus, lineWidth: 2)
+                    .padding(-2)
+                    .allowsHitTesting(false)
+            }
+        }
+        .disabled(workbench.activeJar == nil)
+        .help("Show the jar’s board")
+        .accessibilityLabel("Jar board")
+        .frame(width: NRShell.markSize, height: NRShell.titleH)
+    }
+
+    private func doubleClick() {
+        WindowDragArea.titleBarDoubleClick(host.window)
     }
 }
 
-/// Row 2: the address field, full width, under a line of relish. With a page in front it
-/// shows that page's address and loads what you type there; otherwise what you type opens
-/// in a new tab in the jar you're in.
+/// Row 2, the address row, over the Bench column only: the jar's chip, back and forward, the
+/// address field, Seal, and the Panel toggle. With a page in front the field shows that page's
+/// address and loads what you type there; otherwise what you type opens in a new tab in the
+/// jar you're in.
 struct SearchRow: View {
     @Bindable var workbench: Workbench
     /// The page in front, if the Bench is showing one.
@@ -66,64 +105,56 @@ struct SearchRow: View {
     @FocusState private var focused: Bool
 
     private var tab: Tab? { workbench.benchTab }
-    private var reading: Bool { workbench.isReading }
 
     var body: some View {
-        HStack(spacing: NRSpace.sp2) {
-            omnibox
-            Button { workbench.showPanel.toggle() } label: {
-                Image(systemName: "sidebar.trailing").frame(width: 32, height: 32).contentShape(Rectangle())
+        HStack(spacing: NRSpace.sp1) {
+            if let jar = workbench.activeJar {
+                JarChip(workbench: workbench, jar: jar)
+            } else if let smart = workbench.activeSmartJar {
+                SmartJarChip(smart: smart)
             }
-            .help(workbench.showPanel ? "Hide Panel (⌘⌥I)" : "Show Panel (⌘⌥I)")
-            .accessibilityLabel(workbench.showPanel ? "Hide panel" : "Show panel")
+            RowIconButton(systemName: "chevron.left", help: "Back") { web?.goBack() }
+                .disabled(web?.canGoBack != true)
+            RowIconButton(systemName: "chevron.right", help: "Forward") { web?.goForward() }
+                .disabled(web?.canGoForward != true)
+            AddressField(workbench: workbench, web: web, address: $address, focused: $focused, go: go)
+                .padding(.leading, NRSpace.sp1)
+            sealSlot
+                .padding(.leading, NRSpace.sp1)
+            RowIconButton(systemName: "sidebar.trailing",
+                          help: workbench.showPanel ? "Hide Panel (⌘⌥I)" : "Show Panel (⌘⌥I)",
+                          label: workbench.showPanel ? "Hide panel" : "Show panel",
+                          isOn: workbench.showPanel) { workbench.showPanel.toggle() }
         }
-        .buttonStyle(.plain)
-        .foregroundStyle(NRColor.fg2)
-        .font(.system(size: 13, weight: .medium))
-        .padding(.horizontal, NRSpace.sp4)
-        .frame(height: NRShell.searchH)
+        .padding(.leading, NRSpace.sp3)
+        .padding(.trailing, 10)
+        .frame(height: NRShell.addressH)
+        .frame(maxWidth: .infinity)
         .background(NRColor.surface)
-        .overlay(alignment: .top) { Rectangle().fill(NRColor.relish500).frame(height: NRShell.relishLineH) }
-        .overlay(alignment: .bottom) { Rectangle().fill(NRColor.hairline).frame(height: NRSpace.hairline) }
+        .overlay(alignment: .bottom) { Rectangle().fill(NRColor.hairlineSoft).frame(height: NRSpace.hairline) }
         .onChange(of: tab?.id, initial: true) { _, _ in show(web?.url?.absoluteString ?? tab?.url ?? "") }
         .onChange(of: web?.url) { _, new in if !focused { address = new?.absoluteString ?? tab?.url ?? "" } }
         .animation(.easeOut(duration: NRMotion.base), value: workbench.fillStatus)
     }
 
-    private var omnibox: some View {
-        HStack(spacing: NRSpace.sp2) {
-            Image(systemName: "magnifyingglass").foregroundStyle(NRColor.relish700).accessibilityHidden(true)
-            TextField("Type a web address", text: $address)
-                .textFieldStyle(.plain)
-                .font(NRType.font(NRType.fsMd))
-                .foregroundStyle(NRColor.fg)
-                .focused($focused)
-                .onSubmit(go)
-                .accessibilityLabel("Address")
-            if let status = workbench.fillStatus {
-                Text(status).font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2).lineLimit(1)
-                    .transition(.opacity).accessibilityIdentifier("fill-status")
-            }
-            if tab != nil {
-                Button { workbench.captureActivePage() } label: { Image(systemName: "bookmark") }
-                    .help("Capture This Page (⌘D)").accessibilityLabel("Capture this page")
-                Button { Task { await workbench.toggleReader() } } label: { Image(systemName: "doc.plaintext") }
-                    .foregroundStyle(reading ? NRColor.fg : NRColor.fg2)
-                    .help(reading ? "Back to the Page (⌘⇧R)" : "Reader View (⌘⇧R)")
-                    .accessibilityLabel(reading ? "Back to the page" : "Reader view")
-                if let web {
-                    Button { web.isLoading ? web.webView.stopLoading() : web.reload() } label: {
-                        Image(systemName: web.isLoading ? "xmark" : "arrow.clockwise")
-                    }
-                    .help(web.isLoading ? "Stop" : "Reload").accessibilityLabel(web.isLoading ? "Stop" : "Reload")
-                }
-            }
+    /// Seal (relish placement #4): the glyph in relish while a page is in front. The Seal
+    /// overlay draws the pulse and the Sealed pill over this slot, so it has no motion of its own.
+    private var sealSlot: some View {
+        let enabled = workbench.pageInFront != nil
+        return Button { Task { await workbench.sealActiveTab() } } label: {
+            NRSymbol.seal.image.resizable()
+                .frame(width: 18, height: 18)
+                .foregroundStyle(enabled ? NRColor.relish500 : NRColor.fg3)
+                .opacity(enabled ? 1 : 0.35)
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
         }
-        .padding(.horizontal, NRSpace.sp3)
-        .frame(height: 32)
-        .background(NRColor.bg, in: RoundedRectangle(cornerRadius: NRRadius.r2))
-        .overlay(RoundedRectangle(cornerRadius: NRRadius.r2)
-            .strokeBorder(focused ? NRColor.focus : NRColor.hairline, lineWidth: focused ? 2 : NRSpace.hairline))
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .help("Seal (⌘S)")
+        .accessibilityLabel("Seal")
+        .frame(width: 28, height: 28)
+        .sealAnchor(.sealSlot)
     }
 
     /// The address of what's in front. A new, blank tab takes the cursor, ready to type.
@@ -140,54 +171,267 @@ struct SearchRow: View {
     }
 }
 
-/// Row 4: the bottom bar. Brine is the pill on the leading edge: it lights up in relish
-/// when something has sunk, and opens Brine on the Bench. The trailing edge carries the
-/// Pantry's count and the way into ⌘K.
+/// The address field: 28pt, the `tab` fill, no stroke at rest and the focus ring when typing
+/// in it. With a page in front and the field idle, it shows the page's host in `fg` and the
+/// rest of its address in `fg3`, behind the lock (relish placement #11).
+private struct AddressField: View {
+    @Bindable var workbench: Workbench
+    let web: JarWebView?
+    @Binding var address: String
+    var focused: FocusState<Bool>.Binding
+    let go: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var tab: Tab? { workbench.benchTab }
+    private var reading: Bool { workbench.isReading }
+    private var sealFrozen: Bool {
+        if case .frozen = workbench.sealPhase { return true }
+        return false
+    }
+
+    /// The page's address, split for the idle field: its host, and everything after it.
+    private var parts: (host: String, rest: String)? {
+        guard tab != nil, !focused.wrappedValue, let url = URL(string: address), let host = url.host,
+              let range = address.range(of: host) else { return nil }
+        let rest = String(address[range.upperBound...])
+        return (host, rest == "/" ? "" : rest)
+    }
+
+    private var placeholder: String {
+        if let jar = workbench.activeJar { return "Type a web address — it opens in \(jar.name)" }
+        return "Type a web address"
+    }
+
+    var body: some View {
+        HStack(spacing: NRSpace.sp2) {
+            leadingGlyph
+            ZStack(alignment: .leading) {
+                TextField(placeholder, text: $address)
+                    .textFieldStyle(.plain)
+                    .font(NRType.font(NRType.fsMd))
+                    .foregroundStyle(NRColor.fg)
+                    .tint(NRColor.focus)
+                    .focused(focused)
+                    .onSubmit(go)
+                    .accessibilityLabel("Address")
+                    .opacity(parts == nil ? 1 : 0)
+                if let parts {
+                    (Text(parts.host).font(NRType.font(NRType.fsMd, weight: .medium)).foregroundStyle(NRColor.fg)
+                        + Text(parts.rest).font(NRType.font(NRType.fsMd)).foregroundStyle(NRColor.fg3))
+                        .lineLimit(1).truncationMode(.tail)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture { focused.wrappedValue = true }
+                        .accessibilityHidden(true)
+                }
+            }
+            if let status = workbench.fillStatus {
+                Text(status).font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2).lineLimit(1)
+                    .transition(.opacity).accessibilityIdentifier("fill-status")
+            }
+            if tab != nil {
+                HStack(spacing: 0) {
+                    FieldButton(systemName: "tray.and.arrow.down", help: "Capture This Page (⌘D)",
+                                label: "Capture this page") { workbench.captureActivePage() }
+                    FieldButton(systemName: "doc.plaintext",
+                                help: reading ? "Back to the Page (⌘⇧R)" : "Reader View (⌘⇧R)",
+                                label: reading ? "Back to the page" : "Reader view",
+                                isOn: reading) { Task { await workbench.toggleReader() } }
+                    if let web {
+                        FieldButton(systemName: web.isLoading ? "xmark" : "arrow.clockwise",
+                                    help: web.isLoading ? "Stop" : "Reload",
+                                    label: web.isLoading ? "Stop" : "Reload") {
+                            web.isLoading ? web.webView.stopLoading() : web.reload()
+                        }
+                    }
+                }
+                .opacity(sealFrozen ? 0 : 1)
+                .animation(NRMotion.animation(duration: NRMotion.fast), value: sealFrozen)
+            }
+        }
+        .padding(.leading, 10)
+        .padding(.trailing, NRSpace.sp1)
+        .frame(height: NRShell.fieldH)
+        .frame(maxWidth: .infinity)
+        .background(NRColor.tab, in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            if focused.wrappedValue {
+                RoundedRectangle(cornerRadius: 8).strokeBorder(NRColor.focus, lineWidth: 2)
+            }
+        }
+    }
+
+    /// The lock while a page is in front (relish-700, relish-500 in dark), else the magnifier.
+    @ViewBuilder private var leadingGlyph: some View {
+        if tab != nil {
+            Image(systemName: "lock")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(colorScheme == .dark ? NRColor.relish500 : NRColor.relish700)
+                .accessibilityHidden(true)
+        } else {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(NRColor.fg3)
+                .accessibilityHidden(true)
+        }
+    }
+}
+
+/// A 28pt square button in the address row: `fg3`, the `tab` fill under the pointer; `fg` on
+/// the `tab` fill while it is on.
+private struct RowIconButton: View {
+    let systemName: String
+    let help: String
+    var label: String? = nil
+    var isOn = false
+    let action: () -> Void
+    @State private var hovering = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(isOn ? NRColor.fg : (hovering && isEnabled ? NRColor.fg2 : NRColor.fg3))
+                .frame(width: 28, height: 28)
+                .background(isOn || (hovering && isEnabled) ? NRColor.tab : .clear, in: RoundedRectangle(cornerRadius: 7))
+                .opacity(isEnabled ? 1 : 0.45)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(NRMotion.animation(duration: NRMotion.fast), value: hovering)
+        .help(help)
+        .accessibilityLabel(label ?? help)
+    }
+}
+
+/// A 26pt button inside the address field: `fg3`, `tabHover` under the pointer, `fg` while on.
+private struct FieldButton: View {
+    let systemName: String
+    let help: String
+    let label: String
+    var isOn = false
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(isOn ? NRColor.fg : NRColor.fg3)
+                .frame(width: 26, height: 26)
+                .background(hovering ? NRColor.tabHover : .clear, in: RoundedRectangle(cornerRadius: 7))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help(help)
+        .accessibilityLabel(label)
+    }
+}
+
+/// Row 3, the bottom bar, across the whole window. Brine is the pill on the leading edge: it
+/// lights (relish placement #13, narrowed) only for tabs that sank since Brine was last
+/// opened, and opens Brine on the Bench. The trailing edge carries the Pantry's count and the
+/// way into ⌘K.
 struct BottomBar: View {
     @Bindable var workbench: Workbench
 
-    private var sunk: Int { workbench.brine.count }
-    private var isOpen: Bool { workbench.activeSmartJar == .brine }
-
     var body: some View {
         HStack(spacing: NRSpace.sp3) {
-            Button { workbench.activateBrine() } label: {
-                HStack(spacing: NRSpace.sp2) {
-                    NRSymbol.sink.image.resizable().frame(width: 14, height: 14)
-                    Text("Brine").font(NRType.font(NRType.fsMd, weight: .medium))
-                    if sunk > 0 {
-                        Text("\(sunk)").font(NRType.font(NRType.fsXs, weight: .semibold)).monospacedDigit()
-                            .foregroundStyle(NRColor.relishInk)
-                            .padding(.horizontal, 6).frame(minWidth: 18, minHeight: 18)
-                            .background(NRColor.relish500, in: Capsule())
-                    }
-                }
-                .foregroundStyle(sunk > 0 ? NRColor.relish700 : NRColor.fg2)
-                .padding(.horizontal, NRSpace.sp3)
-                .frame(height: 30)
-                .background(sunk > 0 || isOpen ? NRColor.relish100 : .clear, in: Capsule())
-                .overlay(Capsule().strokeBorder(sunk > 0 ? NRColor.relish500 : NRColor.hairline,
-                                                lineWidth: sunk > 0 ? 1.5 : NRSpace.hairline))
-                .contentShape(Capsule())
-            }
-            .help("Brine — \(SmartJar.brine.shortcutLabel)")
-            .accessibilityLabel("Brine, \(sunk) sunk")
-            .accessibilityAddTraits(isOpen ? .isSelected : [])
+            BrinePill(workbench: workbench)
             Spacer()
-            Text("\(workbench.itemCount) \(workbench.itemCount == 1 ? "item" : "items") in the Pantry")
+            Text("\(workbench.itemCount.formatted()) in the Pantry")
                 .font(NRType.font(NRType.fsSm)).monospacedDigit().foregroundStyle(NRColor.fg3)
-            Button { workbench.showPalette = true } label: {
-                Text("⌘K").font(NRType.font(NRType.fsXs, weight: .medium)).foregroundStyle(NRColor.fg2)
-                    .padding(.horizontal, NRSpace.sp2).frame(height: 24)
-                    .overlay(RoundedRectangle(cornerRadius: NRRadius.r1).strokeBorder(NRColor.hairline, lineWidth: NRSpace.hairline))
-                    .contentShape(Rectangle())
+            SearchPantryButton { workbench.showPalette = true }
+        }
+        .padding(.leading, NRSpace.sp3)
+        .padding(.trailing, 10)
+        .frame(height: NRShell.barH)
+        .frame(maxWidth: .infinity)
+        .background(NRColor.rail)
+        .overlay(alignment: .top) { Rectangle().fill(NRColor.hairlineSoft).frame(height: NRSpace.hairline) }
+    }
+}
+
+/// The Brine pill: neutral with its count; lit while something sank since Brine was last
+/// opened; outlined while Brine is on the Bench.
+private struct BrinePill: View {
+    @Bindable var workbench: Workbench
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var sunk: Int { workbench.brine.count }
+    private var lit: Bool { workbench.brineFresh > 0 }
+    private var isOpen: Bool { workbench.activeSmartJar == .brine }
+    private var edge: Color? {
+        if lit { return colorScheme == .dark ? NRColor.relish700 : NRColor.relish300 }
+        if isOpen { return NRColor.fg3 }
+        return nil
+    }
+
+    var body: some View {
+        Button { workbench.activateBrine() } label: {
+            HStack(spacing: 6) {
+                NRSymbol.sink.image.resizable()
+                    .frame(width: 13, height: 13)
+                    .foregroundStyle(lit ? NRColor.fg2 : NRColor.fg3)
+                Text("Brine")
+                    .font(NRType.font(NRType.fsSm, weight: .medium))
+                    .foregroundStyle(lit ? NRColor.fg : NRColor.fg2)
+                Text("\(sunk)")
+                    .font(NRType.font(NRType.fsSm, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(NRColor.fg)
             }
-            .help("Command Palette (⌘K)").accessibilityLabel("Command palette")
+            .padding(.leading, NRSpace.sp2)
+            .padding(.trailing, 10)
+            .frame(height: 24)
+            .background(lit ? NRColor.relish100 : NRColor.tab, in: Capsule())
+            .overlay {
+                if let edge { Capsule().strokeBorder(edge, lineWidth: NRSpace.hairline) }
+            }
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, NRSpace.sp4)
-        .frame(height: NRShell.barH)
-        .background(NRColor.surface2)
-        .overlay(alignment: .top) { Rectangle().fill(NRColor.hairline).frame(height: NRSpace.hairline) }
+        .animation(NRMotion.animation(), value: lit)
+        .help("Brine — \(SmartJar.brine.shortcutLabel)")
+        .accessibilityLabel("Brine, \(sunk) sunk")
+        .accessibilityAddTraits(isOpen ? .isSelected : [])
+    }
+}
+
+/// "Search the Pantry ⌘K": the way into the Command Palette.
+private struct SearchPantryButton: View {
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(NRColor.fg3)
+                Text("Search the Pantry")
+                    .font(NRType.font(NRType.fsSm, weight: .medium))
+                    .foregroundStyle(NRColor.fg2)
+                Text("⌘K")
+                    .font(NRType.font(NRType.fsXs, weight: .medium))
+                    .foregroundStyle(NRColor.fg3)
+                    .padding(.horizontal, 5)
+                    .frame(height: 18)
+                    .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(NRColor.hairline, lineWidth: NRSpace.hairline))
+            }
+            .padding(.leading, NRSpace.sp2)
+            .padding(.trailing, 6)
+            .frame(height: 24)
+            .background(hovering ? NRColor.tab : .clear, in: RoundedRectangle(cornerRadius: 7))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(NRMotion.animation(duration: NRMotion.fast), value: hovering)
+        .help("Search the Pantry (⌘K)")
+        .accessibilityLabel("Search the Pantry")
     }
 }
