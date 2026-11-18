@@ -13,12 +13,15 @@ either **how often** a paid job runs or **how long** it is allowed to take.
 
 ## What was measured
 
-Over the sprint window 2026-11-14 to 2026-11-18: 130 workflow runs, **1,985.2 paid-runner
-minutes (33.1 hours)** from 189 paid jobs. Paid means the jobs labelled `xcode-27` (CI) and
-`macos-26` (CodeQL) — GitHub-hosted *larger* runners, billed per minute even on a public
-repository. The 96 `ubuntu-latest` and 44 `macos-latest` jobs in the same window are free,
-and `release.yml` and `dmg-preview.yml` did not run at all, so the whole bill is CI +
-CodeQL.
+Over the sprint window 2026-11-14 to 2026-11-18: 130 workflow runs, **1,985.2 runner
+minutes (33.1 hours)** from 189 jobs on the `xcode-27` (CI) and `macos-26` (CodeQL) labels.
+This ADR calls those two labels *paid* throughout because their runner names and group read
+as GitHub-hosted larger runners, which are billed per minute even on a public repository —
+but that is **not confirmed here**: only the account's billing and runner pages can say, and
+it is open question 1 below. If they are standard runners, every minute figure below is
+still the wall-clock waste; only the money goes away. The 96 `ubuntu-latest` and 44
+`macos-latest` jobs in the same window are free, and `release.yml` and `dmg-preview.yml` did
+not run at all, so the whole bill is CI + CodeQL.
 
 - **CodeQL is 1,508.3 min (76.0%)** across 36 jobs — one job, `Analyze (swift)`, averaging
   43.1 min a run. CI is 476.9 min (24.0%) across 153 jobs, averaging 12.9 min a run. One
@@ -38,11 +41,11 @@ CodeQL.
   with no code change in it.
 
 Minutes are wall-clock job duration. `get_workflow_run_usage` reports 0 billable ms for
-every one of these runs, because larger runners do not appear in the billable map at all —
-which is exactly why the spend was invisible. **No dollar figure appears in this ADR,
-deliberately:** converting minutes to money needs the runner SKU and rate from the
-account's billing page, and nothing we can call exposes it. Do not let anyone translate
-these minutes into a figure without that page.
+every one of these runs, because a larger runner would not appear in the billable map at
+all, which is one reason the label question is still open — and is exactly why the spend
+was invisible. **No dollar figure appears in this ADR, deliberately:** converting minutes to
+money needs the runner SKU and rate from the account's billing page, and nothing we can call
+exposes it. Do not let anyone translate these minutes into a figure without that page.
 
 ## What changed
 
@@ -55,9 +58,11 @@ these minutes into a figure without that page.
   on main must never be cancelled. The cost of that choice is that two regen dispatches on
   one commit both pay in full.
 - **A free `changes` job** (`ubuntu-latest`) whose output gates the four `xcode-27` jobs —
-  `build` (both flavours), `test`, `pantrykit` — with `if:`. It is a **denylist**: `docs/`,
-  `zest/`, `.claude/`, the other workflows, `design/DESIGN_MANIFEST.md`, root `*.md`,
-  `LICENSE`, `.gitignore`. Anything it does not recognize runs the paid jobs, and an
+  `build` (both flavours), `test`, `pantrykit` — with `if:`. It is a **denylist**
+  (`.github/workflows/ci.yml:116`): `docs/`, `zest/`, `.claude/`, `.github/CODEOWNERS`,
+  `.github/codeql/`, the other five workflows (every `.github/workflows/*.yml` except
+  `ci.yml` itself), `design/DESIGN_MANIFEST.md`, root `*.md`, `LICENSE`, `.gitignore`,
+  `Config.xcconfig.example`. Anything it does not recognize runs the paid jobs, and an
   unusable base (a dispatch, a new branch, a force push) fails **open** onto them.
   `design/**` and `scripts/**` are deliberately *not* in it: `Tests/NetRelishTests` reads
   `design/tokens.css` and both logos from the repo root, and `Tests/GeneratorTests` runs the
@@ -66,9 +71,22 @@ these minutes into a figure without that page.
   (capture → jar → seal)", on its own `NetRelish UI Tests` scheme). It is not on `main`, so
   it is not in this branch's `ci.yml`, and it takes the same `needs:`/`if:` pair the day
   that branch lands.
+- **The gate fails open at the job level as well as inside the script.** Each paid job's
+  condition is `!cancelled() && (needs.changes.result != 'success' ||
+  needs.changes.outputs.code == 'true')` (`.github/workflows/ci.yml:209`), so only a clean
+  `code=false` skips it. The status function is load-bearing: with none, GitHub skips a job
+  whose `needs:` failed whatever the `if:` says, and **a skipped job reports as a passing
+  required check** — so a `changes` job that died for a reason its filter never sees (a failed
+  checkout, a dead runner, its own `timeout-minutes: 5`) would have handed a pull request a
+  green merge with none of the four paid jobs run. That is the same fail-open-to-mergeable
+  hazard this ADR flags below for `paths-ignore`, arriving through the back door.
+  `!cancelled()` and not `always()`, so a superseded run still starts no builds. The
+  remaining red check in that case is `What changed` itself, which is new and not on the
+  required list — see open question 6.
 - **`generated-files` and `gate-tests` are ungated**, and must stay that way. They are free,
-  and they are the two jobs that still prove something on a docs-only or design-only
-  commit: `generated-files` that `Sources/UI/Tokens.swift` matches `design/tokens.css` and
+  and they are the two jobs that still prove something on a commit where every paid job is
+  skipped — docs-only, root Markdown, or `design/DESIGN_MANIFEST.md` alone:
+  `generated-files` that `Sources/UI/Tokens.swift` matches `design/tokens.css` and
   `Sources/Pantry/Models` matches `design/NetRelish.json`; `gate-tests` that the gate
   enforces what it claims, reading `docs/adr` for real (a docs-only PR that duplicates an
   ADR number still fails).
@@ -163,12 +181,14 @@ an intermediate commit reads grey.
 
 ## Before and after, per push
 
-Paid billed minutes. GitHub bills each job rounded up to the whole minute, so these are
-rounded per job, not summed from wall clock.
+Minutes on the `xcode-27` and `macos-26` labels, billed per minute if those are
+larger-runner labels (open question 1). GitHub bills each job rounded up to the whole minute,
+so these are rounded per job, not summed from wall clock.
 
 | Push | Before | After | Where it goes |
 |---|---|---|---|
-| Docs, any `design/**` file, any Markdown, or an empty commit | ~65 | **0** | CodeQL not triggered; CI's four paid jobs skipped, its three free jobs (`changes`, `generated-files`, `gate-tests`) still run |
+| Docs, root-level Markdown, `design/DESIGN_MANIFEST.md`, or an empty commit | ~65 | **0** | CodeQL not triggered; CI's four paid jobs skipped, its three free jobs (`changes`, `generated-files`, `gate-tests`) still run |
+| Any other `design/**` file — `tokens.css`, `NetRelish.json`, `symbols.svg`, either logo | ~65 | **~15** | CodeQL not triggered (`paths-ignore` skips `design/**` entire); CI's four paid jobs still run, because its tests read these files |
 | Code push, run to completion | ~65 | **~45** | CodeQL 50 → ~30 (one flavour); CI unchanged at ~15 |
 | Code push, superseded ~2 min in | ~65 | **~11** | Cancelled instead of completing |
 | Push to main (merge) | ~65 | ~65 | Deliberately unchanged: both flavours, never cancelled |
@@ -251,3 +271,9 @@ a near-ceiling rather than a refund — a real cancellation takes seconds to pro
 5. **The weekly cron fires late.** It is configured `'17 6 * * 1'` and its one run in the
    window started 15:36 UTC — a roughly nine-hour scheduler delay. Worth knowing before
    anyone reasons about when the full-tree scan lands.
+6. **Make `What changed` a required check.** It is the one check that goes red when the gate
+   itself breaks. The four paid jobs are deliberately *run* rather than skipped in that case,
+   so nothing merges unbuilt — but a required `What changed` is what makes that red block the
+   merge instead of merely being visible. Branch protection is a repository setting, not a
+   file in here. Add it only once this branch is on `main`: a required check whose name no run
+   produces blocks every merge forever.

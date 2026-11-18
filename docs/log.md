@@ -180,8 +180,10 @@ Append-only. Newest entries at the bottom.
   superseded pull-request runs. Two traps: a skipped job is not a skipped workflow (a required
   check that reports nothing blocks the merge, which is why CI gates with `if:` and why
   `codeql.yml`'s `paths-ignore` has to become a job gate the day `Analyze (swift)` is
-  required), and the filter must fail open — a `grep -q` pipeline dying of `SIGPIPE` on a
-  large diff once read as "nothing changed" on a green run
+  required), and the gate must fail open — a `grep -q` pipeline dying of `SIGPIPE` on a
+  large diff once read as "nothing changed" on a green run, and each paid job's `if:` now
+  runs on anything but a clean `code=false`, because a job skipped for a *failed* `needs:`
+  reports as a passing required check
 - The cost cut is its own branch and its own pull request, so it can merge the moment Actions
   runs again. The accessibility pass (PR #103) brings a fifth paid job, `ui-tests`; it is not
   on `main`, so it is not in this `ci.yml`, and it takes the same `needs:`/`if:` pair when

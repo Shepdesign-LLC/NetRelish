@@ -5,6 +5,9 @@ created: 2026-11-13
 updated: 2026-11-18
 sources:
   - code: .github/workflows/ci.yml
+  - code: .github/workflows/codeql.yml
+  - code: .github/workflows/zest-tests.yml
+  - code: .github/workflows/dmg-preview.yml
   - code: .github/workflows/regen-project.yml
   - code: project.yml
   - code: scripts/gen-symbols.swift
@@ -32,18 +35,25 @@ CI is the compiler and the test runner. This page is the routine, and what goes 
 | If a Swift file was added, removed or moved: regenerate the Xcode project | `.github/workflows/regen-project.yml`, started by hand with the branch name (`.github/workflows/regen-project.yml:19`) |
 | Read the result of each job and fix | `.github/workflows/ci.yml` |
 
-`.github/workflows/ci.yml` runs six things. Three are free: "What changed", "Generated
-files match their sources" and the CodeQL gate self-test. The two builds, the tests and the
-PantryKit package run on `xcode-27`, the only image with the macOS 27 SDK, and can sit in
-the queue for a long time.
+`.github/workflows/ci.yml` runs six things. Three are free: "What changed"
+(`.github/workflows/ci.yml:47`), "Generated files match their sources"
+(`.github/workflows/ci.yml:152`) and the CodeQL gate self-test
+(`.github/workflows/ci.yml:334`). The two builds (`.github/workflows/ci.yml:194`), the tests
+(`.github/workflows/ci.yml:260`) and the PantryKit package
+(`.github/workflows/ci.yml:296`) run on `xcode-27`, the only image with the macOS 27 SDK,
+and can sit in the queue for a long time.
 
 **Those four paid `xcode-27` jobs now run only when the commit can change what they
 compile** (ADR 0037). "What changed" diffs against the base and sets one output the four
-depend on; a commit touching nothing but `docs/`, `zest/`, `.claude/`, a root `*.md` or the
-other workflows skips them, and the three free jobs still run. CodeQL skips the same kind of
-commit through its own `paths-ignore`, analyzes one flavour on a pull request and both on
-`main` and in the weekly scan, and CI, CodeQL, the Zest suites and the disk-image preview
-each cancel a superseded pull-request run.
+depend on, through the `needs:`/`if:` pair on each of them
+(`.github/workflows/ci.yml:200`); a commit touching nothing but `docs/`, `zest/`,
+`.claude/`, a root `*.md` or the other workflows skips them, and the three free jobs still
+run. CodeQL skips the same kind of commit through its own `paths-ignore`
+(`.github/workflows/codeql.yml:241`), analyzes one flavour on a pull request and both on
+`main` and in the weekly scan, and CI (`.github/workflows/ci.yml:31`), CodeQL
+(`.github/workflows/codeql.yml:273`), the Zest suites
+(`.github/workflows/zest-tests.yml:24`) and the disk-image preview
+(`.github/workflows/dmg-preview.yml:36`) each cancel a superseded pull-request run.
 
 The web tools under `zest/` are the exception: they are plain HTML and their Playwright
 suites do run in the session.
@@ -71,7 +81,11 @@ suites do run in the session.
 > wrong there costs minutes; being wrong the other way skips the compiler on a commit that
 > changed code, on a green run. Two real failure modes are written out in the step's own
 > comments — a `grep -q` pipeline that dies of `SIGPIPE` on a large diff, and an empty diff
-> read as a change. Keep the here-string and the explicit exit-status `case`.
+> read as a change. Keep the here-string and the explicit exit-status `case`. The gate fails
+> open at the job level too, and has to: each paid job's `if:` runs it on anything but a clean
+> `code=false`, because GitHub skips a job whose `needs:` failed whatever the condition says,
+> and a skipped job reports as a *passing* required check — so a `changes` job that merely
+> died would otherwise let a pull request merge with no paid job run at all.
 
 > ⚠️ **Generated Swift cannot be regenerated in the session.** `Sources/UI/Tokens.swift`,
 > `Sources/UI/Symbols.swift` and `Sources/Pantry/Models/` come from Swift scripts under

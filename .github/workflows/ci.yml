@@ -84,8 +84,11 @@ jobs:
         run: |
           set -euo pipefail
           # Every path below writes exactly one `code=` line. If this step ever fails instead,
-          # the paid jobs do not run and the whole run is red — loud, and to be fixed rather
-          # than worked around, because a skipped check is one branch protection accepts.
+          # the paid jobs run anyway — their `if:` reads a non-success `changes` as "build it"
+          # (see `build` below). The run is still red, and still to be fixed rather than worked
+          # around, but being wrong here costs minutes and never coverage. It has to work that
+          # way round: branch protection accepts a skipped check, and `What changed` is not
+          # itself a required one, so a gate that merely failed would merge green.
           #
           # No usable base — a workflow_dispatch from regen-project.yml, a new branch, a force
           # push — means build everything. Failing OPEN onto the paid jobs is the only safe
@@ -149,8 +152,10 @@ jobs:
   generated-files:
     name: Generated files match their sources
     runs-on: macos-latest
-    # Free (standard runner, public repo) and deliberately UNGATED: this is the job that
-    # still proves the generated Swift matches design/ on a design-only commit.
+    # Free (standard runner, public repo) and deliberately UNGATED: it still proves the
+    # generated Swift matches design/ even on a commit the `changes` gate skips (docs, root
+    # Markdown, design/DESIGN_MANIFEST.md) — and it is why design/** itself is not in that
+    # denylist.
     # Unmeasured, and free either way: this is a stop, not a saving. 30 and not 20 because
     # the only thing a tight bound can buy here is a red check on a green pull request when
     # `brew install xcodegen` has a slow day (ADR 0037).
@@ -189,10 +194,19 @@ jobs:
   build:
     name: Build ${{ matrix.flavor }}
     # xcode-27 is the only image with the macOS 27 SDK; macos-latest is still macOS 26.
-    # xcode-27 is a GitHub-hosted LARGER runner: billed per minute even on this public
-    # repository, which is why this job is gated on `changes` (ADR 0037).
+    # xcode-27 reads as a GitHub-hosted larger runner, and larger runners are billed per minute
+    # even on a public repository — unconfirmed from here, since only the account's billing and
+    # runner pages can say (ADR 0037, open question 1). That is why this job is gated on `changes`.
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    # Only a clean `code=false` skips this job, and that asymmetry is the whole point.
+    # `needs.changes.result != 'success'` covers the gate dying for a reason its own script
+    # never sees — a failed checkout, a dead runner, its `timeout-minutes: 5`, a future `set -e`
+    # trip before any `code=` line is written. `!cancelled()` is what makes that reachable at
+    # all: with no status function in the `if:`, GitHub skips a job whose `needs:` failed
+    # whatever the condition says, and a SKIPPED job reports as a passing required check — so a
+    # broken gate would hand a pull request a green merge with no paid job ever having run.
+    # `!cancelled()` and not `always()`: a superseded run must still start no builds (ADR 0037).
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
     runs-on: xcode-27
     timeout-minutes: 25   # measured 2.7 min (AppStore) / 3.2 (Direct); the GitHub default is 360
     strategy:
@@ -246,7 +260,8 @@ jobs:
   test:
     name: Test
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    # Fails open on anything but a clean `code=false`, for the reasons spelled out on `build`.
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
     runs-on: xcode-27
     timeout-minutes: 30   # measured 5.3 min; the GitHub default is 360
     steps:
@@ -286,7 +301,8 @@ jobs:
     # and that every file in Sources/Pantry compiles for iOS. xcode-27 for the same
     # SDK reason as `build`, and because the package's macOS floor matches the app's.
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    # Fails open on anything but a clean `code=false`, for the reasons spelled out on `build`.
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
     runs-on: xcode-27
     # measured 1.6 min, but `swift build` here resolves GRDB from a range (Package.swift says
     # from: "7.0.0") with no committed Package.resolved, so a slow resolve is the tail risk.

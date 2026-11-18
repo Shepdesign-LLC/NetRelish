@@ -277,8 +277,12 @@ concurrency:
 jobs:
   analyze:
     name: Analyze (swift)
-    # macos-26 is a GitHub-hosted LARGER runner: billed per minute even on this public
-    # repository, and macOS larger runners are the most expensive minutes GitHub sells.
+    # macos-26 reads as a GitHub-hosted larger runner, and larger runners are billed per
+    # minute even on a public repository — unconfirmed from here, because the run-usage API
+    # reports this job under MACOS with 0 billable ms exactly as it does the free standard
+    # runners, and only the account's billing and runner pages can settle it (ADR 0037,
+    # open question 1). Either way this job was 76% of five days of minutes on the two
+    # paid-suspect labels, which is reason enough to stop it running on a docs commit.
     # It is here because the header above requires macOS 26 + Xcode 26 for traced Swift
     # analysis, not because the job needs extra cores. Whether a free standard macOS 26
     # label can serve that requirement is an open question for Ryan (ADR 0037) — it is a
