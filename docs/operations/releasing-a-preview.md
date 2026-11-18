@@ -75,9 +75,11 @@ switch.
 
 > ⚠️ **A job that fails in seconds with no runner and no log never ran.** It says nothing
 > about the commit. Every workflow failed that way on 2026-11-18, on every runner image at
-> once, while `main` had passed on the same commit that morning: the cause was on GitHub's
-> side of the account (billing was the suspect), not in the code. Don't start a release,
-> or read a pull request's checks, until one job has actually been given a runner.
+> once, while `main` had passed on the same commit that morning. GitHub's reason is in the
+> failed job's annotations, and only there: "The job was not started because your account
+> is locked due to a billing issue." The job log is empty and the GitHub phone app doesn't
+> show annotations; the run's page on the web does, under Annotations. Don't start a
+> release, or read a pull request's checks, until one job has actually been given a runner.
 
 ## What this page does not cover
 
