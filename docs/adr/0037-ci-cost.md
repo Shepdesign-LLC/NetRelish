@@ -54,14 +54,18 @@ these minutes into a figure without that page.
   `workflow_dispatch` on the same commit share a group and one cancels the other, and a run
   on main must never be cancelled. The cost of that choice is that two regen dispatches on
   one commit both pay in full.
-- **A free `changes` job** (`ubuntu-latest`) whose output gates the five `xcode-27` jobs —
-  `build` (both flavours), `test`, `ui-tests`, `pantrykit` — with `if:`. It is a
-  **denylist**: `docs/`, `zest/`, `.claude/`, the other workflows, `design/DESIGN_MANIFEST.md`,
-  root `*.md`, `LICENSE`, `.gitignore`. Anything it does not recognize runs the paid jobs,
-  and an unusable base (a dispatch, a new branch, a force push) fails **open** onto them.
+- **A free `changes` job** (`ubuntu-latest`) whose output gates the four `xcode-27` jobs —
+  `build` (both flavours), `test`, `pantrykit` — with `if:`. It is a **denylist**: `docs/`,
+  `zest/`, `.claude/`, the other workflows, `design/DESIGN_MANIFEST.md`, root `*.md`,
+  `LICENSE`, `.gitignore`. Anything it does not recognize runs the paid jobs, and an
+  unusable base (a dispatch, a new branch, a force push) fails **open** onto them.
   `design/**` and `scripts/**` are deliberately *not* in it: `Tests/NetRelishTests` reads
   `design/tokens.css` and both logos from the repo root, and `Tests/GeneratorTests` runs the
   generator scripts against `design/NetRelish.json` and `design/symbols.svg`.
+  A **fifth paid job arrives with PR #103**, the accessibility pass's `ui-tests` ("UI tests
+  (capture → jar → seal)", on its own `NetRelish UI Tests` scheme). It is not on `main`, so
+  it is not in this branch's `ci.yml`, and it takes the same `needs:`/`if:` pair the day
+  that branch lands.
 - **`generated-files` and `gate-tests` are ungated**, and must stay that way. They are free,
   and they are the two jobs that still prove something on a docs-only or design-only
   commit: `generated-files` that `Sources/UI/Tokens.swift` matches `design/tokens.css` and
@@ -73,8 +77,9 @@ these minutes into a figure without that page.
   forever and the pull request cannot merge. A job skipped by `if:` reports as skipped,
   which branch protection accepts.
 - **`timeout-minutes` on the five jobs that had none** (`generated-files` 30, `build` 25,
-  `test` 30, `pantrykit` 20, `gate-tests` 10; `ui-tests` already had 30), and **5 on the new
-  `changes` job**. The default is 360 minutes on the dearest runners GitHub sells.
+  `test` 30, `pantrykit` 20, `gate-tests` 10 — three of those five entries are paid, `build`
+  twice over), and **5 on the new `changes` job**. The default is 360 minutes on the dearest
+  runners GitHub sells.
   `generated-files` is the one figure here with no measurement behind it, and it is a free
   standard runner, so its bound buys no money — it is 30 rather than 20 so that a slow
   `brew install xcodegen` cannot red an otherwise-green pull request.
@@ -146,7 +151,7 @@ contains no network API.
 | App-Store-exclusive code (that one `#else` branch) | The CodeQL run on the push to main, and the weekly scan |
 | Code that becomes `DIRECT_BUILD`-exclusive later — `Sources/MasonJar` and its GitHub OAuth device flow (1.2, ADR 0029), which does not exist yet | The same two runs. The day a second `#if DIRECT_BUILD` site lands, reconsider the split |
 | Any CodeQL scan of a docs-only, Markdown-only, empty, or `design/**`-only commit | The weekly cron, which takes no path filter and scans the whole tree. Safe in between because the Swift generated from `design/` is **committed**: a real token or model change arrives under `Sources/` in the same commit and re-triggers the scan, and if it did not regenerate, CI's ungated `generated-files` reds the pull request |
-| CI's five paid jobs on a docs-only commit | `generated-files` and `gate-tests`, which stay ungated and free, plus the next commit that touches code |
+| CI's four paid jobs on a docs-only commit | `generated-files` and `gate-tests`, which stay ungated and free, plus the next commit that touches code |
 
 Two second-order effects, said plainly rather than discovered later. Code scanning diffs a
 pull request's results against the base, so a one-flavour database can report a baseline
@@ -163,26 +168,30 @@ rounded per job, not summed from wall clock.
 
 | Push | Before | After | Where it goes |
 |---|---|---|---|
-| Docs, any `design/**` file, any Markdown, or an empty commit | ~71 | **0** | CodeQL not triggered; CI's five paid jobs skipped, its three free jobs (`changes`, `generated-files`, `gate-tests`) still run |
-| Code push, run to completion | ~71 | **~51** | CodeQL 50 → ~30 (one flavour); CI unchanged at ~21 |
-| Code push, superseded ~2 min in | ~71 | **~13** | Cancelled instead of completing |
-| Push to main (merge) | ~71 | ~71 | Deliberately unchanged: both flavours, never cancelled |
-| A job that hangs | up to 1,830 | **≤205** | `timeout-minutes` everywhere |
+| Docs, any `design/**` file, any Markdown, or an empty commit | ~65 | **0** | CodeQL not triggered; CI's four paid jobs skipped, its three free jobs (`changes`, `generated-files`, `gate-tests`) still run |
+| Code push, run to completion | ~65 | **~45** | CodeQL 50 → ~30 (one flavour); CI unchanged at ~15 |
+| Code push, superseded ~2 min in | ~65 | **~11** | Cancelled instead of completing |
+| Push to main (merge) | ~65 | ~65 | Deliberately unchanged: both flavours, never cancelled |
+| A job that hangs | up to 1,800 | **≤175** | `timeout-minutes` everywhere |
 
 Line by line, so the estimates can be argued with:
 
-- **Before, ~71** = CI 21 (Build AppStore 3, Build Direct 4, Test 6, PantryKit 2, UI tests
-  ~6) + CodeQL 50. The UI-tests figure is an **estimate**: it ran once in the window and
-  never got a runner, but its scheme builds the same target set in the same configuration as
-  `Test`, so its floor is Test's compile plus the UI run.
+- **Before, ~65** = CI 15 (Build AppStore 3, Build Direct 4, Test 6, PantryKit 2) + CodeQL
+  50. Every row above counts the four paid jobs this branch has. **PR #103 adds a fifth**,
+  `ui-tests`, at an **estimated ~6** billed minutes a push — an estimate and not a
+  measurement, because it ran once in the sprint window and never got a runner, but its
+  scheme builds the same target set in the same configuration as `Test`, so its floor is
+  Test's compile plus the UI run. It arrives gated on `changes` exactly as these are, so it
+  raises the "code push" rows by about 6 and leaves the docs-only row at 0.
 - **CodeQL 50 → ~30** divides the 41.3-minute dual build by CI's untraced 2.7/3.2 split
   (46/54), putting Direct at about 22 of the 41. Honest range 10 to 19 minutes saved, not a
   point estimate: the two invocations share one DerivedData, so the second may already reuse
   part of the first. **Measure it on the first run after this merges before quoting a number.**
-- **Hang exposure** is 4 × 360 + 30 = **1,470** for CI's five paid jobs — `ui-tests`
-  already had 30, so only `build` (twice), `test` and `pantrykit` sat at the 360 default —
-  plus 360 for CodeQL, so **1,830** today. After: 25 + 25 + 30 + 30 + 20 = **130** for CI
-  plus 75 for CodeQL, so **205**. `dmg-preview.yml`'s paid `xcode-27` job is excluded from
+- **Hang exposure** is 4 × 360 = **1,440** for CI's four paid jobs — `build` (twice),
+  `test` and `pantrykit` all sat at the 360 default — plus 360 for CodeQL, so **1,800**
+  today. After: 25 + 25 + 30 + 20 = **100** for CI plus 75 for CodeQL, so **175**.
+  PR #103's `ui-tests` already carries `timeout-minutes: 30`, so it adds 30 to both
+  columns, not 360 to the first. `dmg-preview.yml`'s paid `xcode-27` job is excluded from
   that row, because its `paths` allowlist did not fire once in the window; when it does
   fire it goes from the same 360 default to 25. The free jobs are not counted: a hung free
   job costs no money, it just never reports. It is insurance, and given the account is
@@ -206,7 +215,7 @@ a near-ceiling rather than a refund — a real cancellation takes seconds to pro
 | The Design Kit render and its snapshot upload on every pull request | Not a check, so it was tempting — but it is the artifact Ryan looks at, and `CLAUDE.md` makes a runnable demo part of every PR. Seconds on a runner that is already paid for |
 | The Finder capture in `dmg-preview.yml` | `preview.png` is our own drawing from `layout.json` and cannot disprove anything. `finder.png` is the only artifact showing real Finder honoring the `.DS_Store` `dmgbuild` wrote. It got a step timeout instead of a deletion |
 | `release.yml`'s dmg-preview trigger | `dmg-preview.yml` is the only pre-merge exercise of `scripts/dmg/make-dmg.sh`, which the release also calls. About six minutes per 17 days against a release failing at notarization time |
-| Merging `ui-tests` into `test` | ~4 billed min a push, and the two schemes do compile the identical target set — but it collapses two check names, and a branch-protection rule naming a check that no longer exists blocks merges forever. Not three weeks before Dec 14. Left for Ryan below |
+| Merging `ui-tests` into `test`, once PR #103 lands it | ~4 billed min a push, and the two schemes do compile the identical target set — but it collapses two check names, and a branch-protection rule naming a check that no longer exists blocks merges forever. Not three weeks before Dec 14. Left for Ryan below |
 | Caching SwiftPM's resolved packages | ~1-3 min a push, unmeasured, possibly swallowed by per-minute rounding — against a cache a same-repo branch can write and a later job restores, feeding dependency *source* into a job that compiles and runs it. Explicitly not in `release.yml` (the signed build must resolve from the lockfile) and not in `codeql.yml`, which is the one job that disables SwiftPM's manifest sandbox. Left for Ryan below |
 | An allowlist trigger (`on: push: paths:`) anywhere | A directory someone adds later — a new `Sources/` module, a new `Resources/` folder — would silently never be built. The denylist fails open onto the paid jobs, which is the behaviour you want when you are wrong |
 | A path filter on `zest-tests.yml` | Its allowlist is correct for a one-subsystem suite and it is free either way |
@@ -236,7 +245,7 @@ a near-ceiling rather than a refund — a real cancellation takes seconds to pro
    `MAILPRESS_TOKEN` is set on that project: `zest/api/claude.js` spends Anthropic credits
    per call and sits on a custom domain outside the project's SSO protection. It fails closed
    without the token.
-4. **Merging `ui-tests` into `test`**, and **the SwiftPM cache** — both costed above, both
+4. **Merging `ui-tests` into `test`** once PR #103 lands it, and **the SwiftPM cache** — both costed above, both
    left out, both reasonable to take later. The cache needs its action pinned by commit hash
    like every other action in these files; a guessed hash is worse than no cache.
 5. **The weekly cron fires late.** It is configured `'17 6 * * 1'` and its one run in the

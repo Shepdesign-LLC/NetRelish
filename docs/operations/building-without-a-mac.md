@@ -2,7 +2,7 @@
 title: Building without a Mac — CI is the compiler
 type: operation
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-18
 sources:
   - code: .github/workflows/ci.yml
   - code: .github/workflows/regen-project.yml
@@ -32,10 +32,18 @@ CI is the compiler and the test runner. This page is the routine, and what goes 
 | If a Swift file was added, removed or moved: regenerate the Xcode project | `.github/workflows/regen-project.yml`, started by hand with the branch name (`.github/workflows/regen-project.yml:19`) |
 | Read the result of each job and fix | `.github/workflows/ci.yml` |
 
-`.github/workflows/ci.yml` runs five things. "Generated files match their sources"
-(`.github/workflows/ci.yml:31`) runs on `macos-latest` and is quick. The two builds, the
-tests and the PantryKit package run on `xcode-27` (`.github/workflows/ci.yml:68`), the
-only image with the macOS 27 SDK, and can sit in the queue for a long time.
+`.github/workflows/ci.yml` runs six things. Three are free: "What changed", "Generated
+files match their sources" and the CodeQL gate self-test. The two builds, the tests and the
+PantryKit package run on `xcode-27`, the only image with the macOS 27 SDK, and can sit in
+the queue for a long time.
+
+**Those four paid `xcode-27` jobs now run only when the commit can change what they
+compile** (ADR 0037). "What changed" diffs against the base and sets one output the four
+depend on; a commit touching nothing but `docs/`, `zest/`, `.claude/`, a root `*.md` or the
+other workflows skips them, and the three free jobs still run. CodeQL skips the same kind of
+commit through its own `paths-ignore`, analyzes one flavour on a pull request and both on
+`main` and in the weekly scan, and CI, CodeQL, the Zest suites and the disk-image preview
+each cancel a superseded pull-request run.
 
 The web tools under `zest/` are the exception: they are plain HTML and their Playwright
 suites do run in the session.
@@ -50,6 +58,20 @@ suites do run in the session.
 
 > ⚠️ **After `.github/workflows/regen-project.yml` runs, the branch has a commit you do not have.** Fetch
 > and put your new commits on top of it before pushing again, or the push is rejected.
+
+> ⚠️ **A skipped job is not a skipped workflow.** CI gates its paid jobs with `needs:` and
+> `if:` rather than a workflow-level `paths-ignore`, because a workflow a path filter skips
+> reports nothing at all, and a required check that reports nothing sits "Expected" forever
+> and blocks the merge. A job skipped by `if:` reports as skipped, which branch protection
+> accepts. `codeql.yml` does use `paths-ignore`, so **the day `Analyze (swift)` is made a
+> required check, that filter has to become a job-level gate too** (ADR 0037).
+
+> ⚠️ **"What changed" must fail open.** Every path through its filter either names the files
+> it found or sets `code=true`: no usable base, a diff that will not run, a bad regex. Being
+> wrong there costs minutes; being wrong the other way skips the compiler on a commit that
+> changed code, on a green run. Two real failure modes are written out in the step's own
+> comments — a `grep -q` pipeline that dies of `SIGPIPE` on a large diff, and an empty diff
+> read as a change. Keep the here-string and the explicit exit-status `case`.
 
 > ⚠️ **Generated Swift cannot be regenerated in the session.** `Sources/UI/Tokens.swift`,
 > `Sources/UI/Symbols.swift` and `Sources/Pantry/Models/` come from Swift scripts under
