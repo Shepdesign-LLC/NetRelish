@@ -191,6 +191,8 @@ struct ContentView: View {
     /// How much of the Bench column the open Panel takes. It changes once, after the Panel has
     /// slid in, so a real page reflows once and never per frame (manifest v2.1 §9).
     @State private var panelInset: CGFloat
+    /// Who had the keyboard when ⌘K opened, so closing it can hand it back.
+    @State private var paletteReturn = PaletteReturn()
     @Environment(\.nrReduceMotion) private var reduceMotion
 
     init(workbench: Workbench) {
@@ -292,11 +294,27 @@ struct ContentView: View {
         }
         // ⌘K is an overlay, not a sheet, so nothing hands the keyboard back when it closes:
         // give it to the page in front, as a dismissed sheet did.
+        // Whoever had the keyboard when it opened (a tab, Reader view, a saved copy) gets it
+        // back if it is still in the window; otherwise the page in front does.
         .onChange(of: workbench.showPalette) { _, open in
-            guard !open, let web = webInFront else { return }
-            _ = web.webView.window?.makeFirstResponder(web.webView)
+            if open {
+                paletteReturn.responder = (webInFront?.webView.window ?? NSApp.keyWindow)?.firstResponder
+                return
+            }
+            let previous = paletteReturn.responder as? NSView
+            paletteReturn.responder = nil
+            if let previous, let window = previous.window, !previous.isHiddenOrHasHiddenAncestor {
+                _ = window.makeFirstResponder(previous)
+            } else if let web = webInFront {
+                _ = web.webView.window?.makeFirstResponder(web.webView)
+            }
         }
     }
+}
+
+/// Holds the responder ⌘K took the keyboard from, weakly: a view that has gone stays gone.
+@MainActor final class PaletteReturn {
+    weak var responder: NSResponder?
 }
 
 extension SmartJar {

@@ -68,6 +68,29 @@ import Testing
         #expect(bench.brineFresh == 0)
     }
 
+    @Test("A saved copy over Brine hides it: what lands meanwhile stays fresh, and leaving from there doesn't see it")
+    func savedCopyHidesBrine() async throws {
+        let bench = Workbench(store: try PantryStore(), defaults: try scratchDefaults())
+        bench.newJar(name: "Ash", tint: nil, shelfLifeDays: 3)
+        bench.activateBrine()
+        #expect(bench.brineShowing)
+
+        bench.savedCopy = Item(state: .sealed, title: "Kept", updatedAt: Date(), url: "https://kept.example")
+        #expect(!bench.brineShowing)
+        try await Task.sleep(for: .milliseconds(20))
+        try brine("Sunk", updatedAt: Date(), in: bench.store)
+        bench.load()
+        #expect(bench.brineFresh == 1)                     // Brine is selected but out of sight
+
+        let ash = try #require(bench.jars.first { $0.name == "Ash" })
+        bench.activate(ash)                                // left from the saved copy
+        #expect(bench.brineFresh == 1)                     // still unseen
+
+        bench.activateBrine()
+        bench.activate(ash)
+        #expect(bench.brineFresh == 0)                     // seen once Brine itself was showing
+    }
+
     @Test("Something older than the last look at Brine doesn't count")
     func olderDoesNotCount() throws {
         let bench = Workbench(store: try PantryStore(), defaults: try scratchDefaults())

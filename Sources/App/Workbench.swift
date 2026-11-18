@@ -673,12 +673,13 @@ final class Workbench {
     func activate(_ smart: SmartJar) { activate(jarId: smart.id) }
 
     private func activate(jarId: String) {
+        let brineWasShowing = brineShowing   // read before the saved copy and comparison go
         savedCopy = nil                   // picking a jar always leaves a saved copy
         comparison = nil
         reader = nil
         showingBoard = false              // a jar opens on its page, as it always has; so does the one you're in
         // Opening Brine, or leaving it, counts as having seen what sank (the bottom bar's pill).
-        if jarId == SmartJar.brineId || activeJarId == SmartJar.brineId { markBrineSeen() }
+        if jarId == SmartJar.brineId || brineWasShowing { markBrineSeen() }
         guard jarId != activeJarId else { return }
         touchActiveTab()
         activeJarId = jarId
@@ -1034,8 +1035,12 @@ final class Workbench {
     /// Brine items that landed since Brine was last open: sunk tabs, captures and pages
     /// shared from another app all count. Always 0 while Brine is showing.
     var brineFresh: Int {
-        activeSmartJar == .brine ? 0 : brine.reduce(0) { $0 + ($1.updatedAt > brineSeenAt ? 1 : 0) }
+        brineShowing ? 0 : brine.reduce(0) { $0 + ($1.updatedAt > brineSeenAt ? 1 : 0) }
     }
+
+    /// Brine is on the Bench and nothing covers it: a saved copy or a comparison opened from
+    /// Brine leaves it selected but out of sight, so what lands meanwhile is still fresh.
+    var brineShowing: Bool { activeSmartJar == .brine && savedCopy == nil && comparison == nil }
 
     private func markBrineSeen() {
         brineSeenAt = Date()
@@ -1044,7 +1049,7 @@ final class Workbench {
 
     /// Something landed in Brine while it is on the Bench: it is seen as it arrives.
     private func seeBrineIfShowing() {
-        if activeSmartJar == .brine, brine.contains(where: { $0.updatedAt > brineSeenAt }) { markBrineSeen() }
+        if brineShowing, brine.contains(where: { $0.updatedAt > brineSeenAt }) { markBrineSeen() }
     }
 
     // MARK: Seal (⌘S)
@@ -1126,13 +1131,16 @@ final class Workbench {
     /// the line waits; nothing about the write does.
     private func reportSealFailure(of run: SealRun) {
         let wait = run.startedAt.addingTimeInterval(SealTiming.minimumA).timeIntervalSinceNow
+        // A newer Seal owns the line: a retry that succeeds within phase A must not be
+        // reported as this run's failure.
         guard wait > 0 else {
-            report("Couldn’t seal this page")
+            if run.id == sealSerial { report("Couldn’t seal this page") }
             return
         }
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(wait))
-            self?.report("Couldn’t seal this page")
+            guard let self, run.id == self.sealSerial else { return }
+            self.report("Couldn’t seal this page")
         }
     }
 
