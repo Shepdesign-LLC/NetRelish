@@ -155,6 +155,29 @@ import Testing
         #expect(bench.activeTab?.id == blank.id)
     }
 
+    @Test("Moving on while the page freezes: the write returns and the sealed tab doesn't take the front back")
+    func navigatingDuringFreezeKeepsTheChoice() async throws {
+        let bench = try bench()
+        let other = try openTab("https://example.com/other", title: "Other", in: bench)
+        let tab = try openTab("https://example.com/invoice", title: "Invoice terms", in: bench)
+        let gate = Gate()
+        bench.sealProvider = { _ in
+            try await gate.wait()
+            return Self.page()
+        }
+        let sealing = Task { await bench.sealActiveTab() }
+        await untilWaiting(gate)
+
+        bench.activateTab(other)                            // picked another tab mid-freeze
+        gate.open()
+        #expect(await sealing.value)
+
+        #expect(!bench.tabs.contains { $0.id == tab.id })   // Seal still closed it (non-negotiable 3)
+        #expect(bench.stripTabs.contains { $0.id == tab.id })   // its picture until the chip leaves
+        #expect(bench.sealHeldFrontTab == nil)              // but the front stays where you put it
+        #expect(bench.activeTab?.id == other.id)
+    }
+
     @Test("Ending the presentation lets go of the tab and goes back to idle in one step")
     func presentationEndedReleases() async throws {
         let bench = try bench()

@@ -1105,9 +1105,13 @@ final class Workbench {
                     body: extracted.body, excerpt: extracted.excerpt,
                     archive: archive, jarId: jarId, source: .browse)
             }
+            // Whether the sealed page was still the one on the Bench when the write returned:
+            // picking a tab or ⌘T while it froze means the person has moved on, and the
+            // sealed tab must not take the front (and the address field) back from them.
+            let stillInFront = benchTab?.id == tab.id
             let closed = closeIfStillOn(tab)
             if sealPhase.run?.id == run.id {
-                if closed { sealHeldTab = run; sealFrontHeld = true }
+                if closed { sealHeldTab = run; sealFrontHeld = stillInFront }
                 sealPhase = .frozen(run)
             } else {
                 // A newer press took over the overlay. This one plays nothing, but its jar
