@@ -73,7 +73,7 @@ suites do run in the session.
 > `if:` rather than a workflow-level `paths-ignore`, because a workflow a path filter skips
 > reports nothing at all, and a required check that reports nothing sits "Expected" forever
 > and blocks the merge. A job skipped by `if:` reports as skipped, which branch protection
-> accepts. `codeql.yml` does use `paths-ignore`, so **the day `Analyze (swift)` is made a
+> accepts. The CodeQL workflow does use `paths-ignore`, so **the day `Analyze (swift)` is made a
 > required check, that filter has to become a job-level gate too** (ADR 0037).
 
 > ⚠️ **"What changed" must fail open.** Every path through its filter either names the files

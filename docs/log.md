@@ -179,18 +179,18 @@ Append-only. Newest entries at the bottom.
   analyzes one flavour on a pull request and both on `main` and weekly; four workflows cancel
   superseded pull-request runs. Two traps: a skipped job is not a skipped workflow (a required
   check that reports nothing blocks the merge, which is why CI gates with `if:` and why
-  `codeql.yml`'s `paths-ignore` has to become a job gate the day `Analyze (swift)` is
+  the CodeQL workflow's `paths-ignore` has to become a job gate the day `Analyze (swift)` is
   required), and the gate must fail open — a `grep -q` pipeline dying of `SIGPIPE` on a
   large diff once read as "nothing changed" on a green run, and each paid job's `if:` now
   runs on anything but a clean `code=false`, because a job skipped for a *failed* `needs:`
   reports as a passing required check
 - The cost cut is its own branch and its own pull request, so it can merge the moment Actions
   runs again. The accessibility pass (PR #103) brings a fifth paid job, `ui-tests`; it is not
-  on `main`, so it is not in this `ci.yml`, and it takes the same `needs:`/`if:` pair when
+  on `main`, so it is not in this branch's CI workflow, and it takes the same `needs:`/`if:` pair when
   that branch lands. ADR 0037 says so in its arithmetic rather than leaving the next reader
   to notice
 - Open, and only Ryan can close it: whether `xcode-27` and `macos-26` are billed larger
   runners or free standard ones. GitHub's run-usage API reports 0 billable ms for every
   standard macOS job on this public repository and omits the `xcode-27` jobs from the billable
   map altogether, while their runner names and group read as hosted larger runners. Settings →
-  Actions → Runners, and the billing page's per-SKU breakdown, are the only places that say
+  Actions → Runners, and the billing page's per-SKU breakdown, are the only places that say.

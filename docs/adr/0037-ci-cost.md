@@ -23,8 +23,8 @@ still the wall-clock waste; only the money goes away. The 96 `ubuntu-latest` and
 `macos-latest` jobs in the same window are free, and `release.yml` and `dmg-preview.yml` did
 not run at all, so the whole bill is CI + CodeQL.
 
-- **CodeQL is 1,508.3 min (76.0%)** across 36 jobs — one job, `Analyze (swift)`, averaging
-  43.1 min a run. CI is 476.9 min (24.0%) across 153 jobs, averaging 12.9 min a run. One
+- **CodeQL is 1,508.3 min (76.0%)** across 36 jobs of one job, `Analyze (swift)`: 41.9 min a
+  job, or 43.1 a run, over the 35 runs that got a runner at all. CI is 476.9 min (24.0%) across 153 jobs, averaging 12.9 min a run. One
   CodeQL run costs about 3.3x one entire CI run.
 - **41.3 of CodeQL's 49.1 minutes is one step**, `Build both flavours`, on run
   44260985492. Its sibling CI run on the same commit: Build AppStore 2.7, Build Direct
