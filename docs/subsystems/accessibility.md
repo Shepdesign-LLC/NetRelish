@@ -18,7 +18,7 @@ sources:
   - code: Sources/Shelf/ShelfView.swift
   - code: Sources/App/UITestFixture.swift
   - code: Tests/NetRelishUITests/CaptureJarSealUITests.swift
-verified_at: 28b6b75
+verified_at: def9940
 ---
 
 # Accessibility
