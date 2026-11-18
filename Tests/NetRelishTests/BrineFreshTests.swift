@@ -72,18 +72,26 @@ import Testing
     func savedCopyHidesBrine() async throws {
         let bench = Workbench(store: try PantryStore(), defaults: try scratchDefaults())
         bench.newJar(name: "Ash", tint: nil, shelfLifeDays: 3)
+        // The store is watched as in the app, so Brine stays selected while things land in it
+        // (load() would put the stored jar back in front).
+        let watching = Task { await bench.observe() }
+        defer { watching.cancel() }
         bench.activateBrine()
         #expect(bench.brineShowing)
 
-        bench.savedCopy = Item(state: .sealed, title: "Kept", updatedAt: Date(), url: "https://kept.example")
+        let kept = Item(state: .sealed, title: "Kept", updatedAt: Date(), url: "https://kept.example")
+        bench.savedCopy = kept
         #expect(!bench.brineShowing)
         try await Task.sleep(for: .milliseconds(20))
         try brine("Sunk", updatedAt: Date(), in: bench.store)
-        bench.load()
-        #expect(bench.brineFresh == 1)                     // Brine is selected but out of sight
+        for _ in 0..<200 where bench.brine.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(bench.brine.count == 1)
+        #expect(bench.activeSmartJar == .brine)            // still selected...
+        #expect(bench.brineFresh == 1)                     // ...but out of sight, so not yet seen
 
         let ash = try #require(bench.jars.first { $0.name == "Ash" })
         bench.activate(ash)                                // left from the saved copy
+        #expect(bench.activeSmartJar == nil)
         #expect(bench.brineFresh == 1)                     // still unseen
 
         bench.activateBrine()
