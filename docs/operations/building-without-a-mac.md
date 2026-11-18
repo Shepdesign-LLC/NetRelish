@@ -2,7 +2,7 @@
 title: Building without a Mac — CI is the compiler
 type: operation
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-18
 sources:
   - code: .github/workflows/ci.yml
   - code: .github/workflows/regen-project.yml
@@ -13,7 +13,7 @@ sources:
   - code: design/NetRelish.json
   - code: Resources/PrivacyInfo.xcprivacy
   - code: Sources/ShareExtension/PrivacyInfo.xcprivacy
-verified_at: 36f74b2
+verified_at: 28b6b75
 ---
 
 # Building without a Mac
@@ -32,10 +32,15 @@ CI is the compiler and the test runner. This page is the routine, and what goes 
 | If a Swift file was added, removed or moved: regenerate the Xcode project | `.github/workflows/regen-project.yml`, started by hand with the branch name (`.github/workflows/regen-project.yml:19`) |
 | Read the result of each job and fix | `.github/workflows/ci.yml` |
 
-`.github/workflows/ci.yml` runs five things. "Generated files match their sources"
+`.github/workflows/ci.yml` runs six things. "Generated files match their sources"
 (`.github/workflows/ci.yml:31`) runs on `macos-latest` and is quick. The two builds, the
-tests and the PantryKit package run on `xcode-27` (`.github/workflows/ci.yml:68`), the
-only image with the macOS 27 SDK, and can sit in the queue for a long time.
+tests, the UI tests and the PantryKit package run on `xcode-27`
+(`.github/workflows/ci.yml:68`), the only image with the macOS 27 SDK, and can sit in the
+queue for a long time.
+
+The UI tests are their own job and their own scheme, **NetRelish UI Tests**, so the unit
+test job stays as it was. They walk capture → jar → seal through the accessibility tree
+against a Debug-only fixture; what that fixture is, and why, is in [[accessibility]].
 
 The web tools under `zest/` are the exception: they are plain HTML and their Playwright
 suites do run in the session.
@@ -50,6 +55,11 @@ suites do run in the session.
 
 > ⚠️ **After `.github/workflows/regen-project.yml` runs, the branch has a commit you do not have.** Fetch
 > and put your new commits on top of it before pushing again, or the push is rejected.
+
+> ⚠️ **A new target or scheme in `project.yml` needs the same regeneration as a new Swift
+> file.** The UI test target and its scheme landed that way; the committed project holds
+> `NetRelish.xcodeproj/xcshareddata/xcschemes/`, so a scheme that is only in `project.yml`
+> fails "Generated files match their sources" and every job that names it.
 
 > ⚠️ **Generated Swift cannot be regenerated in the session.** `Sources/UI/Tokens.swift`,
 > `Sources/UI/Symbols.swift` and `Sources/Pantry/Models/` come from Swift scripts under
