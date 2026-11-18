@@ -36,22 +36,20 @@ enum NRShell {
 /// Row 1, the title strip, across the whole window: the window's buttons (AppKit draws them),
 /// the cog mark at 80pt, then the tabs from the Shelf's width on, so they sit over the Bench
 /// column. The title bar is hidden, so this row is the top of the window; its empty stretches
-/// move the window, and a double-click there zooms or minimizes it.
+/// move the window. A double-click on it is AppKit's title bar's, as on any window.
 struct TitleRow: View {
     @Bindable var workbench: Workbench
-    @State private var host = WeakWindowBox()
     @FocusState private var markFocused: Bool
 
     var body: some View {
         GeometryReader { geo in
             HStack(spacing: 0) {
-                WindowDragArea(onDoubleClick: doubleClick)
+                WindowDragArea()
                     .frame(width: NRShell.markLeading)
                 mark
-                WindowDragArea(onDoubleClick: doubleClick)
+                WindowDragArea()
                     .frame(width: max(0, NRSpace.shelfW - NRShell.markLeading - NRShell.markSize))
-                TabStrip(workbench: workbench, available: max(0, geo.size.width - NRSpace.shelfW),
-                         onDoubleClick: doubleClick)
+                TabStrip(workbench: workbench, available: max(0, geo.size.width - NRSpace.shelfW))
             }
             .frame(width: geo.size.width, height: NRShell.titleH, alignment: .leading)
         }
@@ -61,7 +59,7 @@ struct TitleRow: View {
             Rectangle().fill(NRColor.hairlineSoft).frame(height: NRSpace.hairline)
         }
         .background(NRColor.surface)
-        .background(WindowButtonsPlacement(onWindow: { [host] window in host.window = window }))
+        .background(WindowButtonsPlacement())
     }
 
     /// The cog mark (logo-cog, never redrawn): it opens the jar's board.
@@ -87,10 +85,6 @@ struct TitleRow: View {
         .accessibilityLabel("Jar board")
         .frame(width: NRShell.markSize, height: NRShell.titleH)
     }
-
-    private func doubleClick() {
-        WindowDragArea.titleBarDoubleClick(host.window)
-    }
 }
 
 /// Row 2, the address row, over the Bench column only: the jar's chip, back and forward, the
@@ -105,6 +99,8 @@ struct SearchRow: View {
     @FocusState private var focused: Bool
 
     private var tab: Tab? { workbench.benchTab }
+    /// The sealed tab Seal still shows in front, until its chip leaves for the jar.
+    private var held: Tab? { workbench.sealHeldFrontTab }
 
     var body: some View {
         HStack(spacing: NRSpace.sp1) {
@@ -132,8 +128,17 @@ struct SearchRow: View {
         .frame(maxWidth: .infinity)
         .background(NRColor.surface)
         .overlay(alignment: .bottom) { Rectangle().fill(NRColor.hairlineSoft).frame(height: NRSpace.hairline) }
-        .onChange(of: tab?.id, initial: true) { _, _ in show(web?.url?.absoluteString ?? tab?.url ?? "") }
-        .onChange(of: web?.url) { _, new in if !focused { address = new?.absoluteString ?? tab?.url ?? "" } }
+        // While Seal holds the sealed tab in front, the field keeps its address (the Sealed
+        // pill lands on it); the next tab's address shows once the chip has left.
+        .onChange(of: tab?.id, initial: true) { _, _ in
+            if held == nil { show(web?.url?.absoluteString ?? tab?.url ?? "") }
+        }
+        .onChange(of: held?.id) { _, _ in
+            if let held { address = held.url ?? "" } else { show(web?.url?.absoluteString ?? tab?.url ?? "") }
+        }
+        .onChange(of: web?.url) { _, new in
+            if !focused, held == nil { address = new?.absoluteString ?? tab?.url ?? "" }
+        }
         .animation(.easeOut(duration: NRMotion.base), value: workbench.fillStatus)
     }
 
@@ -183,6 +188,8 @@ private struct AddressField: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private var tab: Tab? { workbench.benchTab }
+    /// What the field shows: the sealed tab while Seal holds it in front, else the tab in front.
+    private var shownTab: Tab? { workbench.sealHeldFrontTab ?? tab }
     private var reading: Bool { workbench.isReading }
     private var sealFrozen: Bool {
         if case .frozen = workbench.sealPhase { return true }
@@ -191,7 +198,7 @@ private struct AddressField: View {
 
     /// The page's address, split for the idle field: its host, and everything after it.
     private var parts: (host: String, rest: String)? {
-        guard tab != nil, !focused.wrappedValue, let url = URL(string: address), let host = url.host,
+        guard shownTab != nil, !focused.wrappedValue, let url = URL(string: address), let host = url.host,
               let range = address.range(of: host) else { return nil }
         let rest = String(address[range.upperBound...])
         return (host, rest == "/" ? "" : rest)
@@ -205,30 +212,30 @@ private struct AddressField: View {
     var body: some View {
         HStack(spacing: NRSpace.sp2) {
             leadingGlyph
-            ZStack(alignment: .leading) {
-                TextField(placeholder, text: $address)
-                    .textFieldStyle(.plain)
-                    .font(NRType.font(NRType.fsMd))
-                    .foregroundStyle(NRColor.fg)
-                    .tint(NRColor.focus)
-                    .focused(focused)
-                    .onSubmit(go)
-                    .accessibilityLabel("Address")
-                    .opacity(parts == nil ? 1 : 0)
-                if let parts {
-                    Self.styled(host: parts.host, rest: parts.rest)
-                        .lineLimit(1).truncationMode(.tail)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                        .onTapGesture { focused.wrappedValue = true }
-                        .accessibilityHidden(true)
+            // The real field always takes the click and stays in the accessibility tree; idle
+            // with a page in front, its text is clear and the styled address is drawn over it.
+            TextField(placeholder, text: $address)
+                .textFieldStyle(.plain)
+                .font(NRType.font(NRType.fsMd))
+                .foregroundStyle(parts == nil ? NRColor.fg : Color.clear)
+                .tint(NRColor.focus)
+                .focused(focused)
+                .onSubmit(go)
+                .accessibilityLabel("Address")
+                .overlay(alignment: .leading) {
+                    if let parts {
+                        Self.styled(host: parts.host, rest: parts.rest)
+                            .lineLimit(1).truncationMode(.tail)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
                 }
-            }
             if let status = workbench.fillStatus {
                 Text(status).font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2).lineLimit(1)
                     .transition(.opacity).accessibilityIdentifier("fill-status")
             }
-            if tab != nil {
+            if shownTab != nil {
                 HStack(spacing: 0) {
                     FieldButton(systemName: "tray.and.arrow.down", help: "Capture This Page (⌘D)",
                                 label: "Capture this page") { workbench.captureActivePage() }
@@ -245,6 +252,8 @@ private struct AddressField: View {
                     }
                 }
                 .opacity(sealFrozen ? 0 : 1)
+                .allowsHitTesting(!sealFrozen)
+                .accessibilityHidden(sealFrozen)
                 .animation(NRMotion.animation(duration: NRMotion.fast), value: sealFrozen)
             }
         }
@@ -267,12 +276,25 @@ private struct AddressField: View {
         return Text("\(head)\(tail)")
     }
 
+    /// The page in front's address: what it loaded, else what the tab remembers. While Seal
+    /// holds the sealed tab in front, that tab's.
+    private var pageURL: URL? {
+        if let held = workbench.sealHeldFrontTab { return held.url.flatMap { URL(string: $0) } }
+        return web?.url ?? tab?.url.flatMap { URL(string: $0) }
+    }
+
     /// The lock while a page is in front (relish-700, relish-500 in dark), else the magnifier.
+    /// The lock means a secure connection, so a page that isn't on https wears a neutral globe.
     @ViewBuilder private var leadingGlyph: some View {
-        if tab != nil {
-            Image(systemName: "lock")
-                .font(.system(size: 13, weight: .medium))
+        if shownTab != nil, pageURL?.scheme?.lowercased() == "https" {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(colorScheme == .dark ? NRColor.relish500 : NRColor.relish700)
+                .accessibilityHidden(true)
+        } else if shownTab != nil {
+            Image(systemName: "globe")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(NRColor.fg3)
                 .accessibilityHidden(true)
         } else {
             Image(systemName: "magnifyingglass")

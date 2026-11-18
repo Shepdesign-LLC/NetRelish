@@ -7,7 +7,8 @@ import Testing
 /// to `frontTabMaxW` before the others shrink, and a pinned tab is always `pinnedTabW`.
 @Suite("Tab strip layout") struct TabStripLayoutTests {
 
-    /// The strip's width in the comp's 1238pt window: everything right of the Shelf.
+    /// The strip's clipping region in the comp's 1280pt window (`TAB.clip`): the 1160pt right
+    /// of the Shelf, less the 42pt TabStrip keeps for "+" and a stretch to drag.
     private let roomy: CGFloat = 1118
 
     @Test("With plenty of room, every tab is as wide as a tab gets")

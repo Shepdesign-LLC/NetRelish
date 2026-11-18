@@ -68,8 +68,12 @@ struct JarFillDriver<Content: View>: View {
                 run?.cancel()
                 run = nil
                 badgeRun?.cancel()
+                badgeRun = nil
+                badgeVisible = false
                 dropProgress = nil
                 bump = 1
+                // Back on screen, the tile shows the jar's level as it is then.
+                displayedFill = nil
             }
     }
 

@@ -64,8 +64,6 @@ struct TabStrip: View {
     @Bindable var workbench: Workbench
     /// The width from the strip's leading edge to the window's trailing edge.
     let available: CGFloat
-    /// A double-click on the strip's empty stretch, as on a title bar.
-    let onDoubleClick: () -> Void
 
     /// The tab a dragged tab is over.
     @State private var dropTarget: String?
@@ -76,10 +74,11 @@ struct TabStrip: View {
     @Namespace private var lipSpace
     @Environment(\.nrReduceMotion) private var reduceMotion
 
-    /// The room kept clear after the clipping region, for "+" and a stretch to drag. The
-    /// layout keeps 44pt of the strip for it (the comp's `tabLayout`), and a full strip of
-    /// tabs, insets included, ends exactly this far from the strip's end.
-    private static let trailingReserve: CGFloat = 36
+    /// The room kept clear after the clipping region, for "+" and a stretch to drag: the
+    /// comp's strip is 1160pt and its clip `TAB.clip` 1118. The tabs are sized against the
+    /// clip, and the layout's own 44pt keeps a full strip of tabs, insets included, 36pt
+    /// short of it, where "+" sits (the comp's `over = end > clip - 36`).
+    private static let trailingReserve: CGFloat = 42
     private static let leadingInset: CGFloat = 8
     private static let trailingInset: CGFloat = 4
 
@@ -92,7 +91,7 @@ struct TabStrip: View {
                 newTabButton
                     .padding(.leading, 2)
             }
-            WindowDragArea(onDoubleClick: onDoubleClick)
+            WindowDragArea()
                 .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(height: NRShell.titleH)
@@ -100,12 +99,14 @@ struct TabStrip: View {
 
     @ViewBuilder private func strip(for jar: Jar) -> some View {
         let tabs = workbench.stripTabs
-        let frontId = workbench.benchTab?.id
+        // While Seal holds the sealed tab, it stays in front (white, with its lip) until its
+        // chip leaves, though the tab behind it is already the active one.
+        let frontId = workbench.sealHeldFrontTab?.id ?? workbench.benchTab?.id
         let clip = max(0, available - Self.trailingReserve)
         let frontIndex = tabs.firstIndex { $0.id == frontId }
         let ideal = frontIndex.map { TabStripLayout.idealWidth(of: Self.label(of: tabs[$0])) }
         let widths = TabStripLayout.widths(pinned: tabs.map(\.isPinned), frontIndex: frontIndex,
-                                           frontIdealWidth: ideal, available: available)
+                                           frontIdealWidth: ideal, available: clip)
         let gaps = CGFloat(max(0, tabs.count - 1)) * NRShell.tabGap
         let content = Self.leadingInset + widths.reduce(0, +) + gaps + Self.trailingInset
         let canGrow = seenJarId == jar.id && !reduceMotion
@@ -333,7 +334,7 @@ struct TabChip: View {
                 withAnimation(NRMotion.animation()) { grown = true }
             }
             .help(tab.isPinned ? "\(label). Pinned: it never sinks" : label)
-            .accessibilityAddTraits(isFront ? [.isButton, .isSelected] : .isButton)
+            .accessibilityAddTraits(isFront ? [.isButton, .isSelected] : [.isButton])
             .animation(NRMotion.animation(duration: NRMotion.fast), value: hovering)
             .animation(NRMotion.animation(duration: NRMotion.fast), value: fading)
     }

@@ -32,7 +32,7 @@ private func luminance(_ c: (Int, Int, Int)) -> Double {
     @Test("A jar with no color, and the Relish preset, are relish; Sky is not")
     func relishIsRecognized() throws {
         #expect(JarPaint(css: nil).isRelish)
-        let relish = try #require(JarTint.presets.first { $0.name == "Relish" })
+        let relish = try #require(JarTint.presets.first(where: { $0.name == "Relish" }))
         #expect(JarPaint(css: relish.css).isRelish)
         #expect(!JarPaint(css: sky.css).isRelish)
     }

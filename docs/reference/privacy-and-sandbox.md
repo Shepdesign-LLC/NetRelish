@@ -2,7 +2,7 @@
 title: Privacy and sandbox — what each bundle declares
 type: reference
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-18
 sources:
   - code: Resources/PrivacyInfo.xcprivacy
   - code: Sources/ShareExtension/PrivacyInfo.xcprivacy
@@ -11,9 +11,10 @@ sources:
   - code: Config/AppStore.xcconfig
   - code: Sources/Bench/WebView.swift
   - code: Sources/App/NetRelishApp.swift
+  - code: Sources/App/Workbench.swift
   - code: scripts/tests/test_privacy_manifests.py
   - code: .github/workflows/ci.yml
-verified_at: a7941bc
+verified_at: 38edcae
 ---
 
 # Privacy and sandbox
@@ -26,9 +27,15 @@ How the files get into the bundles is [[building-without-a-mac]].
 
 | Bundle | Manifest | UserDefaults reasons | Why |
 |---|---|---|---|
-| NetRelish.app | `Resources/PrivacyInfo.xcprivacy` | `CA92.1`, `1C8F.1` | Tab icons and the Panel (`Sources/App/Workbench.swift:1165`), the Direct build's revoked activations (`Sources/App/License.swift:102`); the App Group suite through Pantry |
+| NetRelish.app | `Resources/PrivacyInfo.xcprivacy` | `CA92.1`, `1C8F.1` | Tab icons (`Sources/App/Workbench.swift:962`), the Panel's open or closed (`Sources/App/Workbench.swift:1386`), the Brine pill's last-seen date, `brine.seenAt` (`Sources/App/Workbench.swift:1042`), the Direct build's revoked activations (`Sources/App/License.swift:102`); the App Group suite through Pantry |
 | NetRelishShare.appex | `Sources/ShareExtension/PrivacyInfo.xcprivacy` | `1C8F.1` | Leaves shared pages in the App Group suite (`Sources/Pantry/Store/ShareInbox.swift:33`) |
 | Pantry.framework, PantryKit | `Sources/Pantry/PrivacyInfo.xcprivacy` | `1C8F.1` | ShareInbox, compiled into the framework; the package lists it as a resource (`Package.swift`) |
+
+> ⚠️ **Read only defaults the app wrote itself.** `CA92.1` covers the app's own data and
+> explicitly not keys the system writes, such as the global domain's
+> `AppleActionOnDoubleClick`. The title strip leaves its double-click to AppKit's title bar
+> for that reason (`Sources/Bench/WindowChrome.swift:139`). A read of a system key needs a
+> reason the manifest declares, or it doesn't ship.
 
 All three: no tracking, no tracking domains, nothing collected. No other required-reason API
 is used. `scripts/tests/test_privacy_manifests.py` sweeps each bundle's Swift for them.
@@ -49,7 +56,7 @@ is used. `scripts/tests/test_privacy_manifests.py` sweeps each bundle's Swift fo
 |---|---|
 | `app-sandbox` | Everything. The Pantry, saved copies and each jar's website data live in the container |
 | `network.client` | Page loads, StoreKit, the timestamp authority, the Direct build's license relay |
-| `files.user-selected.read-write` | Export Proof's save panel (`Sources/App/Workbench.swift:370`) |
+| `files.user-selected.read-write` | Export Proof's save panel (`Sources/App/Workbench.swift:467`) |
 | `print` | File › Print… for the Zest tool in front: Zest MD's Print and Save as PDF (ADR 0033) |
 | `personal-information.addressbook` | Import from my card, once (ADR 0006); paired with `NSContactsUsageDescription` |
 | `application-groups` | The Share extension's hand-off (ShareInbox) |

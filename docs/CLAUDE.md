@@ -153,6 +153,7 @@ change this definition, fix the pathspec in
 | What changed | Page to update |
 |---|---|
 | Right-click menus, drag, tab icons, anything under `// MARK: Rearranging` in the Workbench | [[rearranging]] |
+| The window's chrome (title strip, tabs, address row, bottom bar, `NRShell`, `WindowChrome`), the Shelf's tiles and the drawn jar, the Seal overlay and Seal's phases in the Workbench, the jar fill, ⌘K as an overlay | [[workbench-shell]] |
 | The Zest sound kit, the Sound toggle, `zest/tests/sound.js` | [[zest-sound]] |
 | `Sources/Zest/`, `Resources/Zest/`, Zest's store in `JarProfile`, `pageInFront` and the Zest gating in the Workbench | [[zest-window]] |
 | CI workflows, `project.yml`, the generator scripts, how generated files are checked | [[building-without-a-mac]] |

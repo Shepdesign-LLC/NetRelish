@@ -2,7 +2,7 @@
 title: Releasing a preview — the Direct build as a disk image
 type: operation
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-18
 sources:
   - code: .github/workflows/release.yml
   - code: scripts/release_notes.py
@@ -36,7 +36,7 @@ write token, checks nothing out and runs nothing from the repository
 
 Whether a Direct build locks Pro is decided by one build setting,
 `NR_LICENSE_ACTIVATION_URL` (`Config/Base.xcconfig`), read from the app's Info.plist at
-launch (`Sources/App/License.swift:153`, `Sources/App/NetRelishApp.swift:34`):
+launch (`Sources/App/License.swift:153`, `Sources/App/NetRelishApp.swift:43`):
 
 | The address in the built app | Pro |
 |---|---|

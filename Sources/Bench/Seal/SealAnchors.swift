@@ -13,6 +13,9 @@ enum SealAnchorRole: Hashable {
     case sealSlot
     case page
     case jar(String)
+    /// The Shelf's scrolling column of jars: what of it is on screen. A jar scrolled out of it
+    /// still has a rect, so the chip's landing is held inside this one.
+    case shelfJars
 }
 
 struct SealAnchorKey: PreferenceKey {
@@ -25,9 +28,13 @@ struct SealAnchorKey: PreferenceKey {
 }
 
 extension View {
-    /// Publishes this view's bounds for the Seal overlay under `role`.
+    /// Publishes this view's bounds for the Seal overlay under `role`. It adds to what the
+    /// views inside it published (the strip holds the tabs, the Shelf's column the jars):
+    /// a plain `anchorPreference` would replace their anchors with its own.
     func sealAnchor(_ role: SealAnchorRole) -> some View {
-        anchorPreference(key: SealAnchorKey.self, value: .bounds) { [role: $0] }
+        transformAnchorPreference(key: SealAnchorKey.self, value: .bounds) { value, anchor in
+            value[role] = anchor
+        }
     }
 
     /// The window's one Seal overlay, over everything this view holds. It never takes a click

@@ -35,7 +35,7 @@ import Testing
 
     struct Boom: Error {}
 
-    private static func page() -> (Data, Extraction.Result) {
+    nonisolated private static func page() -> (Data, Extraction.Result) {
         (Data("WEBARCHIVE".utf8),
          Extraction.Result(title: "Invoice terms", excerpt: "Net thirty.", body: "The client agreed to net thirty."))
     }
@@ -116,11 +116,16 @@ import Testing
         #expect(bench.stripTabs.map(\.id) == expected)
         #expect(bench.isHeldBySeal(run.tab))
         #expect(!bench.isHeldBySeal(bench.tabs[0]))
+        // The strip and the field keep the sealed tab in front until its chip leaves, while
+        // the real active tab has already moved on.
+        #expect(bench.sealHeldFrontTab?.id == tab.id)
+        #expect(bench.activeTab?.id != tab.id)
 
         bench.releaseSealedTab(run.id)
         #expect(!bench.stripTabs.contains { $0.id == tab.id })
         #expect(bench.stripTabs == bench.tabs)
         #expect(!bench.isHeldBySeal(run.tab))
+        #expect(bench.sealHeldFrontTab == nil)
 
         bench.sealPresentationEnded(run.id)
         #expect(bench.sealPhase == .idle)
@@ -142,7 +147,7 @@ import Testing
         #expect(bench.stripTabs.isEmpty)
     }
 
-    @Test("A failed write: failed, nothing written, the tab stays open, and the field says so")
+    @Test("A failed write: failed, nothing written, the tab stays open, and the field says so with phase B")
     func failedKeepsTheTab() async throws {
         let bench = try bench()
         let tab = try openTab("https://example.com/invoice", title: "Invoice terms", in: bench)
@@ -159,6 +164,13 @@ import Testing
         #expect(bench.sealHeldTab == nil)
         #expect(bench.stripTabs == bench.tabs)
         #expect(!bench.isHeldBySeal(tab))
+        // The failure line waits for phase B (never sooner than SealTiming.minimumA after the
+        // press), so it never lands while the drops are still forming.
+        let said = run.startedAt.addingTimeInterval(SealTiming.minimumA)
+        if Date() < said { #expect(bench.fillStatus == nil) }
+        for _ in 0..<150 where bench.fillStatus == nil {
+            try await Task.sleep(for: .milliseconds(20))
+        }
         #expect(bench.fillStatus == "Couldn’t seal this page")
         #expect(try bench.store.read { db in try Item.fetchCount(db) } == 0)
         #expect(bench.jarFill == nil)

@@ -1115,9 +1115,24 @@ final class Workbench {
         } catch {
             log.error("seal: \(errorKind(error), privacy: .public) \(String(describing: error), privacy: .private)")
             if sealPhase.run?.id == run.id { sealPhase = .failed(run) }
-            report("Couldn’t seal this page")
+            reportSealFailure(of: run)
             endSealLater(run)
             return false
+        }
+    }
+
+    /// The failure line, said with phase B: never sooner than `SealTiming.minimumA` after the
+    /// press, so it lands with the drain and never while the drops are still forming. Only
+    /// the line waits; nothing about the write does.
+    private func reportSealFailure(of run: SealRun) {
+        let wait = run.startedAt.addingTimeInterval(SealTiming.minimumA).timeIntervalSinceNow
+        guard wait > 0 else {
+            report("Couldn’t seal this page")
+            return
+        }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(wait))
+            self?.report("Couldn’t seal this page")
         }
     }
 
@@ -1155,6 +1170,16 @@ final class Workbench {
     /// Whether the strip is drawing this tab only as the picture of a sealed one.
     func isHeldBySeal(_ tab: Tab) -> Bool {
         sealHeldTab?.tab.id == tab.id && !tabs.contains { $0.id == tab.id }
+    }
+
+    /// The sealed tab the strip and the address field still show in front, until its chip
+    /// leaves: the tab really closed when the write returned and `activeTabId` moved on, but
+    /// the comp keeps the sealed tab in front, with its address, until then. Presentation
+    /// only; nil when the strip isn't drawing a held tab (another jar, Seal from Shortcuts).
+    var sealHeldFrontTab: Tab? {
+        guard let held = sealHeldTab, held.tab.jarId == activeJarId, activeSmartJar == nil,
+              isHeldBySeal(held.tab) else { return nil }
+        return held.tab
     }
 
     /// Something landed in a jar: publishes a new event, and the Shelf plays the drip.

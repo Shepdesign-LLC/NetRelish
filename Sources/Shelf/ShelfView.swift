@@ -55,6 +55,7 @@ struct ShelfView: View {
             }
             .scrollIndicators(.hidden)
             .frame(maxHeight: jarsHeight)
+            .sealAnchor(.shelfJars)
             .layoutPriority(1)
 
             Rectangle().fill(NRColor.hairlineSoft).frame(height: NRSpace.hairline)
@@ -116,13 +117,21 @@ struct ShelfView: View {
     }
 
     /// One row for the Zest window, neutral (`--nr-fg-2`, manifest v2.1 §4 #11): the tools
-    /// are chosen inside it.
+    /// are chosen inside it, or straight from the row's right-click menu.
     private var zest: some View {
         ShelfRow(title: "Zest", help: "Open the Zest window") {
-            Image(systemName: "square.grid.2x2").font(.system(size: 13, weight: .regular))
+            Image(systemName: "square.grid.2x2").font(.system(size: 14, weight: .regular))
                 .foregroundStyle(NRColor.fg2)
         } action: {
             openWindow(id: "zest")
+        }
+        .contextMenu {
+            ForEach(ZestTool.allCases) { tool in
+                Button(tool.title) {
+                    workbench.zestToolRequest = tool
+                    openWindow(id: "zest")
+                }
+            }
         }
     }
 
@@ -233,7 +242,7 @@ struct ShelfRow<Glyph: View>: View {
     var help: String
     var isActive = false
     var badge: String? = nil
-    @ViewBuilder let glyph: Glyph
+    let glyph: Glyph
     let action: () -> Void
     @State private var hovering = false
 
@@ -294,7 +303,10 @@ struct JarTile: View {
     let activate: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.nrReduceMotion) private var reduceMotion
     @State private var hovering = false
+    /// The bump a tile gives when its jar becomes the active one (manifest v2.1 §9 Jar switch).
+    @State private var switchBump: CGFloat = 1
 
     private var paint: JarPaint { jar.paint }
 
@@ -328,15 +340,28 @@ struct JarTile: View {
                 .overlay(alignment: .topTrailing) { countBadge.opacity(state.badgeVisible ? 1 : 0) }
                 .overlay(alignment: .leading) { if isDropTarget { NRDropMark().padding(.vertical, 10) } }
                 .contentShape(RoundedRectangle(cornerRadius: Self.radius))
-                .scaleEffect(state.bump)
+                .scaleEffect(state.bump * switchBump)
             }
             .buttonStyle(.plain)
             .onHover { hovering = $0 }
             .animation(NRMotion.animation(duration: NRMotion.fast), value: hovering)
             .animation(NRMotion.animation(duration: NRMotion.fast), value: isActive)
+            .onChange(of: isActive) { _, active in
+                guard active, !reduceMotion else { return }
+                bumpOnSwitch()
+            }
             .help(index < 9 ? "\(jar.name) — ⌘\(index + 1)" : jar.name)
             .accessibilityLabel("\(jar.name), \(count) inside")
             .accessibilityAddTraits(isActive ? .isSelected : [])
+        }
+    }
+
+    /// 1 → 1.05 → 1 over 320ms on easeJar, which overshoots on the way back.
+    private func bumpOnSwitch() {
+        withAnimation(NRMotion.animation(NRMotion.easeJar, duration: 0.16)) { switchBump = 1.05 }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(160))
+            withAnimation(NRMotion.animation(NRMotion.easeJar, duration: 0.16)) { switchBump = 1 }
         }
     }
 

@@ -1,7 +1,8 @@
 // WindowChrome.swift — the small AppKit pieces of the title strip (manifest v2.1 §8, the
 // Workbench facelift comp's build notes): the window's close, minimize and zoom buttons moved
 // to sit centered in the 44pt strip, and the empty stretches of the strip that move the
-// window and answer a double-click the way System Settings says. Hand-written.
+// window. A double-click on the title bar stays AppKit's: it reads the user's setting itself,
+// so the app never reads it. Hand-written.
 
 import AppKit
 import SwiftUI
@@ -15,24 +16,18 @@ import SwiftUI
 /// title-bar container is missing, it does nothing and the buttons stay where AppKit put them.
 /// In full screen it stands aside.
 ///
-/// Use it as a background of the title strip. `onWindow` hands the strip its window, once the
-/// view is in one.
+/// Use it as a background of the title strip.
 struct WindowButtonsPlacement: NSViewRepresentable {
-    var onWindow: ((NSWindow) -> Void)? = nil
-
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeNSView(context: Context) -> WindowProbeView {
         let view = WindowProbeView()
         let coordinator = context.coordinator
-        coordinator.onWindow = onWindow
         view.onWindow = { [weak coordinator] window in coordinator?.attach(to: window) }
         return view
     }
 
-    func updateNSView(_ nsView: WindowProbeView, context: Context) {
-        context.coordinator.onWindow = onWindow
-    }
+    func updateNSView(_ nsView: WindowProbeView, context: Context) {}
 
     static func dismantleNSView(_ nsView: WindowProbeView, coordinator: Coordinator) {
         nsView.onWindow = nil
@@ -40,7 +35,6 @@ struct WindowButtonsPlacement: NSViewRepresentable {
     }
 
     @MainActor final class Coordinator {
-        var onWindow: ((NSWindow) -> Void)?
         private weak var window: NSWindow?
         private var observers: [NSObjectProtocol] = []
 
@@ -56,7 +50,6 @@ struct WindowButtonsPlacement: NSViewRepresentable {
             }
             detach()
             self.window = window
-            onWindow?(window)
             let names: [Notification.Name] = [
                 NSWindow.didResizeNotification,
                 NSWindow.didEndLiveResizeNotification,
@@ -110,15 +103,20 @@ enum WindowButtons {
               let container = titlebar.superview,
               minimize.superview === titlebar, zoom.superview === titlebar else { return }
 
-        let stripH = NRShell.titleH
-        let windowH = container.superview?.bounds.height ?? window.frame.height
-
-        // The title-bar container is not flipped: its origin is its bottom edge.
-        var frame = container.frame
-        frame.size.height = stripH
-        frame.origin.y = windowH - stripH
-        if container.frame != frame { container.frame = frame }
-        if titlebar.frame != container.bounds { titlebar.frame = container.bounds }
+        // AppKit's title-bar container keeps its own height: it never grows over the tabs, so
+        // a tab's drag, drop, right-click and hover stay the strip's. It only grows, when it
+        // has to, by the point or two a button centered lower needs to stay clickable.
+        let buttonsH = max(close.frame.height, minimize.frame.height, zoom.frame.height)
+        let needed = (NRShell.windowButtonsCenterY + buttonsH / 2).rounded(.up)
+        if container.frame.height < needed {
+            let windowH = container.superview?.bounds.height ?? window.frame.height
+            var frame = container.frame
+            frame.size.height = needed
+            // The container's superview is not flipped: the origin is the container's bottom edge.
+            frame.origin.y = windowH - needed
+            container.frame = frame
+        }
+        if titlebar.frame.height < container.bounds.height { titlebar.frame = container.bounds }
 
         // Keep AppKit's own spacing between the three buttons.
         let toMinimize = minimize.frame.minX - close.frame.minX
@@ -136,32 +134,13 @@ enum WindowButtons {
     }
 }
 
-/// An empty stretch of the title strip: dragging it moves the window, and a double-click
-/// zooms or minimizes it, as System Settings › Desktop & Dock says.
+/// An empty stretch of the title strip: dragging it moves the window. A double-click on the
+/// strip is left to AppKit's title bar, which applies System Settings › Desktop & Dock itself.
 struct WindowDragArea: View {
-    let onDoubleClick: () -> Void
-
     var body: some View {
         Color.clear
             .contentShape(Rectangle())
             .gesture(WindowDragGesture())
-            .simultaneousGesture(TapGesture(count: 2).onEnded { onDoubleClick() })
             .accessibilityHidden(true)
     }
-
-    /// What a double-click on a title bar does, read from the setting macOS keeps for it.
-    @MainActor static func titleBarDoubleClick(_ window: NSWindow?) {
-        guard let window = window ?? NSApp.keyWindow else { return }
-        switch UserDefaults.standard.string(forKey: "AppleActionOnDoubleClick") {
-        case "Minimize": window.miniaturize(nil)
-        case "None": break
-        default: window.zoom(nil)
-        }
-    }
-}
-
-/// The window the title strip is in, held weakly so the strip never keeps it alive. Kept in
-/// `@State`, so its window changing never redraws the strip.
-final class WeakWindowBox {
-    weak var window: NSWindow?
 }

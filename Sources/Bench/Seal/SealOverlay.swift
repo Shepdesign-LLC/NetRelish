@@ -68,6 +68,8 @@ struct SealOverlay: View {
             // Workbench's own 4-second safety lets go of the held tab and goes back to idle.
             task?.cancel()
             task = nil
+            if let current, !current.silent { SealPresenters.playing.remove(current.run.id) }
+            current = nil
             clear()
         }
     }
@@ -82,11 +84,13 @@ struct SealOverlay: View {
 
         guard appearsActive, let built = SealScene.make(run: run, rects: rects, width: size.width,
                                                        reduceMotion: reduceMotion) else {
-            // Not this window's to show: play nothing, and let go at phase B.
+            // Not this window's to show: play nothing, and let go at phase B unless another
+            // window is presenting it.
             current = SealCurrent(run: run, silent: true)
             return
         }
         current = SealCurrent(run: run, silent: false)
+        SealPresenters.playing.insert(run.id)
         scene = built
         clock = SealClock(aStart: Date())
         let runId = run.id
@@ -114,8 +118,13 @@ struct SealOverlay: View {
         }
         if playing.silent {
             current = nil
-            workbench.releaseSealedTab(run.id)
-            workbench.sealPresentationEnded(run.id)
+            // One Workbench serves every window: the window that presents this run lets go of
+            // it when its chip leaves. With none presenting it (Seal from Shortcuts while
+            // NetRelish is in the background), the tab goes from the strip at once.
+            if !SealPresenters.playing.contains(run.id) {
+                workbench.releaseSealedTab(run.id)
+                workbench.sealPresentationEnded(run.id)
+            }
             return
         }
         current?.frozen = frozen
@@ -125,6 +134,7 @@ struct SealOverlay: View {
         let begins = max(Date(), run.startedAt.addingTimeInterval(SealTiming.minimumA))
         let page = rects[.page]
         let jar = rects[.jar(run.jarId)]
+        let shelf = rects[.shelfJars]
         let runId = run.id
 
         task = Task { @MainActor in
@@ -162,7 +172,7 @@ struct SealOverlay: View {
                 return
             }
             clock?.chipFrom = from
-            clock?.chipTo = CGPoint(x: jar.midX - 8, y: jar.minY + 4)
+            clock?.chipTo = SealScene.chipLanding(on: jar, within: shelf)
             clock?.chipAt = Date()
             try? await Task.sleep(for: .seconds(SealTiming.chipFlight))
             guard !Task.isCancelled, current?.run.id == runId else { return }
@@ -183,6 +193,7 @@ struct SealOverlay: View {
         task = nil
         current = nil
         clear()
+        SealPresenters.playing.remove(runId)
         workbench.sealPresentationEnded(runId)
     }
 
@@ -196,6 +207,7 @@ struct SealOverlay: View {
             workbench.releaseSealedTab(old.run.id)
             workbench.fillJar(old.run.jarId)
         }
+        if !old.silent { SealPresenters.playing.remove(old.run.id) }
         workbench.sealPresentationEnded(old.run.id)
         current = nil
         clear()
@@ -224,6 +236,13 @@ enum SealTiming {
 }
 
 // MARK: - State
+
+/// The runs a window is presenting right now. Every window has its own overlay over one shared
+/// Workbench; a window that plays nothing leaves a run alone while another window presents it.
+@MainActor
+private enum SealPresenters {
+    static var playing: Set<Int> = []
+}
 
 /// The run an overlay is presenting.
 private struct SealCurrent {
@@ -293,6 +312,16 @@ struct SealScene: Equatable {
                          bandTop: bandTop, bandLeft: bandLeft, bandRight: bandRight,
                          lipLeft: tab.minX + 4, lipRight: tab.maxX - 4,
                          connBottom: max(tab.minY + 6, bandTop + 2), drops: drops)
+    }
+
+    /// Where the flying chip lands: on the jar's shoulder, `(midX − 8, minY + 4)`. A jar
+    /// scrolled out of the Shelf's column still has a rect, off the visible rail; the landing
+    /// is then held inside the part of the column on screen, so the chip never flies to a
+    /// point nobody can see.
+    static func chipLanding(on jar: CGRect, within shelf: CGRect?) -> CGPoint {
+        let target = CGPoint(x: jar.midX - 8, y: jar.minY + 4)
+        guard let shelf, shelf.height > 24 else { return target }
+        return CGPoint(x: target.x, y: min(max(target.y, shelf.minY + 4), shelf.maxY - 20))
     }
 
     /// Where drops may fall, the comp's `sealDrops`: never on the window buttons, never across

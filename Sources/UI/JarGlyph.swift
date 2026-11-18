@@ -69,13 +69,36 @@ public extension JarPaint {
     /// L .535. Relish is `relish300` in light and `relish700` in dark.
     var edge300: Color {
         if isRelish {
+            // Tokens.swift's own Display P3 values for relish-700 and relish-300, so the
+            // provider never converts a SwiftUI Color off the main actor.
             return Color(nsColor: NSColor(name: nil) { appearance in
-                NSColor(JarPaint.isDark(appearance) ? NRColor.relish700 : NRColor.relish300)
+                JarPaint.isDark(appearance)
+                    ? NSColor(displayP3Red: 0.3707, green: 0.5620, blue: 0.1783, alpha: 1)
+                    : NSColor(displayP3Red: 0.8049, green: 0.9440, blue: 0.4935, alpha: 1)
             })
         }
         let o = oklch
         return JarPaint.adaptive(light: OKLCH(l: 0.86, c: min(o.c, 0.075), h: o.h),
                                 dark: OKLCH(l: 0.535, c: min(o.c, 0.13), h: o.h))
+    }
+
+    /// Text on `edge300` (the board's jar button under the pointer): black or white, whichever
+    /// reads better on that step in each appearance. `ink` is chosen for the face, and a face
+    /// that takes white can sit on an edge300 that needs black.
+    var edgeInk: Color {
+        let o = oklch
+        let lightIsDark: Bool
+        let darkIsDark: Bool
+        if isRelish {
+            lightIsDark = true    // relish-300, #C4F26B
+            darkIsDark = JarPaint(OKLCH(l: 0.589, c: 0.165, h: 134.7)).inkIsDark   // relish-700
+        } else {
+            lightIsDark = JarPaint(OKLCH(l: 0.86, c: min(o.c, 0.075), h: o.h)).inkIsDark
+            darkIsDark = JarPaint(OKLCH(l: 0.535, c: min(o.c, 0.13), h: o.h)).inkIsDark
+        }
+        return Color(nsColor: NSColor(name: nil) { appearance in
+            (JarPaint.isDark(appearance) ? darkIsDark : lightIsDark) ? .black : .white
+        })
     }
 
     /// The jar's color as text on a light ground. Light: L .52; dark: the face itself.
@@ -173,6 +196,56 @@ public struct JarLiquidShape: Shape {
     }
 }
 
+/// The highlight carried on inside the liquid, a darker stripe of the jar's own color: 1.8
+/// wide, from 3.4 under the surface, 22 long (the comp's `.lg`). It rides the surface, so it
+/// animates with the level. Draw it clipped to `JarBodyShape`, like the liquid.
+public struct JarLiquidGlossShape: Shape {
+    public var level: Double
+
+    public init(level: Double) { self.level = level }
+
+    public var animatableData: Double {
+        get { level }
+        set { level = newValue }
+    }
+
+    public func path(in rect: CGRect) -> Path {
+        let top = JarLiquidShape.surface(level) + 3.4
+        return jarRect(CGRect(x: 5, y: top, width: 1.8, height: 22), radius: 0.9, in: rect)
+    }
+}
+
+/// The jar-fill drip's drop: an ellipse (rx 2, ry 2.8) born under the neck at (16, 15) that
+/// falls to the surface as `progress` goes 0 → 1, stretching from scaleY .7 to 1.15. Both the
+/// level and the progress animate, so the drop meets the surface as it rises. Draw it clipped
+/// to `JarBodyShape`, like the liquid.
+public struct JarDropShape: Shape {
+    public var level: Double
+    public var progress: Double
+
+    public init(level: Double, progress: Double) {
+        self.level = level
+        self.progress = progress
+    }
+
+    public var animatableData: AnimatablePair<Double, Double> {
+        get { AnimatablePair(level, progress) }
+        set {
+            level = newValue.first
+            progress = newValue.second
+        }
+    }
+
+    public func path(in rect: CGRect) -> Path {
+        let p = max(0, min(1, progress))
+        let travel = max(0, JarLiquidShape.surface(level) - 17.5)
+        let ry = 2.8 * (0.7 + 0.45 * p)
+        let cy = 15 + travel * p
+        let oval = CGRect(x: 16 - 2, y: cy - ry, width: 4, height: ry * 2)
+        return Path(ellipseIn: oval).applying(jarTransform(rect))
+    }
+}
+
 // MARK: - The jar, drawn
 
 /// A jar drawn `size` points tall (and `size` × 33 / 47 wide), filled to `fill` (0…1) in
@@ -199,8 +272,8 @@ public struct NRFilledJar: View {
     private var lineWidth: CGFloat { size >= 40 ? 1.35 : size >= 24 ? 1.2 : 1.05 }
 
     public var body: some View {
-        let u = size / 47
-        let width = size * 33 / 47
+        let u: CGFloat = size / 47
+        let width: CGFloat = size * 33 / 47
         let menisc = OKLCH(l: paint.oklch.l * 0.86, c: paint.oklch.c, h: paint.oklch.h).color
         ZStack {
             // 1. The neck, behind the shoulders.
@@ -209,12 +282,16 @@ public struct NRFilledJar: View {
             // 2. The glass.
             JarBodyShape().fill(NRColor.float)
             // 3. Inside the body: the highlight, the fill and its meniscus, bubbles, the drop.
+            //    (Positions below are in the frame: the jar's x plus 0.5, since its box starts at −0.5.)
             ZStack {
                 Path(roundedRect: CGRect(x: 5.5 * u, y: 16.5 * u, width: 1.8 * u, height: 25 * u),
                      cornerRadius: 0.9 * u, style: .circular)
                     .fill(NRColor.hairline)
                 JarLiquidShape(level: fill).fill(paint.face)
                 JarLiquidShape(level: fill, band: 1.9).fill(menisc)
+                // The comp's `color-mix(in oklab, jar 80%, black)` at 55%: L and C both × .8.
+                JarLiquidGlossShape(level: fill)
+                    .fill(OKLCH(l: paint.oklch.l * 0.8, c: paint.oklch.c * 0.8, h: paint.oklch.h).color.opacity(0.55))
                 if fill >= 1 {
                     Circle().fill(Color.white.opacity(0.32))
                         .frame(width: 3.4 * u, height: 3.4 * u)
@@ -224,13 +301,7 @@ public struct NRFilledJar: View {
                         .position(x: 13.5 * u, y: 32.5 * u)
                 }
                 if let p = dropProgress {
-                    // Born under the neck, it falls to the surface on gravity, stretching.
-                    let travel = max(0, JarLiquidShape.surface(fill) - 17.5)
-                    Ellipse().fill(paint.face)
-                        .frame(width: 4 * u, height: 5.6 * u)
-                        .scaleEffect(x: 1, y: 0.7 + 0.45 * p)
-                        .opacity(0.95 - 0.05 * p)
-                        .position(x: 16.5 * u, y: (15 + travel * p) * u)
+                    JarDropShape(level: fill, progress: p).fill(paint.face)
                 }
             }
             .frame(width: width, height: size)
