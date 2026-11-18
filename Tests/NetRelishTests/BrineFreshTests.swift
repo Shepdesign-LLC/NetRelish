@@ -94,6 +94,17 @@ import Testing
         #expect(bench.activeSmartJar == nil)
         #expect(bench.brineFresh == 1)                     // still unseen
 
+        // ⌘T from a saved copy over Brine leaves Brine unseen too.
+        bench.activateBrine()
+        bench.savedCopy = kept
+        try await Task.sleep(for: .milliseconds(20))
+        try brine("Sunk later", updatedAt: Date(), in: bench.store)
+        for _ in 0..<200 where bench.brine.count < 2 { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(bench.brine.count == 2)
+        #expect(bench.newTab() != nil)                     // a new tab in Ash, from the saved copy
+        #expect(bench.activeSmartJar == nil)
+        #expect(bench.brineFresh == 1)                     // "Sunk later" was never on screen
+
         bench.activateBrine()
         bench.activate(ash)
         #expect(bench.brineFresh == 0)                     // seen once Brine itself was showing

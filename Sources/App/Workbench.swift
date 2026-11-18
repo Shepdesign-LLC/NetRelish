@@ -672,8 +672,11 @@ final class Workbench {
     func activateBrine() { activate(.brine) }
     func activate(_ smart: SmartJar) { activate(jarId: smart.id) }
 
-    private func activate(jarId: String) {
-        let brineWasShowing = brineShowing   // read before the saved copy and comparison go
+    /// `brineWasShowing` comes from a caller that already cleared a saved copy or comparison
+    /// covering Brine (⌘T, a link from a saved copy), so leaving doesn't count as having seen it.
+    private func activate(jarId: String, brineWasShowing shown: Bool? = nil) {
+        let brineWasShowing = shown ?? brineShowing   // read before the saved copy and comparison go
+        releaseSealFront()
         savedCopy = nil                   // picking a jar always leaves a saved copy
         comparison = nil
         reader = nil
@@ -729,14 +732,16 @@ final class Workbench {
     /// gets no tab. `openedBy` is the tab whose page opened this one as a new window.
     @discardableResult
     func newTab(url: String? = nil, interactionState: Data? = nil, in jarId: String? = nil,
-                openedBy openerId: String? = nil) -> Tab? {
+                openedBy openerId: String? = nil, brineWasShowing shown: Bool? = nil) -> Tab? {
+        let brineWasShowing = shown ?? brineShowing   // before the saved copy and comparison go
+        releaseSealFront()
         savedCopy = nil
         comparison = nil
         reader = nil
         showingBoard = false
         let target = jarId ?? (showingSmartJar ? jars.first?.id : activeJarId)
         guard let target, jars.contains(where: { $0.id == target }) else { return nil }
-        if activeJarId != target { activate(jarId: target) }
+        if activeJarId != target { activate(jarId: target, brineWasShowing: brineWasShowing) }
         // After the last tab, wherever that is: closing or moving a tab leaves gaps in the order.
         var tab = Tab(interactionState: interactionState, isPinned: false,
                       sortOrder: (tabs.map(\.sortOrder).max() ?? -1) + 1,
@@ -754,6 +759,7 @@ final class Workbench {
     }
 
     func activateTab(_ tab: Tab) {
+        releaseSealFront()
         savedCopy = nil
         comparison = nil
         reader = nil
@@ -1101,7 +1107,7 @@ final class Workbench {
             }
             let closed = closeIfStillOn(tab)
             if sealPhase.run?.id == run.id {
-                if closed { sealHeldTab = run }
+                if closed { sealHeldTab = run; sealFrontHeld = true }
                 sealPhase = .frozen(run)
             } else {
                 // A newer press took over the overlay. This one plays nothing, but its jar
@@ -1155,8 +1161,16 @@ final class Workbench {
 
     /// The strip may stop drawing the sealed tab: its chip has left for the jar.
     func releaseSealedTab(_ runId: Int) {
-        if sealHeldTab?.id == runId { sealHeldTab = nil }
+        if sealHeldTab?.id == runId { sealHeldTab = nil; sealFrontHeld = false }
     }
+
+    /// Whether the sealed tab still stands in front. Only for the tab Seal moved to on its own:
+    /// picking a tab, ⌘T or switching jars hands the front (and the address field) back at
+    /// once, while the strip keeps drawing the sealed tab until its chip leaves.
+    private var sealFrontHeld = false
+
+    /// You chose where to go: the sealed tab stops standing in front.
+    private func releaseSealFront() { sealFrontHeld = false }
 
     /// The overlay finished presenting a run (or the safety net did): let go of its tab and,
     /// if it is still the Seal in front, go back to idle.
@@ -1185,7 +1199,7 @@ final class Workbench {
     /// the comp keeps the sealed tab in front, with its address, until then. Presentation
     /// only; nil when the strip isn't drawing a held tab (another jar, Seal from Shortcuts).
     var sealHeldFrontTab: Tab? {
-        guard let held = sealHeldTab, held.tab.jarId == activeJarId, activeSmartJar == nil,
+        guard sealFrontHeld, let held = sealHeldTab, held.tab.jarId == activeJarId, activeSmartJar == nil,
               isHeldBySeal(held.tab) else { return nil }
         return held.tab
     }
@@ -1559,15 +1573,13 @@ final class Workbench {
     /// The live page behind a saved copy, in a new tab in the item's jar, or in the jar
     /// you're in if that one is gone.
     func openLivePage(_ item: Item) {
-        savedCopy = nil
-        guard let url = item.url else { return }
-        newTab(url: url, in: item.jarId.flatMap { id in jars.first { $0.id == id }?.id })
+        guard let url = item.url else { savedCopy = nil; return }
+        newTab(url: url, in: item.jarId.flatMap { id in jars.first { $0.id == id }?.id })   // it leaves the copy
     }
 
     /// A link clicked inside a saved copy: the live page, in a new tab in the copy's jar.
     func openLink(_ url: URL, from item: Item) {
-        savedCopy = nil
-        newTab(url: url.absoluteString, in: item.jarId.flatMap { id in jars.first { $0.id == id }?.id })
+        newTab(url: url.absoluteString, in: item.jarId.flatMap { id in jars.first { $0.id == id }?.id })   // it leaves the copy
     }
 
     /// The archive bytes for a sealed item, or nil if the file is gone.
@@ -1580,7 +1592,7 @@ final class Workbench {
     /// over. Only the touch is written, so the tab keeps the scroll and history it had.
     func open(_ tab: Tab) {
         guard let jarId = tab.jarId, jars.contains(where: { $0.id == jarId }) else { return }
-        activate(jarId: jarId)
+        activate(jarId: jarId)            // lets go of a held Seal front tab too
         guard var fresh = tabs.first(where: { $0.id == tab.id }) else { return }
         showingBoard = false
         activeTabId = fresh.id

@@ -132,6 +132,29 @@ import Testing
         #expect(bench.sealPhase.isIdle)
     }
 
+    @Test("Choosing where to go hands the front back at once; the strip still draws the sealed tab")
+    func explicitNavigationReleasesFront() async throws {
+        let bench = try bench()
+        let other = try openTab("https://example.com/other", title: "Other", in: bench)
+        let tab = try openTab("https://example.com/invoice", title: "Invoice terms", in: bench)
+        bench.sealProvider = { _ in Self.page() }
+        #expect(await bench.sealActiveTab())
+        #expect(bench.sealHeldFrontTab?.id == tab.id)       // Seal's own successor: still held
+
+        bench.activateTab(other)
+        #expect(bench.sealHeldFrontTab == nil)              // picked a tab: it is in front now
+        #expect(bench.stripTabs.contains { $0.id == tab.id })   // the chip hasn't left yet
+
+        // ⌘T after a second Seal: the new tab is in front, with its own (empty) address.
+        let next = try openTab("https://example.com/next", title: "Next", in: bench)
+        bench.activateTab(next)
+        #expect(await bench.sealActiveTab())
+        #expect(bench.sealHeldFrontTab?.id == next.id)
+        let blank = try #require(bench.newTab())
+        #expect(bench.sealHeldFrontTab == nil)
+        #expect(bench.activeTab?.id == blank.id)
+    }
+
     @Test("Ending the presentation lets go of the tab and goes back to idle in one step")
     func presentationEndedReleases() async throws {
         let bench = try bench()

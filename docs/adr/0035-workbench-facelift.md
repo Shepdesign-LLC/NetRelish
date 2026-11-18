@@ -20,7 +20,7 @@ Ryan, Nov 17, on the first draft of the comp: "put our icon on the top left". Ry
 | 8 | Ask stays 1.1; ⌘K restyled | `PaletteView` floats as an overlay over a `--nr-canvas` scrim, with the field as a 52pt row in a 12pt-radius float box (the comp's palette; only Ask's field is a pill) and rows grouped Pantry / Open tabs / Commands. It hands the keyboard back to the page in front when it closes, as the sheet did. No Ask UI ships (ADR 0012). |
 | Nov 17 | The icon at the top left | The cog mark at 28pt right after the window buttons, opening the jar's board, as before. The window buttons are re-centered on the 44pt strip by a small AppKit helper (`Sources/Bench/WindowChrome.swift`), which leaves AppKit's title-bar container at its own height so it never lies over the tabs. A double-click on the strip is AppKit's title bar's own: the app reads no system setting for it. |
 
-New tokens: `--nr-canvas`, `--nr-rail`, `--nr-tab`, `--nr-tab-hover`, `--nr-float`, `--nr-hairline-soft`, `--nr-jar-line`, `--nr-jar-lid` and `--ease-drip`. `--nr-hairline` is `#E5E5E2`; `--nr-fg-3` is `#6C6C65` / `#8F8F88` because the old values failed AA as text. The layout measures that aren't tokens stay in `NRShell`, hand-written, as ADR 0034 did.
+New tokens: `--nr-canvas`, `--nr-rail`, `--nr-tab`, `--nr-tab-hover`, `--nr-float`, `--nr-hairline-soft`, `--nr-jar-line`, `--nr-jar-lid` and `--ease-drip`. `--nr-hairline` is `#E5E5E2`; `--nr-fg-3` is `#6C6C65` / `#96968F` because the old values failed AA as text (dark `#96968F` holds 4.5:1 on `--nr-tab-hover`, where sinking tab titles sit under the pointer). The layout measures that aren't tokens stay in `NRShell`, hand-written, as ADR 0034 did.
 
 ## What the comp shows that this PR does not build, and why
 

@@ -32,10 +32,10 @@ public enum NRColor {
     public static let fg2 = Color(nsColor: nr_dynamic(
         light: (0.4000, 0.4000, 0.3747),
         dark: (0.6592, 0.6592, 0.6365)))
-    /// `--nr-fg-3` — #6C6C65 tertiary / placeholders · light #6C6C65 · dark #8F8F88
+    /// `--nr-fg-3` — #6C6C65 tertiary / placeholders · light #6C6C65 · dark #96968F
     public static let fg3 = Color(nsColor: nr_dynamic(
         light: (0.4235, 0.4235, 0.3980),
-        dark: (0.5608, 0.5608, 0.5364)))
+        dark: (0.5870, 0.5870, 0.5624)))
     /// `--nr-canvas` — #F6F6F3 board, Brine, palette scrim · light #F6F6F3 · dark #141413
     public static let canvas = Color(nsColor: nr_dynamic(
         light: (0.9643, 0.9643, 0.9535),
@@ -208,7 +208,7 @@ public enum NRTokenCatalog {
         ColorEntry(css: "--nr-hairline", swift: "hairline", color: NRColor.hairline, note: "light #E5E5E2 · dark #3B3B38"),
         ColorEntry(css: "--nr-fg", swift: "fg", color: NRColor.fg, note: "light #1D1D1B · dark #F0F0EE"),
         ColorEntry(css: "--nr-fg-2", swift: "fg2", color: NRColor.fg2, note: "light #66665F · dark #A8A8A2"),
-        ColorEntry(css: "--nr-fg-3", swift: "fg3", color: NRColor.fg3, note: "light #6C6C65 · dark #8F8F88"),
+        ColorEntry(css: "--nr-fg-3", swift: "fg3", color: NRColor.fg3, note: "light #6C6C65 · dark #96968F"),
         ColorEntry(css: "--nr-canvas", swift: "canvas", color: NRColor.canvas, note: "light #F6F6F3 · dark #141413"),
         ColorEntry(css: "--nr-rail", swift: "rail", color: NRColor.rail, note: "light #FAFAF8 · dark #181817"),
         ColorEntry(css: "--nr-tab", swift: "tab", color: NRColor.tab, note: "light #F3F3F0 · dark #262624"),

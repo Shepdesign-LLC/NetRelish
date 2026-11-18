@@ -8,7 +8,7 @@
  * earlier file wins on values): #EFFCCB, #C4F26B, #4E9110, #1D3506; dark relish-100 #1F3308, dark ink #0D1206.
  * v2.0 (2026-11-14): the Workstation v5 shell (ADR 0034). --shelf-w 56px → 238px, --inspector-w 320px → 322px.
  * v2.1 (2026-11-18): the workbench facelift (ADR 0035). New neutrals (canvas, rail, tab, tab-hover, float, hairline-soft,
- * jar-line, jar-lid); hairline #E5E5E2; fg-3 #6C6C65 / #8F8F88 (the old values failed AA as text); --shelf-w 238 → 120;
+ * jar-line, jar-lid); hairline #E5E5E2; fg-3 #6C6C65 / #96968F (the old values failed AA as text; dark #96968F holds 4.5:1 on --nr-tab-hover); --shelf-w 238 → 120;
  * --lip-h 3 → 5; --ease-drip.
  */
 
@@ -88,7 +88,7 @@
     --nr-hairline:  oklch(35.1% 0.005 106.7);   /* #3B3B38 */
     --nr-fg:        oklch(95.5% 0.003 106.4);   /* #F0F0EE */
     --nr-fg-2:      oklch(73% 0.009 106.6);   /* #A8A8A2 */
-    --nr-fg-3:      oklch(64.8% 0.01 106.7);   /* #8F8F88 */
+    --nr-fg-3:      oklch(67% 0.01 106.7);   /* #96968F */
     --nr-canvas:    oklch(19.1% 0.002 106.6);   /* #141413 */
     --nr-rail:      oklch(20.9% 0.002 106.6);   /* #181817 */
     --nr-tab:       oklch(26.8% 0.004 106.6);   /* #262624 */
@@ -104,7 +104,7 @@
 :root[data-theme="dark"] {
   --nr-bg: oklch(20.4% 0.002 106.6); --nr-surface: oklch(23% 0.004 106.7); --nr-surface-2: oklch(26.8% 0.004 106.6);
   --nr-hairline: oklch(35.1% 0.005 106.7); --nr-fg: oklch(95.5% 0.003 106.4); --nr-fg-2: oklch(73% 0.009 106.6);
-  --nr-fg-3: oklch(64.8% 0.01 106.7); --relish-100: oklch(29.4% 0.07 131.3); --relish-ink: oklch(17.3% 0.026 126.6);
+  --nr-fg-3: oklch(67% 0.01 106.7); --relish-100: oklch(29.4% 0.07 131.3); --relish-ink: oklch(17.3% 0.026 126.6);
   --nr-canvas: oklch(19.1% 0.002 106.6); --nr-rail: oklch(20.9% 0.002 106.6); --nr-tab: oklch(26.8% 0.004 106.6);
   --nr-tab-hover: oklch(29.2% 0.004 106.6); --nr-float: oklch(25.5% 0.004 106.7); --nr-hairline-soft: oklch(28.4% 0.004 106.6);
   --nr-jar-line: oklch(88.7% 0.007 106.5); --nr-jar-lid: oklch(40.8% 0.005 106.6);
