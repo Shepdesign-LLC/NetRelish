@@ -330,7 +330,7 @@ enum ReaderPage {
         ("--nr-bg", "#FCFCFB", "#171716"),
         ("--nr-fg", "#1D1D1B", "#F0F0EE"),
         ("--nr-fg-2", "#66665F", "#A8A8A2"),
-        ("--nr-hairline", "#E3E3E0", "#3B3B38"),
+        ("--nr-hairline", "#E5E5E2", "#3B3B38"),
     ]
 
     /// Our policy, ahead of anything in the article: no scripts, no frames, no fetches but
