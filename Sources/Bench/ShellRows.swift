@@ -216,8 +216,7 @@ private struct AddressField: View {
                     .accessibilityLabel("Address")
                     .opacity(parts == nil ? 1 : 0)
                 if let parts {
-                    (Text(parts.host).font(NRType.font(NRType.fsMd, weight: .medium)).foregroundStyle(NRColor.fg)
-                        + Text(parts.rest).font(NRType.font(NRType.fsMd)).foregroundStyle(NRColor.fg3))
+                    Self.styled(host: parts.host, rest: parts.rest)
                         .lineLimit(1).truncationMode(.tail)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .contentShape(Rectangle())
@@ -259,6 +258,13 @@ private struct AddressField: View {
                 RoundedRectangle(cornerRadius: 8).strokeBorder(NRColor.focus, lineWidth: 2)
             }
         }
+    }
+
+    /// The idle field's address: the host at 13/500 in `fg`, the rest at 13/400 in `fg3`.
+    private static func styled(host: String, rest: String) -> Text {
+        let head: Text = Text(verbatim: host).font(NRType.font(NRType.fsMd, weight: .medium)).foregroundStyle(NRColor.fg)
+        let tail: Text = Text(verbatim: rest).font(NRType.font(NRType.fsMd)).foregroundStyle(NRColor.fg3)
+        return Text("\(head)\(tail)")
     }
 
     /// The lock while a page is in front (relish-700, relish-500 in dark), else the magnifier.

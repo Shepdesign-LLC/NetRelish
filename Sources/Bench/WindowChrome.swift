@@ -160,7 +160,8 @@ struct WindowDragArea: View {
     }
 }
 
-/// The window the title strip is in, held weakly so the strip never keeps it alive.
-@MainActor final class WeakWindowBox {
+/// The window the title strip is in, held weakly so the strip never keeps it alive. Kept in
+/// `@State`, so its window changing never redraws the strip.
+final class WeakWindowBox {
     weak var window: NSWindow?
 }

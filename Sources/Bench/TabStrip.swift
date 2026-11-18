@@ -76,8 +76,10 @@ struct TabStrip: View {
     @Namespace private var lipSpace
     @Environment(\.nrReduceMotion) private var reduceMotion
 
-    /// The room kept clear after the clipping region, for "+" and a stretch to drag.
-    private static let trailingReserve: CGFloat = 42
+    /// The room kept clear after the clipping region, for "+" and a stretch to drag. The
+    /// layout keeps 44pt of the strip for it (the comp's `tabLayout`), and a full strip of
+    /// tabs, insets included, ends exactly this far from the strip's end.
+    private static let trailingReserve: CGFloat = 36
     private static let leadingInset: CGFloat = 8
     private static let trailingInset: CGFloat = 4
 
@@ -103,7 +105,7 @@ struct TabStrip: View {
         let frontIndex = tabs.firstIndex { $0.id == frontId }
         let ideal = frontIndex.map { TabStripLayout.idealWidth(of: Self.label(of: tabs[$0])) }
         let widths = TabStripLayout.widths(pinned: tabs.map(\.isPinned), frontIndex: frontIndex,
-                                           frontIdealWidth: ideal, available: clip)
+                                           frontIdealWidth: ideal, available: available)
         let gaps = CGFloat(max(0, tabs.count - 1)) * NRShell.tabGap
         let content = Self.leadingInset + widths.reduce(0, +) + gaps + Self.trailingInset
         let canGrow = seenJarId == jar.id && !reduceMotion
@@ -125,13 +127,13 @@ struct TabStrip: View {
                 .animation(motion, value: tabs.map(\.id))
                 .animation(motion, value: frontId)
             }
-            .frame(width: min(content, clip), height: NRShell.titleH)
             .onScrollGeometryChange(for: ClipEdges.self) { geo in
                 ClipEdges(leading: geo.contentOffset.x > 0.5,
                           trailing: geo.contentOffset.x + geo.containerSize.width < geo.contentSize.width - 0.5)
             } action: { _, new in
                 clipped = new
             }
+            .frame(width: min(content, clip), height: NRShell.titleH)
             .overlay(alignment: .topLeading) {
                 if clipped.leading { edgeLine }
             }
