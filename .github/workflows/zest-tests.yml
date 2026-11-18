@@ -12,9 +12,18 @@ on:
 permissions:
   contents: read
 
+# Keyed on the pull request, not on github.ref. Both jobs are free (ubuntu-latest on a
+# public repo), so this is a correctness fix and not a saving: on a push to main
+# github.ref is refs/heads/main for every commit, so two merges landing close together
+# cancelled the first main run — and that run is the only check that the merge COMMIT is
+# green. A pull request can be green on its merge preview and still land a stale
+# Resources/Zest after a conflicting merge, and nothing else in the repository rebuilds the
+# bundle and diffs it. The fallback is unique per run and the cancel is gated on the event,
+# so main is safe twice over; pull-request behaviour is unchanged, since both pushes to
+# PR #N still share group zest-tests-N. Same shape as ci.yml and codeql.yml (ADR 0037).
 concurrency:
-  group: zest-tests-${{ github.ref }}
-  cancel-in-progress: true
+  group: zest-tests-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:

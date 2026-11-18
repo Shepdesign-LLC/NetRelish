@@ -206,19 +206,91 @@ name: CodeQL
 on:
   push:
     branches: [main]
+    # Nothing in these paths reaches the Swift the traced build compiles, and this job is
+    # 76% of the repository's paid-runner bill (ADR 0037), so a docs commit must not pay
+    # 49 minutes of macOS larger-runner time for it. Checked, not assumed: project.yml and
+    # the xcconfigs set no EXCLUDED_SOURCE_FILE_NAMES, and the Swift generated from design/
+    # is COMMITTED (Sources/UI/Tokens.swift, Sources/Pantry/Models), so a real token or
+    # model change lands under Sources/ in the same commit and this filter does not fire.
+    # /zest is the web tools; this analysis is `languages: swift`. Resources/** is
+    # deliberately NOT ignored, so the generated Resources/Zest bundle still triggers a scan
+    # — except its README, because `**.md` covers Markdown anywhere in the tree and no .md
+    # file is compiled by the traced build.
+    #
+    # `'**.md'` and not `'**/*.md'`: GitHub documents `**` as "zero or more of ANY
+    # character", a character wildcard and not a path-segment one, so `**/*.md` needs a
+    # literal slash and never matches a root-level file. Under that reading CHANGELOG.md,
+    # README.md, CLAUDE.md and SECURITY.md did not match — and root .md is this entry's only
+    # unique job, since every other .md in the tree is already under docs/, design/ or
+    # zest/. `ce47d71` (CHANGELOG.md alone) is the "one changelog line cost 67.4 paid
+    # minutes" in ADR 0037, so the entry has to catch it. `'**.md'` matches root AND nested
+    # Markdown under either reading of `**`, which is why it is the documented idiom.
+    #
+    # DO NOT COPY THIS LIST INTO ci.yml. Its "Generated files match their sources" job
+    # verifies Tokens.swift against design/tokens.css and Sources/Pantry/Models against
+    # design/NetRelish.json, so design/** must keep triggering that workflow. The filter is
+    # safe here only because this job reads the generated Swift and never its sources.
+    #
+    # ONE HAZARD, for whoever acts on the branch-protection note above: GitHub does not
+    # treat a workflow skipped by a path filter as a passed required check — it reports
+    # nothing at all, and the check sits "Expected" forever. Today `Analyze (swift)` is not
+    # a required check, so this is free. The day it becomes one, either keep it off the
+    # required list or decide deliberately what stands in for it. Do NOT add a same-named
+    # stub job: a job that reports green without analyzing anything is exactly the fail-open
+    # this header spends sixty lines warning about.
+    paths-ignore:
+      - 'docs/**'
+      - 'design/**'
+      - 'zest/**'
+      - '**.md'
   pull_request:
+    # Same list, same reasoning as the push trigger above.
+    paths-ignore:
+      - 'docs/**'
+      - 'design/**'
+      - 'zest/**'
+      - '**.md'
   schedule:
     # Weekly. New queries ship regularly and find old bugs in unchanged code;
     # without this, the analysis only ever sees what a push happens to touch.
+    # A cron takes no path filter, so this is also what still scans the whole tree
+    # after a week of commits the filters above skipped.
     - cron: '17 6 * * 1'
 
 permissions:
   contents: read
 
+# One run per pull request: a new push supersedes the 49-minute job still burning on the
+# commit it replaced. Measured: 14 superseded CodeQL runs wasted 629.4 paid minutes in the
+# 2026-11-14..18 sprint (ADR 0037).
+#
+# The fallback is `github.run_id` (unique per run) and the cancel is ALSO gated on the
+# event, which is belt and braces on the one thing that must not happen: a run on main is
+# the default-branch alert baseline the Security tab reads, and the weekly run is the only
+# thing that scans paths the filters above skip. Neither may ever be cancelled. A group
+# keyed on `github.ref` would put every push to main in one group and let one cancel
+# another — do not write it that way.
+concurrency:
+  group: codeql-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   analyze:
     name: Analyze (swift)
+    # macos-26 is a GitHub-hosted LARGER runner: billed per minute even on this public
+    # repository, and macOS larger runners are the most expensive minutes GitHub sells.
+    # It is here because the header above requires macOS 26 + Xcode 26 for traced Swift
+    # analysis, not because the job needs extra cores. Whether a free standard macOS 26
+    # label can serve that requirement is an open question for Ryan (ADR 0037) — it is a
+    # Settings question about this label, and getting it wrong reintroduces the tracer
+    # failure this header documents, so it is not changed here.
     runs-on: macos-26
+    # Observed 49.1 min on run 44260985492. The GitHub default is 360, on the dearest
+    # runner there is, and this job is a plausible hanger: its tracer injects into every
+    # spawned process and a build waiting on a dead plugin server produces no output and no
+    # exit. 75 is 1.5x the only measurement there is — raise it if a legitimate run ever
+    # comes close, rather than removing it.
+    timeout-minutes: 75
     permissions:
       contents: read
       # Required: this is how the analysis uploads its results to the Security
@@ -302,15 +374,49 @@ jobs:
       # configuration, exactly as ci.yml does. Signing is off because CI holds
       # no certificate.
       #
-      # BOTH flavours, into one database. CodeQL only sees what the traced build
-      # compiles, so an AppStore-only build leaves every `#if DIRECT_BUILD` line
-      # out of the database entirely — and that is exactly where CLAUDE.md puts
-      # the direct-build licence activation, and where Pickle's GitHub OAuth
-      # device flow will live. A gate blind to the riskiest code in the project
-      # is worse than no gate, because it reads as coverage. Consecutive traced
-      # commands collect into the same database, so this is two invocations, not
-      # two jobs.
-      - name: Build both flavours (unsigned — CI has no certificate)
+      # ONE flavour on a pull request, BOTH on main and on the weekly scan.
+      #
+      # CodeQL only sees what the traced build compiles, and this build is 41.3 of this
+      # job's 49.1 minutes (run 44260985492) — the single most expensive step in the
+      # repository. So on a pull request it builds Direct alone.
+      #
+      # Why Direct is the one to keep, measured against the tree rather than assumed:
+      # repo-wide there is exactly ONE `#if DIRECT_BUILD` site outside DEBUG guards,
+      # Sources/App/NetRelishApp.swift:42-52 (the LicenseRelay.configured switch, whose
+      # `#else` is the single line `return .live()`). project.yml and the xcconfigs set no
+      # EXCLUDED_SOURCE_FILE_NAMES and both schemes build the same target, so the two
+      # flavours compile the same file set. Sources/App/License.swift and
+      # Sources/App/TimestampService.swift — which hold every call in
+      # .github/codeql/approved-endpoints.txt — carry no `#if` at all and are in BOTH.
+      # Direct is therefore the superset: building it alone leaves one line out of the
+      # database, and that line contains no network API.
+      #
+      # WHAT A PULL REQUEST NO LONGER VERIFIES: code that is App-Store-exclusive (that
+      # `#else` branch) or that becomes DIRECT_BUILD-exclusive later — Sources/MasonJar and
+      # its GitHub OAuth device flow (1.2, ADR 0029), which does not exist yet — is analyzed
+      # on main and on the weekly scan rather than on each pull request. That is the trade
+      # ADR 0037 records. The day a second `#if DIRECT_BUILD` site lands, reconsider it; the
+      # both-flavours step below exists precisely so the gap closes at the merge.
+      #
+      # The gate is unaffected, and that was read out of scripts/codeql_gate.py rather than
+      # assumed: load_registry validates each listed line but never requires it to be
+      # matched, and `hide` only hides findings that actually appear, so a registry entry
+      # with no finding in a one-flavour database hides nothing and fails nothing.
+      - name: Build the Direct flavour (pull request — unsigned, CI has no certificate)
+        if: github.event_name == 'pull_request'
+        run: |
+          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (Direct)" \
+            -configuration Release-Direct -derivedDataPath .build/DerivedData \
+            -destination 'platform=macOS' MACOSX_DEPLOYMENT_TARGET=26.0 \
+            CODE_SIGNING_ALLOWED=NO -quiet build
+
+      # BOTH flavours, into one database, on main and on the weekly scan. A gate blind to
+      # the riskiest code in the project is worse than no gate, because it reads as
+      # coverage — so the full picture is never dropped, only moved off the per-push path.
+      # Consecutive traced commands collect into the same database, so this is two
+      # invocations, not two jobs.
+      - name: Build both flavours (main and schedule — unsigned, CI has no certificate)
+        if: github.event_name != 'pull_request'
         run: |
           xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish (App Store)" \
             -configuration Release-AppStore -derivedDataPath .build/DerivedData \

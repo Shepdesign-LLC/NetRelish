@@ -27,14 +27,29 @@ on:
         type: boolean
         default: false
 
+# One preview per pull request. A disk-image change is judged by looking at the picture and
+# nudging the layout, so a run in flight is superseded by the next push — and this one is on
+# a paid larger runner (about six minutes a run). The fallback is unique per run and the
+# cancel is gated on the event, so a workflow_dispatch is never cancelled; this workflow has
+# no push and no schedule trigger, so there is no run on main to protect. Same shape as
+# ci.yml and codeql.yml (ADR 0037).
+concurrency:
+  group: dmg-preview-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   DERIVED: .build/DerivedData
 
 jobs:
   preview:
     name: Disk image
-    # xcode-27 is the only image with the macOS 27 SDK.
+    # xcode-27 is the only image with the macOS 27 SDK. It is also a GitHub-hosted LARGER
+    # runner, billed per minute even on this public repository.
     runs-on: xcode-27
+    # The build and the image together take about six minutes; the default is 360, and the
+    # Finder step below can wait on a window that never appears. Fail at 25 instead of
+    # burning six hours of the dearest runner GitHub sells (ADR 0037).
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
         with:
@@ -57,7 +72,12 @@ jobs:
 
       - name: Open it in Finder and capture the window
         # A capture needs the runner to allow screen recording; the drawn preview above doesn't.
+        # continue-on-error turns a FAILURE into a missing finder.png, but it cannot bound a
+        # HANG: hdiutil attach and open both wait on Finder. Three minutes on a step that
+        # takes about thirty seconds, then give up the capture and still upload the image and
+        # the drawn preview — finder.png is already optional, so nothing verified is lost.
         continue-on-error: true
+        timeout-minutes: 3
         run: |
           hdiutil attach "$RUNNER_TEMP/out/NetRelish-preview.dmg"
           open /Volumes/NetRelish
