@@ -116,42 +116,41 @@ import Testing
         #expect(bench.stripTabs.map(\.id) == expected)
         #expect(bench.isHeldBySeal(run.tab))
         #expect(!bench.isHeldBySeal(bench.tabs[0]))
-        // The strip and the field keep the sealed tab in front until its chip leaves, while
-        // the real active tab has already moved on.
-        #expect(bench.sealHeldFrontTab?.id == tab.id)
-        #expect(bench.activeTab?.id != tab.id)
+        // Only the animation chip is retained; selection and origin follow the live page.
+        #expect(bench.benchTab?.id == bench.activeTab?.id)
+        #expect(bench.benchTab?.id != tab.id)
+        let row = SearchRow(workbench: bench, web: nil)
+        #expect(row.pageAddress == bench.benchTab?.url)
 
         bench.releaseSealedTab(run.id)
         #expect(!bench.stripTabs.contains { $0.id == tab.id })
         #expect(bench.stripTabs == bench.tabs)
         #expect(!bench.isHeldBySeal(run.tab))
-        #expect(bench.sealHeldFrontTab == nil)
 
         bench.sealPresentationEnded(run.id)
         #expect(bench.sealPhase == .idle)
         #expect(bench.sealPhase.isIdle)
     }
 
-    @Test("Choosing where to go hands the front back at once; the strip still draws the sealed tab")
-    func explicitNavigationReleasesFront() async throws {
+    @Test("Choosing where to go keeps live selection while the strip still draws the sealed tab")
+    func explicitNavigationKeepsLiveFront() async throws {
         let bench = try bench()
         let other = try openTab("https://example.com/other", title: "Other", in: bench)
         let tab = try openTab("https://example.com/invoice", title: "Invoice terms", in: bench)
         bench.sealProvider = { _ in Self.page() }
         #expect(await bench.sealActiveTab())
-        #expect(bench.sealHeldFrontTab?.id == tab.id)       // Seal's own successor: still held
+        #expect(bench.benchTab?.id == other.id)            // successor is already in front
 
         bench.activateTab(other)
-        #expect(bench.sealHeldFrontTab == nil)              // picked a tab: it is in front now
+        #expect(bench.benchTab?.id == other.id)
         #expect(bench.stripTabs.contains { $0.id == tab.id })   // the chip hasn't left yet
 
         // ⌘T after a second Seal: the new tab is in front, with its own (empty) address.
         let next = try openTab("https://example.com/next", title: "Next", in: bench)
         bench.activateTab(next)
         #expect(await bench.sealActiveTab())
-        #expect(bench.sealHeldFrontTab?.id == next.id)
+        #expect(bench.benchTab?.id == other.id)
         let blank = try #require(bench.newTab())
-        #expect(bench.sealHeldFrontTab == nil)
         #expect(bench.activeTab?.id == blank.id)
     }
 
@@ -174,8 +173,72 @@ import Testing
 
         #expect(!bench.tabs.contains { $0.id == tab.id })   // Seal still closed it (non-negotiable 3)
         #expect(bench.stripTabs.contains { $0.id == tab.id })   // its picture until the chip leaves
-        #expect(bench.sealHeldFrontTab == nil)              // but the front stays where you put it
+        #expect(bench.benchTab?.id == other.id)              // front stays where you put it
         #expect(bench.activeTab?.id == other.id)
+    }
+
+    @Test("Sealing a trusted child shows the opener's origin before the animation releases",
+          arguments: ["http://attacker.invalid/", "https://attacker.invalid/"])
+    func sealingChildShowsOpenerOrigin(_ openerURL: String) async throws {
+        let bench = try bench()
+        try openTab("https://unrelated.invalid/", title: "First tab", in: bench)
+        let opener = try openTab(openerURL, title: "Opener", in: bench)
+        let jarId = try #require(bench.activeJar?.id)
+        let child = try #require(bench.newTab(in: jarId, openedBy: opener.id))
+        bench.tabDidNavigate(child.id, url: URL(string: "https://trusted.invalid/account"), title: "Trusted")
+        let row = SearchRow(workbench: bench, web: nil)
+        #expect(row.pageAddress == "https://trusted.invalid/account")
+        bench.sealProvider = { _ in Self.page() }
+
+        #expect(await bench.sealActiveTab())
+        let run = try #require(bench.sealPhase.run)
+        // Do not release the chip: this is the vulnerable interval, not the final state.
+        #expect(bench.isHeldBySeal(child))
+        #expect(bench.stripTabs.contains { $0.id == child.id })
+        #expect(bench.benchTab?.id == opener.id)
+        #expect(row.pageAddress == openerURL)
+        #expect(row.pageURL == URL(string: openerURL))  // also drives the HTTPS-only lock
+
+        // Navigation in the live opener must not be masked by the retained child's URL.
+        let navigated = "http://attacker.invalid/sign-in"
+        bench.tabDidNavigate(opener.id, url: URL(string: navigated), title: "Sign in")
+        #expect(row.pageAddress == navigated)
+        #expect(row.pageURL?.scheme == "http")
+        bench.releaseSealedTab(run.id)
+        #expect(row.pageAddress == navigated)
+    }
+
+    @Test("Origin chrome prefers the live web view's URL over a tab's remembered URL")
+    func liveURLWins() async throws {
+        let bench = try bench()
+        let tab = try openTab("https://trusted.invalid/old", title: "Old", in: bench)
+        let web = JarWebView(jarId: try #require(tab.jarId))
+        let liveURL = try #require(URL(string: "http://attacker.invalid/current"))
+        // In-memory content only: no server or external request is needed for this check.
+        web.webView.loadHTMLString("<html><body>Current page</body></html>", baseURL: liveURL)
+        for _ in 0..<100 where web.url != liveURL {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(web.url == liveURL)
+        let row = SearchRow(workbench: bench, web: web)
+        #expect(row.pageURL == liveURL)
+        #expect(row.pageAddress == liveURL.absoluteString)
+    }
+
+    @Test("Sealing clears origin chrome with no page or a blank successor while the chip is retained",
+          arguments: [false, true])
+    func sealingClearsOrigin(blankSuccessor: Bool) async throws {
+        let bench = try bench()
+        if blankSuccessor { _ = try #require(bench.newTab()) }
+        let tab = try openTab("https://trusted.invalid/", title: "Trusted", in: bench)
+        let row = SearchRow(workbench: bench, web: nil)
+        bench.sealProvider = { _ in Self.page() }
+
+        #expect(await bench.sealActiveTab())
+        #expect(bench.isHeldBySeal(tab))
+        #expect(bench.benchTab?.url == nil)
+        #expect(row.pageAddress.isEmpty)
+        #expect(row.pageURL == nil)
     }
 
     @Test("Ending the presentation lets go of the tab and goes back to idle in one step")
