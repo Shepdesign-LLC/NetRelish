@@ -9,6 +9,7 @@ sources:
   - code: Config/Base.xcconfig
   - code: Sources/App/License.swift
   - code: Sources/App/NetRelishApp.swift
+  - code: CHANGELOG.md
 verified_at: 2c4c510
 ---
 
@@ -66,6 +67,19 @@ switch.
 > ⚠️ **A green run is not a shippable release.** `docs/RELEASING.md` records two green runs
 > that produced something wrong. Open the published release and check its name, its notes
 > and that the disk image and its checksum are both attached.
+
+> ⚠️ **`CHANGELOG.md` is cut at the tag, not at the notes.** What a release contains is
+> every commit up to its tag: list them from the previous tag to `main` before writing the
+> next section. The first changelog left #78 to #90 under Unreleased although `v0.5.0`
+> already contained them, because the 0.5.0 notes named only its headline features.
+
+> ⚠️ **A job that fails in seconds with no runner and no log never ran.** It says nothing
+> about the commit. Every workflow failed that way on 2026-11-18, on every runner image at
+> once, while `main` had passed on the same commit that morning. GitHub's reason is in the
+> failed job's annotations, and only there: "The job was not started because your account
+> is locked due to a billing issue." The job log is empty and the GitHub phone app doesn't
+> show annotations; the run's page on the web does, under Annotations. Don't start a
+> release, or read a pull request's checks, until one job has actually been given a runner.
 
 ## What this page does not cover
 

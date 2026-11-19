@@ -4,28 +4,20 @@ Notable changes to NetRelish. Release notes for each preview are in `docs/releas
 
 ## Unreleased
 
-### Added
-- The workbench facelift: attached tabs, the Shelf as a rail of jars, a two-phase Seal, the floating ⌘K (ADR 0035).
-- The Workstation v5 window (#95).
-- The Zest tools inside NetRelish.app, offline, under Window › Zest (#93, ADR 0033).
-- The Direct build's license key (#88, ADR 0027).
-- Right-click and drag, the Mason Jar, and a seal that shows when it's broken (#89).
-- Sandbox and privacy review (#91, ADR 0032).
-- ZestMail canvas at full size and 1:1 on phones; ZestImage stage fits the window; the eight Zest cards redesigned (#92).
-- Simpler Zest tools, with sound (#89).
+Nothing yet.
 
-### Changed
-- 0.5.0 notes, and a preview that leaves Pro unlocked (#90).
-- The CodeQL gate decides what code scanning sees; approved endpoints aren't alerts (#86).
+## 0.6.0 — 2026-11-18
+
+### Added
+- The workbench facelift: attached tabs, the Shelf as a rail of jars, a two-phase Seal, the floating ⌘K (#102, ADR 0035).
+- The Workstation v5 window, with a board for each jar (#95, ADR 0034).
+- The Zest tools inside NetRelish.app, offline, under Window › Zest (#93, ADR 0033).
+- Sandbox and privacy review: privacy manifests, Help › Privacy Policy, camera and microphone refused, a reason for the local network prompt (#91, ADR 0032).
+- ZestMail canvas at full size and 1:1 on phones; ZestImage stage fits the window; the eight Zest cards redesigned (#92).
 
 ### Fixed
 - Image: malformed SVG brand logos no longer freeze the app (#99).
 - Mail: merge-tag scanning, image-placeholder scans and image-like comments no longer hang the native preview (#96, #97, #98).
-- Security: Fill from Me no longer discloses through clipping, mixed direction, or unsupported writing-mode geometry (#84, #85).
-- Security: Zest tools check what they're given; the pipeline pins what it runs (#82).
-- Security: code scanning alerts closed; timestamps that check out; Fill from Me only where you can see (#81, #83).
-- Repaired the CodeQL gate and Fill from Me script after the #83 merge (#87).
-- CI: release notes come from git objects, and write access is limited to publish jobs (#78).
 
 ## 0.5.0 — 2026-11-13
 
@@ -34,10 +26,22 @@ Notable changes to NetRelish. Release notes for each preview are in `docs/releas
 - Reseal & diff (Pro): seal a page again and compare the two copies side by side (#74).
 - Provenance (Pro): fingerprint, RFC 3161 timestamp, and Export Proof (#75).
 - Buying Pro with StoreKit 2 (#76).
+- The Direct build's license key (#88, ADR 0027).
+- Right-click and drag, the Mason Jar, and a seal that shows when it's broken (#89).
+- Simpler Zest tools, with sound (#89).
 
 ### Changed
 - ROADMAP.md describes the native plan (#73).
 - Swift CodeQL runs on supported Xcode 26 (#71).
+- 0.5.0 notes, and a preview that leaves Pro unlocked (#90, ADR 0031).
+- The CodeQL gate decides what code scanning sees; approved endpoints aren't alerts (#86).
+
+### Fixed
+- Security: Fill from Me no longer discloses through clipping, mixed direction, or unsupported writing-mode geometry (#84, #85).
+- Security: Zest tools check what they're given; the pipeline pins what it runs (#82).
+- Security: code scanning alerts closed; timestamps that check out; Fill from Me only where you can see (#81, #83).
+- Repaired the CodeQL gate and Fill from Me script after the #83 merge (#87).
+- CI: release notes come from git objects, and write access is limited to publish jobs (#78).
 
 ## 0.4.2 — 2026-11-02
 
