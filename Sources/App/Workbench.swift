@@ -74,6 +74,15 @@ enum SealPhase: Equatable {
 /// two landings in the same jar two events.
 struct JarFillEvent: Equatable { let jarId: String; let serial: Int }
 
+/// A result line as VoiceOver should hear it: the words the address field shows, how urgently
+/// they're said, and a serial, so the same line twice in a row (two captures) is two events.
+/// The address row speaks it, in the key window only; the Workbench only says what it is.
+struct StatusLine: Equatable {
+    let text: String
+    let priority: NSAccessibilityPriorityLevel
+    let serial: Int
+}
+
 /// The Shelf's smart jars, ⌃⌘1–4. None is a row: each is a query that fills itself, and
 /// nothing is ever moved into one (non-negotiable 2: Brine is a query, not a place).
 enum SmartJar: String, CaseIterable, Identifiable {
@@ -172,6 +181,18 @@ final class Workbench {
     var formFiller: ((Tab, Identity) async throws -> Int)?
     /// One line in the address bar for a couple of seconds after ⌘⇧F.
     private(set) var fillStatus: String?
+    /// The last result line, for VoiceOver: the same words as `fillStatus`, with how urgently
+    /// to say them. It never clears; a new line is a new value.
+    private(set) var statusLine: StatusLine?
+    @ObservationIgnored private var statusSerial = 0
+    /// Speaks a line that isn't shown anywhere: Seal starting, a tab sinking. Tests replace it
+    /// to hear what was said. With no window, or VoiceOver off, the real one does nothing; with
+    /// NetRelish in the background it says nothing either, as the status lines don't: a tab
+    /// sinking (the Brine pill counts it) or a Shortcut's Seal is not news while you're in Mail.
+    @ObservationIgnored var announcer: @MainActor (String, NSAccessibilityPriorityLevel) -> Void = { text, priority in
+        guard NSApp?.isActive == true else { return }
+        NRAnnounce.post(text, priority: priority)
+    }
     /// ⌘⇧F with an empty card opens onboarding instead of filling.
     var showMeOnboarding = false
 
@@ -517,10 +538,12 @@ final class Workbench {
             }
             guard !received.isEmpty else { return }
             refreshSmartJars()
-            report(received.count == 1 ? "Shared into Brine" : "\(received.count) pages shared into Brine")
+            // It arrives on a poll, not from a key just pressed, so it waits its turn.
+            report(received.count == 1 ? "Shared into Brine" : "\(received.count) pages shared into Brine",
+                   priority: .medium)
         } catch {
             log.error("share: \(errorKind(error), privacy: .public) \(String(describing: error), privacy: .private)")
-            report("Couldn’t take in a shared page. It will be tried again.")
+            report("Couldn’t take in a shared page. It will be tried again.", priority: .medium)
         }
     }
 
@@ -548,12 +571,21 @@ final class Workbench {
         }
     }
 
-    private func report(_ text: String) {
+    /// Shows a result line in the address field for 2.5 seconds, and hands it to VoiceOver.
+    /// `.high` by default: almost every line answers something the person just did.
+    private func report(_ text: String, priority: NSAccessibilityPriorityLevel = .high) {
         fillStatus = text
+        statusSerial += 1
+        statusLine = StatusLine(text: text, priority: priority, serial: statusSerial)
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(2.5))
             if fillStatus == text { fillStatus = nil }
         }
+    }
+
+    /// Speaks a line nobody sees. `.medium`: it waits for what VoiceOver is saying.
+    private func announce(_ text: String, priority: NSAccessibilityPriorityLevel = .medium) {
+        announcer(text, priority)
     }
 
     // MARK: Loading and observing
@@ -1018,6 +1050,7 @@ final class Workbench {
         touchActiveTab()
         let now = Date()
         var sunk: [String] = []
+        var sankTitles: [String] = []
         do {
             let allTabs = try store.read { db in try Tab.fetchAll(db) }
             for var tab in allTabs where tab.id != activeTabId {
@@ -1025,12 +1058,25 @@ final class Workbench {
                 if let provider = interactionStateProvider { tab.interactionState = provider(tab) ?? tab.interactionState }
                 _ = try store.write { db in try tab.sink(db) }
                 sunk.append(tab.id)
+                sankTitles.append(tab.title ?? "")
             }
         } catch {
             assertionFailure("Workbench.sweep: \(error)")
         }
         if !sunk.isEmpty { onTabsGone?(sunk) }
         loadTabs()
+        // Nothing moves focus when a tab sinks; only the Brine pill's count changes. Said, not
+        // shown: the pill already shows it.
+        if let line = Self.sankLine(titles: sankTitles) { announce(line) }
+    }
+
+    /// What VoiceOver hears when tabs sink: the tab by name when it's one, else how many.
+    static func sankLine(titles: [String]) -> String? {
+        switch titles.count {
+        case 0: nil
+        case 1: titles[0].isEmpty ? "A tab sank into Brine" : "\(titles[0]) sank into Brine"
+        default: "\(titles.count) tabs sank into Brine"
+        }
     }
 
     /// When Brine was last open. Anything that landed in Brine after it is "fresh", and only
@@ -1093,6 +1139,9 @@ final class Workbench {
                           index: tabs.firstIndex { $0.id == tab.id } ?? tabs.count,
                           glyph: glyph(of: tab), startedAt: Date())
         sealPhase = .started(run)
+        // Phase A is motion only, and the motion is hidden from VoiceOver, so it's said. The
+        // result line interrupts it when the write returns. Presentation only (non-negotiable 3).
+        announce(Self.sealingLine)
 
         do {
             let (archive, extracted) = try await provider(tab)
@@ -1118,7 +1167,8 @@ final class Workbench {
                 // still fills.
                 fillJar(jarId)
             }
-            report("Sealed into \(jars.first { $0.id == jarId }?.name ?? "the jar")")
+            // Said at write return, never when the chip lands: Seal is done now.
+            report(Self.sealedLine(jarName: jars.first { $0.id == jarId }?.name))
             summarizeWaiting()
             stampWaiting()
             endSealLater(run)
@@ -1144,15 +1194,22 @@ final class Workbench {
         // A newer Seal owns the line: a retry that succeeds within phase A must not be
         // reported as this run's failure.
         guard wait > 0 else {
-            if run.id == sealSerial { report("Couldn’t seal this page") }
+            if run.id == sealSerial { report(Self.sealFailedLine) }
             return
         }
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(wait))
             guard let self, run.id == self.sealSerial else { return }
-            self.report("Couldn’t seal this page")
+            self.report(Self.sealFailedLine)
         }
     }
+
+    /// What VoiceOver hears as Seal starts.
+    static let sealingLine = "Sealing"
+    /// The line when Seal is done, shown and said: "Sealed into Meridian".
+    static func sealedLine(jarName: String?) -> String { "Sealed into \(jarName ?? "the jar")" }
+    /// The line when Seal wrote nothing, shown and said with phase B.
+    static let sealFailedLine = "Couldn’t seal this page"
 
     /// The safety net: whatever the overlay does (no window, an inactive window, Reduce
     /// Motion), a run lets go of its held tab and goes back to idle within 4 seconds.
@@ -1283,7 +1340,7 @@ final class Workbench {
                                jarId: target.id, source: source)
         }
         refreshSmartJars()
-        report("Sealed into \(target.name)")
+        report(Self.sealedLine(jarName: target.name))
         summarizeWaiting()
         stampWaiting()
         return item
@@ -1519,6 +1576,12 @@ final class Workbench {
     /// ⌘K. The palette is a sheet over the Bench; nothing else changes while it's open.
     var showPalette = false
 
+    /// ⌘L (Bench › Open Location…, the workstation spec's key): the key window's address field
+    /// takes the keyboard. A count, so asking twice is two asks. Once a page has the keyboard it
+    /// keeps Tab, so without this a keyboard or VoiceOver user has no way back to the field.
+    private(set) var addressFocusRequest = 0
+    func focusAddress() { addressFocusRequest += 1 }
+
     /// ⌘D. Puts the active tab's page in Brine as an Item. It does NOT seal — no webarchive,
     /// no `sealedAt` — that's P2. The generated `capture` titles the item with its URL, so the
     /// tab's real title is written over it here.
@@ -1537,12 +1600,15 @@ final class Workbench {
                 }
             }
             refreshSmartJars()
-            report("Captured into Brine")   // the ValueObservation refreshes Brine on its own
+            report(Self.capturedLine)   // the ValueObservation refreshes Brine on its own
         } catch {
             log.error("capture: \(errorKind(error), privacy: .public) \(String(describing: error), privacy: .private)")
             report("Couldn’t capture this page")
         }
     }
+
+    /// The line after ⌘D, shown and said.
+    static let capturedLine = "Captured into Brine"
 
     /// Full-text search over the Pantry. Failures return nothing rather than throwing into a view.
     func searchPantry(_ query: String) -> [Item] {

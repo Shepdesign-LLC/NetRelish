@@ -214,6 +214,24 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.shepdesign.netrelish.tests
         GENERATE_INFOPLIST_FILE: YES
 
+  # Capture → jar → Seal in the built app (CLAUDE.md: "UI tests for capture → jar → seal"),
+  # driven only through the accessibility tree, so it is also the proof that VoiceOver can
+  # walk the path (P5). It launches the Debug app with -NRUITestFixture (UITestFixture.swift):
+  # a throwaway Pantry, two jars and a page served inside the app, so it never touches your
+  # data or the network. Only in its own scheme, "NetRelish UI Tests": the Test job is unchanged.
+  NetRelishUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: Tests/NetRelishUITests
+    dependencies:
+      - target: NetRelish
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shepdesign.netrelish.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: NetRelish
+
   # Unhosted: the Pantry against an in-memory database.
   PantryTests:
     type: bundle.unit-test
@@ -266,3 +284,14 @@ schemes:
       config: Release-Direct
     archive:
       config: Release-Direct
+  # The UI test alone (CI's "UI tests" job). Debug-AppStore: the fixture it launches with is
+  # compiled into Debug builds only.
+  NetRelish UI Tests:
+    build:
+      targets:
+        NetRelish: all
+    run:
+      config: Debug-AppStore
+    test:
+      config: Debug-AppStore
+      targets: [NetRelishUITests]

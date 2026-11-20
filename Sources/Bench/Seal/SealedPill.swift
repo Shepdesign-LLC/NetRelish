@@ -11,6 +11,7 @@ struct NRSealedPill: View {
     var checkProgress: Double = 1
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
 
     private var height: CGFloat { size == .regular ? 28 : 22 }
     private var disc: CGFloat { size == .regular ? 16 : 14 }
@@ -42,10 +43,18 @@ struct NRSealedPill: View {
         .padding(.trailing, trailing)
         .frame(height: height)
         .background(Capsule().fill(NRColor.relish100))
-        .overlay(Capsule().strokeBorder(colorScheme == .dark ? NRColor.relish700 : NRColor.relish300,
+        // relish-300 on relish-100 is a faint edge; under Increase Contrast it takes the
+        // contrast step, relish-700, as dark mode already does. Still the pill (placement 4).
+        .overlay(Capsule().strokeBorder(Self.strongEdge(dark: colorScheme == .dark, contrast: contrast)
+                                            ? NRColor.relish700 : NRColor.relish300,
                                         lineWidth: NRSpace.hairline))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Sealed")
+    }
+
+    /// Whether the pill's edge is relish-700 rather than relish-300.
+    static func strongEdge(dark: Bool, contrast: ColorSchemeContrast) -> Bool {
+        dark || contrast == .increased
     }
 }
 
