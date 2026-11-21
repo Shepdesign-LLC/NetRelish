@@ -10,7 +10,7 @@ sources:
   - code: Sources/App/License.swift
   - code: Sources/App/NetRelishApp.swift
   - code: CHANGELOG.md
-verified_at: 0d45775
+verified_at: 6306c6e
 ---
 
 # Releasing a preview
