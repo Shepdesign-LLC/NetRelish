@@ -19,7 +19,7 @@ sources:
   - code: Sources/UI/FloatShadow.swift
   - code: Tests/NetRelishTests/ShellMeasureTests.swift
   - code: Tests/NetRelishTests/Seal/SealPhaseTests.swift
-verified_at: 766ec58
+verified_at: dff3fa4
 ---
 
 # Workbench shell
