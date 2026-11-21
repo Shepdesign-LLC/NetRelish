@@ -101,8 +101,12 @@ struct SearchRow: View {
     @Environment(\.colorSchemeContrast) private var contrast
 
     private var tab: Tab? { workbench.benchTab }
-    /// The sealed tab Seal still shows in front, until its chip leaves for the jar.
-    private var held: Tab? { workbench.sealHeldFrontTab }
+    /// Origin chrome always follows the live page, never Seal's retained animation chip.
+    var pageURL: URL? { web?.url ?? tab?.url.flatMap { URL(string: $0) } }
+    var pageAddress: String { web?.url?.absoluteString ?? tab?.url ?? "" }
+    /// Derive idle text during rendering so a tab switch cannot display the old origin
+    /// for a frame while waiting for an onChange callback. Only edits live in state.
+    private var displayedAddress: String { focused ? address : pageAddress }
 
     var body: some View {
         HStack(spacing: NRSpace.sp1) {
@@ -118,7 +122,9 @@ struct SearchRow: View {
             RowIconButton(systemName: "chevron.right", help: "Forward (⌘])", label: "Forward",
                           shortcut: KeyboardShortcut("]", modifiers: .command), id: "forward") { web?.goForward() }
                 .disabled(web?.canGoForward != true)
-            AddressField(workbench: workbench, web: web, address: $address, focused: $focused, go: go)
+            AddressField(workbench: workbench, web: web, pageURL: pageURL,
+                         address: Binding(get: { displayedAddress }, set: { address = $0 }),
+                         focused: $focused, go: go)
                 .padding(.leading, NRSpace.sp1)
                 .onExitCommand { leaveField() }
             sealSlot
@@ -135,17 +141,10 @@ struct SearchRow: View {
         // One stop for Tab and the arrow keys under Full Keyboard Access: the row, then the Bench.
         .focusSection()
         .background(NRColor.surface)
-        .overlay(alignment: .bottom) { Rectangle().fill(ShellInk.separator(contrast)).frame(height: NRSpace.hairline) }
-        // While Seal holds the sealed tab in front, the field keeps its address (the Sealed
-        // pill lands on it); the next tab's address shows once the chip has left.
-        .onChange(of: tab?.id, initial: true) { _, _ in
-            if held == nil { show(web?.url?.absoluteString ?? tab?.url ?? "") }
-        }
-        .onChange(of: held?.id) { _, _ in
-            if let held { address = held.url ?? "" } else { show(web?.url?.absoluteString ?? tab?.url ?? "") }
-        }
-        .onChange(of: web?.url) { _, new in
-            if !focused, held == nil { address = new?.absoluteString ?? tab?.url ?? "" }
+        .overlay(alignment: .bottom) { Rectangle().fill(NRColor.hairlineSoft).frame(height: NRSpace.hairline) }
+        .onChange(of: tab?.id, initial: true) { _, _ in show(pageAddress) }
+        .onChange(of: focused) { _, editing in
+            if editing { address = pageAddress }
         }
         // The status line is the only word on what ⌘D, ⌘S or ⌘⇧R did, and it's drawn for
         // 2.5s: VoiceOver says it too, at once, since it answers a key just pressed. The
@@ -232,6 +231,7 @@ struct SearchRow: View {
 private struct AddressField: View {
     @Bindable var workbench: Workbench
     let web: JarWebView?
+    let pageURL: URL?
     @Binding var address: String
     var focused: FocusState<Bool>.Binding
     let go: () -> Void
@@ -239,8 +239,6 @@ private struct AddressField: View {
     @Environment(\.colorSchemeContrast) private var contrast
 
     private var tab: Tab? { workbench.benchTab }
-    /// What the field shows: the sealed tab while Seal holds it in front, else the tab in front.
-    private var shownTab: Tab? { workbench.sealHeldFrontTab ?? tab }
     private var reading: Bool { workbench.isReading }
     private var sealFrozen: Bool {
         if case .frozen = workbench.sealPhase { return true }
@@ -249,7 +247,7 @@ private struct AddressField: View {
 
     /// The page's address, split for the idle field: its host, and everything after it.
     private var parts: (host: String, rest: String)? {
-        guard shownTab != nil, !focused.wrappedValue, let url = URL(string: address), let host = url.host,
+        guard tab != nil, !focused.wrappedValue, let url = URL(string: address), let host = url.host,
               let range = address.range(of: host) else { return nil }
         let rest = String(address[range.upperBound...])
         return (host, rest == "/" ? "" : rest)
@@ -289,7 +287,7 @@ private struct AddressField: View {
                 Text(status).font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2).lineLimit(1)
                     .transition(.opacity).accessibilityIdentifier("fill-status")
             }
-            if shownTab != nil {
+            if tab != nil {
                 HStack(spacing: 0) {
                     FieldButton(systemName: "tray.and.arrow.down", help: "Capture This Page (⌘D)",
                                 label: "Capture this page", id: "capture") { workbench.captureActivePage() }
@@ -334,22 +332,15 @@ private struct AddressField: View {
         return Text("\(head)\(tail)")
     }
 
-    /// The page in front's address: what it loaded, else what the tab remembers. While Seal
-    /// holds the sealed tab in front, that tab's.
-    private var pageURL: URL? {
-        if let held = workbench.sealHeldFrontTab { return held.url.flatMap { URL(string: $0) } }
-        return web?.url ?? tab?.url.flatMap { URL(string: $0) }
-    }
-
     /// The lock while a page is in front (relish-700, relish-500 in dark), else the magnifier.
     /// The lock means a secure connection, so a page that isn't on https wears a neutral globe.
     @ViewBuilder private var leadingGlyph: some View {
-        if shownTab != nil, pageURL?.scheme?.lowercased() == "https" {
+        if tab != nil, pageURL?.scheme?.lowercased() == "https" {
             Image(systemName: "lock.fill")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(colorScheme == .dark ? NRColor.relish500 : NRColor.relish700)
                 .accessibilityHidden(true)
-        } else if shownTab != nil {
+        } else if tab != nil {
             Image(systemName: "globe")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(NRColor.fg3)
