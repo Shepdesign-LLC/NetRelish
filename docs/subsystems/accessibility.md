@@ -2,7 +2,7 @@
 title: Accessibility — what VoiceOver hears, and what works without a mouse
 type: subsystem
 created: 2026-11-18
-updated: 2026-11-18
+updated: 2026-11-21
 sources:
   - code: Sources/UI/Accessibility.swift
   - code: Sources/UI/Components.swift
@@ -138,3 +138,21 @@ only, which is why it is also the VoiceOver proof. It runs under its own scheme,
 > ⚠️ **XCUITest cannot fire a named VoiceOver action** — there is no public macOS API. The
 > test right-clicks the row and picks the same-named menu item, which is why each VoiceOver
 > action has a menu item with the same words. Rename one and rename both.
+
+> ⚠️ **Every launch argument must be a `-key value` pair.** macOS pairs each `-key` with the
+> next token on the command line, so a bare flag swallows whatever follows it. `-NRUITestFixture`
+> on its own took `-ApplePersistenceIgnoreState` as its value and left `YES` dangling, so state
+> restoration stayed **on** and the second test method inherited the first one's scene. The
+> fixture still switched on, because `UITestFixture.isOn` reads
+> `ProcessInfo.arguments.contains` (`Sources/App/UITestFixture.swift:19`) and never looks at the
+> value — which is exactly why the mistake is invisible until something else needs a default.
+
+> ⚠️ **The CI Mac starts the app with no window at all**, and that is not the app's doing. On
+> the `xcode-27` virtual Mac the app reaches `runningForeground`, builds its whole menu bar, and
+> has zero windows: `File › New NetRelish Window` is enabled while `Close` and `Bring All to
+> Front` are disabled, so the scene can make a window and none was ever made. Nothing in
+> `Sources/` withholds it and the app logs nothing, so the cause is still unexplained. The test
+> asks for a window through that menu item before it fails
+> (`CaptureJarSealUITests.openWindowFromTheMenuBar`) — a route VoiceOver reaches too. If this
+> ever needs chasing further, the app has to log its window count at launch: today it prints
+> nothing, which is the ceiling of what the CI log can tell you.

@@ -107,8 +107,14 @@ final class CaptureJarSealUITests: XCTestCase {
     @MainActor
     private func launch() -> XCUIApplication {
         let app = XCUIApplication()
+        // Every flag is a `-key value` pair. macOS pairs each `-key` with the NEXT token on the
+        // command line, so a bare flag swallows whatever follows it: `-NRUITestFixture` on its own
+        // took `-ApplePersistenceIgnoreState` as its value, which left `YES` dangling and state
+        // restoration switched ON — so the second test inherited the first one's empty scene.
+        // `UITestFixture.isOn` asks `ProcessInfo.arguments.contains`, so the value here is never
+        // read; it exists only to keep the pairing honest.
         app.launchArguments = [
-            "-NRUITestFixture",
+            "-NRUITestFixture", "YES",
             "-ApplePersistenceIgnoreState", "YES",   // no windows restored from a last run
             "-panel.visible", "NO",                  // the Panel closed, whatever this Mac remembers
         ]
@@ -117,14 +123,21 @@ final class CaptureJarSealUITests: XCTestCase {
         // inactive app is not always in the accessibility tree on a headless CI Mac.
         app.activate()
         if !app.windows.firstMatch.waitForExistence(timeout: Self.timeout) {
-            // Both methods failed here on the first run, and "The main window didn't open" alone
-            // cannot say why: the app may have crashed in the fixture, or opened a window the
-            // query does not match, or never come to the front. `debugDescription` is the whole
-            // tree as XCUITest sees it, and `state` separates "not running" from "no window".
-            // The .xcresult holds this too, but reading it needs Xcode, which the session that
-            // writes this test does not have.
+            // On the CI Mac the app comes up with its whole menu bar and no window at all. The
+            // Jars menu lists the fixture's own jars, so the fixture ran to the end; File › New
+            // NetRelish Window is enabled while Close and Bring All to Front are not, so the
+            // scene can make a window and none was ever made. WHY macOS opens no initial window
+            // for a WindowGroup on that virtual Mac is still unexplained — the app logs nothing
+            // and nothing in Sources/ withholds it. So ask for one through the menu, a route
+            // VoiceOver has too, rather than leave the whole path unproven.
+            openWindowFromTheMenuBar(in: app)
+        }
+        if !app.windows.firstMatch.waitForExistence(timeout: Self.timeout) {
+            // Still nothing. "The main window didn't open" alone cannot say why, and the .xcresult
+            // that holds the detail needs Xcode to read. `debugDescription` is the whole tree as
+            // XCUITest sees it, and `state` separates "not running" from "running, no window".
             XCTFail("""
-                The main window didn't open.
+                The main window didn't open, and File › New NetRelish Window didn't make one.
                 app.state = \(app.state.rawValue) (1 notRunning, 2 runningBackground, \
                 3 runningBackgroundSuspended, 4 runningForeground)
                 windows.count = \(app.windows.count), dialogs = \(app.dialogs.count), \
@@ -141,6 +154,20 @@ final class CaptureJarSealUITests: XCTestCase {
             XCTAssertTrue(tile.waitForExistence(timeout: Self.timeout), "\(jar) isn't on the Shelf")
         }
         return app
+    }
+
+    /// Asks for the main window through File › New NetRelish Window, for the CI Mac that starts
+    /// the app without one. It is the same menu item a person reaches with Ctrl-F2 or VO-M, so a
+    /// window opened this way is the window the rest of the walkthrough would have had. Quiet on
+    /// failure: the caller's XCTFail prints the tree, which says far more than an error here.
+    @MainActor
+    private func openWindowFromTheMenuBar(in app: XCUIApplication) {
+        let file = app.menuBars.menuBarItems["File"]
+        guard file.waitForExistence(timeout: Self.timeout) else { return }
+        file.click()
+        let newWindow = file.menuItems["New NetRelish Window"]
+        guard newWindow.waitForExistence(timeout: Self.timeout) else { return }
+        newWindow.click()
     }
 
     /// Step 0 and 1: ⌘L (Bench › Open Location…) gives the address field the keyboard; the
