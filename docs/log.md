@@ -213,3 +213,29 @@ Append-only. Newest entries at the bottom.
   A trap: a new target or scheme in `project.yml` is as stale-making as a new Swift file,
   because the committed project holds `xcshareddata/xcschemes/`
 - workbench-shell: unchanged. Its hover-at-opacity-0 trap is linked, not copied
+## [2026-11-21] sync after 0.6.0: citations, the held tab, CI's seventh job
+
+Run after the v0.6.0 release. Code had moved under eight pages since each was last checked
+(#102, #103, #104, #107, #109).
+
+- Citations: about 65 `file:line` references pointed at the wrong line and were re-pointed, most of
+  them in `Sources/App/Workbench.swift`, which had gained about 60 lines. Checked by reading
+  the line each one names against the symbol the sentence is about
+- workbench-shell: the Seal trap named `sealHeldFrontTab`, which #107 removed. Rewritten, and
+  a trap added for what replaced it: the held picture is an animation anchor only, and the
+  address row, the lock and the selection follow `benchTab` (manifest v2.1.1)
+- accessibility: the held-tab trap says the same in a sentence and links there
+- building-without-a-mac: CI runs seven things, not six. A trap: `ui-tests` has no
+  `needs:`/`if:` pair, so a docs-only pull request still takes an `xcode-27` runner for it
+- zest-sound: two traps were wrong. The suites allow no outside host now (fonts and
+  libraries are vendored), and the kit does ship in the Mac app since ADR 0033
+- zest-window: the two menu routes the accessibility pass added stand down with the rest.
+  Its `verified_at` named a commit that isn't in the repository; it names one that is now
+- releasing-a-preview: where the run says Pro is unlocked, and a trap from this release:
+  notes and a changelog date written three days early were wrong by the day of the tag
+- privacy-and-sandbox: the fixture's Debug-only `UserDefaults` suite, noted as not shipped
+- rearranging: citations only
+- Not done: no new pages. The commit hook asks for one covering
+  `Tests/NetRelishTests/Accessibility/UITestFixtureAccessibilityTests.swift`; [[accessibility]]
+  already describes that test in its fixture trap, so it is added there as a source
+
