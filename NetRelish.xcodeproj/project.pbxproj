@@ -124,6 +124,7 @@
 		AB9FE10A2C7C77E5EEE4C434 /* SymbolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34870FC9D22FF5C528700017 /* SymbolTests.swift */; };
 		AE05AC6D41B613EA071F3D95 /* SealOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3559DF396DC16FF86C8EA699 /* SealOverlay.swift */; };
 		AEE588F86FB7512B9B7492A9 /* TimestampServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C64360B73779E959B78BA7C5 /* TimestampServiceTests.swift */; };
+		B0DDA5C2A37C966A98DBB261 /* WelcomeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BCAA6742E5FFFF207C6B7D7 /* WelcomeSheet.swift */; };
 		B3FE19280519DD9B29CA9656 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 28AB2610A93441AD621D517F /* GRDB */; };
 		B43BD75E5BC2320A244E6B3E /* BoardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32D709FCE1FF7FE55E762048 /* BoardTests.swift */; };
 		B7937210B0A8B9FBEDE20E52 /* UITestFixtureAccessibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C474B4564A1A6668CA2B339F /* UITestFixtureAccessibilityTests.swift */; };
@@ -154,6 +155,7 @@
 		D7C610F19C06EA2B34D7CBA1 /* DesignKitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B72B425EB474AE8FD25283C /* DesignKitView.swift */; };
 		D7D65C41E37B8F01A300D15B /* Recipe.swift in Sources */ = {isa = PBXBuildFile; fileRef = A17F82A86D0AE3E64EE396B1 /* Recipe.swift */; };
 		DA4C9E69AD11803E35D3B231 /* ZestWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2301D04CBD573E11B6B1C1B1 /* ZestWindow.swift */; };
+		DF3E4A984D2F91A618FAD3B8 /* WelcomeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D1343295DBA333D992F4BA8 /* WelcomeTests.swift */; };
 		DF5AE705B24A50299541ABC3 /* BrineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E5F151CB304C2E1710BDAFF /* BrineView.swift */; };
 		DF6ADC4BFB101F5FC27CF09C /* TokenSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98236E4D7EDD3E89F974042 /* TokenSections.swift */; };
 		DF7A46767854071B046DF46F /* SearchIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB9DBDAEEDD75CD2D0C73003 /* SearchIntent.swift */; };
@@ -345,6 +347,7 @@
 		88A8EC903EBD79104D542C82 /* ShelfLifeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelfLifeTests.swift; sourceTree = "<group>"; };
 		8C8701B85E904123842490DA /* FormFillTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormFillTests.swift; sourceTree = "<group>"; };
 		8C8DF881C400CE48467D0C06 /* V2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2.swift; sourceTree = "<group>"; };
+		8D1343295DBA333D992F4BA8 /* WelcomeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeTests.swift; sourceTree = "<group>"; };
 		8D4846DF6A6AA4A525FF4577 /* Pro.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pro.swift; sourceTree = "<group>"; };
 		8E5F151CB304C2E1710BDAFF /* BrineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrineView.swift; sourceTree = "<group>"; };
 		8EE83596F73D04918B8FBF71 /* NetRelishIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetRelishIntents.swift; sourceTree = "<group>"; };
@@ -360,6 +363,7 @@
 		993CF81100D71BB382CD6AF1 /* Item.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
 		9B173B989F184CCD637BA4DD /* JarBoard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JarBoard.swift; sourceTree = "<group>"; };
 		9BA168573E80003B6999EE2C /* Recipe+Behavior.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Recipe+Behavior.swift"; sourceTree = "<group>"; };
+		9BCAA6742E5FFFF207C6B7D7 /* WelcomeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeSheet.swift; sourceTree = "<group>"; };
 		9D9D4F8D3B930BF6EAF57A8F /* AppIntents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
 		A130C5963BC93A276FC51237 /* ShortcutError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutError.swift; sourceTree = "<group>"; };
 		A17F82A86D0AE3E64EE396B1 /* Recipe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recipe.swift; sourceTree = "<group>"; };
@@ -576,6 +580,7 @@
 				FAF07F687B2C9E31A28B76F7 /* TabStripLayoutTests.swift */,
 				6C5376395DE69F85C624CDC9 /* TokenTests.swift */,
 				953B97315E6F69B886F253AD /* WebViewTitleTests.swift */,
+				8D1343295DBA333D992F4BA8 /* WelcomeTests.swift */,
 			);
 			path = NetRelishTests;
 			sourceTree = "<group>";
@@ -832,6 +837,7 @@
 				61AF8E337E86152704CA518D /* ShortcutsIntents.swift */,
 				FEEC4CF61D3952AB4C374DBC /* TimestampService.swift */,
 				14FA9284A1D2567F972098B1 /* UITestFixture.swift */,
+				9BCAA6742E5FFFF207C6B7D7 /* WelcomeSheet.swift */,
 				1945281CFAD12D88F79278C7 /* Workbench.swift */,
 			);
 			path = App;
@@ -1208,6 +1214,7 @@
 				B7937210B0A8B9FBEDE20E52 /* UITestFixtureAccessibilityTests.swift in Sources */,
 				D1D77CDC285C08CD6FC1CDC6 /* VaultStoreTests.swift in Sources */,
 				7E5E44B7C50F88A69AA2B191 /* WebViewTitleTests.swift in Sources */,
+				DF3E4A984D2F91A618FAD3B8 /* WelcomeTests.swift in Sources */,
 				362CC087D04DE7890139488A /* ZestFilesTests.swift in Sources */,
 				156769DAB89CA2CEEC5F3F7D /* ZestHostTests.swift in Sources */,
 			);
@@ -1268,6 +1275,7 @@
 				F39B744687DEE5D64E5B4FBB /* UITestFixture.swift in Sources */,
 				1AA0272D59E073AAB9154DF5 /* VaultStore.swift in Sources */,
 				A91B7E331C81CC4162052AA0 /* WebView.swift in Sources */,
+				B0DDA5C2A37C966A98DBB261 /* WelcomeSheet.swift in Sources */,
 				180E562059CF0F2AF0D84190 /* WindowChrome.swift in Sources */,
 				C0289B2F4C89841CDA57E227 /* Workbench.swift in Sources */,
 				CA68E4A4AE6F4A0688678199 /* ZestFiles.swift in Sources */,
