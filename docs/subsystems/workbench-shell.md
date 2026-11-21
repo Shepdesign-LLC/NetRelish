@@ -2,7 +2,7 @@
 title: Workbench shell — the window's chrome, the Shelf's tiles, Seal's overlay and the jar fill
 type: subsystem
 created: 2026-11-18
-updated: 2026-11-18
+updated: 2026-11-21
 sources:
   - code: Sources/App/NetRelishApp.swift
   - code: Sources/App/Workbench.swift
@@ -119,3 +119,18 @@ has already happened when it starts B. The overlay only paces the picture, then 
 > ⚠️ **A view at opacity 0 leaves the accessibility tree.** A smart-jar row's Restore or Open
 > button fades in on hover, so the row carries the action itself (`SmartJarRowView`,
 > `Sources/Bench/BrineView.swift:219`). Any hover-only control needs the same.
+
+> ⚠️ **Work a chip's arguments out before the view builder, never inside it.** The tab strip's
+> `ScrollViewReader` is deep — reader, scroll view, `HStack`, `ForEach`, the chip and its
+> modifiers — and when the per-chip width test and state lookups sat inside the `ForEach` as
+> well, the Swift type-checker ran out of time on the whole thing: `Release-Direct` and the
+> UI-test build both failed with *"unable to type-check this expression in reasonable time"* at
+> `TabStrip.swift`, and blamed symbols in **three other files** that were perfectly fine
+> (`held`, `shownTab`, `order` all exist). It had passed on the commit before, so it sat right
+> on the limit and tipped over with the machine's mood. `ChipPlan`
+> (`Sources/Bench/TabStrip.swift:57`) settles each chip's part as plain code first. Add an
+> inline ternary or set lookup back into that `ForEach` and you are spending the margin again.
+>
+> The shape of that failure is worth knowing on its own: a type-check timeout reports as
+> *"cannot find X in scope"* in files you never touched. Check whether the symbol exists before
+> believing it.

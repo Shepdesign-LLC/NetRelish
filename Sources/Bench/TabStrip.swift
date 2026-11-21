@@ -54,6 +54,22 @@ private struct ClipEdges: Equatable {
     var trailing = false
 }
 
+/// One chip's part in the strip, settled before the view builder sees it: which tab, how wide,
+/// whether it is the one in front, and whether it grows in. Its `id` is the tab's, so `ForEach`
+/// keeps matching chips to tabs across a reorder exactly as it did when it read `tab.id`.
+///
+/// It exists for the compiler, not the design. Worked out inline, the width's `index <` test and
+/// the two state lookups were part of one expression spanning the whole `ScrollViewReader`, and
+/// the type-checker ran out of time on it. See `TabStrip.strip(for:)`.
+private struct ChipPlan: Identifiable {
+    let tab: Tab
+    let width: CGFloat
+    let isFront: Bool
+    let growIn: Bool
+
+    var id: String { tab.id }
+}
+
 // MARK: - The strip
 
 /// The tab strip, in the title strip, over the Bench column. It shows the jar's open tabs
@@ -116,16 +132,26 @@ struct TabStrip: View {
         let gaps = CGFloat(max(0, tabs.count - 1)) * NRShell.tabGap
         let content = Self.leadingInset + widths.reduce(0, +) + gaps + Self.trailingInset
         let canGrow = seenJarId == jar.id && !reduceMotion
+        // Each chip's part is worked out here, as plain code, and the two `value:`s below are
+        // read once. Inline they were all part of a single expression the type-checker could not
+        // finish: Release-Direct and the UI-test build both stopped at this ScrollViewReader with
+        // "unable to type-check this expression in reasonable time", and reported the symbols it
+        // gave up on as missing from three other files. Nothing here changes what is drawn.
+        let plans = tabs.enumerated().map { index, tab in
+            ChipPlan(tab: tab,
+                     width: index < widths.count ? widths[index] : NRShell.tabMinW,
+                     isFront: tab.id == frontId,
+                     growIn: canGrow && !seenTabIds.contains(tab.id))
+        }
+        let tabIds = tabs.map(\.id)
 
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: NRShell.tabGap) {
-                    ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
-                        chip(for: tab, in: jar, order: order,
-                             width: index < widths.count ? widths[index] : NRShell.tabMinW,
-                             isFront: tab.id == frontId,
-                             growIn: canGrow && !seenTabIds.contains(tab.id))
-                            .id(tab.id)
+                    ForEach(plans) { plan in
+                        chip(for: plan.tab, in: jar, order: order, width: plan.width,
+                             isFront: plan.isFront, growIn: plan.growIn)
+                            .id(plan.id)
                             .transition(AnyTransition.opacity.animation(NRMotion.animation(duration: 0.16)))
                     }
                 }
@@ -133,7 +159,7 @@ struct TabStrip: View {
                 .padding(.leading, Self.leadingInset)
                 .padding(.trailing, Self.trailingInset)
                 .frame(height: NRShell.titleH, alignment: .top)
-                .animation(motion, value: tabs.map(\.id))
+                .animation(motion, value: tabIds)
                 .animation(motion, value: frontId)
             }
             .onScrollGeometryChange(for: ClipEdges.self) { geo in
