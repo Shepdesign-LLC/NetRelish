@@ -127,9 +127,13 @@ has already happened when it starts B. The overlay only paces the picture, then 
 > UI-test build both failed with *"unable to type-check this expression in reasonable time"* at
 > `TabStrip.swift`, and blamed symbols in **three other files** that were perfectly fine
 > (`held`, `shownTab`, `order` all exist). It had passed on the commit before, so it sat right
-> on the limit and tipped over with the machine's mood. `ChipPlan`
-> (`Sources/Bench/TabStrip.swift:57`) settles each chip's part as plain code first. Add an
-> inline ternary or set lookup back into that `ForEach` and you are spending the margin again.
+> on the limit and tipped over with the machine's mood. Hoisting the per-chip arguments into
+> `ChipPlan` (`Sources/Bench/TabStrip.swift:57`) was **not enough on its own** — the next build
+> gave up on the `chip(...)` call itself. What it took was splitting the one expression into
+> four that type-check separately: `plannedChip`, `chipRow`, `chipScroll` and the reader's own
+> chain, plus `scroll(_:to:)` for the scroll-and-animate the modifiers spelled out twice. Chain
+> a few more modifiers onto any of them, or put a ternary back inside that `ForEach`, and you
+> are spending the margin again.
 >
 > The shape of that failure is worth knowing on its own: a type-check timeout reports as
 > *"cannot find X in scope"* in files you never touched. Check whether the symbol exists before

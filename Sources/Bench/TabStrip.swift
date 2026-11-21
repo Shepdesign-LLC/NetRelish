@@ -146,69 +146,92 @@ struct TabStrip: View {
         let tabIds = tabs.map(\.id)
 
         ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: NRShell.tabGap) {
-                    ForEach(plans) { plan in
-                        chip(for: plan.tab, in: jar, order: order, width: plan.width,
-                             isFront: plan.isFront, growIn: plan.growIn)
-                            .id(plan.id)
-                            .transition(AnyTransition.opacity.animation(NRMotion.animation(duration: 0.16)))
-                    }
+            chipScroll(plans, in: jar, order: order, tabIds: tabIds, frontId: frontId,
+                       content: content, clip: clip)
+                .onAppear {
+                    if let frontId { proxy.scrollTo(frontId) }
                 }
-                .focusSection()
-                .padding(.leading, Self.leadingInset)
-                .padding(.trailing, Self.trailingInset)
-                .frame(height: NRShell.titleH, alignment: .top)
-                .animation(motion, value: tabIds)
-                .animation(motion, value: frontId)
-            }
-            .onScrollGeometryChange(for: ClipEdges.self) { geo in
-                ClipEdges(leading: geo.contentOffset.x > 0.5,
-                          trailing: geo.contentOffset.x + geo.containerSize.width < geo.contentSize.width - 0.5)
-            } action: { _, new in
-                clipped = new
-            }
-            .frame(width: min(content, clip), height: NRShell.titleH)
-            // One group, named for its jar: the lip's color is not the only thing that says
-            // whose tabs these are.
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel(Self.stripLabel(jarName: jar.name))
-            .overlay(alignment: .topLeading) {
-                if clipped.leading { edgeLine }
-            }
-            .overlay(alignment: .topTrailing) {
-                if clipped.trailing { edgeLine }
-            }
-            .sealAnchor(.tabStrip)
-            .onAppear {
-                if let frontId { proxy.scrollTo(frontId) }
-            }
-            .onChange(of: frontId) { _, id in
-                guard let id else { return }
-                if let motion {
-                    withAnimation(motion) { proxy.scrollTo(id) }
-                } else {
+                .onChange(of: frontId) { _, id in
+                    scroll(proxy, to: id)
+                }
+                .onChange(of: workbench.sealPhase.run?.id) { _, runId in
+                    // Seal reads the tab's settled frame, so this scroll is never animated.
+                    guard runId != nil,
+                          let id = workbench.sealPhase.run?.tab.id ?? workbench.benchTab?.id else { return }
                     proxy.scrollTo(id)
                 }
-            }
-            .onChange(of: workbench.sealPhase.run?.id) { _, runId in
-                // Seal reads the tab's settled frame, so this scroll is never animated.
-                guard runId != nil, let id = workbench.sealPhase.run?.tab.id ?? workbench.benchTab?.id else { return }
-                proxy.scrollTo(id)
-            }
-            .onChange(of: tabs.map(\.id), initial: true) { _, ids in
-                seenJarId = jar.id
-                seenTabIds = Set(ids)
-            }
-            .onChange(of: focusedTab) { _, id in
-                // A tab the keyboard moves to may be scrolled out past an edge.
-                guard let id else { return }
-                if let motion {
-                    withAnimation(motion) { proxy.scrollTo(id) }
-                } else {
-                    proxy.scrollTo(id)
+                .onChange(of: tabIds, initial: true) { _, ids in
+                    seenJarId = jar.id
+                    seenTabIds = Set(ids)
                 }
+                .onChange(of: focusedTab) { _, id in
+                    // A tab the keyboard moves to may be scrolled out past an edge.
+                    scroll(proxy, to: id)
+                }
+        }
+    }
+
+    /// One chip, with the id and the transition a reorder animates over. Its own function so the
+    /// `ForEach` above holds a single call: `ChipPlan` says why that matters.
+    private func plannedChip(_ plan: ChipPlan, in jar: Jar, order: [String]) -> some View {
+        chip(for: plan.tab, in: jar, order: order, width: plan.width,
+             isFront: plan.isFront, growIn: plan.growIn)
+            .id(plan.id)
+            .transition(AnyTransition.opacity.animation(NRMotion.animation(duration: 0.16)))
+    }
+
+    /// The row of chips, and the two animations that run when the tabs or the front one change.
+    private func chipRow(_ plans: [ChipPlan], in jar: Jar, order: [String],
+                         tabIds: [String], frontId: String?) -> some View {
+        HStack(alignment: .top, spacing: NRShell.tabGap) {
+            ForEach(plans) { plan in
+                plannedChip(plan, in: jar, order: order)
             }
+        }
+        .focusSection()
+        .padding(.leading, Self.leadingInset)
+        .padding(.trailing, Self.trailingInset)
+        .frame(height: NRShell.titleH, alignment: .top)
+        .animation(motion, value: tabIds)
+        .animation(motion, value: frontId)
+    }
+
+    /// The scrolling row: the edges it is clipped at, its width, and the group VoiceOver enters
+    /// as "<jar> tabs". Everything that needs the scroll proxy stays with the reader.
+    private func chipScroll(_ plans: [ChipPlan], in jar: Jar, order: [String],
+                            tabIds: [String], frontId: String?,
+                            content: CGFloat, clip: CGFloat) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            chipRow(plans, in: jar, order: order, tabIds: tabIds, frontId: frontId)
+        }
+        .onScrollGeometryChange(for: ClipEdges.self) { geo in
+            ClipEdges(leading: geo.contentOffset.x > 0.5,
+                      trailing: geo.contentOffset.x + geo.containerSize.width < geo.contentSize.width - 0.5)
+        } action: { _, new in
+            clipped = new
+        }
+        .frame(width: min(content, clip), height: NRShell.titleH)
+        // One group, named for its jar: the lip's color is not the only thing that says
+        // whose tabs these are.
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Self.stripLabel(jarName: jar.name))
+        .overlay(alignment: .topLeading) {
+            if clipped.leading { edgeLine }
+        }
+        .overlay(alignment: .topTrailing) {
+            if clipped.trailing { edgeLine }
+        }
+        .sealAnchor(.tabStrip)
+    }
+
+    /// Brings a tab into view, animated unless Reduce Motion is on. Was written out twice inside
+    /// the reader's modifiers, which is exactly the kind of weight that stacked up there.
+    private func scroll(_ proxy: ScrollViewProxy, to id: String?) {
+        guard let id else { return }
+        if let motion {
+            withAnimation(motion) { proxy.scrollTo(id) }
+        } else {
+            proxy.scrollTo(id)
         }
     }
 
