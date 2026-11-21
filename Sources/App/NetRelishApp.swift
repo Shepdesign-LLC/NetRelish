@@ -76,6 +76,9 @@ struct NetRelishApp: App {
         let workbench = Workbench(inbox: NetRelishApp.shareInbox, summarizer: NetRelishApp.summarizer,
                                   timestamps: NetRelishApp.timestamps, pro: NetRelishApp.pro)
         _workbench = State(initialValue: workbench)
+        // The welcome sheet opens by itself only in the app's own launch: never over the
+        // window the tests are hosted in, and never in the UI test's (which returned above).
+        workbench.welcomesAtLaunch = !NetRelishApp.isHostingTests
         // The Shortcuts that act on the app (Seal the page in front, Open a Jar) find it here.
         AppDependencyManager.shared.add(dependency: workbench)
         // "Open <jar> in NetRelish" needs the jar names: told at launch and on every change.
@@ -105,6 +108,9 @@ struct NetRelishApp: App {
             // for someone who opens Pro (ADR 0032). It replaces the default Help item, which
             // has no help book to open. Acknowledgments sits beside it: the third-party notices (NOTICE).
             CommandGroup(replacing: .help) {
+                // The welcome sheet again, for anyone who closed it at the first launch (ADR 0038).
+                Button(WelcomeText.menu) { workbench.showingWelcome = true }
+                Divider()
                 Button(ProText.privacy) { NSWorkspace.shared.open(ProText.privacyURL) }
                 AcknowledgmentsCommand()
             }
@@ -454,6 +460,13 @@ struct ContentView: View {
         }
         .sheet(isPresented: $workbench.showingPro) {
             ProView(pro: workbench.pro) { workbench.showingPro = false }
+        }
+        // The welcome sheet (ADR 0038): by itself at the first launch only, once this window
+        // is up, and from Help after that. It counts as seen when it has gone, not when it
+        // opens, so quitting with it open shows it again.
+        .task { workbench.welcomeAtFirstLaunch() }
+        .sheet(isPresented: $workbench.showingWelcome, onDismiss: { workbench.welcomeClosed() }) {
+            WelcomeSheet { start in workbench.closeWelcome(start: start) }
         }
     }
 

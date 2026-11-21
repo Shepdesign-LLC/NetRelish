@@ -27,6 +27,10 @@ enum DesignKitSnapshot {
                 ProOffer(plan: .annual, price: "$39.00"),
                 ProOffer(plan: .lifetime, price: "$99.00"),
             ]), done: {}), as: "pro-\(name)", name, to: dir)
+            // The welcome sheet's three cards (ADR 0038), for PR demos.
+            for card in WelcomeText.cards.indices {
+                write(WelcomeSheet(card: card) { _ in }, as: "welcome-\(card + 1)-\(name)", name, to: dir)
+            }
         }
     }
 
