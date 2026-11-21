@@ -2,7 +2,7 @@
 title: Accessibility — what VoiceOver hears, and what works without a mouse
 type: subsystem
 created: 2026-11-18
-updated: 2026-11-18
+updated: 2026-11-21
 sources:
   - code: Sources/UI/Accessibility.swift
   - code: Sources/UI/Components.swift
@@ -134,6 +134,22 @@ only, which is why it is also the VoiceOver proof. It runs under its own scheme,
 > `Sources/Bench/WebView.swift:35` and `:159`). It switches on only from
 > `ProcessInfo.arguments`, never a default or an environment variable, so nothing a page or
 > a file can set turns it on.
+
+> ⚠️ **Every launch argument the UI test passes is a `-key value` pair.** AppKit reads the
+> command line as defaults, two at a time. A flag with no value takes the next key as its
+> value and leaves that key's `YES` standing alone; AppKit takes a lone argument for a file to
+> open, and a launch that opens a file opens no main window. The test then fails with "The
+> main window didn't open" and nothing in the app is wrong. `-NRUITestFixture` is passed as
+> `-NRUITestFixture YES` for this reason only: the app reads that the flag is there
+> (`Sources/App/UITestFixture.swift:19`), not its value.
+
+> ⚠️ **The fixture's jars are not the Shelf's first two.** Every Pantry, in memory or not,
+> starts with Read Later and Reference (`Sources/Pantry/Models/Seed.swift:10`), and `newJar`
+> leaves the jar it made in front. So `UITestFixture.stock` finds Juniper Bakery by name to
+> put it in front, and Meridian is ⌘4, not ⌘2. `activate(index: 0)` here opens the test's
+> page in Read Later, and the test says "The page didn't open in Juniper Bakery's tabs" about
+> a page that opened. `UITestFixtureAccessibilityTests.jarsAndTheirKeys` holds the fixture and
+> the key the UI test presses together.
 
 > ⚠️ **XCUITest cannot fire a named VoiceOver action** — there is no public macOS API. The
 > test right-clicks the row and picks the same-named menu item, which is why each VoiceOver
