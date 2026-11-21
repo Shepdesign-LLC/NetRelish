@@ -230,11 +230,26 @@ jobs:
         # -onlyUsePackageVersionsFromResolvedFile: build with exactly the package revisions in the
         # committed Package.resolved, as the release does. Changing a package in project.yml
         # without committing the updated lockfile fails here.
+        #
+        # -warn-long-expression-type-checking / -warn-long-function-bodies: every expression or
+        # body the type-checker spends over 300ms on is printed with its file and line. A view
+        # that sits near the solver's limit fails on one runner and not the next, and reports
+        # itself as "cannot find X in scope" in whichever OTHER files shared the compile — so the
+        # error never names the expression that is actually too big. These two flags name it.
+        # They only warn: nothing here fails a build that would otherwise pass.
+        # Not -quiet, or the warnings are swallowed with everything else.
         run: |
           xcodebuild -project NetRelish.xcodeproj -scheme "${{ matrix.scheme }}" \
             -configuration "${{ matrix.configuration }}" -derivedDataPath "$DERIVED" \
             -destination 'platform=macOS' -onlyUsePackageVersionsFromResolvedFile \
-            CODE_SIGNING_ALLOWED=NO -quiet build
+            OTHER_SWIFT_FLAGS='$(inherited) -Xfrontend -warn-long-expression-type-checking=300 -Xfrontend -warn-long-function-bodies=300' \
+            CODE_SIGNING_ALLOWED=NO build > build.log 2>&1 || true
+          echo "=== everything the type-checker spent over 300ms on ==="
+          grep -E "warning: .*took [0-9]+" build.log | sort -u || echo "(nothing over 300ms)"
+          echo "=== errors, if any ==="
+          grep -E "error: " build.log | sort -u | head -40 || echo "(none)"
+          # xcodebuild's own status was dropped by `|| true` above, so decide on its last word.
+          grep -q "BUILD SUCCEEDED" build.log || { echo "::error::the build failed; see the lists above"; exit 1; }
       - name: The built app carries its privacy answers (ADR 0032)
         # scripts/tests checks what the manifests say; this checks each one landed in the bundle
         # App Store Connect reads it from, and that only the Direct build knows a license address.
