@@ -107,8 +107,12 @@ final class CaptureJarSealUITests: XCTestCase {
     @MainActor
     private func launch() -> XCUIApplication {
         let app = XCUIApplication()
+        // Every argument is a "-key value" pair, so none is left standing alone: AppKit takes a
+        // lone argument for a file to open, and a launch that opens a file opens no window. The
+        // fixture's flag had no value at first; it then took the next key as its value and left
+        // that key's "YES" alone. The app reads only that the flag is there, not its value.
         app.launchArguments = [
-            "-NRUITestFixture",
+            "-NRUITestFixture", "YES",
             "-ApplePersistenceIgnoreState", "YES",   // no windows restored from a last run
             "-panel.visible", "NO",                  // the Panel closed, whatever this Mac remembers
         ]
