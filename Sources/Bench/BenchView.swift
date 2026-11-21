@@ -153,6 +153,10 @@ struct TabPane: View {
     let tab: Tab
     let web: JarWebView
     @Bindable var workbench: Workbench
+    /// The Workbench is every window's: only the key window speaks for it.
+    @Environment(\.controlActiveState) private var activeState
+
+    private var reading: Bool { workbench.reader?.tabId == tab.id }
 
     var body: some View {
         Group {
@@ -168,6 +172,7 @@ struct TabPane: View {
                     .onExitCommand { workbench.closeReader() }
             } else {
                 WebViewHost(jarWebView: web)
+                    .onAppear { takeKeyboardIfNobodyHasIt() }
             }
         }
         .onAppear {
@@ -175,6 +180,28 @@ struct TabPane: View {
             web.onNavigation = { [workbench] url, title in
                 workbench.tabDidNavigate(tab.id, fromJar: jarId, url: url, title: title)
             }
+        }
+        // Reader view swaps the whole page, and ⌘⇧R from the menu changes nothing VoiceOver
+        // is on, so the swap is said. Only a change: a tab that opens already reading says nothing.
+        .onChange(of: reading) { _, now in
+            guard activeState == .key else { return }
+            NRAnnounce.post(now ? BenchText.readerOpened : BenchText.readerClosed)
+        }
+    }
+
+    /// The page that had the keyboard left the window with it (Seal closed the tab in front,
+    /// a tab closed or changed, Reader view closed), so this one arrives without it, and
+    /// typing and the arrow keys go nowhere until it's clicked. Take it only when nobody has
+    /// it: never from the address field, which a new tab focuses, or from ⌘K. A blank tab
+    /// leaves it to the field. A turn later, once the web view is in the window.
+    private func takeKeyboardIfNobodyHasIt() {
+        guard web.url != nil || tab.url != nil else { return }
+        let page = web.webView
+        Task { @MainActor in
+            guard let window = page.window else { return }
+            let responder = window.firstResponder
+            guard responder == nil || responder === window else { return }
+            _ = window.makeFirstResponder(page)
         }
     }
 }
@@ -194,7 +221,7 @@ struct EmptyBench: View {
             Text(message).font(NRType.font(NRType.fsLg)).foregroundStyle(NRColor.fg2)
                 .multilineTextAlignment(.center)
             if let actionTitle, let action {
-                Button(actionTitle, action: action).buttonStyle(.nrPrimary)
+                Button(actionTitle, action: action).buttonStyle(.nrPrimary).nrFocusRing()
             }
         }
         .padding(NRSpace.sp6)
@@ -215,6 +242,7 @@ struct SavedCopyView: View {
     @State private var missing = false
     /// Whether the copy on disk is still the one that was sealed (ADR 0030).
     @State private var integrity: SealIntegrity = .unchecked
+    @Environment(\.controlActiveState) private var activeState
 
     var body: some View {
         VStack(spacing: 0) {
@@ -249,6 +277,12 @@ struct SavedCopyView: View {
                 Provenance.integrity(of: data, against: recorded)
             }.value
         }
+        // The banner arrives after the copy is on screen, so someone reading it with
+        // VoiceOver would never hear it. Said once, in the banner's own words.
+        .onChange(of: integrity) { _, now in
+            guard now == .broken, !missing, activeState == .key else { return }
+            NRAnnounce.post(BenchText.brokenSeal, priority: .high)
+        }
     }
 
     /// Shown instead of silence when the copy no longer matches its fingerprint. The copy is
@@ -256,7 +290,7 @@ struct SavedCopyView: View {
     private var brokenSeal: some View {
         HStack(spacing: NRSpace.sp2) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(NRColor.danger)
-            Text("This saved copy has changed since it was sealed. It no longer matches its fingerprint.")
+            Text(BenchText.brokenSeal)
                 .font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg)
             Spacer()
         }
@@ -271,16 +305,20 @@ struct SavedCopyView: View {
         HStack(spacing: NRSpace.sp3) {
             NRSymbol.seal.image.resizable().frame(width: NRSpace.sp4, height: NRSpace.sp4)
                 .foregroundStyle(NRColor.relish500)   // manifest §4, placement 4
+                .accessibilityHidden(true)            // the subtitle says "sealed"
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.title).font(NRType.font(NRType.fsMd, weight: .medium)).foregroundStyle(NRColor.fg).lineLimit(1)
+                    .accessibilityAddTraits(.isHeader)
                 Text(subtitle).font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2).lineLimit(1)
+                    .accessibilityLabel(PanelText.spokenList(subtitle))
             }
             Spacer()
             if item.url != nil, !missing {
-                Button("Open Live Page") { workbench.openLivePage(item) }.buttonStyle(.nrSecondary)
+                Button("Open Live Page") { workbench.openLivePage(item) }.buttonStyle(.nrSecondary).nrFocusRing()
             }
             Button("Done") { workbench.savedCopy = nil }
                 .buttonStyle(.nrSecondary)
+                .nrFocusRing()
                 .keyboardShortcut(.cancelAction)
         }
         .padding(.horizontal, NRSpace.sp4)
@@ -312,7 +350,7 @@ struct ReaderHost: NSViewRepresentable {
         config.websiteDataStore = .nonPersistent()
         config.defaultWebpagePreferences.allowsContentJavaScript = false
         config.preferences.javaScriptCanOpenWindowsAutomatically = false
-        let web = WKWebView(frame: .zero, configuration: config)
+        let web = ReaderWebView(frame: .zero, configuration: config)
         web.navigationDelegate = context.coordinator
         web.uiDelegate = context.coordinator
         web.loadHTMLString(ReaderPage.html(for: article), baseURL: baseURL)
@@ -320,6 +358,24 @@ struct ReaderHost: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: WKWebView, context: Context) { context.coordinator.openLink = follow }
+}
+
+/// Reader view's web view takes the keyboard once, when it arrives. The page it covers had
+/// it and left the window with it, so otherwise the arrow keys and Space go nowhere and
+/// VoiceOver isn't taken to the article. Never from a text field someone is typing in.
+final class ReaderWebView: WKWebView {
+    private var tookKeyboard = false
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window != nil, !tookKeyboard else { return }
+        tookKeyboard = true
+        // A turn later, once SwiftUI has taken the page out of the window.
+        Task { @MainActor [weak self] in
+            guard let self, let window = self.window, !(window.firstResponder is NSTextView) else { return }
+            _ = window.makeFirstResponder(self)
+        }
+    }
 }
 
 /// The reader's one page. Colors, sizes, line heights and weights are the Bench's tokens
@@ -333,6 +389,13 @@ enum ReaderPage {
         ("--nr-hairline", "#E5E5E2", "#3B3B38"),
     ]
 
+    /// Under Increase Contrast (`prefers-contrast: more`): the byline, captions and quotes
+    /// take `--nr-fg`, and rules and borders take `--nr-fg-3`. Token values; a test holds them.
+    static let increasedContrast: [(token: String, light: String, dark: String)] = [
+        ("--nr-fg-2", "#1D1D1B", "#F0F0EE"),       // --nr-fg
+        ("--nr-hairline", "#6C6C65", "#96968F"),   // --nr-fg-3
+    ]
+
     /// Our policy, ahead of anything in the article: no scripts, no frames, no fetches but
     /// images and media, no forms, no base URL games.
     static let contentSecurityPolicy =
@@ -341,6 +404,8 @@ enum ReaderPage {
     static func html(for article: Extraction.Article) -> String {
         let light = palette.map { "\($0.token): \($0.light);" }.joined(separator: " ")
         let dark = palette.map { "\($0.token): \($0.dark);" }.joined(separator: " ")
+        let moreLight = increasedContrast.map { "\($0.token): \($0.light);" }.joined(separator: " ")
+        let moreDark = increasedContrast.map { "\($0.token): \($0.dark);" }.joined(separator: " ")
         let meta = [article.site, article.byline].filter { !$0.isEmpty }.map(escape).joined(separator: " · ")
         let metaLine = meta.isEmpty ? "" : "<p class=\"meta\">" + meta + "</p>"
         return """
@@ -353,6 +418,8 @@ enum ReaderPage {
         <style>
         :root { color-scheme: light dark; \(light) }
         @media (prefers-color-scheme: dark) { :root { \(dark) } }
+        @media (prefers-contrast: more) { :root { \(moreLight) } }
+        @media (prefers-contrast: more) and (prefers-color-scheme: dark) { :root { \(moreDark) } }
         html { background: var(--nr-bg); }
         body { margin: 0; padding: 48px 24px 96px; color: var(--nr-fg);
                font: 20px/1.5 -apple-system, "SF Pro Text", system-ui, sans-serif; }
@@ -497,18 +564,24 @@ final class SavedCopyNavigator: NSObject, WKNavigationDelegate, WKUIDelegate {
 /// Its one relish is the shelf-life bar (placement #5).
 struct PanelView: View {
     @Bindable var workbench: Workbench
+    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 0) { content }
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+        // One stop for Tab and the arrow keys under Full Keyboard Access.
+        .focusSection()
         .frame(width: NRSpace.inspectorW)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(NRColor.rail)
-        .overlay(alignment: .leading) { Rectangle().fill(NRColor.hairlineSoft).frame(width: NRSpace.hairline) }
+        .overlay(alignment: .leading) {
+            Rectangle().fill(ShellInk.edge(contrast) ?? NRColor.hairlineSoft).frame(width: NRSpace.hairline)
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Panel")
+        .accessibilityIdentifier("panel")
     }
 
     @ViewBuilder private var content: some View {
@@ -531,8 +604,8 @@ struct PanelView: View {
                 JarSwatches(selected: jar.tint) { workbench.setTint($0, of: jar) }
             }
             PanelSection("Do something") {
-                Button("New Tab") { workbench.newTab(in: jar.id) }.buttonStyle(.nrSecondary)
-                Button("Edit Jar…") { workbench.requestEditActiveJar() }.buttonStyle(.nrSecondary)
+                Button("New Tab") { workbench.newTab(in: jar.id) }.buttonStyle(.nrSecondary).nrFocusRing()
+                Button("Edit Jar…") { workbench.requestEditActiveJar() }.buttonStyle(.nrSecondary).nrFocusRing()
             }
         case .smartJar(let smart):
             PanelHeader(title: smart.name, subtitle: "Smart jar")
@@ -568,8 +641,10 @@ private struct PanelTabSections: View {
                 PanelRow("Jar", workbench.jarName(for: tab.jarId))
                 PanelRow("Shelf life", shelfLife)
                 if let remaining = shelfLifeRemaining {
+                    // The row above already says it; the bar would only say it again.
                     NRShelfLifeBar(remaining: remaining)
                         .padding(.top, NRSpace.sp1)
+                        .accessibilityHidden(true)
                 }
             }
             if let item {
@@ -609,6 +684,9 @@ private struct PanelItemSections: View {
     @Bindable var workbench: Workbench
     @State private var labels: [Pantry.Label]   // not SwiftUI.Label
     @State private var newLabel = ""
+    @FocusState private var labelFieldFocused: Bool
+    /// The label whose Remove button has the keyboard, if any.
+    @FocusState private var focusedRemove: Pantry.Label.ID?
 
     init(item: Item, workbench: Workbench) {
         self.item = item
@@ -640,24 +718,58 @@ private struct PanelItemSections: View {
                     HStack(spacing: NRSpace.sp2) {
                         Text(label.name).font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg)
                         Spacer()
-                        Button { workbench.removeLabel(label, from: item) } label: {
+                        Button { remove(label, refocus: focusedRemove == label.id) } label: {
                             Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
                         }
                         .buttonStyle(.plain).foregroundStyle(NRColor.fg2)
+                        .focusEffectDisabled()
+                        .focused($focusedRemove, equals: label.id)
+                        .overlay {
+                            if focusedRemove == label.id {
+                                NRFocusRing(cornerRadius: 4, inset: -3)
+                            }
+                        }
                         .help("Remove \(label.name)").accessibilityLabel("Remove \(label.name)")
                     }
+                    // VoiceOver hears the label once, with Remove as its action, instead of
+                    // the name and then a separate button. The button stays for the pointer.
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(label.name)
+                    .accessibilityAction(named: Text("Remove")) { remove(label, refocus: true) }
                 }
                 TextField("Add a label", text: $newLabel)
                     .textFieldStyle(.plain)
                     .font(NRType.font(NRType.fsSm))
                     .foregroundStyle(NRColor.fg)
+                    .focused($labelFieldFocused)
+                    .overlay {
+                        if labelFieldFocused {
+                            NRFocusRing(cornerRadius: 6, inset: -4)
+                        }
+                    }
+                    .accessibilityLabel("New label")
                     .onSubmit {
-                        workbench.addLabel(newLabel, to: item)
+                        let name = newLabel.trimmingCharacters(in: .whitespaces)
+                        guard !name.isEmpty else { return }
+                        let before = workbench.labelRevision
+                        workbench.addLabel(name, to: item)
                         newLabel = ""
+                        // Only once it's in: a failure says so on its own (the status line).
+                        if workbench.labelRevision != before { NRAnnounce.post(PanelText.labelAdded(name)) }
                     }
             }
         }
         .task(id: "\(item.id)|\(workbench.labelRevision)") { labels = workbench.labels(of: item) }
+    }
+
+    /// Removes a label and says so. The Remove button leaves with its row, so the keyboard
+    /// would go nowhere; when it came from the keyboard or VoiceOver, the field takes it.
+    private func remove(_ label: Pantry.Label, refocus: Bool) {
+        let before = workbench.labelRevision
+        workbench.removeLabel(label, from: item)
+        guard workbench.labelRevision != before else { return }
+        NRAnnounce.post(PanelText.labelRemoved(label.name))
+        if refocus { labelFieldFocused = true }
     }
 }
 
@@ -699,6 +811,7 @@ private struct PanelSealsSection: View {
     let item: Item
     @Bindable var workbench: Workbench
     @State private var seals: [Item]
+    @Environment(\.controlActiveState) private var activeState
 
     init(item: Item, workbench: Workbench) {
         self.item = item
@@ -722,10 +835,12 @@ private struct PanelSealsSection: View {
                     HStack(spacing: NRSpace.sp2) {
                         Button("Seal Again") { Task { await workbench.resealAndCompare(item) } }
                             .buttonStyle(.nrSecondary)
+                            .nrFocusRing()
                             .help(PanelText.sealAgainHelp)
                         if seals.count > 1 {
                             Button("Compare") { Task { await workbench.compareWithPrevious(seals[0]) } }
                                 .buttonStyle(.nrSecondary)
+                                .nrFocusRing()
                                 .help(PanelText.compareHelp)
                         }
                         if !workbench.pro.isUnlocked { ProTag() }
@@ -734,6 +849,12 @@ private struct PanelSealsSection: View {
             }
         }
         .task(id: "\(item.id)|\(workbench.sealedItems.count)") { seals = workbench.seals(of: item) }
+        // Sealing again takes a moment and replaces the buttons with a note; say the note.
+        // The comparison says how it came out.
+        .onChange(of: workbench.resealingURL == item.url) { _, on in
+            guard on, activeState == .key else { return }
+            NRAnnounce.post(PanelText.resealing)
+        }
     }
 }
 
@@ -759,6 +880,7 @@ private struct PanelProofSection: View {
                     HStack(spacing: NRSpace.sp2) {
                         Button("Export Proof…") { workbench.exportProof(item) }
                             .buttonStyle(.nrSecondary)
+                            .nrFocusRing()
                             .help(PanelText.exportProofHelp)
                         if !workbench.pro.isUnlocked { ProTag() }
                     }
@@ -782,6 +904,7 @@ private struct PanelHeader: View {
                 .accessibilityAddTraits(.isHeader)
             if let subtitle, !subtitle.isEmpty {
                 Text(subtitle).font(NRType.font(NRType.fsSm, weight: .medium)).foregroundStyle(NRColor.fg3).lineLimit(1)
+                    .accessibilityLabel(PanelText.spokenList(subtitle))
             }
         }
         .padding(20)
@@ -792,6 +915,7 @@ private struct PanelHeader: View {
 private struct PanelSection<Content: View>: View {
     let title: String
     @ViewBuilder let content: Content
+    @Environment(\.colorSchemeContrast) private var contrast
 
     init(_ title: String, @ViewBuilder content: () -> Content) {
         self.title = title
@@ -803,6 +927,7 @@ private struct PanelSection<Content: View>: View {
             Text(title.uppercased()).font(NRType.font(NRType.fsXs, weight: .semibold)).tracking(0.6)
                 .foregroundStyle(NRColor.fg3)
                 .padding(.bottom, 2)
+                .accessibilityLabel(title)          // drawn in capitals, never spelled out
                 .accessibilityAddTraits(.isHeader)
             content
         }
@@ -810,7 +935,7 @@ private struct PanelSection<Content: View>: View {
         .padding(.vertical, NRSpace.sp4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(alignment: .top) {
-            Rectangle().fill(NRColor.hairlineSoft).frame(height: NRSpace.hairline)
+            Rectangle().fill(ShellInk.separator(contrast)).frame(height: NRSpace.hairline)
                 .padding(.horizontal, 20)
         }
     }
@@ -828,6 +953,10 @@ private struct PanelRow: View {
             Text(value).font(NRType.font(NRType.fsSm, weight: .medium)).foregroundStyle(NRColor.fg)
                 .multilineTextAlignment(.trailing).lineLimit(2)
         }
+        // One element, read as a name and its value ("Kind, Page"), not two unrelated lines.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(key)
+        .accessibilityValue(value)
     }
 }
 
@@ -888,6 +1017,17 @@ enum PanelText {
         n == 1 ? "1 earlier seal" : "\(n) earlier seals"
     }
 
+    // Labels, as VoiceOver says them
+
+    static func labelAdded(_ name: String) -> String { "Added the label \(name)" }
+    static func labelRemoved(_ name: String) -> String { "Removed the label \(name)" }
+
+    /// A subtitle as VoiceOver reads it: the middle dots between its parts become commas,
+    /// so no punctuation setting reads "middle dot" aloud.
+    static func spokenList(_ text: String) -> String {
+        text.replacingOccurrences(of: " · ", with: ", ")
+    }
+
     static func summary(_ state: SummaryState) -> SummaryLine {
         switch state {
         case .done(let text): .summary(text)
@@ -932,4 +1072,12 @@ enum PanelText {
         let seconds = max(1, Int((days * 86_400).rounded()))
         return seconds == 1 ? "1 second" : "\(seconds) seconds"
     }
+}
+
+/// What the Bench says out loud, kept out of the views so tests can read it.
+enum BenchText {
+    static let readerOpened = "Reader view"
+    static let readerClosed = "Back to the page"
+    /// The broken-seal banner's sentence, drawn and spoken alike.
+    static let brokenSeal = "This saved copy has changed since it was sealed. It no longer matches its fingerprint."
 }

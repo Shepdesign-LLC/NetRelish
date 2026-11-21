@@ -194,3 +194,22 @@ Append-only. Newest entries at the bottom.
   standard macOS job on this public repository and omits the `xcode-27` jobs from the billable
   map altogether, while their runner names and group read as hosted larger runners. Settings →
   Actions → Runners, and the billing page's per-SKU breakdown, are the only places that say.
+## [2026-11-18] accessibility: a new page, and citations into four others
+
+- New page [[accessibility]] for the P5 pass (ADR 0036): the three pieces (`NRAnnounce`,
+  `nrSystemAccessibility()`, `nrFocusRing`), who speaks a result and why only one owner may,
+  how a row is read as one element, the keyboard's focus order and the new keys, what each of
+  the Mac's four accessibility settings changes, and the UI test's Debug-only fixture. Nine
+  traps, among them: one owner per spoken result; announcements dropped unless the app is in
+  front; the held sealed tab hidden from VoiceOver; a rotor entry needs its namespace; every
+  menu route into a jar plays the fill; read the settings from the environment, not once at
+  launch; the fixture is `#if DEBUG` on both sides; XCUITest can't fire a VoiceOver action, so
+  each action needs a menu item with the same words. A row for it in `docs/CLAUDE.md`, a link
+  in the index
+- rearranging: a row and a trap for the keyboard routes that now sit beside the drag
+  (Tab › Move Tab to Jar, Move Tab Left/Right, Jars › Move Jar Up/Down, Brine's Restore to…),
+  all of them through `drop(_:onJar:)` so the jar fill plays once
+- building-without-a-mac: CI runs six things now; the UI tests are their own job and scheme.
+  A trap: a new target or scheme in `project.yml` is as stale-making as a new Swift file,
+  because the committed project holds `xcshareddata/xcschemes/`
+- workbench-shell: unchanged. Its hover-at-opacity-0 trap is linked, not copied

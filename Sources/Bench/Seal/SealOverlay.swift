@@ -623,11 +623,10 @@ private struct SealChip: View {
         .padding(.leading, 8)
         .padding(.trailing, 12)
         .frame(height: 30)
-        .background(RoundedRectangle(cornerRadius: 9).fill(NRColor.float))
-        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(NRColor.hairline, lineWidth: NRSpace.hairline))
-        // the float shadow in light; in dark the hairline carries it (manifest v2.1 §6)
-        .shadow(color: .black.opacity(dark ? 0 : 0.08), radius: 10, y: 4)
-        .shadow(color: .black.opacity(dark ? 0 : 0.04), radius: 1.5, y: 1)
+        // The one float (manifest v2.1 §6): the float fill, the hairline and, in light, the
+        // float shadow. Through `nrFloat` so the chip gets its stronger edge under Increase
+        // Contrast and Reduce Transparency too.
+        .nrFloat(cornerRadius: 9)
         .fixedSize()
     }
 }

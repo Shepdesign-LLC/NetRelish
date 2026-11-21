@@ -41,6 +41,25 @@ struct PaletteRow: Identifiable {
 
     var symbol: NRSymbol? { kind == .jar ? .jar : nil }
 
+    /// What VoiceOver says for the row: its title, then where it comes from or what it does,
+    /// then its shortcut. "Pricing, sealed, Client site"; "Docs, open tab, Client site";
+    /// "Seal this page, Into the jar, frozen, ⌘S".
+    var spokenLabel: String {
+        var parts = [title]
+        switch kind {
+        case .item:
+            if sealed { parts.append("sealed") }
+            parts.append(subtitle ?? "Brine")
+        case .tab:
+            parts.append("open tab")
+            if let subtitle { parts.append(subtitle) }
+        case .command, .jar:
+            if let subtitle { parts.append(subtitle) }
+            if let shortcut { parts.append(shortcut) }
+        }
+        return parts.joined(separator: ", ")
+    }
+
     /// A command's SF Symbol. Seal has none here: the view draws NRSymbol.seal (#nr-seal).
     var systemImage: String? {
         switch kind {
@@ -157,6 +176,13 @@ enum PaletteSource {
         // Best first; ties keep the tabs' own order.
         scored.sort { $0.score != $1.score ? $0.score > $1.score : $0.order < $1.order }
         return scored.prefix(tabRowsShown).map(\.row)
+    }
+
+    /// What VoiceOver hears once typing pauses: how many rows match, and the first, which
+    /// Return would run. "3 matches. Pricing, Client site"; "Nothing matches".
+    static func resultsLine(count: Int, first: PaletteRow?) -> String {
+        guard count > 0, let first else { return "Nothing matches" }
+        return "\(count == 1 ? "1 match" : "\(count) matches"). \(first.spokenLabel)"
     }
 
     /// Full-text hits, newest-best first. Empty query means no search at all.
