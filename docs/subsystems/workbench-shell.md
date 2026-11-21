@@ -2,7 +2,7 @@
 title: Workbench shell — the window's chrome, the Shelf's tiles, Seal's overlay and the jar fill
 type: subsystem
 created: 2026-11-18
-updated: 2026-11-18
+updated: 2026-11-21
 sources:
   - code: Sources/App/NetRelishApp.swift
   - code: Sources/App/Workbench.swift
@@ -19,7 +19,7 @@ sources:
   - code: Sources/UI/FloatShadow.swift
   - code: Tests/NetRelishTests/ShellMeasureTests.swift
   - code: Tests/NetRelishTests/Seal/SealPhaseTests.swift
-verified_at: 38edcae
+verified_at: 0d45775
 ---
 
 # Workbench shell
@@ -36,17 +36,17 @@ copy either. Moving tabs and jars with the mouse is [[rearranging]]; compiling a
 
 | Part | Code |
 |---|---|
-| The window's rows, the Panel's slide, ⌘K as an overlay | `ContentView` (`Sources/App/NetRelishApp.swift:187`) |
+| The window's rows, the Panel's slide, ⌘K as an overlay | `ContentView` (`Sources/App/NetRelishApp.swift:366`) |
 | The measures that aren't tokens | `NRShell` (`Sources/Bench/ShellRows.swift:15`), pinned by `ShellMeasureTests` |
 | Title strip, address row and field, bottom bar | `TitleRow`, `SearchRow`, `AddressField`, `BottomBar` (`Sources/Bench/ShellRows.swift:40`, `:94`, `:182`, `:366`) |
 | The tabs, their widths, the jar's chip | `TabStrip` (`Sources/Bench/TabStrip.swift:63`), `TabStripLayout` (`Sources/Bench/TabStrip.swift:15`) |
 | The window's buttons on the 44pt strip | `WindowButtons.place` (`Sources/Bench/WindowChrome.swift:97`) |
-| The Shelf's tiles | `JarTile` (`Sources/Shelf/ShelfView.swift:289`) |
+| The Shelf's tiles | `JarTile` (`Sources/Shelf/ShelfView.swift:460`) |
 | The drawn jar and its shades | `NRFilledJar` (`Sources/UI/JarGlyph.swift:255`), `JarPaint.edge300` / `edgeInk` (`Sources/UI/JarGlyph.swift:70`, `:88`) |
-| The float shadow | `nrFloat(cornerRadius:)` (`Sources/UI/FloatShadow.swift:33`) |
-| Seal's phases | `Workbench.sealActiveTab` (`Sources/App/Workbench.swift:1075`), `sealPhase` (`:1059`) |
-| Seal's one overlay | `SealOverlay` (`Sources/Bench/Seal/SealOverlay.swift:27`), placed by `sealOverlay(_:)` and fed by `sealAnchor(_:)` (`Sources/Bench/Seal/SealAnchors.swift:42`, `:34`) |
-| The jar-fill drip | `JarFillDriver` (`Sources/Shelf/JarFill.swift:27`), started by `Workbench.fillJar(_:)` (`Sources/App/Workbench.swift:1186`) |
+| The float shadow | `nrFloat(cornerRadius:)` (`Sources/UI/FloatShadow.swift:47`) |
+| Seal's phases | `Workbench.sealActiveTab` (`Sources/App/Workbench.swift:1129`), `sealPhase` (`:1113`) |
+| Seal's one overlay | `SealOverlay` (`Sources/Bench/Seal/SealOverlay.swift:27`), placed by `sealOverlay(_:)` and fed by `sealAnchor(_:)` (`Sources/Bench/Seal/SealAnchors.swift:43`, `:34`) |
+| The jar-fill drip | `JarFillDriver` (`Sources/Shelf/JarFill.swift:27`), started by `Workbench.fillJar(_:)` (`Sources/App/Workbench.swift:1244`) |
 
 ## Seal: the Workbench decides, the overlay presents
 
@@ -63,16 +63,24 @@ has already happened when it starts B. The overlay only paces the picture, then 
 > Non-negotiable 3. The comp closes it at +640ms; the app can't, because the write can fail
 > and Seal from Shortcuts has no motion. So the Workbench keeps a picture of the closed tab,
 > `sealHeldTab`, which the strip draws at its old place through `stripTabs`
-> (`Sources/App/Workbench.swift:1162`), and `sealHeldFrontTab` (`:1179`) keeps that picture
-> in front and the address field on its address until the chip leaves. A 4s safety task
-> (`endSealLater`, `:1141`) lets go of it if no overlay does.
+> (`Sources/App/Workbench.swift:1230`). A 4s safety task (`endSealLater`, `:1209`) lets go of it
+> if no overlay does.
 
-> ⚠️ **The failure line waits for phase B.** `reportSealFailure` (`Sources/App/Workbench.swift:1127`)
+> ⚠️ **The held picture is an animation anchor and nothing else.** It is never the selected
+> tab, and the address row never reads it: the address, the lock and its spoken hint, and
+> the selection all follow the live Bench content, `benchTab` (`Sources/App/Workbench.swift:206`),
+> from the moment the tab closes (manifest v2.1.1, a security correction). Before it,
+> `sealHeldFrontTab` kept the sealed page's address and lock in the row while another page
+> was already in front. Don't bring it back, and don't count a tab's place in `stripTabs`:
+> the strip counts places in `workbench.tabs` (`Sources/Bench/TabStrip.swift:107`), so the
+> picture is never one of them. `SealPhaseTests` holds this.
+
+> ⚠️ **The failure line waits for phase B.** `reportSealFailure` (`Sources/App/Workbench.swift:1185`)
 > says "Couldn’t seal this page" no sooner than 700ms after the press. A test that checks
 > `fillStatus` after a failed Seal must wait for it, as `SealPhaseTests` does.
 
 > ⚠️ **`.sealOverlay(workbench)` must stay before `.ignoresSafeArea`** in `ContentView`
-> (`Sources/App/NetRelishApp.swift:227`). Inside the safe-area change, the overlay covers
+> (`Sources/App/NetRelishApp.swift:422`). Inside the safe-area change, the overlay covers
 > the title strip and reads every anchor in the window's own space. Move it after, and the
 > overlay no longer spans the title strip, so the band and the drops are drawn against a
 > space that doesn't match where the tabs are (`(unverified)` in a running build).
@@ -98,16 +106,16 @@ has already happened when it starts B. The overlay only paces the picture, then 
 
 > ⚠️ **The address field's real `TextField` must keep the click and stay in the
 > accessibility tree.** Idle with a page in front, its text is clear and the styled host and
-> path are an overlay that takes no hits (`AddressField`, `Sources/Bench/ShellRows.swift:182`).
+> path are an overlay that takes no hits (`AddressField`, `Sources/Bench/ShellRows.swift:231`).
 > At opacity 0, VoiceOver loses "Address" and a click can't place the caret.
 
 > ⚠️ **The Panel's inset changes once, after the slide** (`ContentView`'s
-> `.task(id: workbench.showPanel)`, `Sources/App/NetRelishApp.swift:236`). A real page
+> `.task(id: workbench.showPanel)`, `Sources/App/NetRelishApp.swift:431`). A real page
 > reflows once and never per frame. Animating the inset itself would resize the web view on
 > every frame.
 
 > ⚠️ **⌘K is an overlay, not a sheet, so nothing gives the keyboard back when it closes.**
-> `ContentView` hands it to the page in front (`Sources/App/NetRelishApp.swift:295`). A new
+> `ContentView` hands it to the page in front (`Sources/App/NetRelishApp.swift:502`). A new
 > overlay with a text field needs the same, or typing goes nowhere until the page is
 > clicked.
 
@@ -118,4 +126,4 @@ has already happened when it starts B. The overlay only paces the picture, then 
 
 > ⚠️ **A view at opacity 0 leaves the accessibility tree.** A smart-jar row's Restore or Open
 > button fades in on hover, so the row carries the action itself (`SmartJarRowView`,
-> `Sources/Bench/BrineView.swift:219`). Any hover-only control needs the same.
+> `Sources/Bench/BrineView.swift:343`). Any hover-only control needs the same.

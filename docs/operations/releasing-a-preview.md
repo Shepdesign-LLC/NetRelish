@@ -2,7 +2,7 @@
 title: Releasing a preview — the Direct build as a disk image
 type: operation
 created: 2026-11-13
-updated: 2026-11-18
+updated: 2026-11-21
 sources:
   - code: .github/workflows/release.yml
   - code: scripts/release_notes.py
@@ -10,7 +10,7 @@ sources:
   - code: Sources/App/License.swift
   - code: Sources/App/NetRelishApp.swift
   - code: CHANGELOG.md
-verified_at: 2c4c510
+verified_at: 0d45775
 ---
 
 # Releasing a preview
@@ -47,7 +47,10 @@ launch (`Sources/App/License.swift:153`, `Sources/App/NetRelishApp.swift:43`):
 
 The workflow's **Leave Pro unlocked** switch builds that one release with an empty address
 (ADR 0031). It then reads the built app and fails the run if the app does not match the
-switch.
+switch. When they match it says so as a notice on the build job, "Pro is unlocked in this
+build: it has no license address" (`.github/workflows/release.yml:217`). The notice is in
+the job's annotations, which can be read without signing in, so a release can be checked
+for it afterward.
 
 > ⚠️ **`main` has the license address set.** A release started without the switch locks
 > Pro for everyone who installs it. Until the Creem store issues keys (ADR 0027's last
@@ -72,6 +75,13 @@ switch.
 > every commit up to its tag: list them from the previous tag to `main` before writing the
 > next section. The first changelog left #78 to #90 under Unreleased although `v0.5.0`
 > already contained them, because the 0.5.0 notes named only its headline features.
+
+> ⚠️ **Notes and a changelog date written early are wrong by the time of the tag.** The
+> 0.6.0 notes and its changelog section were merged on 2026-11-18, three days and four
+> commits before the release: they left out the accessibility pass and dated the release
+> the 18th. A second pull request brought both up to `main` on the 21st. Write them last,
+> or check both against `git log <previous tag>..main` and today's date on the day the
+> run starts.
 
 > ⚠️ **A job that fails in seconds with no runner and no log never ran.** It says nothing
 > about the commit. Every workflow failed that way on 2026-11-18, on every runner image at

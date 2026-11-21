@@ -2,7 +2,7 @@
 title: Building without a Mac — CI is the compiler
 type: operation
 created: 2026-11-13
-updated: 2026-11-18
+updated: 2026-11-21
 sources:
   - code: .github/workflows/ci.yml
   - code: .github/workflows/codeql.yml
@@ -16,7 +16,7 @@ sources:
   - code: design/NetRelish.json
   - code: Resources/PrivacyInfo.xcprivacy
   - code: Sources/ShareExtension/PrivacyInfo.xcprivacy
-verified_at: def9940
+verified_at: 0d45775
 ---
 
 # Building without a Mac
@@ -35,22 +35,22 @@ CI is the compiler and the test runner. This page is the routine, and what goes 
 | If a Swift file was added, removed or moved: regenerate the Xcode project | `.github/workflows/regen-project.yml`, started by hand with the branch name (`.github/workflows/regen-project.yml:19`) |
 | Read the result of each job and fix | `.github/workflows/ci.yml` |
 
-`.github/workflows/ci.yml` runs six things. Three are free: "What changed"
-(`.github/workflows/ci.yml:47`), "Generated files match their sources"
-(`.github/workflows/ci.yml:152`) and the CodeQL gate self-test
-(`.github/workflows/ci.yml:334`). The two builds (`.github/workflows/ci.yml:194`), the tests
-(`.github/workflows/ci.yml:260`) and the PantryKit package
-(`.github/workflows/ci.yml:296`) run on `xcode-27`, the only image with the macOS 27 SDK,
-and can sit in the queue for a long time.
+`.github/workflows/ci.yml` runs seven things. Three are free: "What changed"
+(`.github/workflows/ci.yml:48`), "Generated files match their sources"
+(`.github/workflows/ci.yml:153`) and the CodeQL gate self-test
+(`.github/workflows/ci.yml:390`). The two builds (`.github/workflows/ci.yml:195`), the tests
+(`.github/workflows/ci.yml:261`), the UI tests (`.github/workflows/ci.yml:297`) and the
+PantryKit package (`.github/workflows/ci.yml:352`) run on `xcode-27`, the only image with
+the macOS 27 SDK, and can sit in the queue for a long time.
 
-**Those four paid `xcode-27` jobs now run only when the commit can change what they
-compile** (ADR 0037). "What changed" diffs against the base and sets one output the four
+**The builds, the tests and the PantryKit package run only when the commit can change what
+they compile** (ADR 0037). "What changed" diffs against the base and sets one output they
 depend on, through the `needs:`/`if:` pair on each of them
-(`.github/workflows/ci.yml:200`); a commit touching nothing but `docs/`, `zest/`,
+(`.github/workflows/ci.yml:201`, `:210`); a commit touching nothing but `docs/`, `zest/`,
 `.claude/`, a root `*.md` or the other workflows skips them, and the three free jobs still
 run. CodeQL skips the same kind of commit through its own `paths-ignore`
 (`.github/workflows/codeql.yml:241`), analyzes one flavour on a pull request and both on
-`main` and in the weekly scan, and CI (`.github/workflows/ci.yml:31`), CodeQL
+`main` and in the weekly scan, and CI (`.github/workflows/ci.yml:32`), CodeQL
 (`.github/workflows/codeql.yml:273`), the Zest suites
 (`.github/workflows/zest-tests.yml:24`) and the disk-image preview
 (`.github/workflows/dmg-preview.yml:36`) each cancel a superseded pull-request run.
@@ -75,6 +75,13 @@ suites do run in the session.
 > and blocks the merge. A job skipped by `if:` reports as skipped, which branch protection
 > accepts. The CodeQL workflow does use `paths-ignore`, so **the day `Analyze (swift)` is made a
 > required check, that filter has to become a job-level gate too** (ADR 0037).
+
+> ⚠️ **`ui-tests` is not behind the gate.** It has no `needs:`/`if:` pair
+> (`.github/workflows/ci.yml:297`), so it takes an `xcode-27` runner on every pull request,
+> a docs-only one included: it ran on the release-notes pull request for 0.6.0 while the
+> builds and the tests were skipped. The gate was written on one branch and the job on
+> another, and ADR 0037 says the job takes the same pair when it lands. It hasn't yet.
+> Giving it the pair is a change to CI, and Ryan's to approve.
 
 > ⚠️ **"What changed" must fail open.** Every path through its filter either names the files
 > it found or sets `code=true`: no usable base, a diff that will not run, a bad regex. Being
@@ -110,7 +117,7 @@ suites do run in the session.
 > not tell you.
 
 > ⚠️ **Only the app's privacy manifest goes in `Resources/`.** Everything in `Resources/` is
-> copied flat into the app's Contents/Resources (`project.yml:84`), so a second
+> copied flat into the app's Contents/Resources (`project.yml:85`), so a second
 > `PrivacyInfo.xcprivacy` anywhere in the app's folders fails the build with "Multiple
 > commands produce". XcodeGen treats a `.xcprivacy` it doesn't know as a resource of the
 > target whose folder holds it: the Share extension's sits in `Sources/ShareExtension`, the

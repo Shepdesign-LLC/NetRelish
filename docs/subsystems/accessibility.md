@@ -18,7 +18,8 @@ sources:
   - code: Sources/Shelf/ShelfView.swift
   - code: Sources/App/UITestFixture.swift
   - code: Tests/NetRelishUITests/CaptureJarSealUITests.swift
-verified_at: def9940
+  - code: Tests/NetRelishTests/Accessibility/UITestFixtureAccessibilityTests.swift
+verified_at: 0d45775
 ---
 
 # Accessibility
@@ -32,21 +33,21 @@ forced, are in ADR 0036. This page is how it is put together. The window it sits
 
 | Piece | Where | What it does |
 |---|---|---|
-| `NRAnnounce.post(_:priority:)` | `Sources/UI/Accessibility.swift:13` | Speaks a result nothing on screen announces. Posts `.announcementRequested` against the key window, so it is silent when no window is up. |
+| `NRAnnounce.post(_:priority:)` | `Sources/UI/Accessibility.swift:15` | Speaks a result nothing on screen announces. Posts `.announcementRequested` against the key window, so it is silent when no window is up. |
 | `nrSystemAccessibility()` | `Sources/UI/Accessibility.swift:40` | Hands SwiftUI's live `accessibilityReduceMotion` to the design system's `\.nrReduceMotion`. Applied once per window root (`Sources/App/NetRelishApp.swift:93`, `:215`, `:222`). |
 | `nrFocusRing(cornerRadius:inset:)` | `Sources/UI/Components.swift:114` | The one `--nr-focus` ring (manifest §4, placement 7), with its own `@FocusState` and `focusEffectDisabled()`. `NRFocusRing` (`:82`) is the same ring where the caller already tracks focus. |
 
 ## What gets spoken, and by whom
 
 Spoken lines are user-facing copy and live as named statics beside the code that fires
-them, so a test pins each one: `Workbench.capturedLine` (`Sources/App/Workbench.swift:1611`),
+them, so a test pins each one: `Workbench.capturedLine` (`Sources/App/Workbench.swift:1586`),
 `sealedLine(jarName:)` (`:1210`), `sankLine(titles:)` (`:1074`),
 `ShelfView.boardLine(jarName:)`, `JarTile.movedLine(jarName:)`,
 `SmartJarRowView.restoreAnnouncement(jarName:)` (`Sources/Bench/BrineView.swift:207`),
 `CommandSpeech` (`Sources/App/NetRelishApp.swift:324`).
 
 > ⚠️ **A result is spoken once, by one owner.** The address row's status line speaks every
-> `fillStatus` change itself (`Sources/Bench/ShellRows.swift:157`), so nothing may also
+> `fillStatus` change itself (`Sources/Bench/ShellRows.swift:156`), so nothing may also
 > announce what `Workbench.report(_:)` already showed. A second announcement is not a
 > duplicate word on screen — VoiceOver says the whole sentence twice.
 
@@ -74,7 +75,9 @@ hint says what pressing it does.
 > ⚠️ **The held sealed tab is hidden from VoiceOver.** During Seal's phase B the strip draws
 > a copy of the sealed tab (`Workbench.sealHeldTab`). It is `accessibilityHidden(true)` as
 > well as hit-test-free, or VoiceOver finds two tabs with one title and offers actions on a
-> tab that is already gone.
+> tab that is already gone. The copy is a picture and nothing else: since the v2.1.1
+> security correction the address row, its spoken connection hint and the selected tab all
+> follow the page in front, never the copy ([[workbench-shell]]).
 
 > ⚠️ **The address field's real `TextField` must stay in the tree and keep the click.** The
 > styled host and path are an overlay that takes no hits. At opacity 0 VoiceOver loses
@@ -99,12 +102,12 @@ at both ends rather than wrapping. The tab strip has the same shape with
 `focusSection()` so focus arrives as a whole.
 
 New keys and menu items are the table in ADR 0036. ⌘L goes through
-`Workbench.focusAddress()` (`Sources/App/Workbench.swift:1583`), a counter the address row
-watches (`Sources/Bench/ShellRows.swift:161`), because the field is in another view.
+`Workbench.focusAddress()` (`Sources/App/Workbench.swift:1558`), a counter the address row
+watches (`Sources/Bench/ShellRows.swift:160`), because the field is in another view.
 
 > ⚠️ **Every menu route into a jar must play the jar fill.** Tab › Move Tab to Jar
 > (`Sources/App/NetRelishApp.swift:186`), the tab's own Move to Jar
-> (`Sources/Bench/TabStrip.swift:270`) and Brine's Restore all take the drop's path so
+> (`Sources/Bench/TabStrip.swift:269`) and Brine's Restore all take the drop's path so
 > `fillJar(_:)` runs exactly once. A plain `moveTab` is silent and leaves the jar unfilled.
 > The same trap, from the drag side, is in [[rearranging]].
 
@@ -112,7 +115,7 @@ watches (`Sources/Bench/ShellRows.swift:161`), because the field is in another v
 
 Reduce Motion, Reduce Transparency, Increase Contrast and Differentiate Without Color each
 change something; the table is in ADR 0036. The alternates are picked per surface —
-`ShellInk` (`Sources/Bench/ShellRows.swift:618`) is the shared pair for hairlines and edges
+`ShellInk` (`Sources/Bench/ShellRows.swift:609`) is the shared pair for hairlines and edges
 — because `tokens.css` carries no contrast set yet.
 
 > ⚠️ **Read the settings from SwiftUI's environment, not once at launch.**

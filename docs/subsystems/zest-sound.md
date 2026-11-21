@@ -2,7 +2,7 @@
 title: Zest sound — one kit, four tools
 type: subsystem
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-21
 sources:
   - code: zest/apps/zest/index.html
   - code: zest/apps/mail/index.html
@@ -11,7 +11,7 @@ sources:
   - code: zest/tests/sound.js
   - code: zest/tests/run.js
   - code: zest/README.md
-verified_at: 2c4c510
+verified_at: 0d45775
 ---
 
 # Zest sound
@@ -76,14 +76,17 @@ the toast function takes a sound name, and the copy and download helpers play `d
 > `offsetParent` and a non-zero box. Ask Playwright (`isVisible`) instead. Two checks
 > passed for the wrong reason before this was found.
 
-> ⚠️ **The suites allow three outside hosts and no others.** The tools already ask for
-> Google Fonts, and Zest MD for cdnjs; the tests abort those requests and fail on any
-> other host. Adding a host to that list is a change to what the tools reach, not a test
-> fix.
+> ⚠️ **The suites allow no outside host at all.** The fonts and Zest MD's libraries are
+> vendored and load from the machine, so `zest/tests/sound.js` aborts every request that
+> isn't to `localhost` and fails if one was made. There is no list of known hosts to add to
+> any more: a tool that reaches for a host fails the suite, and making it pass means
+> vendoring the file, not loosening the test.
 
-> ⚠️ **None of this is in the Mac app.** Zest opens inside NetRelish in 1.1
-> (`docs/adr/0015-zest-inside-netrelish.md`). Until then a Zest change is demonstrated in
-> a browser, not in the built app.
+> ⚠️ **The kit ships in the Mac app, unheard.** Since ADR 0033 the tools are bundled in
+> NetRelish.app under Window › Zest ([[zest-window]]), and the app's copy carries the same
+> kit: `zest/build.sh --app` writes it into `Resources/Zest/`. Whether the sounds play in
+> the Zest window has not been listened to `(unverified)`. A change to the kit is still
+> proved in a browser by the suites, and reaches the app only through that build.
 
 ## Not yet judged
 
