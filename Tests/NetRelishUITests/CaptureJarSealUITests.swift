@@ -113,7 +113,27 @@ final class CaptureJarSealUITests: XCTestCase {
             "-panel.visible", "NO",                  // the Panel closed, whatever this Mac remembers
         ]
         app.launch()
-        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: Self.timeout), "The main window didn't open")
+        // The app is brought to the front explicitly: a window that exists but belongs to an
+        // inactive app is not always in the accessibility tree on a headless CI Mac.
+        app.activate()
+        if !app.windows.firstMatch.waitForExistence(timeout: Self.timeout) {
+            // Both methods failed here on the first run, and "The main window didn't open" alone
+            // cannot say why: the app may have crashed in the fixture, or opened a window the
+            // query does not match, or never come to the front. `debugDescription` is the whole
+            // tree as XCUITest sees it, and `state` separates "not running" from "no window".
+            // The .xcresult holds this too, but reading it needs Xcode, which the session that
+            // writes this test does not have.
+            XCTFail("""
+                The main window didn't open.
+                app.state = \(app.state.rawValue) (1 notRunning, 2 runningBackground, \
+                3 runningBackgroundSuspended, 4 runningForeground)
+                windows.count = \(app.windows.count), dialogs = \(app.dialogs.count), \
+                sheets = \(app.sheets.count), alerts = \(app.alerts.count)
+                tree as XCUITest sees it:
+                \(app.debugDescription)
+                """)
+            return app
+        }
         let shelf = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Shelf")).firstMatch
         XCTAssertTrue(shelf.waitForExistence(timeout: Self.timeout), "There's no Shelf")
         for jar in [Self.firstJar, Self.targetJar] {
