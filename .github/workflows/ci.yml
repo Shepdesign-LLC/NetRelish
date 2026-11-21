@@ -317,26 +317,30 @@ jobs:
       # Signed ad hoc, as the Test job is, with the same entitlements left off: XCUITest's runner
       # must be signed to launch, and the app behaves as it does under the unit tests.
       - name: UI tests (Debug-AppStore; signed ad hoc, as the Test job is)
+        # Deliberately WITHOUT `-quiet`, unlike the Test job above. With it, a failure arrives
+        # as nothing but "Failing tests:" and two method names, and the per-assertion detail is
+        # left only inside a ~115 MB .xcresult that needs Xcode to open — which the session
+        # that writes these tests does not have. For a test whose whole job is to prove a path
+        # through the accessibility tree, WHICH element was not found is the entire message.
         run: |
           xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish UI Tests" \
             -configuration Debug-AppStore -derivedDataPath "$DERIVED" \
             -destination 'platform=macOS' -onlyUsePackageVersionsFromResolvedFile \
             CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- \
             CODE_SIGNING_REQUIRED=NO CODE_SIGN_ENTITLEMENTS= ENABLE_APP_SANDBOX=NO \
-            -resultBundlePath UITestResults.xcresult -quiet test
-      - name: Which assertion failed, in the log
+            -resultBundlePath UITestResults.xcresult test
+      - name: The result bundle's own summary, if it can be read
         if: failure()
-        # `-quiet` above keeps a passing run readable, but it also swallows XCTest's
-        # per-assertion lines, so a failure arrives as nothing but "Failing tests:" and two
-        # method names — and the detail is only inside a 116 MB .xcresult, which needs Xcode
-        # to open and so cannot be read where this code is written. This prints the failure
-        # messages into the log instead. `|| true`, and tolerant of either tool spelling,
-        # because a diagnostic must never be what fails the job: the test step above already
-        # did that.
+        # A second route to the same detail, in case the step above was cut off before XCTest
+        # printed. Its stderr is NOT suppressed: the first version of this step hid it, both
+        # spellings failed, and the log said only "could not read" — which taught nothing.
+        # `|| true` at the end, because a diagnostic must never be what fails a job; the test
+        # step above has already done that.
         run: |
-          xcrun xcresulttool get test-report tests --path UITestResults.xcresult 2>/dev/null \
-            || xcrun xcresulttool get test-report summary --path UITestResults.xcresult 2>/dev/null \
-            || echo "::warning::could not read UITestResults.xcresult; see the uploaded artifact"
+          xcrun xcresulttool get test-report tests --path UITestResults.xcresult \
+            || xcrun xcresulttool get test-report summary --path UITestResults.xcresult \
+            || xcrun xcresulttool get --legacy --format json --path UITestResults.xcresult \
+            || echo "::warning::xcresulttool could not read the bundle; the artifact has it"
           true
       - name: Keep the UI test results when they fail, so the errors can be read
         if: failure()
