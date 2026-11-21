@@ -141,7 +141,7 @@ struct SearchRow: View {
         // One stop for Tab and the arrow keys under Full Keyboard Access: the row, then the Bench.
         .focusSection()
         .background(NRColor.surface)
-        .overlay(alignment: .bottom) { Rectangle().fill(NRColor.hairlineSoft).frame(height: NRSpace.hairline) }
+        .overlay(alignment: .bottom) { Rectangle().fill(ShellInk.separator(contrast)).frame(height: NRSpace.hairline) }
         .onChange(of: tab?.id, initial: true) { _, _ in show(pageAddress) }
         .onChange(of: focused) { _, editing in
             if editing { address = pageAddress }
@@ -210,7 +210,7 @@ struct SearchRow: View {
     /// keyboard. Only from the field itself, not from a button inside it.
     private func leaveField() {
         guard focused else { return }
-        address = held?.url ?? web?.url?.absoluteString ?? tab?.url ?? ""
+        address = pageAddress
         focused = false
         givePageTheKeyboard()
     }
@@ -272,7 +272,7 @@ private struct AddressField: View {
                 .onSubmit(go)
                 .accessibilityLabel("Address")
                 // The value stays the field's own text, so editing still works.
-                .accessibilityHint(ShellText.connectionHint(hasPage: shownTab != nil, scheme: pageURL?.scheme))
+                .accessibilityHint(ShellText.connectionHint(hasPage: tab != nil, scheme: pageURL?.scheme))
                 .accessibilityIdentifier("address-field")
                 .overlay(alignment: .leading) {
                     if let parts {

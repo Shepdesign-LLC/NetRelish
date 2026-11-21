@@ -102,6 +102,9 @@ struct TabStrip: View {
 
     @ViewBuilder private func strip(for jar: Jar) -> some View {
         let tabs = workbench.stripTabs
+        // Where a tab sits is counted in the open tabs, never in what the strip draws, so the
+        // held picture of a sealed tab is never one of them.
+        let order = workbench.tabs.map(\.id)
         // The retained Seal chip is only an animation anchor, never the selected tab.
         let frontId = workbench.benchTab?.id
         let clip = max(0, available - Self.trailingReserve)
