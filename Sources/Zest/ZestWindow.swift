@@ -109,6 +109,11 @@ struct ZestWindow: View {
                 }
             }
             .background(WindowReader { window in watch(window) })
+            // "Opening Zest…" turning into the tool needs no word: the tool is there. Turning
+            // into the failure line does, or VoiceOver is left on a line that has gone.
+            .onChange(of: couldntStart) { _, failed in
+                if failed { NRAnnounce.post(Self.failedLine) }
+            }
             // A Zest row on the Shelf asks for its tool; the window may already be open.
             .onChange(of: workbench.zestToolRequest, initial: true) { _, tool in
                 guard let tool else { return }
@@ -127,11 +132,18 @@ struct ZestWindow: View {
     @ViewBuilder private var content: some View {
         if let list = rules.list, let root = ZestFiles.bundledRoot {
             ZestPane(web: model.view(for: model.tool, rules: list, root: root).webView)
-        } else if rules.failed || (rules.list != nil && ZestFiles.bundledRoot == nil) {
-            EmptyBench(message: "Zest couldn’t start. Quit NetRelish and open it again.")
+        } else if couldntStart {
+            EmptyBench(message: Self.failedLine)
         } else {
             EmptyBench(message: "Opening Zest…")
         }
+    }
+
+    static let failedLine = "Zest couldn’t start. Quit NetRelish and open it again."
+
+    /// The rule list didn't compile, or the tools aren't in the bundle.
+    private var couldntStart: Bool {
+        rules.failed || (rules.list != nil && ZestFiles.bundledRoot == nil)
     }
 
     /// The window is Zest's: the Workbench is told whenever it is the main window, so Seal,

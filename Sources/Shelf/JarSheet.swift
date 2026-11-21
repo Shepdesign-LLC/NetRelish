@@ -24,32 +24,49 @@ struct JarSheet: View {
     @State private var amount = 3
     @State private var unit: Unit = .days
     @State private var hasShelfLife = true
+    /// The sheet opens with the keyboard in Name.
+    @FocusState private var nameFocused: Bool
+
+    /// What VoiceOver says the stepper is set to: "3 days", "1 minute".
+    static func spokenAmount(amount: Int, unit: Unit) -> String {
+        let word = amount == 1 ? String(unit.rawValue.dropLast()) : unit.rawValue
+        return "\(amount) \(word)"
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: NRSpace.sp4) {
             Text(existing == nil ? "New Jar" : "Edit Jar").font(NRType.font(NRType.fsLg, weight: .semibold)).foregroundStyle(NRColor.fg)
+                .accessibilityAddTraits(.isHeader)
+            // Each control carries its own name for VoiceOver, so the column of names on the
+            // left is hidden from it; otherwise every name would be read twice.
             Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: NRSpace.sp3, verticalSpacing: NRSpace.sp3) {
                 GridRow {
-                    Text("Name").font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2)
+                    Text("Name").font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2).accessibilityHidden(true)
+                    // "Meridian" is only an example; spoken alone it would sound like a name already filled in.
                     TextField("Meridian", text: $name).textFieldStyle(.roundedBorder).frame(width: 240).onSubmit(submit)
+                        .focused($nameFocused)
+                        .accessibilityLabel("Name")
                 }
                 GridRow {
-                    Text("Color").font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2)
+                    Text("Color").font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2).accessibilityHidden(true)
                     HStack(spacing: NRSpace.sp2) {
-                        ColorPicker("", selection: $color, supportsOpacity: false).labelsHidden()
+                        ColorPicker("Color", selection: $color, supportsOpacity: false).labelsHidden()
+                        // A preview of the color on the jar: decoration.
                         NRSymbol.jar.image.resizable().frame(width: 20, height: 20).foregroundStyle(color)
+                            .accessibilityHidden(true)
                         Text("Only this jar wears it.").font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg3)
                     }
                 }
                 GridRow {
-                    Text("Shelf life").font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2)
+                    Text("Shelf life").font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2).accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: NRSpace.sp2) {
                         HStack(spacing: NRSpace.sp2) {
-                            Toggle("", isOn: $hasShelfLife).labelsHidden().toggleStyle(.switch)
+                            Toggle("Shelf life", isOn: $hasShelfLife).labelsHidden().toggleStyle(.switch)
                             TextField("", value: $amount, format: .number).textFieldStyle(.roundedBorder).frame(width: 56)
                                 .multilineTextAlignment(.trailing).disabled(!hasShelfLife).accessibilityLabel("Shelf life amount")
-                            Stepper("", value: $amount, in: 1...999).labelsHidden().disabled(!hasShelfLife)
-                            Picker("", selection: $unit) { ForEach(Unit.allCases) { Text($0.rawValue).tag($0) } }
+                            Stepper("Shelf life amount", value: $amount, in: 1...999).labelsHidden().disabled(!hasShelfLife)
+                                .accessibilityValue(Self.spokenAmount(amount: amount, unit: unit))
+                            Picker("Unit", selection: $unit) { ForEach(Unit.allCases) { Text($0.rawValue).tag($0) } }
                                 .labelsHidden().frame(width: 110).disabled(!hasShelfLife)
                         }
                         Text(hasShelfLife ? "Idle tabs sink into Brine after this. Pinned tabs never sink." : "Tabs in this jar never sink.")
@@ -58,7 +75,7 @@ struct JarSheet: View {
                 }
                 if existing != nil {
                     GridRow {
-                        Text("Card").font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2)
+                        Text("Card").font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2).accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: NRSpace.sp2) {
                             Toggle("Use a different card in this jar", isOn: $ownCard).toggleStyle(.switch)
                                 .font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg)
@@ -71,15 +88,18 @@ struct JarSheet: View {
             }
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }.buttonStyle(.nrSecondary).keyboardShortcut(.cancelAction)
-                Button(existing == nil ? "Create" : "Save") { submit() }.buttonStyle(.nrPrimary).keyboardShortcut(.defaultAction)
+                Button("Cancel") { dismiss() }.buttonStyle(.nrSecondary).nrFocusRing().keyboardShortcut(.cancelAction)
+                Button(existing == nil ? "Create" : "Save") { submit() }.buttonStyle(.nrPrimary).nrFocusRing().keyboardShortcut(.defaultAction)
                     .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
         .padding(NRSpace.sp6)
         .frame(width: 520)
         .background(NRColor.surface)
-        .onAppear(perform: seed)
+        .onAppear {
+            seed()
+            nameFocused = true
+        }
     }
 
     private func seed() {

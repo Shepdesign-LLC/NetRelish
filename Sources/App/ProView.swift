@@ -37,6 +37,11 @@ struct ProView: View {
         .padding(NRSpace.sp6)
         .frame(width: 440)
         .background(NRColor.surface)
+        // What Buy, Restore, Activate, Check Again and Deactivate did arrives only as this
+        // line: VoiceOver says it as it's shown, at once, since it answers a button just pressed.
+        .onChange(of: pro.note) { _, new in
+            if let new, new != pro.lockedLicenseLine { NRAnnounce.post(new, priority: .high) }
+        }
         .task {
             if pro.usesLicense {
                 pro.settle()   // a year that ran out since launch locks now, without asking anyone
@@ -54,12 +59,13 @@ struct ProView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(ProText.title)
                     .font(NRType.font(NRType.fsXl, weight: .semibold)).foregroundStyle(NRColor.fg)
+                    .accessibilityAddTraits(.isHeader)
                 Text(ProText.lead)
                     .font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2)
             }
             Spacer()
             Button("Done") { done() }
-                .buttonStyle(.nrSecondary)
+                .buttonStyle(.nrSecondary).nrFocusRing()
                 .keyboardShortcut(.cancelAction)
         }
     }
@@ -72,6 +78,8 @@ struct ProView: View {
                     Text(line).font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // A feature's name and its line are one thing to hear, in one swipe.
+                .accessibilityElement(children: .combine)
             }
         }
     }
@@ -97,12 +105,14 @@ struct ProView: View {
                             Text(ProText.planLine(offer.plan))
                                 .font(NRType.font(NRType.fsXs)).foregroundStyle(NRColor.fg2)
                         }
+                        // "Pro Lifetime, Buy once, use forever.", then its buy button.
+                        .accessibilityElement(children: .combine)
                         Spacer()
                         // One primary button per view (manifest §4): Lifetime carries it.
                         if offer.plan == .lifetime {
-                            Button(ProText.buy(offer)) { buy(offer.plan) }.buttonStyle(.nrPrimary)
+                            Button(ProText.buy(offer)) { buy(offer.plan) }.buttonStyle(.nrPrimary).nrFocusRing()
                         } else {
-                            Button(ProText.buy(offer)) { buy(offer.plan) }.buttonStyle(.nrSecondary)
+                            Button(ProText.buy(offer)) { buy(offer.plan) }.buttonStyle(.nrSecondary).nrFocusRing()
                         }
                     }
                 }
@@ -127,9 +137,9 @@ struct ProView: View {
                 HStack(spacing: NRSpace.sp3) {
                     // One primary button per view (manifest §4).
                     Button(ProText.checkAgain) { Task { await pro.checkAgain() } }
-                        .buttonStyle(.nrPrimary)
+                        .buttonStyle(.nrPrimary).nrFocusRing()
                     Button(ProText.deactivate) { Task { await pro.deactivate() } }
-                        .buttonStyle(.nrSecondary)
+                        .buttonStyle(.nrSecondary).nrFocusRing()
                     Spacer()
                 }
                 .disabled(pro.busy)
@@ -150,7 +160,7 @@ struct ProView: View {
                         .accessibilityLabel(ProText.keyPlaceholder)
                     // One primary button per view (manifest §4).
                     Button(ProText.activate) { activate() }
-                        .buttonStyle(.nrPrimary)
+                        .buttonStyle(.nrPrimary).nrFocusRing()
                         .disabled(pro.busy || typedKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
                 Link(ProText.buyLicense, destination: ProText.buyURL)

@@ -45,7 +45,11 @@ public struct NRSecondaryButtonStyle: ButtonStyle {
     private struct SecondaryBody: View {
         let configuration: Configuration
         @Environment(\.isEnabled) private var isEnabled
+        @Environment(\.colorSchemeContrast) private var contrast
         @State private var hovering = false
+
+        /// The hairline all but disappears on white; under Increase Contrast the edge is `fg3`.
+        private var edge: Color { contrast == .increased ? NRColor.fg3 : NRColor.hairline }
 
         var body: some View {
             configuration.label
@@ -55,7 +59,7 @@ public struct NRSecondaryButtonStyle: ButtonStyle {
                 .padding(.vertical, NRSpace.sp2)
                 .background(hovering && isEnabled ? NRColor.surface2 : .clear,
                             in: RoundedRectangle(cornerRadius: NRRadius.r1))
-                .overlay(RoundedRectangle(cornerRadius: NRRadius.r1).strokeBorder(NRColor.hairline, lineWidth: NRSpace.hairline))
+                .overlay(RoundedRectangle(cornerRadius: NRRadius.r1).strokeBorder(edge, lineWidth: NRSpace.hairline))
                 .opacity(configuration.isPressed ? 0.85 : (isEnabled ? 1 : 0.4))
                 .onHover { hovering = $0 }
                 .animation(NRMotion.animation(duration: NRMotion.fast), value: hovering)
@@ -68,6 +72,48 @@ public extension ButtonStyle where Self == NRPrimaryButtonStyle {
 }
 public extension ButtonStyle where Self == NRSecondaryButtonStyle {
     static var nrSecondary: NRSecondaryButtonStyle { NRSecondaryButtonStyle() }
+}
+
+// MARK: - Focus ring (§4 placement 7)
+
+/// The keyboard's ring (manifest v2.1 §4 #7, `--nr-focus`): 2pt, in the shape it marks, just
+/// outside it by default, or inside (a positive inset) where a card would clip it. Drawn only,
+/// never spoken, and only while the keyboard is there.
+struct NRFocusRing: View {
+    let cornerRadius: CGFloat
+    /// How far in from the edge it marks; negative draws it outside.
+    var inset: CGFloat = -2
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .strokeBorder(NRColor.focus, lineWidth: 2)
+            .padding(inset)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+/// `nrFocusRing`: our ring in place of the system's, which draws in the user's accent color
+/// (blue by default), not `--nr-focus`.
+private struct NRFocusRingModifier: ViewModifier {
+    let cornerRadius: CGFloat
+    let inset: CGFloat
+    @FocusState private var focused: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .focusEffectDisabled()
+            .focused($focused)
+            .overlay { if focused { NRFocusRing(cornerRadius: cornerRadius, inset: inset) } }
+    }
+}
+
+extension View {
+    /// For a control that keeps no focus state of its own, such as a `.nrSecondary` or
+    /// `.nrPrimary` button (both `r1`): the keyboard's ring in `--nr-focus` (§4 #7).
+    func nrFocusRing(cornerRadius: CGFloat = NRRadius.r1, inset: CGFloat = -2) -> some View {
+        modifier(NRFocusRingModifier(cornerRadius: cornerRadius, inset: inset))
+    }
 }
 
 // MARK: - Badge (§8; neutral since v2.1, when §4 #6 narrowed)
@@ -108,8 +154,18 @@ public struct NRShelfLifeBar: View {
             }
         }
         .frame(height: 2)
+        // One element: the bar's shapes say nothing on their own.
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("Shelf life")
-        .accessibilityValue("\(Int(remaining * 100)) percent remaining")
+        .accessibilityValue(Self.accessibilityValue(remaining: remaining))
+    }
+
+    /// "80 percent left", or "15 percent left, running low" under 20%, which the bar shows
+    /// only in the warn color.
+    static func accessibilityValue(remaining: Double) -> String {
+        let left = max(0, min(1, remaining))
+        let percent = Int((left * 100).rounded())
+        return left < 0.2 ? "\(percent) percent left, running low" : "\(percent) percent left"
     }
 }
 
@@ -190,6 +246,18 @@ public struct NRJarGlyph: View {
             }
         }
         .frame(width: size, height: size)
-        .accessibilityLabel("Jar")
+        // One element, so the variant's inner symbol never takes the name. Beside a jar's
+        // own name, hide the glyph at the call site instead, as NRFilledJar is.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Self.spokenName(of: variant))
+    }
+
+    /// What VoiceOver calls the glyph: "Jar", "Smart jar" or "Mason Jar".
+    static func spokenName(of variant: Variant) -> String {
+        switch variant {
+        case .plain: return "Jar"
+        case .smart: return "Smart jar"
+        case .mason: return "Mason Jar"
+        }
     }
 }

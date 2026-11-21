@@ -167,3 +167,49 @@ Append-only. Newest entries at the bottom.
   moved; nothing those lines do changed
 - Checked against the working tree on top of `38edcae`, before the facelift was committed:
   move `verified_at` to the facelift's commit, and re-cite, if its lines move on the way in
+
+## [2026-11-18] CI cost: the paid runners stop paying for abandoned and no-change runs
+
+- Measured first (ADR 0037): 1,985 runner minutes on the `xcode-27` and `macos-26` labels
+  over Nov 14–18, of which **1,078 (54%)** went to runs that were superseded mid-flight or
+  were analyzing a docs-only or literally empty commit. 76% of all of it is one job, CodeQL's
+  `Analyze (swift)`, and 41 of its 49 minutes is the single "Build both flavours" step
+- building-without-a-mac: CI now runs six things, three of them free; the four paid
+  `xcode-27` jobs are gated on a free "What changed" job; CodeQL filters the same commits,
+  analyzes one flavour on a pull request and both on `main` and weekly; four workflows cancel
+  superseded pull-request runs. Two traps: a skipped job is not a skipped workflow (a required
+  check that reports nothing blocks the merge, which is why CI gates with `if:` and why
+  the CodeQL workflow's `paths-ignore` has to become a job gate the day `Analyze (swift)` is
+  required), and the gate must fail open — a `grep -q` pipeline dying of `SIGPIPE` on a
+  large diff once read as "nothing changed" on a green run, and each paid job's `if:` now
+  runs on anything but a clean `code=false`, because a job skipped for a *failed* `needs:`
+  reports as a passing required check
+- The cost cut is its own branch and its own pull request, so it can merge the moment Actions
+  runs again. The accessibility pass (PR #103) brings a fifth paid job, `ui-tests`; it is not
+  on `main`, so it is not in this branch's CI workflow, and it takes the same `needs:`/`if:` pair when
+  that branch lands. ADR 0037 says so in its arithmetic rather than leaving the next reader
+  to notice
+- Open, and only Ryan can close it: whether `xcode-27` and `macos-26` are billed larger
+  runners or free standard ones. GitHub's run-usage API reports 0 billable ms for every
+  standard macOS job on this public repository and omits the `xcode-27` jobs from the billable
+  map altogether, while their runner names and group read as hosted larger runners. Settings →
+  Actions → Runners, and the billing page's per-SKU breakdown, are the only places that say.
+## [2026-11-18] accessibility: a new page, and citations into four others
+
+- New page [[accessibility]] for the P5 pass (ADR 0036): the three pieces (`NRAnnounce`,
+  `nrSystemAccessibility()`, `nrFocusRing`), who speaks a result and why only one owner may,
+  how a row is read as one element, the keyboard's focus order and the new keys, what each of
+  the Mac's four accessibility settings changes, and the UI test's Debug-only fixture. Nine
+  traps, among them: one owner per spoken result; announcements dropped unless the app is in
+  front; the held sealed tab hidden from VoiceOver; a rotor entry needs its namespace; every
+  menu route into a jar plays the fill; read the settings from the environment, not once at
+  launch; the fixture is `#if DEBUG` on both sides; XCUITest can't fire a VoiceOver action, so
+  each action needs a menu item with the same words. A row for it in `docs/CLAUDE.md`, a link
+  in the index
+- rearranging: a row and a trap for the keyboard routes that now sit beside the drag
+  (Tab › Move Tab to Jar, Move Tab Left/Right, Jars › Move Jar Up/Down, Brine's Restore to…),
+  all of them through `drop(_:onJar:)` so the jar fill plays once
+- building-without-a-mac: CI runs six things now; the UI tests are their own job and scheme.
+  A trap: a new target or scheme in `project.yml` is as stale-making as a new Swift file,
+  because the committed project holds `xcshareddata/xcschemes/`
+- workbench-shell: unchanged. Its hover-at-opacity-0 trap is linked, not copied

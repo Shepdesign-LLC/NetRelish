@@ -46,8 +46,12 @@ enum ProofExport {
         NSAppearance(named: .aqua)?.performAsCurrentDrawingAppearance {
             renderer.render { size, draw in
                 var box = CGRect(origin: .zero, size: size)
+                // A title, so Preview, Finder and VoiceOver name the document by what it is,
+                // not only by its file.
+                let info = [kCGPDFContextTitle as String: ProofText.heading,
+                            kCGPDFContextCreator as String: "NetRelish"] as CFDictionary
                 guard let consumer = CGDataConsumer(data: data as CFMutableData),
-                      let context = CGContext(consumer: consumer, mediaBox: &box, nil) else { return }
+                      let context = CGContext(consumer: consumer, mediaBox: &box, info) else { return }
                 context.beginPDFPage(nil)
                 draw(context)
                 context.endPDFPage()
