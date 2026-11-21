@@ -6,16 +6,23 @@ Notable changes to NetRelish. Release notes for each preview are in `docs/releas
 
 Nothing yet.
 
-## 0.6.0 — 2026-11-18
+## 0.6.0 — 2026-11-21
 
 ### Added
+- Accessibility: VoiceOver says what capture, Seal, sinking, restore and a move did; keys and menu items for what needed the pointer (⌘L, ⌃Tab, ⌘[ and ⌘], Tab › Move Tab to Jar, Jars › Show Board); Reduce Motion, Reduce Transparency, Increase Contrast and Differentiate Without Color followed live (#103, ADR 0036).
 - The workbench facelift: attached tabs, the Shelf as a rail of jars, a two-phase Seal, the floating ⌘K (#102, ADR 0035).
 - The Workstation v5 window, with a board for each jar (#95, ADR 0034).
 - The Zest tools inside NetRelish.app, offline, under Window › Zest (#93, ADR 0033).
 - Sandbox and privacy review: privacy manifests, Help › Privacy Policy, camera and microphone refused, a reason for the local network prompt (#91, ADR 0032).
 - ZestMail canvas at full size and 1:1 on phones; ZestImage stage fits the window; the eight Zest cards redesigned (#92).
 
+### Changed
+- CI no longer pays for abandoned runs or for commits that can't change what it builds (#104, ADR 0037).
+- 0.6.0 notes and the changelog cut (#105).
+
 ### Fixed
+- Security: during Seal, the address row and the selected tab follow the page in front, not the tab being sealed (#107).
+- `main` builds again after #107, and the capture → jar → seal UI test passes for the first time (#109).
 - Image: malformed SVG brand logos no longer freeze the app (#99).
 - Mail: merge-tag scanning, image-placeholder scans and image-like comments no longer hang the native preview (#96, #97, #98).
 
