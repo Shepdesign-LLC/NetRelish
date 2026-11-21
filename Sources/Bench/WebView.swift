@@ -31,6 +31,9 @@ final class JarWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = JarProfile.dataStore(for: jarId)   // non-negotiable 6
         config.preferences.javaScriptCanOpenWindowsAutomatically = false
+        #if DEBUG
+        UITestFixture.install(on: config)   // the UI test's page, only in its launch; not in Release
+        #endif
         self.init(jarId: jarId, configuration: config, openedByPage: false)
     }
 
@@ -152,6 +155,9 @@ final class JarWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     static func handoff(_ url: URL?, clicked: Bool) -> Handoff {
         guard let url, let scheme = url.scheme?.lowercased(), scheme != "javascript",
               !WKWebView.handlesURLScheme(scheme) else { return .stay }
+        #if DEBUG
+        if UITestFixture.serves(scheme) { return .stay }   // the UI test's page, served in the app
+        #endif
         return clicked && schemesForOtherApps.contains(scheme) ? .open(url) : .ask(url)
     }
 

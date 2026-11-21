@@ -29,6 +29,8 @@ struct IdentityFields: View {
 
     private func label(_ f: IdentityField) -> some View {
         Text(f.label).font(NRType.font(NRType.fsSm)).foregroundStyle(NRColor.fg2)
+            // The field beside it carries the same name, so VoiceOver says it once.
+            .accessibilityHidden(true)
     }
 
     private func field(_ f: IdentityField) -> some View {

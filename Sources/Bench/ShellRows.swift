@@ -40,6 +40,7 @@ enum NRShell {
 struct TitleRow: View {
     @Bindable var workbench: Workbench
     @FocusState private var markFocused: Bool
+    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
         GeometryReader { geo in
@@ -56,7 +57,7 @@ struct TitleRow: View {
         .frame(height: NRShell.titleH)
         // Under the tabs: the tab in front covers this line, so it joins the address row.
         .background(alignment: .bottom) {
-            Rectangle().fill(NRColor.hairlineSoft).frame(height: NRSpace.hairline)
+            Rectangle().fill(ShellInk.separator(contrast)).frame(height: NRSpace.hairline)
         }
         .background(NRColor.surface)
         .background(WindowButtonsPlacement())
@@ -74,10 +75,7 @@ struct TitleRow: View {
         .focused($markFocused)
         .overlay {
             if markFocused {
-                RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(NRColor.focus, lineWidth: 2)
-                    .padding(-2)
-                    .allowsHitTesting(false)
+                NRFocusRing(cornerRadius: 6, inset: -2)
             }
         }
         .disabled(workbench.activeJar == nil)
@@ -97,6 +95,10 @@ struct SearchRow: View {
     let web: JarWebView?
     @State private var address = ""
     @FocusState private var focused: Bool
+    @FocusState private var sealFocused: Bool
+    /// Only the key window's row speaks the Workbench's status lines: every window has one.
+    @Environment(\.controlActiveState) private var activeState
+    @Environment(\.colorSchemeContrast) private var contrast
 
     private var tab: Tab? { workbench.benchTab }
     /// Origin chrome always follows the live page, never Seal's retained animation chip.
@@ -113,30 +115,51 @@ struct SearchRow: View {
             } else if let smart = workbench.activeSmartJar {
                 SmartJarChip(smart: smart)
             }
-            RowIconButton(systemName: "chevron.left", help: "Back") { web?.goBack() }
+            // ⌘[ and ⌘] are the only keyboard way back and forward: the menus have neither.
+            RowIconButton(systemName: "chevron.left", help: "Back (⌘[)", label: "Back",
+                          shortcut: KeyboardShortcut("[", modifiers: .command), id: "back") { web?.goBack() }
                 .disabled(web?.canGoBack != true)
-            RowIconButton(systemName: "chevron.right", help: "Forward") { web?.goForward() }
+            RowIconButton(systemName: "chevron.right", help: "Forward (⌘])", label: "Forward",
+                          shortcut: KeyboardShortcut("]", modifiers: .command), id: "forward") { web?.goForward() }
                 .disabled(web?.canGoForward != true)
             AddressField(workbench: workbench, web: web, pageURL: pageURL,
                          address: Binding(get: { displayedAddress }, set: { address = $0 }),
                          focused: $focused, go: go)
                 .padding(.leading, NRSpace.sp1)
+                .onExitCommand { leaveField() }
             sealSlot
                 .padding(.leading, NRSpace.sp1)
             RowIconButton(systemName: "sidebar.trailing",
                           help: workbench.showPanel ? "Hide Panel (⌘⌥I)" : "Show Panel (⌘⌥I)",
-                          label: workbench.showPanel ? "Hide panel" : "Show panel",
-                          isOn: workbench.showPanel) { workbench.showPanel.toggle() }
+                          label: workbench.showPanel ? "Hide Panel" : "Show Panel",
+                          isOn: workbench.showPanel, id: "panel-toggle") { workbench.showPanel.toggle() }
         }
         .padding(.leading, NRSpace.sp3)
         .padding(.trailing, 10)
         .frame(height: NRShell.addressH)
         .frame(maxWidth: .infinity)
+        // One stop for Tab and the arrow keys under Full Keyboard Access: the row, then the Bench.
+        .focusSection()
         .background(NRColor.surface)
         .overlay(alignment: .bottom) { Rectangle().fill(NRColor.hairlineSoft).frame(height: NRSpace.hairline) }
         .onChange(of: tab?.id, initial: true) { _, _ in show(pageAddress) }
         .onChange(of: focused) { _, editing in
             if editing { address = pageAddress }
+        }
+        // The status line is the only word on what ⌘D, ⌘S or ⌘⇧R did, and it's drawn for
+        // 2.5s: VoiceOver says it too, at once, since it answers a key just pressed. The
+        // Workbench is every window's, so only the key window's row speaks. Each line is a new
+        // value, so the same line twice (two captures) is said twice. The Workbench says how
+        // urgently: .medium for pages arriving from the Share poll, .high for everything else.
+        .onChange(of: workbench.statusLine) { _, line in
+            guard let line, activeState == .key else { return }
+            NRAnnounce.post(line.text, priority: line.priority)
+        }
+        // ⌘L: the key window's field takes the keyboard. VoiceOver follows it there and says
+        // "Address, <url>, edit text"; nothing more is announced.
+        .onChange(of: workbench.addressFocusRequest) { _, _ in
+            guard activeState == .key else { return }
+            focused = true
         }
         .animation(.easeOut(duration: NRMotion.base), value: workbench.fillStatus)
     }
@@ -154,9 +177,17 @@ struct SearchRow: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .focusEffectDisabled()
+        .focused($sealFocused)
+        .overlay {
+            if sealFocused {
+                NRFocusRing(cornerRadius: 7, inset: -2)
+            }
+        }
         .disabled(!enabled)
         .help("Seal (⌘S)")
         .accessibilityLabel("Seal")
+        .accessibilityIdentifier("seal")
         .frame(width: 28, height: 28)
         .sealAnchor(.sealSlot)
     }
@@ -172,6 +203,25 @@ struct SearchRow: View {
         guard !text.isEmpty else { return }
         if let web { web.load(text) } else { workbench.newTab(url: text) }
         focused = false
+        givePageTheKeyboard()
+    }
+
+    /// Esc in the field: the address of what's in front comes back, and the page gets the
+    /// keyboard. Only from the field itself, not from a button inside it.
+    private func leaveField() {
+        guard focused else { return }
+        address = held?.url ?? web?.url?.absoluteString ?? tab?.url ?? ""
+        focused = false
+        givePageTheKeyboard()
+    }
+
+    /// Leaving the field gives the keyboard to no one: the window keeps it, so arrows and
+    /// Space don't scroll and VoiceOver doesn't follow the page. Hand it to the page in front.
+    /// A turn later, once the field has let go. A new tab has no page yet; its pane takes the
+    /// keyboard when it shows (`TabPane`).
+    private func givePageTheKeyboard() {
+        guard let web else { return }
+        Task { @MainActor in _ = web.webView.window?.makeFirstResponder(web.webView) }
     }
 }
 
@@ -186,6 +236,7 @@ private struct AddressField: View {
     var focused: FocusState<Bool>.Binding
     let go: () -> Void
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
 
     private var tab: Tab? { workbench.benchTab }
     private var reading: Bool { workbench.isReading }
@@ -220,6 +271,9 @@ private struct AddressField: View {
                 .focused(focused)
                 .onSubmit(go)
                 .accessibilityLabel("Address")
+                // The value stays the field's own text, so editing still works.
+                .accessibilityHint(ShellText.connectionHint(hasPage: shownTab != nil, scheme: pageURL?.scheme))
+                .accessibilityIdentifier("address-field")
                 .overlay(alignment: .leading) {
                     if let parts {
                         Self.styled(host: parts.host, rest: parts.rest)
@@ -236,15 +290,16 @@ private struct AddressField: View {
             if tab != nil {
                 HStack(spacing: 0) {
                     FieldButton(systemName: "tray.and.arrow.down", help: "Capture This Page (⌘D)",
-                                label: "Capture this page") { workbench.captureActivePage() }
+                                label: "Capture this page", id: "capture") { workbench.captureActivePage() }
                     FieldButton(systemName: "doc.plaintext",
                                 help: reading ? "Back to the Page (⌘⇧R)" : "Reader View (⌘⇧R)",
                                 label: reading ? "Back to the page" : "Reader view",
-                                isOn: reading) { Task { await workbench.toggleReader() } }
+                                isOn: reading, onSystemName: "doc.plaintext.fill",
+                                id: "reader") { Task { await workbench.toggleReader() } }
                     if let web {
                         FieldButton(systemName: web.isLoading ? "xmark" : "arrow.clockwise",
                                     help: web.isLoading ? "Stop" : "Reload",
-                                    label: web.isLoading ? "Stop" : "Reload") {
+                                    label: web.isLoading ? "Stop" : "Reload", id: "reload") {
                             web.isLoading ? web.webView.stopLoading() : web.reload()
                         }
                     }
@@ -263,6 +318,9 @@ private struct AddressField: View {
         .overlay {
             if focused.wrappedValue {
                 RoundedRectangle(cornerRadius: 8).strokeBorder(NRColor.focus, lineWidth: 2)
+            } else if let edge = ShellInk.edge(contrast) {
+                // Under Increase Contrast only: the fill alone barely sets the field apart.
+                RoundedRectangle(cornerRadius: 8).strokeBorder(edge, lineWidth: NRSpace.hairline)
             }
         }
     }
@@ -297,15 +355,20 @@ private struct AddressField: View {
 }
 
 /// A 28pt square button in the address row: `fg3`, the `tab` fill under the pointer; `fg` on
-/// the `tab` fill while it is on.
+/// the `tab` fill while it is on. Under Differentiate Without Color, on also draws an edge.
 private struct RowIconButton: View {
     let systemName: String
     let help: String
     var label: String? = nil
     var isOn = false
+    var shortcut: KeyboardShortcut? = nil
+    /// For UI tests.
+    let id: String
     let action: () -> Void
     @State private var hovering = false
+    @FocusState private var isFocused: Bool
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var noColorCue
 
     var body: some View {
         Button(action: action) {
@@ -314,29 +377,49 @@ private struct RowIconButton: View {
                 .foregroundStyle(isOn ? NRColor.fg : (hovering && isEnabled ? NRColor.fg2 : NRColor.fg3))
                 .frame(width: 28, height: 28)
                 .background(isOn || (hovering && isEnabled) ? NRColor.tab : .clear, in: RoundedRectangle(cornerRadius: 7))
+                .overlay {
+                    if isOn && noColorCue {
+                        RoundedRectangle(cornerRadius: 7).strokeBorder(NRColor.fg3, lineWidth: 1)
+                    }
+                }
                 .opacity(isEnabled ? 1 : 0.45)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .keyboardShortcut(shortcut)
+        .focusEffectDisabled()
+        .focused($isFocused)
+        .overlay {
+            if isFocused {
+                NRFocusRing(cornerRadius: 7, inset: -2)
+            }
+        }
         .onHover { hovering = $0 }
         .animation(NRMotion.animation(duration: NRMotion.fast), value: hovering)
         .help(help)
         .accessibilityLabel(label ?? help)
+        .accessibilityIdentifier(id)
     }
 }
 
 /// A 26pt button inside the address field: `fg3`, `tabHover` under the pointer, `fg` while on.
+/// Under Differentiate Without Color, on also swaps in the filled glyph, if it has one.
 private struct FieldButton: View {
     let systemName: String
     let help: String
     let label: String
     var isOn = false
+    var onSystemName: String? = nil
+    /// For UI tests.
+    let id: String
     let action: () -> Void
     @State private var hovering = false
+    @FocusState private var isFocused: Bool
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var noColorCue
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: systemName)
+            Image(systemName: isOn && noColorCue ? (onSystemName ?? systemName) : systemName)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(isOn ? NRColor.fg : NRColor.fg3)
                 .frame(width: 26, height: 26)
@@ -344,9 +427,17 @@ private struct FieldButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .focusEffectDisabled()
+        .focused($isFocused)
+        .overlay {
+            if isFocused {
+                NRFocusRing(cornerRadius: 7, inset: 0)
+            }
+        }
         .onHover { hovering = $0 }
         .help(help)
         .accessibilityLabel(label)
+        .accessibilityIdentifier(id)
     }
 }
 
@@ -356,37 +447,45 @@ private struct FieldButton: View {
 /// way into ⌘K.
 struct BottomBar: View {
     @Bindable var workbench: Workbench
+    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
         HStack(spacing: NRSpace.sp3) {
             BrinePill(workbench: workbench)
             Spacer()
             Text("\(workbench.itemCount.formatted()) in the Pantry")
-                .font(NRType.font(NRType.fsSm)).monospacedDigit().foregroundStyle(NRColor.fg3)
+                .font(NRType.font(NRType.fsSm)).monospacedDigit()
+                .foregroundStyle(contrast == .increased ? NRColor.fg2 : NRColor.fg3)
             SearchPantryButton { workbench.showPalette = true }
         }
         .padding(.leading, NRSpace.sp3)
         .padding(.trailing, 10)
         .frame(height: NRShell.barH)
         .frame(maxWidth: .infinity)
+        .focusSection()
         .background(NRColor.rail)
-        .overlay(alignment: .top) { Rectangle().fill(NRColor.hairlineSoft).frame(height: NRSpace.hairline) }
+        .overlay(alignment: .top) { Rectangle().fill(ShellInk.separator(contrast)).frame(height: NRSpace.hairline) }
     }
 }
 
 /// The Brine pill: neutral with its count; lit while something sank since Brine was last
-/// opened; outlined while Brine is on the Bench.
+/// opened; outlined while Brine is on the Bench. Under Differentiate Without Color, lit also
+/// says how many are new; under Increase Contrast, the neutral pill gets an edge.
 private struct BrinePill: View {
     @Bindable var workbench: Workbench
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var noColorCue
+    @FocusState private var isFocused: Bool
 
     private var sunk: Int { workbench.brine.count }
     private var lit: Bool { workbench.brineFresh > 0 }
     private var isOpen: Bool { workbench.activeSmartJar == .brine }
     private var edge: Color? {
         if lit { return colorScheme == .dark ? NRColor.relish700 : NRColor.relish300 }
-        if isOpen { return NRColor.fg3 }
-        return nil
+        // Open stays a step darker than the neutral edge Increase Contrast adds.
+        if isOpen { return contrast == .increased ? NRColor.fg : NRColor.fg3 }
+        return ShellInk.edge(contrast)
     }
 
     var body: some View {
@@ -402,6 +501,15 @@ private struct BrinePill: View {
                     .font(NRType.font(NRType.fsSm, weight: .semibold))
                     .monospacedDigit()
                     .foregroundStyle(NRColor.fg)
+                // Lit is a fill and an edge, both color: say it in words too. Neutral ink, no
+                // relish. VoiceOver already hears it in the pill's value.
+                if lit && noColorCue {
+                    Text("\(workbench.brineFresh) new")
+                        .font(NRType.font(NRType.fsXs, weight: .medium))
+                        .monospacedDigit()
+                        .foregroundStyle(NRColor.fg2)
+                        .accessibilityHidden(true)
+                }
             }
             .padding(.leading, NRSpace.sp2)
             .padding(.trailing, 10)
@@ -413,10 +521,22 @@ private struct BrinePill: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+        .focusEffectDisabled()
+        .focused($isFocused)
+        .overlay {
+            if isFocused {
+                Capsule()
+                    .strokeBorder(NRColor.focus, lineWidth: 2)
+                    .padding(-2)
+                    .allowsHitTesting(false)
+            }
+        }
         .animation(NRMotion.animation(), value: lit)
         .help("Brine — \(SmartJar.brine.shortcutLabel)")
-        .accessibilityLabel("Brine, \(sunk) sunk")
+        .accessibilityLabel("Brine")
+        .accessibilityValue(ShellText.brineValue(count: sunk, fresh: workbench.brineFresh))
         .accessibilityAddTraits(isOpen ? .isSelected : [])
+        .accessibilityIdentifier("brine-pill")
     }
 }
 
@@ -424,6 +544,7 @@ private struct BrinePill: View {
 private struct SearchPantryButton: View {
     let action: () -> Void
     @State private var hovering = false
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         Button(action: action) {
@@ -448,9 +569,50 @@ private struct SearchPantryButton: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .focusEffectDisabled()
+        .focused($isFocused)
+        .overlay {
+            if isFocused {
+                NRFocusRing(cornerRadius: 7, inset: 0)
+            }
+        }
         .onHover { hovering = $0 }
         .animation(NRMotion.animation(duration: NRMotion.fast), value: hovering)
         .help("Search the Pantry (⌘K)")
         .accessibilityLabel("Search the Pantry")
+        .accessibilityIdentifier("search-pantry")
+    }
+}
+
+// MARK: - Accessibility
+
+/// What VoiceOver hears in the shell's rows, kept out of the views so tests can read it.
+enum ShellText {
+    /// The Brine pill's value: how much Brine holds, then how much of it is new since Brine
+    /// was last open. Never "sunk": captures and pages shared from other apps land there too.
+    static func brineValue(count: Int, fresh: Int) -> String {
+        let held = count == 0 ? "Empty" : count == 1 ? "1 item" : "\(count) items"
+        return fresh > 0 ? "\(held), \(fresh) new" : held
+    }
+
+    /// The address field's hint while a page is in front: what the lock or the globe beside it
+    /// says, since both are hidden from VoiceOver. Empty with no page: the magnifier says nothing.
+    static func connectionHint(hasPage: Bool, scheme: String?) -> String {
+        guard hasPage else { return "" }
+        return scheme?.lowercased() == "https" ? "Secure connection." : "Not a secure connection."
+    }
+}
+
+/// The shell's lines and edges under Increase Contrast: a soft hairline becomes the hairline,
+/// and a surface set apart only by its fill gets an `fg3` edge. At standard contrast nothing
+/// changes, so the manifest's picture stands.
+enum ShellInk {
+    static func separator(_ contrast: ColorSchemeContrast) -> Color {
+        contrast == .increased ? NRColor.hairline : NRColor.hairlineSoft
+    }
+
+    /// The edge to draw, or nil for none.
+    static func edge(_ contrast: ColorSchemeContrast) -> Color? {
+        contrast == .increased ? NRColor.fg3 : nil
     }
 }

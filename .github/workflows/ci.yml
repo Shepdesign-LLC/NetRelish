@@ -4,7 +4,8 @@ name: CI
 #   1. generated files match their sources (Tokens.swift, Symbols.swift, Sources/Pantry/Models, NetRelish.xcodeproj and its plists),
 #      and the vendored defuddle.js matches its recorded checksum
 #   2. both product flavors build — AppStore and Direct (DIRECT_BUILD) — and carry their privacy manifests
-#   3. the tests pass (hosted NetRelishTests + unhosted GeneratorTests)
+#   3. the tests pass (hosted NetRelishTests + unhosted GeneratorTests), and capture → jar → seal
+#      runs in the built app through the accessibility tree (NetRelishUITests)
 #   4. the non-negotiable-5 gate still enforces what it claims to
 #   5. the Pantry core builds, tests and iOS-compiles as the PantryKit package (ADR 0009)
 
@@ -15,6 +16,22 @@ name: CI
 # so it is unaffected by this scope.)
 permissions:
   contents: read
+
+# One group per pull request, so a new push cancels the run it supersedes instead of
+# paying four xcode-27 jobs to build a commit nobody will merge. Measured over the
+# 2026-11-14..18 sprint: 29 superseded runs burned 784.6 paid minutes, 720.6 of them
+# after the run replacing them had already started (ADR 0037).
+#
+# The fallback is `github.run_id`, which is unique per run, NOT `github.sha`. With a sha
+# a push to main and a workflow_dispatch on the same commit share a group, and one would
+# cancel the other — and a run on main must never be cancelled, because it is the only
+# run that proves the merge commit itself is green. `cancel-in-progress` is gated on the
+# event as well, so even if someone later swaps the fallback for a sha, nothing outside a
+# pull request can be cancelled. The cost of that safety is that two workflow_dispatch
+# runs on one commit (two regen-project.yml regenerations in a row) both pay in full.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 on:
   push:
@@ -28,9 +45,122 @@ env:
   DERIVED: .build/DerivedData
 
 jobs:
+  changes:
+    name: What changed
+    # Free (public repo, standard runner). It exists so the four xcode-27 jobs below can be
+    # skipped on a commit that cannot change what they compile or read. Measured: 24 CI and
+    # CodeQL runs in the 2026-11-14..18 sprint fired on commits with no compilable change at
+    # all, costing 536.9 paid minutes — docs, a CHANGELOG line, and four empty "Initial plan"
+    # commits (ADR 0037).
+    #
+    # A JOB-LEVEL gate, not a workflow-level `paths-ignore`, for two reasons that both matter:
+    #   1. `generated-files` and `gate-tests` must keep running on a docs-only or design-only
+    #      commit. generated-files is what proves Sources/UI/Tokens.swift still matches
+    #      design/tokens.css and Sources/Pantry/Models matches design/NetRelish.json;
+    #      gate-tests reads docs/adr for real (test_adr_numbers_are_unique globs
+    #      docs/adr/[0-9][0-9][0-9][0-9]-*.md, and the gate requires exactly one file per
+    #      cited ADR), so a docs-only PR that duplicates an ADR number must still fail.
+    #      Both are free, so there is nothing to save by filtering them.
+    #   2. A workflow skipped by a path filter reports NOTHING, so a required check sits
+    #      "Expected" forever and the pull request cannot merge. A job skipped by `if:`
+    #      reports as skipped, which branch protection accepts.
+    #
+    # Deliberately a DENYLIST: anything not named below runs the paid jobs, so a directory
+    # someone adds later is built rather than silently dropped. design/** and scripts/** are
+    # NOT in it and must not be — Tests/NetRelishTests reads design/tokens.css, design/logo.svg
+    # and design/logo-cog.svg from the repo root, and Tests/GeneratorTests runs the generator
+    # scripts against design/NetRelish.json and design/symbols.svg.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          persist-credentials: false   # read-only job: leave no token in .git/config
+          fetch-depth: 0               # the diff needs the base commit, not just the tip
+      - id: filter
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          # Every path below writes exactly one `code=` line. If this step ever fails instead,
+          # the paid jobs run anyway — their `if:` reads a non-success `changes` as "build it"
+          # (see `build` below). The run is still red, and still to be fixed rather than worked
+          # around, but being wrong here costs minutes and never coverage. It has to work that
+          # way round: branch protection accepts a skipped check, and `What changed` is not
+          # itself a required one, so a gate that merely failed would merge green.
+          #
+          # No usable base — a workflow_dispatch from regen-project.yml, a new branch, a force
+          # push — means build everything. Failing OPEN onto the paid jobs is the only safe
+          # default: being wrong here must cost minutes, never coverage.
+          if [ -z "${BASE:-}" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "no usable base ('${BASE:-}') — running everything"
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # --no-renames on purpose: a rename then lists the old path AND the new one, so
+          # moving a file out of Sources/ cannot read as inert. A diff that cannot be taken
+          # fails open too.
+          if ! CHANGED=$(git diff --name-only --no-renames "$BASE...HEAD" --); then
+            echo "could not diff against $BASE — running everything"
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$CHANGED"
+          # Paths no xcode-27 job compiles or reads. Everything else is paid work.
+          # docs/** and zest/** appear only in Swift comments; docs/adr/** is still read by
+          # gate-tests, which is free and ungated. zest/** is covered by zest-tests.yml, which
+          # rebuilds it and diffs against the committed Resources/Zest — and Resources/** is
+          # deliberately absent here, so that committed bundle still triggers a build.
+          INERT='^(docs/|zest/|\.claude/|\.github/CODEOWNERS$|\.github/codeql/|\.github/workflows/(codeql|release|dmg-preview|regen-project|zest-tests)\.yml$|design/DESIGN_MANIFEST\.md$|[^/]+\.md$|LICENSE$|\.gitignore$|Config\.xcconfig\.example$)'
+          if [ -z "$CHANGED" ]; then
+            # Nothing at all: a placeholder commit, or a squash merge with no net diff. Ten
+            # such runs cost 214.8 paid minutes in the sprint window — do not let an empty
+            # line through the grep below and read it as a change.
+            echo "no files changed — nothing for the paid jobs to build"
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # A here-string, NOT a pipeline, and grep's status read explicitly. Both halves
+          # are load-bearing, and both failure modes were reproduced before being fixed:
+          #   * `printf '%s\n' "$CHANGED" | grep -qvE "$INERT"` fails CLOSED on a large
+          #     diff. grep -q exits at the first non-inert path while printf is still
+          #     writing; printf dies of SIGPIPE (141) and `pipefail` reports 141 for the
+          #     pipeline even though grep matched, so the `else` wrote code=false and every
+          #     paid job was skipped on a commit that did change code — on a GREEN run.
+          #     Reproduced with this exact INERT: 1.87 MB of names with Config/Base.xcconfig
+          #     first gave code=false through the pipe and code=true through a here-string.
+          #     ~1,900 changed paths is enough: a Sources/Pantry/Models regen plus a
+          #     Resources/Zest rebuild, or a branch rebased over many commits. A here-string
+          #     is not a pipeline, so `pipefail` has nothing to report.
+          #   * grep exits 1 for "no non-inert line" but 2 for a bad regex, and an `if`
+          #     collapses both into "inert". The regex is valid today; the `case` is what
+          #     keeps the next edit to that one long line fail-OPEN instead of silently
+          #     dropping every paid job.
+          set +e
+          grep -qvE "$INERT" <<<"$CHANGED"
+          STATUS=$?
+          set -e
+          case "$STATUS" in
+            0) echo "code=true" >> "$GITHUB_OUTPUT" ;;
+            1) echo "code=false" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::warning::the changed-files filter failed (grep exit $STATUS) — running every paid job"
+               echo "code=true" >> "$GITHUB_OUTPUT" ;;
+          esac
+
   generated-files:
     name: Generated files match their sources
     runs-on: macos-latest
+    # Free (standard runner, public repo) and deliberately UNGATED: it still proves the
+    # generated Swift matches design/ even on a commit the `changes` gate skips (docs, root
+    # Markdown, design/DESIGN_MANIFEST.md) — and it is why design/** itself is not in that
+    # denylist.
+    # Unmeasured, and free either way: this is a stop, not a saving. 30 and not 20 because
+    # the only thing a tight bound can buy here is a red check on a green pull request when
+    # `brew install xcodegen` has a slow day (ADR 0037).
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
         with:
@@ -65,7 +195,21 @@ jobs:
   build:
     name: Build ${{ matrix.flavor }}
     # xcode-27 is the only image with the macOS 27 SDK; macos-latest is still macOS 26.
+    # xcode-27 reads as a GitHub-hosted larger runner, and larger runners are billed per minute
+    # even on a public repository — unconfirmed from here, since only the account's billing and
+    # runner pages can say (ADR 0037, open question 1). That is why this job is gated on `changes`.
+    needs: changes
+    # Only a clean `code=false` skips this job, and that asymmetry is the whole point.
+    # `needs.changes.result != 'success'` covers the gate dying for a reason its own script
+    # never sees — a failed checkout, a dead runner, its `timeout-minutes: 5`, a future `set -e`
+    # trip before any `code=` line is written. `!cancelled()` is what makes that reachable at
+    # all: with no status function in the `if:`, GitHub skips a job whose `needs:` failed
+    # whatever the condition says, and a SKIPPED job reports as a passing required check — so a
+    # broken gate would hand a pull request a green merge with no paid job ever having run.
+    # `!cancelled()` and not `always()`: a superseded run must still start no builds (ADR 0037).
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
     runs-on: xcode-27
+    timeout-minutes: 25   # measured 2.7 min (AppStore) / 3.2 (Direct); the GitHub default is 360
     strategy:
       fail-fast: false
       matrix:
@@ -116,7 +260,11 @@ jobs:
 
   test:
     name: Test
+    needs: changes
+    # Fails open on anything but a clean `code=false`, for the reasons spelled out on `build`.
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
     runs-on: xcode-27
+    timeout-minutes: 30   # measured 5.3 min; the GitHub default is 360
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
         with:
@@ -146,6 +294,61 @@ jobs:
           name: design-kit-snapshots
           path: design-kit-snapshots/*.png
 
+  ui-tests:
+    name: UI tests (capture → jar → seal)
+    # The UI test CLAUDE.md asks for, driven only through the accessibility tree, so it is also
+    # the proof that VoiceOver can complete the path (P5). Its own scheme, "NetRelish UI Tests",
+    # so the Test job above is unchanged. The Debug app launches with -NRUITestFixture: a
+    # throwaway Pantry, two jars and a page served from inside the app, so nothing comes from
+    # the network (non-negotiable 5). xcode-27 for the same SDK reason as `build`. A UI test that
+    # hangs waits on nothing that will ever come, so it gets a limit the others don't need.
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          persist-credentials: false   # read-only job: leave no token in .git/config
+      - name: Let XCUITest drive the app without a password prompt
+        # A UI test asks macOS for automation mode, which wants a password unless this is set.
+        # Hosted runners usually have it already; a warning, not a failure, if this one can't.
+        run: |
+          sudo -n automationmodetool enable-automationmode-without-authentication \
+            || echo "::warning::couldn't set automation mode; the UI tests may stop at a password prompt"
+      # Signed ad hoc, as the Test job is, with the same entitlements left off: XCUITest's runner
+      # must be signed to launch, and the app behaves as it does under the unit tests.
+      - name: UI tests (Debug-AppStore; signed ad hoc, as the Test job is)
+        # Deliberately WITHOUT `-quiet`, unlike the Test job above. With it, a failure arrives
+        # as nothing but "Failing tests:" and two method names, and the per-assertion detail is
+        # left only inside a ~115 MB .xcresult that needs Xcode to open — which the session
+        # that writes these tests does not have. For a test whose whole job is to prove a path
+        # through the accessibility tree, WHICH element was not found is the entire message.
+        run: |
+          xcodebuild -project NetRelish.xcodeproj -scheme "NetRelish UI Tests" \
+            -configuration Debug-AppStore -derivedDataPath "$DERIVED" \
+            -destination 'platform=macOS' -onlyUsePackageVersionsFromResolvedFile \
+            CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- \
+            CODE_SIGNING_REQUIRED=NO CODE_SIGN_ENTITLEMENTS= ENABLE_APP_SANDBOX=NO \
+            -resultBundlePath UITestResults.xcresult test
+      - name: The result bundle's own summary, if it can be read
+        if: failure()
+        # A second route to the same detail, in case the step above was cut off before XCTest
+        # printed. Its stderr is NOT suppressed: the first version of this step hid it, both
+        # spellings failed, and the log said only "could not read" — which taught nothing.
+        # `|| true` at the end, because a diagnostic must never be what fails a job; the test
+        # step above has already done that.
+        run: |
+          xcrun xcresulttool get test-report tests --path UITestResults.xcresult \
+            || xcrun xcresulttool get test-report summary --path UITestResults.xcresult \
+            || xcrun xcresulttool get --legacy --format json --path UITestResults.xcresult \
+            || echo "::warning::xcresulttool could not read the bundle; the artifact has it"
+          true
+      - name: Keep the UI test results when they fail, so the errors can be read
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (node24)
+        with:
+          name: ui-test-results
+          path: UITestResults.xcresult
+
   pantrykit:
     name: PantryKit package (macOS test + iOS compile)
     # The Duo companion (1.1) will consume the Pantry core as the PantryKit SwiftPM
@@ -153,7 +356,13 @@ jobs:
     # system. This proves the package resolves, builds and passes its tests on macOS,
     # and that every file in Sources/Pantry compiles for iOS. xcode-27 for the same
     # SDK reason as `build`, and because the package's macOS floor matches the app's.
+    needs: changes
+    # Fails open on anything but a clean `code=false`, for the reasons spelled out on `build`.
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
     runs-on: xcode-27
+    # measured 1.6 min, but `swift build` here resolves GRDB from a range (Package.swift says
+    # from: "7.0.0") with no committed Package.resolved, so a slow resolve is the tail risk.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
         with:
@@ -185,7 +394,12 @@ jobs:
     # the CodeQL workflow cannot build this project on the macOS image. A gate
     # whose only proof of correctness lives inside the job that is currently red
     # is not proven at all.
+    #
+    # Free, and deliberately UNGATED by `changes` for the same reason: this is the job that
+    # still reads docs/adr, .github/codeql/approved-endpoints.txt and codeql.yml on a
+    # docs-only commit, where every paid job is skipped (ADR 0037).
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
         with:
