@@ -1,6 +1,6 @@
 // UITestFixture.swift — DEBUG only: what the capture → jar → seal UI test
 // (Tests/NetRelishUITests) launches the app with. `-NRUITestFixture` gives the app a
-// throwaway Pantry and defaults, two jars, and one page served from inside the app on
+// throwaway Pantry and defaults, two jars of its own, and one page served from inside the app on
 // `nr-fixture:`, so the test never touches your data and never reaches the network
 // (non-negotiable 5: no new endpoint; the page is a string in this file). The whole file is
 // compiled out of Release, and so is every line that calls it.
@@ -29,7 +29,9 @@ enum UITestFixture {
     /// A line only the page has, so the test can tell the page arrived in the web view.
     static let pageMarker = "Payment is due 30 days after delivery."
 
-    /// The jars on the fixture's Shelf, in order: ⌘1 and ⌘2. The test seals into the second.
+    /// The jars the fixture adds, in order. The test opens its page in the first and seals into
+    /// the second. They come after the jars every fresh Pantry starts with (`PantrySeed`: Read
+    /// Later and Reference), so on the fixture's Shelf they are the third and fourth: ⌘3 and ⌘4.
     static let jarNames = ["Juniper Bakery", "Meridian"]
 
     /// The fixture page: a title, a heading and enough of an article for Seal's extraction.
@@ -96,11 +98,19 @@ enum UITestFixture {
                                   vault: VaultStore(service: "com.shepdesign.netrelish.vault.uitest"),
                                   inbox: nil, summarizer: nil, timestamps: nil,
                                   pro: ProStore(unlocked: true), defaults: defaults)
-        // The jars the Shelf's New Jar would make, through the same call; the first is in front.
+        stock(workbench)
+        return workbench
+    }
+
+    /// Adds the fixture's jars to a Workbench and puts the first of them in front. The jars are
+    /// the ones the Shelf's New Jar would make, through the same call. The first is found by its
+    /// name, not its place: a fresh Pantry already has jars of its own ahead of these, and the
+    /// jar in front after `newJar` is the one just made.
+    @MainActor
+    static func stock(_ workbench: Workbench) {
         workbench.newJar(name: jarNames[0], tint: nil, shelfLifeDays: 7)
         workbench.newJar(name: jarNames[1], tint: nil, shelfLifeDays: 3)
-        workbench.activate(index: 0)
-        return workbench
+        workbench.activate(workbench.jars.first { $0.name == jarNames[0] })
     }
 }
 

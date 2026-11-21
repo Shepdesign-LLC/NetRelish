@@ -7,10 +7,10 @@
 // spoken name at every step and a route that needs no pointer gesture.
 //
 // The app is launched with -NRUITestFixture (Sources/App/UITestFixture.swift, Debug builds
-// only): a throwaway Pantry and defaults, the jars Juniper Bakery (⌘1) and Meridian (⌘2), and
-// one page served from inside the app. Nothing is read from your Pantry and nothing goes to the
-// network. The constants below are the fixture's; UITestFixtureAccessibilityTests checks they
-// still match it.
+// only): a throwaway Pantry and defaults, the jars Juniper Bakery (in front) and Meridian after
+// the two every fresh Pantry starts with, and one page served from inside the app. Nothing is
+// read from your Pantry and nothing goes to the network. The constants below are the fixture's;
+// UITestFixtureAccessibilityTests checks they still match it.
 
 import XCTest
 
@@ -22,6 +22,9 @@ final class CaptureJarSealUITests: XCTestCase {
     static let pageHost = "juniperbakery.example"
     static let firstJar = "Juniper Bakery"
     static let targetJar = "Meridian"
+    /// ⌘ and this digit show Meridian: it is the fourth jar on the fixture's Shelf, after Read
+    /// Later, Reference and Juniper Bakery.
+    static let targetJarKey = "4"
 
     /// Generous: a CI Mac can be slow to start WebKit's processes the first time.
     static let timeout: TimeInterval = 30
@@ -75,7 +78,7 @@ final class CaptureJarSealUITests: XCTestCase {
     }
 
     /// The keyboard route into a jar for a page that's open: Tab › Move Tab to Jar › Meridian
-    /// in the menu bar (Ctrl-F2 or VO-M reaches it), then ⌘2 (Jars › Meridian), then ⌘S.
+    /// in the menu bar (Ctrl-F2 or VO-M reaches it), then ⌘4 (Jars › Meridian), then ⌘S.
     @MainActor
     func testMoveTabToJarFromTheMenuBarAndSeal() throws {
         let app = launch()
@@ -92,7 +95,7 @@ final class CaptureJarSealUITests: XCTestCase {
         target.click()
 
         // The tab left Juniper Bakery's strip; Meridian's has it.
-        app.typeKey("2", modifierFlags: .command)
+        app.typeKey(Self.targetJarKey, modifierFlags: .command)
         XCTAssertTrue(chip(in: app, jar: Self.targetJar).waitForExistence(timeout: Self.timeout),
                       "The tab isn't in Meridian's tabs after Move Tab to Jar")
         // It changed jars, so it loads again in Meridian's own profile (non-negotiable 6).
@@ -107,8 +110,12 @@ final class CaptureJarSealUITests: XCTestCase {
     @MainActor
     private func launch() -> XCUIApplication {
         let app = XCUIApplication()
+        // Every argument is a "-key value" pair, so none is left standing alone: AppKit takes a
+        // lone argument for a file to open, and a launch that opens a file opens no window. The
+        // fixture's flag had no value at first; it then took the next key as its value and left
+        // that key's "YES" alone. The app reads only that the flag is there, not its value.
         app.launchArguments = [
-            "-NRUITestFixture",
+            "-NRUITestFixture", "YES",
             "-ApplePersistenceIgnoreState", "YES",   // no windows restored from a last run
             "-panel.visible", "NO",                  // the Panel closed, whatever this Mac remembers
         ]
@@ -157,8 +164,19 @@ final class CaptureJarSealUITests: XCTestCase {
         app.typeText(Self.pageURL)
         app.typeKey(.return, modifierFlags: [])
         // The tab knows the page's name once the page has settled: its chip says the title.
-        XCTAssertTrue(chip(in: app, jar: Self.firstJar).waitForExistence(timeout: Self.timeout),
-                      "The page didn't open in Juniper Bakery's tabs")
+        if !chip(in: app, jar: Self.firstJar).waitForExistence(timeout: Self.timeout) {
+            // "Didn't open" alone can't say which it was: the typing never reached the field,
+            // the tab opened but the page never gave its title, or it opened in another jar's
+            // strip (it did once: the fixture had Read Later in front). What the field holds and
+            // the whole tree say which.
+            XCTFail("""
+                The page didn't open in Juniper Bakery's tabs.
+                address field value = \(String(describing: field.value))
+                tree as XCUITest sees it:
+                \(app.debugDescription)
+                """)
+            return
+        }
         waitForPage(in: app)
     }
 

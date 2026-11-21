@@ -65,6 +65,26 @@ import WebKit
         #expect(source.contains("static let pageHost = \"\(host)\""))
     }
 
+    @Test("The fixture's jars follow the ones a fresh Pantry starts with, the first of them in front, and the UI test presses the second's key")
+    func jarsAndTheirKeys() throws {
+        let defaults = try #require(UserDefaults(suiteName: "netrelish.tests.\(UUID().uuidString)"))
+        let bench = Workbench(store: try PantryStore(), defaults: defaults)
+        let seeded = bench.jars.count
+        UITestFixture.stock(bench)
+        // Nothing the Pantry started with is taken away, and the fixture's two come last.
+        #expect(bench.jars.count == seeded + 2)
+        #expect(Array(bench.jars.map(\.name).suffix(2)) == UITestFixture.jarNames)
+        // The page opens in the jar in front: the first of the fixture's, not the Shelf's first.
+        #expect(bench.activeJar?.name == UITestFixture.jarNames[0])
+        // ⌘1–9 go by place on the Shelf (the Jars menu), so the second's key is its place.
+        let index = try #require(bench.jars.firstIndex { $0.name == UITestFixture.jarNames[1] })
+        let place = index + 1
+        #expect(place <= 9)
+        let source = try uiTest()
+        #expect(source.contains("static let targetJarKey = \"\(place)\""))
+        #expect(source.contains("app.typeKey(Self.targetJarKey, modifierFlags: .command)"))
+    }
+
     @Test("The UI test waits for the words VoiceOver hears at each step")
     func uiTestHearsTheAppsWords() throws {
         let source = try uiTest()
