@@ -324,6 +324,20 @@ jobs:
             CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- \
             CODE_SIGNING_REQUIRED=NO CODE_SIGN_ENTITLEMENTS= ENABLE_APP_SANDBOX=NO \
             -resultBundlePath UITestResults.xcresult -quiet test
+      - name: Which assertion failed, in the log
+        if: failure()
+        # `-quiet` above keeps a passing run readable, but it also swallows XCTest's
+        # per-assertion lines, so a failure arrives as nothing but "Failing tests:" and two
+        # method names — and the detail is only inside a 116 MB .xcresult, which needs Xcode
+        # to open and so cannot be read where this code is written. This prints the failure
+        # messages into the log instead. `|| true`, and tolerant of either tool spelling,
+        # because a diagnostic must never be what fails the job: the test step above already
+        # did that.
+        run: |
+          xcrun xcresulttool get test-report tests --path UITestResults.xcresult 2>/dev/null \
+            || xcrun xcresulttool get test-report summary --path UITestResults.xcresult 2>/dev/null \
+            || echo "::warning::could not read UITestResults.xcresult; see the uploaded artifact"
+          true
       - name: Keep the UI test results when they fail, so the errors can be read
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (node24)
