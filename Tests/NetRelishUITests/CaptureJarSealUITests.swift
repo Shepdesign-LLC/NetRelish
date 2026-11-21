@@ -161,8 +161,18 @@ final class CaptureJarSealUITests: XCTestCase {
         app.typeText(Self.pageURL)
         app.typeKey(.return, modifierFlags: [])
         // The tab knows the page's name once the page has settled: its chip says the title.
-        XCTAssertTrue(chip(in: app, jar: Self.firstJar).waitForExistence(timeout: Self.timeout),
-                      "The page didn't open in Juniper Bakery's tabs")
+        if !chip(in: app, jar: Self.firstJar).waitForExistence(timeout: Self.timeout) {
+            // Which of three it was can't be told from "didn't open": the typing never reached
+            // the field, the tab opened but the page never gave its title, or the tab is there
+            // under another name. What the field holds and the whole tree say which.
+            XCTFail("""
+                The page didn't open in Juniper Bakery's tabs.
+                address field value = \(String(describing: field.value))
+                tree as XCUITest sees it:
+                \(app.debugDescription)
+                """)
+            return
+        }
         waitForPage(in: app)
     }
 
