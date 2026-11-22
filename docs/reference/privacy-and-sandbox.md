@@ -14,7 +14,7 @@ sources:
   - code: Sources/App/Workbench.swift
   - code: scripts/tests/test_privacy_manifests.py
   - code: .github/workflows/ci.yml
-verified_at: 0d45775
+verified_at: 6306c6e
 ---
 
 # Privacy and sandbox
@@ -27,7 +27,7 @@ How the files get into the bundles is [[building-without-a-mac]].
 
 | Bundle | Manifest | UserDefaults reasons | Why |
 |---|---|---|---|
-| NetRelish.app | `Resources/PrivacyInfo.xcprivacy` | `CA92.1`, `1C8F.1` | Tab icons (`Sources/App/Workbench.swift:998`), the Panel's open or closed (`Sources/App/Workbench.swift:1445`), the Brine pill's last-seen date, `brine.seenAt` (`Sources/App/Workbench.swift:1096`), the Direct build's revoked activations (`Sources/App/License.swift:102`); the App Group suite through Pantry |
+| NetRelish.app | `Resources/PrivacyInfo.xcprivacy` | `CA92.1`, `1C8F.1` | Tab icons (`Sources/App/Workbench.swift:998`), the Panel's open or closed (`Sources/App/Workbench.swift:1445`), the Brine pill's last-seen date, `brine.seenAt` (`Sources/App/Workbench.swift:1096`), the Direct build's revoked activations (`Sources/App/License.swift:102`), the welcome sheet's seen flag, `welcome.seen` (`Sources/App/Workbench.swift:1697`); the App Group suite through Pantry |
 | NetRelishShare.appex | `Sources/ShareExtension/PrivacyInfo.xcprivacy` | `1C8F.1` | Leaves shared pages in the App Group suite (`Sources/Pantry/Store/ShareInbox.swift:33`) |
 | Pantry.framework, PantryKit | `Sources/Pantry/PrivacyInfo.xcprivacy` | `1C8F.1` | ShareInbox, compiled into the framework; the package lists it as a resource (`Package.swift`) |
 

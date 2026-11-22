@@ -157,6 +157,7 @@ change this definition, fix the pathspec in
 | The Zest sound kit, the Sound toggle, `zest/tests/sound.js` | [[zest-sound]] |
 | `Sources/Zest/`, `Resources/Zest/`, Zest's store in `JarProfile`, `pageInFront` and the Zest gating in the Workbench | [[zest-window]] |
 | Anything spoken (`NRAnnounce`, a `spokenValue`/line static), accessibility labels, values, actions or rotors, keyboard focus and `nrFocusRing`, a Reduce Motion / Reduce Transparency / Increase Contrast / Differentiate Without Color branch, `UITestFixture` or the UI test | [[accessibility]] |
+| `WelcomeSheet`, `WelcomeText`, the Workbench's welcome state (`showingWelcome`, `welcomesAtLaunch`, `welcome.seen`), Help › Welcome to NetRelish | [[welcome]] |
 | CI workflows, `project.yml`, the generator scripts, how generated files are checked | [[building-without-a-mac]] |
 | The Release workflow, release notes, the license address a release is built with | [[releasing-a-preview]] |
 | Entitlements, Info.plist privacy keys, a `PrivacyInfo.xcprivacy`, a new UserDefaults/file-date/disk-space/boot-time call, a WebKit permission delegate | [[privacy-and-sandbox]] |

@@ -16,10 +16,11 @@ sources:
   - code: Sources/Bench/BenchView.swift
   - code: Sources/Bench/ComparisonView.swift
   - code: Sources/Shelf/ShelfView.swift
+  - code: Sources/App/WelcomeSheet.swift
   - code: Sources/App/UITestFixture.swift
   - code: Tests/NetRelishUITests/CaptureJarSealUITests.swift
   - code: Tests/NetRelishTests/Accessibility/UITestFixtureAccessibilityTests.swift
-verified_at: 0d45775
+verified_at: 6306c6e
 ---
 
 # Accessibility
@@ -34,7 +35,7 @@ forced, are in ADR 0036. This page is how it is put together. The window it sits
 | Piece | Where | What it does |
 |---|---|---|
 | `NRAnnounce.post(_:priority:)` | `Sources/UI/Accessibility.swift:15` | Speaks a result nothing on screen announces. Posts `.announcementRequested` against the key window, so it is silent when no window is up. |
-| `nrSystemAccessibility()` | `Sources/UI/Accessibility.swift:40` | Hands SwiftUI's live `accessibilityReduceMotion` to the design system's `\.nrReduceMotion`. Applied once per window root (`Sources/App/NetRelishApp.swift:93`, `:215`, `:222`). |
+| `nrSystemAccessibility()` | `Sources/UI/Accessibility.swift:40` | Hands SwiftUI's live `accessibilityReduceMotion` to the design system's `\.nrReduceMotion`. Applied once per window root (`Sources/App/NetRelishApp.swift:96`, `:221`, `:228`). |
 | `nrFocusRing(cornerRadius:inset:)` | `Sources/UI/Components.swift:114` | The one `--nr-focus` ring (manifest §4, placement 7), with its own `@FocusState` and `focusEffectDisabled()`. `NRFocusRing` (`:82`) is the same ring where the caller already tracks focus. |
 
 ## What gets spoken, and by whom
@@ -44,7 +45,8 @@ them, so a test pins each one: `Workbench.capturedLine` (`Sources/App/Workbench.
 `sealedLine(jarName:)` (`:1210`), `sankLine(titles:)` (`:1074`),
 `ShelfView.boardLine(jarName:)`, `JarTile.movedLine(jarName:)`,
 `SmartJarRowView.restoreAnnouncement(jarName:)` (`Sources/Bench/BrineView.swift:207`),
-`CommandSpeech` (`Sources/App/NetRelishApp.swift:324`).
+`CommandSpeech` (`Sources/App/NetRelishApp.swift:330`), `WelcomeText.spoken(_:)`
+(`Sources/App/WelcomeSheet.swift:43`, a card of the welcome sheet, [[welcome]]).
 
 > ⚠️ **A result is spoken once, by one owner.** The address row's status line speaks every
 > `fillStatus` change itself (`Sources/Bench/ShellRows.swift:156`), so nothing may also
@@ -97,7 +99,7 @@ Two rotors exist, both in the namespace form: "Jars" over the Shelf's tiles
 `focusOrder(jarIds:)`/`neighbor(of:in:by:)` step between them with the arrow keys, stopping
 at both ends rather than wrapping. The tab strip has the same shape with
 `TabStrip.neighbor(of:in:offset:)`, and `TabCycle.neighbor(of:in:step:)`
-(`Sources/App/NetRelishApp.swift:312`) backs ⌃Tab. Rows and chips take focus with
+(`Sources/App/NetRelishApp.swift:318`) backs ⌃Tab. Rows and chips take focus with
 `.focusable(interactions: .activate)`, so Space and Return press them; each region is a
 `focusSection()` so focus arrives as a whole.
 
@@ -106,7 +108,7 @@ New keys and menu items are the table in ADR 0036. ⌘L goes through
 watches (`Sources/Bench/ShellRows.swift:160`), because the field is in another view.
 
 > ⚠️ **Every menu route into a jar must play the jar fill.** Tab › Move Tab to Jar
-> (`Sources/App/NetRelishApp.swift:186`), the tab's own Move to Jar
+> (`Sources/App/NetRelishApp.swift:192`), the tab's own Move to Jar
 > (`Sources/Bench/TabStrip.swift:269`) and Brine's Restore all take the drop's path so
 > `fillJar(_:)` runs exactly once. A plain `moveTab` is silent and leaves the jar unfilled.
 > The same trap, from the drag side, is in [[rearranging]].

@@ -1658,4 +1658,45 @@ final class Workbench {
         let state = (jarId == nil || target == origin) ? item.sunkInteractionState : nil
         newTab(url: item.url, interactionState: state, in: target)
     }
+
+    // MARK: Welcome (ADR 0038)
+
+    /// The welcome sheet: three cards, shown once at the first launch, and again from
+    /// Help › Welcome to NetRelish.
+    var showingWelcome = false
+
+    /// Whether this launch may open the welcome sheet by itself. The app sets it for its own
+    /// launch. It stays false for the tests and for the UI test's fixture, whose defaults are
+    /// always new: a sheet over the window would stop that test at its first step.
+    var welcomesAtLaunch = false
+
+    /// Set once the welcome sheet has been closed on this Mac. Kept in `defaults`.
+    private static let welcomeSeenKey = "welcome.seen"
+
+    /// Start closed the sheet, so the address field takes the keyboard once it has gone.
+    @ObservationIgnored private var welcomeStarts = false
+
+    /// Opens the welcome sheet if this Mac has never closed it. Called as a window appears;
+    /// only the first call of a launch can open it, so a second window never brings it back.
+    func welcomeAtFirstLaunch() {
+        guard welcomesAtLaunch else { return }
+        welcomesAtLaunch = false
+        guard !defaults.bool(forKey: Self.welcomeSeenKey) else { return }
+        showingWelcome = true
+    }
+
+    /// Closes the welcome sheet. `start` is the last card's button: the address field takes
+    /// the keyboard after the sheet has gone, ready for the first page.
+    func closeWelcome(start: Bool) {
+        welcomeStarts = start
+        showingWelcome = false
+    }
+
+    /// The welcome sheet has gone, however it was closed. It never opens by itself again.
+    func welcomeClosed() {
+        defaults.set(true, forKey: Self.welcomeSeenKey)
+        guard welcomeStarts else { return }
+        welcomeStarts = false
+        focusAddress()
+    }
 }

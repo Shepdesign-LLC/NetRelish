@@ -19,7 +19,7 @@ sources:
   - code: Sources/UI/FloatShadow.swift
   - code: Tests/NetRelishTests/ShellMeasureTests.swift
   - code: Tests/NetRelishTests/Seal/SealPhaseTests.swift
-verified_at: 0d45775
+verified_at: 6306c6e
 ---
 
 # Workbench shell
@@ -36,7 +36,7 @@ copy either. Moving tabs and jars with the mouse is [[rearranging]]; compiling a
 
 | Part | Code |
 |---|---|
-| The window's rows, the Panel's slide, ⌘K as an overlay | `ContentView` (`Sources/App/NetRelishApp.swift:366`) |
+| The window's rows, the Panel's slide, ⌘K as an overlay | `ContentView` (`Sources/App/NetRelishApp.swift:372`) |
 | The measures that aren't tokens | `NRShell` (`Sources/Bench/ShellRows.swift:15`), pinned by `ShellMeasureTests` |
 | Title strip, address row and field, bottom bar | `TitleRow`, `SearchRow`, `AddressField`, `BottomBar` (`Sources/Bench/ShellRows.swift:40`, `:94`, `:182`, `:366`) |
 | The tabs, their widths, the jar's chip | `TabStrip` (`Sources/Bench/TabStrip.swift:63`), `TabStripLayout` (`Sources/Bench/TabStrip.swift:15`) |
@@ -80,7 +80,7 @@ has already happened when it starts B. The overlay only paces the picture, then 
 > `fillStatus` after a failed Seal must wait for it, as `SealPhaseTests` does.
 
 > ⚠️ **`.sealOverlay(workbench)` must stay before `.ignoresSafeArea`** in `ContentView`
-> (`Sources/App/NetRelishApp.swift:422`). Inside the safe-area change, the overlay covers
+> (`Sources/App/NetRelishApp.swift:428`). Inside the safe-area change, the overlay covers
 > the title strip and reads every anchor in the window's own space. Move it after, and the
 > overlay no longer spans the title strip, so the band and the drops are drawn against a
 > space that doesn't match where the tabs are (`(unverified)` in a running build).
@@ -110,12 +110,12 @@ has already happened when it starts B. The overlay only paces the picture, then 
 > At opacity 0, VoiceOver loses "Address" and a click can't place the caret.
 
 > ⚠️ **The Panel's inset changes once, after the slide** (`ContentView`'s
-> `.task(id: workbench.showPanel)`, `Sources/App/NetRelishApp.swift:431`). A real page
+> `.task(id: workbench.showPanel)`, `Sources/App/NetRelishApp.swift:437`). A real page
 > reflows once and never per frame. Animating the inset itself would resize the web view on
 > every frame.
 
 > ⚠️ **⌘K is an overlay, not a sheet, so nothing gives the keyboard back when it closes.**
-> `ContentView` hands it to the page in front (`Sources/App/NetRelishApp.swift:502`). A new
+> `ContentView` hands it to the page in front (`Sources/App/NetRelishApp.swift:515`). A new
 > overlay with a text field needs the same, or typing goes nowhere until the page is
 > clicked.
 

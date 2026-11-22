@@ -32,6 +32,7 @@ Nothing here yet.
 - [[zest-sound]] -- the sound kit inlined in the four Zest web tools, the Sound toggle, and how its suite runs
 - [[rearranging]] -- right-click menus and drag on the Shelf and tab strip; what moves, what is left behind, and the multi-window trap
 - [[workbench-shell]] -- the window's chrome since the facelift (ADR 0035): the title strip and tabs, the Shelf's jar tiles, Seal's two phases and its one overlay, the jar fill, ⌘K
+- [[welcome]] -- the welcome sheet: three cards at the first launch, when it counts as seen, and why a test launch never opens it
 - [[accessibility]] -- what VoiceOver hears, the keyboard routes into every menu-only action, the Mac's accessibility settings, and the UI test that walks capture → jar → seal
 
 ## decisions

@@ -239,3 +239,18 @@ Run after the v0.6.0 release. Code had moved under eight pages since each was la
   `Tests/NetRelishTests/Accessibility/UITestFixtureAccessibilityTests.swift`; [[accessibility]]
   already describes that test in its fixture trap, so it is added there as a source
 
+## [2026-11-21] the welcome sheet: a new page, and citations into three others
+
+- [[welcome]]: new. P5's onboarding (ADR 0038): where the three cards and their words live,
+  when the sheet opens and when it counts as seen, and four traps. The one that would cost
+  an afternoon: the UI test's fixture starts from new defaults every run, so a first-launch
+  sheet opens over its window unless the app alone may open it
+- accessibility, workbench-shell, zest-window: citations into `Sources/App/NetRelishApp.swift`
+  moved down by the lines the Help item and the launch mark added. The welcome code sits at
+  the end of the Workbench so nothing in `Sources/App/Workbench.swift` moved
+- accessibility: the welcome sheet's spoken card joins the list of spoken lines
+- privacy-and-sandbox: `welcome.seen`, a new key in the app's own defaults, under the reason
+  the manifest already declares
+- rearranging, releasing-a-preview: read against the change; nothing in them is affected
+- One claim on the new page is marked unverified: why Start waits for the sheet to go before
+  asking for the address field. Nothing here has run on a Mac

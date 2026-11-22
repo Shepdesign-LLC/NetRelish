@@ -4,7 +4,8 @@ Notable changes to NetRelish. Release notes for each preview are in `docs/releas
 
 ## Unreleased
 
-Nothing yet.
+### Added
+- The welcome sheet: three cards on jars, Brine and Seal, shown once at the first launch and again from Help › Welcome to NetRelish (ADR 0038).
 
 ## 0.6.0 — 2026-11-21
 
