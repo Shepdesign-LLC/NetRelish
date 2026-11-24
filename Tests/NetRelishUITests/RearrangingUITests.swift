@@ -198,21 +198,33 @@ final class RearrangingUITests: XCTestCase {
 
         let tab = chip(in: app, jar: Self.firstJar)
         XCTAssertTrue(tab.waitForExistence(timeout: Self.timeout), "The page didn't open in \(Self.firstJar)'s tabs")
+        let source = jarTile(in: app, named: Self.firstJar)
         let target = jarTile(in: app, named: Self.targetJar)
         XCTAssertTrue(target.waitForExistence(timeout: Self.timeout), "\(Self.targetJar) isn't on the Shelf")
+        XCTAssertTrue(spokenValue(of: target).contains("0 tabs"),
+                      "\(Self.targetJar) didn't start empty: \(spokenValue(of: target))")
 
         // Held before it travels: a drag that starts instantly is read as a click.
         tab.press(forDuration: 0.8, thenDragTo: target)
 
-        // The tab left Juniper Bakery's strip and is in Meridian's.
-        XCTAssertTrue(chip(in: app, jar: Self.targetJar).waitForExistence(timeout: Self.timeout),
+        // Asserted on the two jars' own spoken values, never on a strip. `moveTab(_:toJar:)`
+        // moves the tab WITHOUT activating the jar (`Workbench.swift:976`), so the Bench stays
+        // on \(Self.firstJar) and a strip labelled "\(Self.targetJar) tabs" is never created.
+        // The first version of this test waited for exactly that strip, which no correct fix
+        // could ever have satisfied — it would have called a working drag broken.
+        XCTAssertTrue(waitForValue(of: target, toContain: "1 tab"),
                       """
                       Dragging the tab onto \(Self.targetJar) didn't move it.
-                      The tab carries .draggable and the jar tile carries .dropDestination, so if \
-                      neither end is missing, something over them took the drag.
+                      Both ends of the contract are present and their types match — the chip is \
+                      .draggable(String) and the tile is .dropDestination(for: String.self) — so \
+                      something over them took the drag before it started.
+                      \(Self.targetJar) says: \(spokenValue(of: target))
+                      \(Self.firstJar) says: \(spokenValue(of: source))
                       tree as XCUITest sees it:
                       \(app.debugDescription)
                       """)
+        XCTAssertTrue(waitForValue(of: source, toContain: "0 tabs"),
+                      "The tab arrived in \(Self.targetJar) but never left \(Self.firstJar): \(spokenValue(of: source))")
     }
 
     // MARK: Steps
