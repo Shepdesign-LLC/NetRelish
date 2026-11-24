@@ -204,8 +204,11 @@ final class RearrangingUITests: XCTestCase {
         XCTAssertTrue(spokenValue(of: target).contains("0 tabs"),
                       "\(Self.targetJar) didn't start empty: \(spokenValue(of: target))")
 
-        // Held before it travels: a drag that starts instantly is read as a click.
-        tab.press(forDuration: 0.8, thenDragTo: target)
+        // `click(forDuration:thenDragTo:)`, not `press(...)`. press is the touch idiom; the
+        // macOS mouse drag is click, and only that one drives the AppKit drag session a SwiftUI
+        // `.draggable` needs. This test used press for its first five runs and the drag did
+        // nothing every time — on both this and the Brine control, which works in the built app.
+        tab.click(forDuration: 0.8, thenDragTo: target)
 
         // Asserted on the two jars' own spoken values, never on a strip. `moveTab(_:toJar:)`
         // moves the tab WITHOUT activating the jar (`Workbench.swift:976`), so the Bench stays
@@ -241,7 +244,12 @@ final class RearrangingUITests: XCTestCase {
     /// | passes | XCUITest can drive a drag, so the tab's drag is genuinely broken |
     /// | fails   | XCUITest cannot drive `.draggable` at all, and neither red is about the app |
     ///
-    /// Until it runs once, `testDraggingATabOntoAJarMovesIt` going red is not evidence of a bug.
+    /// Until it passes once, `testDraggingATabOntoAJarMovesIt` going red is not evidence of a bug.
+    ///
+    /// Its first run failed — and that was the test's fault, not XCUITest's: both drags called
+    /// `press(forDuration:thenDragTo:)`, the touch idiom, where macOS wants
+    /// `click(forDuration:thenDragTo:)`. Fixed in both. If Brine passes now, the instrument works
+    /// and the tab's red can finally be read.
     @MainActor
     func testDraggingABrineRowOntoAJarRestoresIt() throws {
         let app = launch()
@@ -261,7 +269,7 @@ final class RearrangingUITests: XCTestCase {
         XCTAssertTrue(spokenValue(of: target).contains("0 tabs"),
                       "\(Self.targetJar) didn't start empty: \(spokenValue(of: target))")
 
-        row.press(forDuration: 0.8, thenDragTo: target)
+        row.click(forDuration: 0.8, thenDragTo: target)
 
         // Workbench.drop(_:onJar:) restores a Brine row with `restore(item, into:)`, which calls
         // newTab — so it arrives as a TAB in the jar, not as something kept.
