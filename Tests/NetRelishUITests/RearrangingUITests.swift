@@ -294,6 +294,49 @@ final class RearrangingUITests: XCTestCase {
                       """)
     }
 
+    /// A tab dragged sideways onto another tab reorders the strip — "like a regular browser"
+    /// (Ryan, 2026-11-24). Nothing covered this before today.
+    ///
+    /// It is also the sharpest discriminator left for the tab→jar drag that does not work.
+    /// Both start from the same chip and carry the same `.draggable`; they differ only in where
+    /// they land — `TabStrip`'s own drop destination, inside the strip, versus `ShelfView`'s,
+    /// across the window.
+    ///
+    /// | This test | What it means for the broken drag |
+    /// |---|---|
+    /// | passes | `.draggable` on a chip works. The fault is in crossing to the Shelf |
+    /// | fails  | a chip cannot be dragged anywhere at all, and the fault is on the chip |
+    ///
+    /// The menu-bar route for the same move is `testMoveTabFromTheMenuBar`, which passes, so
+    /// `Workbench.drop(_:onTab:)` and `moveTab(_:onto:)` are already known good.
+    @MainActor
+    func testDraggingATabOntoAnotherTabReordersTheStrip() throws {
+        let app = launch()
+        openFixturePage(in: app)
+
+        let page = chip(in: app, jar: Self.firstJar)
+        XCTAssertTrue(page.waitForExistence(timeout: Self.timeout), "The page didn't open in \(Self.firstJar)'s tabs")
+        app.typeKey("t", modifierFlags: .command)   // a second tab, which comes forward
+        XCTAssertTrue(waitForValue(of: page, toContain: "1 of 2"),
+                      "The page's tab isn't first of two after ⌘T: \(spokenValue(of: page))")
+
+        let others = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label == %@", "\(Self.firstJar) tabs")).firstMatch
+            .descendants(matching: .any).matching(identifier: "tab-chip")
+        let newTab = others.element(boundBy: 1)
+        XCTAssertTrue(newTab.waitForExistence(timeout: Self.timeout), "There's no second tab chip to drop onto")
+
+        page.click(forDuration: 0.8, thenDragTo: newTab)
+
+        XCTAssertTrue(waitForValue(of: page, toContain: "2 of 2"),
+                      """
+                      Dragging a tab onto another tab didn't reorder the strip.
+                      Tab › Move Tab Left does the same move and passes, so Workbench's side is \
+                      fine — a chip cannot be dragged at all, not merely onto a jar.
+                      the page's tab says: \(spokenValue(of: page))
+                      """)
+    }
+
     // MARK: Steps
     //
     // This file carries its own launch so it stands alone: the two UI test files prove opposite
