@@ -124,6 +124,13 @@ struct TabStrip: View {
                              width: index < widths.count ? widths[index] : NRShell.tabMinW,
                              isFront: tab.id == frontId,
                              growIn: canGrow && !seenTabIds.contains(tab.id))
+                            // The slot takes the drop, not the chip: see the note on
+                            // `.draggable` in `chip(for:)`.
+                            .dropDestination(for: String.self) { payloads, _ in
+                                workbench.drop(payloads, onTab: tab)
+                            } isTargeted: { over in
+                                if over { dropTarget = tab.id } else if dropTarget == tab.id { dropTarget = nil }
+                            }
                             .id(tab.id)
                             .transition(AnyTransition.opacity.animation(NRMotion.animation(duration: 0.16)))
                     }
@@ -229,12 +236,13 @@ struct TabStrip: View {
                 .onKeyPress(.leftArrow) { focusNeighbor(of: tab, in: order, offset: -1) }
                 .onKeyPress(.rightArrow) { focusNeighbor(of: tab, in: order, offset: 1) }
                 .contextMenu { menu(for: tab) }
+                // A chip is a drag SOURCE only. Its `.dropDestination` used to sit on this very
+                // view, directly above `.draggable` — the one structural difference left between
+                // it and Brine's row, which drags fine and is a source only. A view that is its
+                // own drop target appears not to start a drag at all. The drop moved out to the
+                // chip's slot in the strip (see `strip(for:)`), so a tab can still be dropped
+                // onto another tab; only the view it lands on changed. Don't put it back here.
                 .draggable(DragPayload.tab(tab.id).string)
-                .dropDestination(for: String.self) { payloads, _ in
-                    workbench.drop(payloads, onTab: tab)
-                } isTargeted: { over in
-                    if over { dropTarget = tab.id } else if dropTarget == tab.id { dropTarget = nil }
-                }
         }
     }
 
