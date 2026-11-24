@@ -7,8 +7,13 @@
 // single check going red: every `.contextMenu` and every `.draggable` was still in the source,
 // so nothing looked deleted. The gestures were being swallowed by other gestures over them.
 //
-// These tests exist to catch exactly that. They are expected to FAIL when first written, on
-// main at 830f70b, and the fix is only believable once they pass.
+// These tests exist to catch exactly that.
+//
+// 2026-11-24, after the first run: the two right-click tests PASSED, and they were wrong to.
+// They asserted that a menu appeared and stopped there, which is true even when every item in
+// that menu is dead — which is what Ryan was reporting while they went green. They now click
+// the item and assert what it was supposed to do. The rule for this file from here: assert the
+// outcome, never the affordance.
 //
 // Launched with the same fixture as the other file (Sources/App/UITestFixture.swift, Debug
 // only): a throwaway Pantry, the jars Juniper Bakery (in front) and Meridian after the two
@@ -32,20 +37,36 @@ final class RearrangingUITests: XCTestCase {
     }
 
     // MARK: Right-click
+    //
+    // These click THROUGH the menu to the thing it is supposed to do. The first version of this
+    // file stopped at `XCTAssertTrue(app.menuItems["Pin"].waitForExistence(...))` — it proved a
+    // menu appeared and nothing else, and it went green on 2026-11-24 while Ryan was reporting
+    // that right-click did nothing. A menu that opens and whose items do nothing passes that
+    // assertion. So does a menu wired to the wrong tab. Both are exactly what he described.
+    //
+    // The rule this file now follows: assert the OUTCOME, never the affordance. The menu items
+    // are still checked, but as a precondition inside the test that uses them, so a failure
+    // still says which of the two went wrong — the menu never opened, or it opened and did
+    // nothing.
 
-    /// A tab's menu: Pin, the icon palette, Copy Link, Move Left / Right, Move to Jar
-    /// (`TabStrip.menu(for:)`). The menu builds those unconditionally, so if nothing appears
-    /// the right-click never reached the chip.
+    /// Right-click a tab, press Pin, and the tab says it is pinned.
+    ///
+    /// Stronger than ⌘⇧P: `Tab › Pin Tab` pins `pageInFront` (`NetRelishApp.swift:188`), while
+    /// this menu pins the chip that was right-clicked (`workbench.togglePin(tab)`,
+    /// `TabStrip.swift:249`). A menu wired to the wrong tab passes the first and fails this.
     @MainActor
-    func testRightClickOnATabOpensItsMenu() throws {
+    func testRightClickOnATabPinsIt() throws {
         let app = launch()
         openFixturePage(in: app)
 
         let tab = chip(in: app, jar: Self.firstJar)
         XCTAssertTrue(tab.waitForExistence(timeout: Self.timeout), "The page didn't open in \(Self.firstJar)'s tabs")
+        XCTAssertFalse(spokenValue(of: tab).contains("pinned"), "The tab was already pinned before the menu was opened")
+
         tab.rightClick()
 
-        // "Pin" is the first item and takes no state to be there.
+        // Precondition. `TabStrip.menu(for:)` builds these unconditionally, so an empty menu
+        // means the right-click never reached the chip — a different fault from a dead item.
         let pin = app.menuItems["Pin"]
         XCTAssertTrue(pin.waitForExistence(timeout: Self.timeout),
                       """
@@ -58,19 +79,34 @@ final class RearrangingUITests: XCTestCase {
                       """)
         XCTAssertTrue(app.menuItems["Copy Link"].exists, "The tab's menu has no Copy Link")
         XCTAssertTrue(app.menuItems["Move to Jar"].exists, "The tab's menu has no Move to Jar")
+
+        pin.click()
+
+        XCTAssertTrue(waitForValue(of: tab, toContain: "pinned"),
+                      """
+                      The menu opened and Pin did nothing. This is the half the first version of \
+                      this file never tested.
+                      the tab says: \(spokenValue(of: tab))
+                      """)
     }
 
-    /// A jar's menu: New Tab in <jar>, Edit Jar…, the color palette, Move Up / Move Down
-    /// (`ShelfView.menu(for:at:)`), all built unconditionally.
+    /// Right-click a jar on the Shelf, press New Tab in <jar>, and that jar gains a tab.
+    ///
+    /// Asserted on the jar's own spoken value — `JarTile.spokenValue` reads "0 tabs, 0 kept, …"
+    /// and "1 tab, 0 kept, …" (`ShelfView.swift:584`) — so it holds whichever board the Bench
+    /// happens to be showing afterwards.
     @MainActor
-    func testRightClickOnAJarTileOpensItsMenu() throws {
+    func testRightClickOnAJarTileOpensANewTabThere() throws {
         let app = launch()
 
-        let tile = jarTile(in: app, named: Self.firstJar)
-        XCTAssertTrue(tile.waitForExistence(timeout: Self.timeout), "\(Self.firstJar) isn't on the Shelf")
+        let tile = jarTile(in: app, named: Self.targetJar)
+        XCTAssertTrue(tile.waitForExistence(timeout: Self.timeout), "\(Self.targetJar) isn't on the Shelf")
+        XCTAssertTrue(spokenValue(of: tile).contains("0 tabs"),
+                      "\(Self.targetJar) didn't start empty, so a new tab proves nothing: \(spokenValue(of: tile))")
+
         tile.rightClick()
 
-        let newTab = app.menuItems["New Tab in \(Self.firstJar)"]
+        let newTab = app.menuItems["New Tab in \(Self.targetJar)"]
         XCTAssertTrue(newTab.waitForExistence(timeout: Self.timeout),
                       """
                       Right-clicking a jar on the Shelf opened no menu.
@@ -82,6 +118,14 @@ final class RearrangingUITests: XCTestCase {
                       \(app.debugDescription)
                       """)
         XCTAssertTrue(app.menuItems["Edit Jar…"].exists, "The jar's menu has no Edit Jar…")
+
+        newTab.click()
+
+        XCTAssertTrue(waitForValue(of: tile, toContain: "1 tab"),
+                      """
+                      The menu opened and New Tab in \(Self.targetJar) did nothing.
+                      the jar says: \(spokenValue(of: tile))
+                      """)
     }
 
     // MARK: The same moves, from the menu bar
