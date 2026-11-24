@@ -204,11 +204,21 @@ final class RearrangingUITests: XCTestCase {
         XCTAssertTrue(spokenValue(of: target).contains("0 tabs"),
                       "\(Self.targetJar) didn't start empty: \(spokenValue(of: target))")
 
-        // `click(forDuration:thenDragTo:)`, not `press(...)`. press is the touch idiom; the
-        // macOS mouse drag is click, and only that one drives the AppKit drag session a SwiftUI
-        // `.draggable` needs. This test used press for its first five runs and the drag did
-        // nothing every time — on both this and the Brine control, which works in the built app.
-        tab.click(forDuration: 0.8, thenDragTo: target)
+        // Dragged from the BOTTOM of the chip, not its centre, and that is the experiment.
+        //
+        // A chip's hit area is the full 44pt of the title strip, so its centre is ~22pt from the
+        // window's top edge — inside AppKit's title-bar region, which is about 30pt tall and the
+        // full width of the window. AppKit reads a press-and-drag there as window-move and
+        // claims it before SwiftUI can start a drag session, while a right-click has no
+        // title-bar control to consume it and falls through. That is exactly the split in this
+        // file: every right-click passes, every drag from a chip centre fails, and the Brine
+        // control — whose rows are nowhere near the strip — passes.
+        //
+        // 0.85 down the chip is ~37pt, below the title-bar region. If this passes where the
+        // centre failed, the geometry is the cause and the fix belongs in WindowChrome.
+        let from = tab.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
+        let onto = target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        from.press(forDuration: 0.8, thenDragTo: onto)
 
         // Asserted on the two jars' own spoken values, never on a strip. `moveTab(_:toJar:)`
         // moves the tab WITHOUT activating the jar (`Workbench.swift:976`), so the Bench stays
