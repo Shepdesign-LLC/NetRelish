@@ -2,7 +2,7 @@
 title: Workbench shell — the window's chrome, the Shelf's tiles, Seal's overlay and the jar fill
 type: subsystem
 created: 2026-11-18
-updated: 2026-11-21
+updated: 2026-11-24
 sources:
   - code: Sources/App/NetRelishApp.swift
   - code: Sources/App/Workbench.swift
@@ -95,8 +95,16 @@ has already happened when it starts B. The overlay only paces the picture, then 
 > ⚠️ **`WindowButtons.place` leans on AppKit's private title-bar layout**
 > (`Sources/Bench/WindowChrome.swift:97`). It moves the three buttons, and grows the
 > title-bar container only by the point or two the buttons need. Never stretch the
-> container over the strip: it would lie over every tab and could take their drag, drop,
-> right-click and hover. It is reapplied on resize, leaving full screen and becoming key.
+> container, or the title-bar view inside it, over the strip: it lies over every tab and
+> takes their drag. It is reapplied on resize, leaving full screen and becoming key.
+>
+> **This already happened.** The facelift (`8de5828`) set `titlebar.frame = container.bounds`,
+> which is the full window width, so a ~30pt band covered the mark and the top of every
+> 44pt tab. A tab could not be dragged onto a jar from then until the width was clamped to
+> `NRShell.markLeading` (`Sources/Bench/WindowChrome.swift:119`). Right-click and hover
+> survived — a transparent title bar has no control to consume them — so only the drag
+> went, which is why nothing looked deleted. `RearrangingUITests.testDraggingATabOntoAJarMovesIt`
+> is the test that holds it.
 
 > ⚠️ **A double-click on the title strip is AppKit's.** `WindowDragArea`
 > (`Sources/Bench/WindowChrome.swift:139`) only drags. Reading `AppleActionOnDoubleClick` to
