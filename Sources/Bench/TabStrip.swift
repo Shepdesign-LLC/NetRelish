@@ -229,7 +229,7 @@ struct TabStrip: View {
                 .onKeyPress(.leftArrow) { focusNeighbor(of: tab, in: order, offset: -1) }
                 .onKeyPress(.rightArrow) { focusNeighbor(of: tab, in: order, offset: 1) }
                 .contextMenu { menu(for: tab) }
-                .draggable(DragPayload.tab(tab.id).string)
+                .draggable(tracedPayload(for: tab))   // TEMPORARY trace, see Workbench.dragTrace
                 .dropDestination(for: String.self) { payloads, _ in
                     workbench.drop(payloads, onTab: tab)
                 } isTargeted: { over in
@@ -334,6 +334,15 @@ struct TabStrip: View {
     static func endLine(tabName: String, first: Bool) -> String {
         "\(tabName) is already \(first ? "first" : "last")."
     }
+
+    /// TEMPORARY. `.draggable` takes an autoclosure, so this runs at the moment the drag
+    /// begins — if nothing appears in the status line, `.draggable` was never asked, and the
+    /// gesture never became a drag. Remove with `Workbench.dragTrace`.
+    private func tracedPayload(for tab: Tab) -> String {
+        workbench.dragTrace("picked up \(tab.title ?? "a tab")", startingOver: true)
+        return DragPayload.tab(tab.id).string
+    }
+
 }
 
 /// "+": a new tab in the jar you're in.

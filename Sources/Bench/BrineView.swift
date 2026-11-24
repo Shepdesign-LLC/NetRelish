@@ -109,7 +109,7 @@ struct SmartJarView: View {
                                      fromJar: true, hint: Self.restoreHint(jarName: restoreJar(for: item)?.name),
                                      isLast: isLast, isFocused: focusedRow == item.id) { restore(item) }, id: item.id)
                     // Drag a row onto a jar on the Shelf, or pick the jar here: it reopens there.
-                    .draggable(DragPayload.brine(item.id).string)
+                    .draggable({ workbench.dragTrace("picked up a Brine row", startingOver: true); return DragPayload.brine(item.id).string }())
                     .contextMenu {
                         ForEach(workbench.jars) { target in
                             Button("Restore to \(target.name)") { restore(item, into: target) }
