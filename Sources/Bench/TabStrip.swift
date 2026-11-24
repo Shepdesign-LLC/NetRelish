@@ -228,8 +228,14 @@ struct TabStrip: View {
                 }
                 .onKeyPress(.leftArrow) { focusNeighbor(of: tab, in: order, offset: -1) }
                 .onKeyPress(.rightArrow) { focusNeighbor(of: tab, in: order, offset: 1) }
-                .contextMenu { menu(for: tab) }
+                // `.draggable` BEFORE `.contextMenu`, which is the order Brine uses
+                // (`BrineView.swift:112-113`) and the only difference between a drag that works
+                // and one that does nothing. Applied the other way round the context menu sits
+                // closest to the chip and the drag never starts — proven by
+                // `RearrangingUITests`, where the Brine drag passes and the tab's does not
+                // against the same drop destination with the same payload. Don't reorder these.
                 .draggable(DragPayload.tab(tab.id).string)
+                .contextMenu { menu(for: tab) }
                 .dropDestination(for: String.self) { payloads, _ in
                     workbench.drop(payloads, onTab: tab)
                 } isTargeted: { over in
