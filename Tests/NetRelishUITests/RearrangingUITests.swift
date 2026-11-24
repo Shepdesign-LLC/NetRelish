@@ -84,6 +84,64 @@ final class RearrangingUITests: XCTestCase {
         XCTAssertTrue(app.menuItems["Edit Jar…"].exists, "The jar's menu has no Edit Jar…")
     }
 
+    // MARK: The same moves, from the menu bar
+    //
+    // These use no pointer at all, and they are the control for the three above. Ryan also
+    // can't pin a tab or move things around (2026-11-24), and that symptom has two very
+    // different causes: either the pointer routes are swallowed and the menu bar still works,
+    // or the moves themselves are broken and nothing can reach them. A tab says its own state
+    // to VoiceOver — "pinned, 1 of 2", "2 of 2" — so both are answerable without asking him
+    // which route he used.
+
+    /// ⌘⇧P (Tab › Pin Tab). The chip then says "pinned" before its position.
+    @MainActor
+    func testPinFromTheKeyboard() throws {
+        let app = launch()
+        openFixturePage(in: app)
+
+        let tab = chip(in: app, jar: Self.firstJar)
+        XCTAssertTrue(tab.waitForExistence(timeout: Self.timeout), "The page didn't open in \(Self.firstJar)'s tabs")
+        XCTAssertFalse(spokenValue(of: tab).contains("pinned"), "The tab was already pinned before ⌘⇧P")
+
+        app.typeKey("p", modifierFlags: [.command, .shift])
+
+        XCTAssertTrue(waitForValue(of: tab, toContain: "pinned"),
+                      """
+                      ⌘⇧P didn't pin the tab. If this fails while the right-click tests also fail, \
+                      the moves themselves are broken, not just the pointer routes.
+                      the tab says: \(spokenValue(of: tab))
+                      """)
+    }
+
+    /// Tab › Move Tab Left, clicked in the menu bar. With the fixture page and one new tab, the
+    /// page starts at "1 of 2"; moving the new tab left puts the page second.
+    @MainActor
+    func testMoveTabFromTheMenuBar() throws {
+        let app = launch()
+        openFixturePage(in: app)
+
+        let page = chip(in: app, jar: Self.firstJar)
+        XCTAssertTrue(page.waitForExistence(timeout: Self.timeout), "The page didn't open in \(Self.firstJar)'s tabs")
+        app.typeKey("t", modifierFlags: .command)   // a second tab, which comes forward
+        XCTAssertTrue(waitForValue(of: page, toContain: "1 of 2"),
+                      "The page's tab isn't first of two after ⌘T: \(spokenValue(of: page))")
+
+        let tabMenu = app.menuBars.menuBarItems["Tab"]
+        XCTAssertTrue(tabMenu.waitForExistence(timeout: Self.timeout), "There's no Tab menu")
+        tabMenu.click()
+        let moveLeft = tabMenu.menuItems["Move Tab Left"]
+        XCTAssertTrue(moveLeft.waitForExistence(timeout: Self.timeout), "The Tab menu has no Move Tab Left")
+        XCTAssertTrue(moveLeft.isEnabled, "Move Tab Left is disabled with the new tab second of two")
+        moveLeft.click()
+
+        XCTAssertTrue(waitForValue(of: page, toContain: "2 of 2"),
+                      """
+                      Move Tab Left didn't reorder the strip. The menu item exists and was enabled, \
+                      so the move itself did nothing.
+                      the page's tab says: \(spokenValue(of: page))
+                      """)
+    }
+
     // MARK: Drag
 
     /// A tab dragged onto a jar on the Shelf moves there (ADR 0028). The keyboard route for the
@@ -161,5 +219,20 @@ final class RearrangingUITests: XCTestCase {
     private func jarTile(in app: XCUIApplication, named jar: String) -> XCUIElement {
         let shelf = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Shelf")).firstMatch
         return shelf.descendants(matching: .any).matching(NSPredicate(format: "label == %@", jar)).firstMatch
+    }
+
+    /// What VoiceOver says after an element's name. A tab's is "pinned, 1 of 2" or "2 of 2"
+    /// (`TabChip.accessibilityValue`), so a state change is readable without a screenshot.
+    @MainActor
+    private func spokenValue(of element: XCUIElement) -> String {
+        element.value as? String ?? ""
+    }
+
+    /// Waits for a value to settle, since a move animates and the strip re-reads afterwards.
+    @MainActor
+    private func waitForValue(of element: XCUIElement, toContain text: String) -> Bool {
+        let matches = NSPredicate(format: "value CONTAINS %@", text)
+        let settled = XCTNSPredicateExpectation(predicate: matches, object: element)
+        return XCTWaiter().wait(for: [settled], timeout: Self.timeout) == .completed
     }
 }
