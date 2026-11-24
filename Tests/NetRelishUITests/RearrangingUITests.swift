@@ -227,6 +227,55 @@ final class RearrangingUITests: XCTestCase {
                       "The tab arrived in \(Self.targetJar) but never left \(Self.firstJar): \(spokenValue(of: source))")
     }
 
+    /// The control for the test above, and the reason it exists: nothing in this project has
+    /// ever had a passing XCUITest drag, so a red drag test has two readings and only one of
+    /// them is about the app.
+    ///
+    /// Brine is the surface Ryan says still works in the built app. It drags the same `String`
+    /// (`BrineView.swift:112`) into the same destination (`ShelfView.swift:190`) — there is only
+    /// one Shelf drop destination in the whole tree, so this lands on the identical code the
+    /// tab's drag does. The only difference is which view the drag starts from.
+    ///
+    /// | This test | What the tab's red means |
+    /// |---|---|
+    /// | passes | XCUITest can drive a drag, so the tab's drag is genuinely broken |
+    /// | fails   | XCUITest cannot drive `.draggable` at all, and neither red is about the app |
+    ///
+    /// Until it runs once, `testDraggingATabOntoAJarMovesIt` going red is not evidence of a bug.
+    @MainActor
+    func testDraggingABrineRowOntoAJarRestoresIt() throws {
+        let app = launch()
+        openFixturePage(in: app)
+
+        // ⌘D (Bench › Capture This Page), then ⌃⌘1 (Jars › Brine) — the keyboard route, so a
+        // failure before the drag is never the pointer's.
+        app.typeKey("d", modifierFlags: .command)
+        app.typeKey("1", modifierFlags: [.control, .command])
+
+        let row = app.descendants(matching: .any).matching(identifier: "smart-jar-row")
+            .matching(NSPredicate(format: "label == %@", Self.pageTitle)).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: Self.timeout), "The capture isn't a row in Brine")
+
+        let target = jarTile(in: app, named: Self.targetJar)
+        XCTAssertTrue(target.waitForExistence(timeout: Self.timeout), "\(Self.targetJar) isn't on the Shelf")
+        XCTAssertTrue(spokenValue(of: target).contains("0 tabs"),
+                      "\(Self.targetJar) didn't start empty: \(spokenValue(of: target))")
+
+        row.press(forDuration: 0.8, thenDragTo: target)
+
+        // Workbench.drop(_:onJar:) restores a Brine row with `restore(item, into:)`, which calls
+        // newTab — so it arrives as a TAB in the jar, not as something kept.
+        XCTAssertTrue(waitForValue(of: target, toContain: "1 tab"),
+                      """
+                      Dragging a Brine row onto \(Self.targetJar) didn't restore it either.
+                      Brine's drag is the one the built app still does, and it lands on the same \
+                      ShelfView drop destination as the tab's. Both reds together mean XCUITest \
+                      is not driving a drag session at all, and this file cannot measure drag \
+                      until that is solved — a red here is about the test, not the app.
+                      \(Self.targetJar) says: \(spokenValue(of: target))
+                      """)
+    }
+
     // MARK: Steps
     //
     // This file carries its own launch so it stands alone: the two UI test files prove opposite
