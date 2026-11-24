@@ -495,7 +495,20 @@ struct TabChip: View {
             .padding(.top, isFront ? 6 : 10)
             .frame(height: NRShell.titleH, alignment: .top)
             .contentShape(Rectangle())
-            .onTapGesture(perform: activate)
+            // `.simultaneousGesture`, not `.onTapGesture`. A plain TapGesture claims the
+            // mouse-down sequence exclusively, and `.draggable` — applied to this chip in
+            // `TabStrip.chip(for:)` — never gets to start a drag from it. A simultaneous tap
+            // still activates on click and leaves the sequence available.
+            //
+            // This is what separates a chip from a Brine row, which drags fine: a Brine row
+            // activates through a Button (`BrineView.swift:463`), and SwiftUI coordinates a
+            // Button with a drag instead of making them compete.
+            //
+            // Proven by `RearrangingUITests`: a chip could not be dragged onto a jar OR onto
+            // another tab, while the same two moves from the menu bar both worked and the
+            // Brine drag passed every run. The fault was on the chip, not on either
+            // destination.
+            .simultaneousGesture(TapGesture().onEnded { activate() })
             .onHover { hovering = $0 }
             .onAppear {
                 guard !grown else { return }
