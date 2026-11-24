@@ -213,6 +213,19 @@ struct TabStrip: View {
                 .accessibilityHidden(true)
         } else {
             base
+                // `.draggable` FIRST, closest to the chip, which is how Brine does it
+                // (`BrineView.swift:112`) — the one drag in this app that works.
+                //
+                // `.focusable(interactions: .activate)` declares that this view handles being
+                // activated by a click, and applied UNDER `.draggable` it takes the mouse-down a
+                // drag needs before the drag can start. Brine's dragged row carries only
+                // `.focused` (`BrineView.swift:174`); the `.focusable(interactions: .activate)`
+                // at `BrineView.swift:435` is `SmartJarRowView`, a different view that nothing
+                // drags. That asymmetry is the whole difference between the two.
+                //
+                // Keep `.draggable` innermost. `RearrangingUITests` holds it: the Brine drag is
+                // the control and passes, so a red on the tab's drag is the tab's alone.
+                .draggable(DragPayload.tab(tab.id).string)
                 // Full Keyboard Access reaches the tabs: Space or Return brings one forward,
                 // and the arrow keys walk the strip.
                 .focusable(interactions: .activate)
@@ -228,13 +241,6 @@ struct TabStrip: View {
                 }
                 .onKeyPress(.leftArrow) { focusNeighbor(of: tab, in: order, offset: -1) }
                 .onKeyPress(.rightArrow) { focusNeighbor(of: tab, in: order, offset: 1) }
-                // `.draggable` BEFORE `.contextMenu`, which is the order Brine uses
-                // (`BrineView.swift:112-113`) and the only difference between a drag that works
-                // and one that does nothing. Applied the other way round the context menu sits
-                // closest to the chip and the drag never starts — proven by
-                // `RearrangingUITests`, where the Brine drag passes and the tab's does not
-                // against the same drop destination with the same payload. Don't reorder these.
-                .draggable(DragPayload.tab(tab.id).string)
                 .contextMenu { menu(for: tab) }
                 .dropDestination(for: String.self) { payloads, _ in
                     workbench.drop(payloads, onTab: tab)
