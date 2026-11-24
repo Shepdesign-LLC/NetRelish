@@ -12,7 +12,9 @@
     2. SMALLER JARS. "I like the mason jar color stuff. The Jars are kinda big though."
        The Shelf's drawn jar goes 58 -> 44 and the tile 100x88 -> 100x72.
     3. NOTES IN THE PANEL, IN MARKDOWN. "And this area can be where the notes are made.
-       It can be MD." The dead space under RECIPE becomes the note.
+       It can be MD." The dead space under RECIPE becomes the note. Needs NO schema change:
+       items.body, ItemKind.note and Item.jarId all already exist. An earlier draft of this
+       comp said otherwise and was wrong.
 
   Nothing here is built. Signing it off makes it the design of record and moves
   design/DESIGN_MANIFEST.md to v2.2 with the changelog line at the bottom of this file.
@@ -530,11 +532,19 @@ the ZestMail grammar you settled on Oct 21, so Send to Zest MD stays lossless.</
         <li>Writing Tools work in it for free, because it is a system text view
             (manifest §11 claim 4).</li>
       </ul>
-      <h4>The cost, so it's a real decision</h4>
-      <p>ADR 0012 proposed moving notes to 1.1 because they need a schema change. That change
-      starts in <code>/design/NetRelish.json</code> in System Designer and regenerates Swift —
-      the Panel section itself is the cheap half. Three weeks from Dec 14 that is worth saying
-      out loud rather than drifting into.</p>
+      <h4>The cost — corrected 2026-11-24</h4>
+      <p><b>This needs no schema change.</b> An earlier draft of this comp said it did, and that
+      was wrong. The Pantry already holds a note: <code>items.body</code> is an existing column
+      (<code>Schema.swift:45</code>), <code>ItemKind</code> already has <code>note</code>
+      (<code>Types.swift:20</code>), and <code>Item</code> already carries <code>jarId</code>.
+      A jar's note is one row:</p>
+      <p><code>Item(kind: .note, body: markdown, jarId: jar.id)</code></p>
+      <p>No MSON change, no migration, no regeneration. System Designer designed it this way from
+      the start; nothing in the app has ever created one. What is left is a store method, the
+      Panel section, and a Markdown renderer — and the renderer already exists in Zest MD, in the
+      grammar this would use.</p>
+      <p>So ADR 0012's reason for moving notes to 1.1 does not hold. That is a decision to retake,
+      not a cost to swallow.</p>
     </div>
   </div>
 </div>
@@ -664,8 +674,9 @@ lit Brine pill and the selected smart-jar row — <code>--relish-100</code> dark
     locked vocabulary in CLAUDE.md, which is a bigger deal than a view name.<br>
     2 · Does the Counter replace the board on ⌘T, or sit above the board's tiles and cards on the
     same screen? Drawn here as a replacement.<br>
-    3 · Notes in 1.0 or 1.1? The view is cheap; the schema change is not, and ADR 0012 currently
-    says 1.1.
+    3 · Notes in 1.0? ADR 0012 put them in 1.1 because of a schema change that turns out not
+    to be needed — the Pantry already stores a note. The remaining cost is a Panel section and a
+    store method.
   </div>
 </div>
 
