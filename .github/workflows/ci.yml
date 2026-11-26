@@ -159,7 +159,7 @@ jobs:
     # denylist.
     # Unmeasured, and free either way: this is a stop, not a saving. 30 and not 20 because
     # the only thing a tight bound can buy here is a red check on a green pull request when
-    # `brew install xcodegen` has a slow day (ADR 0037).
+    # fetching the pinned XcodeGen has a slow day (ADR 0037, ADR 0040).
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
@@ -177,9 +177,12 @@ jobs:
           diff -ru Sources/Pantry/Models /tmp/PantryModels || { echo "::error file=design/NetRelish.json::Sources/Pantry/Models is stale — swift scripts/gen-pantry.swift design/NetRelish.json Sources/Pantry/Models"; exit 1; }
       - name: Regenerate NetRelish.xcodeproj
         run: |
-          brew install xcodegen >/dev/null
+          # The XcodeGen pinned by version AND hash in scripts/xcodegen-version.txt, not
+          # whatever the runner has cached: two XcodeGens write two different projects, and
+          # comparing the committed one against a fresh generation is this job's whole purpose.
+          XCODEGEN=$(scripts/xcodegen.sh)
           cp -R NetRelish.xcodeproj /tmp/committed.xcodeproj
-          xcodegen generate --quiet
+          "$XCODEGEN" generate --quiet
           diff -ru /tmp/committed.xcodeproj NetRelish.xcodeproj || { echo "::error file=project.yml::NetRelish.xcodeproj is stale — run scripts/gen-project.sh"; exit 1; }
           # XcodeGen also writes the Info.plist and entitlements files project.yml declares.
           STALE=$(git status --porcelain -- '*.entitlements' '*Info.plist')

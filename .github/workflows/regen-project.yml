@@ -8,12 +8,19 @@ name: Regenerate Xcode project
 #
 # Two jobs, so the write token never shares a runner with the code it would be guarding
 # (ADR 0024):
-#   regenerate  read-only. Runs Homebrew's XcodeGen and the branch's scripts, and hands on
+#   regenerate  read-only. Runs the pinned XcodeGen and the branch's scripts, and hands on
 #               a patch of the project, plist and entitlements files, nothing else.
 #   push        the only job that can write. Runs nothing from the branch or Homebrew:
 #               checks the patch touches only those files, applies it, commits, pushes.
 #
 # Run it from the Actions tab, or: gh workflow run regen-project.yml -f branch=<branch>
+#
+# Changing THIS file is different from changing the scripts it runs. workflow_dispatch reads
+# the workflow from the ref it is dispatched on, not from the `branch` input: a run started
+# against main executes MAIN's copy of these steps while checking out the branch. So an edit
+# here takes effect only once it is on main. That is how run 27 came to run main's unpinned
+# `brew install xcodegen` against the branch's pinned scripts, and tripped the pin's own
+# assertion (ADR 0040) — the scripts are read from the branch, the steps are not.
 
 on:
   workflow_dispatch:
@@ -55,8 +62,7 @@ jobs:
 
       - name: Regenerate NetRelish.xcodeproj
         run: |
-          brew install xcodegen >/dev/null
-          scripts/gen-project.sh
+          scripts/gen-project.sh   # pins XcodeGen itself, via scripts/xcodegen.sh
 
       - name: The change, as a patch
         id: diff
