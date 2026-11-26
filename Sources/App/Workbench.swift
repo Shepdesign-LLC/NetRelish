@@ -571,33 +571,6 @@ final class Workbench {
         }
     }
 
-    // MARK: Drag trace — TEMPORARY, remove before this branch merges
-    //
-    // Nine CI runs eliminated payload type, the drop destination, XCUITest's ability to drag,
-    // modifier order, `.focusable` placement, title-bar geometry, `Workbench.drop` itself and
-    // the chip-as-drop-target. The drag from a tab to a jar still does nothing while the same
-    // drag from a Brine row works. What is missing is a measurement of WHERE it stops, and that
-    // needs a Mac.
-    //
-    // So the three points on the path report themselves into the address field's status line,
-    // where Ryan can read them without a terminal or a stack trace (CLAUDE.md). The trail
-    // accumulates, so the last line shown is how far the drag got:
-    //
-    //     drag: picked up Invoice terms          → the drag began and reached nothing
-    //     drag: picked up … → over Meridian      → the jar saw it, the drop never fired
-    //     drag: picked up … → over … → dropped   → the whole path, and it should have moved
-    //     (nothing at all)                       → `.draggable` was never asked for a payload
-    //
-    // Brine is instrumented the same way, so a drag that works and a drag that does not can be
-    // compared in one build.
-    private(set) var dragTrail: [String] = []
-
-    func dragTrace(_ step: String, startingOver: Bool = false) {
-        if startingOver { dragTrail = [] }
-        dragTrail.append(step)
-        report("drag: " + dragTrail.joined(separator: " → "), priority: .medium)
-    }
-
     /// Shows a result line in the address field for 2.5 seconds, and hands it to VoiceOver.
     /// `.high` by default: almost every line answers something the person just did.
     private func report(_ text: String, priority: NSAccessibilityPriorityLevel = .high) {

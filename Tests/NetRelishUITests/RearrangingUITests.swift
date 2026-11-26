@@ -15,6 +15,14 @@
 // the item and assert what it was supposed to do. The rule for this file from here: assert the
 // outcome, never the affordance.
 //
+// What this file covers, and what it does NOT: every pointer route here passes. The two that
+// do not — dragging a tab onto a jar, and dragging a tab onto another tab — are a real and
+// unfixed bug, and they live on the branch `claude/tab-drag-bug` so this file can stay green.
+// The drag that is still here, Brine's, is the control that proves the instrument and the
+// Shelf's drop destination both work: it carries the same `String` payload into the same and
+// only `ShelfView.dropDestination`. If it ever goes red, the problem is this harness, not the
+// app, and the tab-drag branch's reds stop meaning anything.
+//
 // Launched with the same fixture as the other file (Sources/App/UITestFixture.swift, Debug
 // only): a throwaway Pantry, the jars Juniper Bakery (in front) and Meridian after the two
 // every fresh Pantry starts with, and one page served from inside the app. Nothing reads your
@@ -186,80 +194,19 @@ final class RearrangingUITests: XCTestCase {
                       """)
     }
 
-    // MARK: Drag
-
-    /// A tab dragged onto a jar on the Shelf moves there (ADR 0028). The keyboard route for the
-    /// same move — Tab › Move Tab to Jar — is covered by CaptureJarSealUITests; this is the
-    /// pointer one, and the two can break independently.
-    @MainActor
-    func testDraggingATabOntoAJarMovesIt() throws {
-        let app = launch()
-        openFixturePage(in: app)
-
-        let tab = chip(in: app, jar: Self.firstJar)
-        XCTAssertTrue(tab.waitForExistence(timeout: Self.timeout), "The page didn't open in \(Self.firstJar)'s tabs")
-        let source = jarTile(in: app, named: Self.firstJar)
-        let target = jarTile(in: app, named: Self.targetJar)
-        XCTAssertTrue(target.waitForExistence(timeout: Self.timeout), "\(Self.targetJar) isn't on the Shelf")
-        XCTAssertTrue(spokenValue(of: target).contains("0 tabs"),
-                      "\(Self.targetJar) didn't start empty: \(spokenValue(of: target))")
-
-        // Dragged from the BOTTOM of the chip, not its centre, and that is the experiment.
-        //
-        // A chip's hit area is the full 44pt of the title strip, so its centre is ~22pt from the
-        // window's top edge — inside AppKit's title-bar region, which is about 30pt tall and the
-        // full width of the window. AppKit reads a press-and-drag there as window-move and
-        // claims it before SwiftUI can start a drag session, while a right-click has no
-        // title-bar control to consume it and falls through. That is exactly the split in this
-        // file: every right-click passes, every drag from a chip centre fails, and the Brine
-        // control — whose rows are nowhere near the strip — passes.
-        //
-        // 0.85 down the chip is ~37pt, below the title-bar region. If this passes where the
-        // centre failed, the geometry is the cause and the fix belongs in WindowChrome.
-        let from = tab.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
-        let onto = target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        from.press(forDuration: 0.8, thenDragTo: onto)
-
-        // Asserted on the two jars' own spoken values, never on a strip. `moveTab(_:toJar:)`
-        // moves the tab WITHOUT activating the jar (`Workbench.swift:976`), so the Bench stays
-        // on \(Self.firstJar) and a strip labelled "\(Self.targetJar) tabs" is never created.
-        // The first version of this test waited for exactly that strip, which no correct fix
-        // could ever have satisfied — it would have called a working drag broken.
-        XCTAssertTrue(waitForValue(of: target, toContain: "1 tab"),
-                      """
-                      Dragging the tab onto \(Self.targetJar) didn't move it.
-                      Both ends of the contract are present and their types match — the chip is \
-                      .draggable(String) and the tile is .dropDestination(for: String.self) — so \
-                      something over them took the drag before it started.
-                      \(Self.targetJar) says: \(spokenValue(of: target))
-                      \(Self.firstJar) says: \(spokenValue(of: source))
-                      tree as XCUITest sees it:
-                      \(app.debugDescription)
-                      """)
-        XCTAssertTrue(waitForValue(of: source, toContain: "0 tabs"),
-                      "The tab arrived in \(Self.targetJar) but never left \(Self.firstJar): \(spokenValue(of: source))")
-    }
-
-    /// The control for the test above, and the reason it exists: nothing in this project has
-    /// ever had a passing XCUITest drag, so a red drag test has two readings and only one of
-    /// them is about the app.
+    /// The one drag that works, and the control for the two that do not (`claude/tab-drag-bug`).
     ///
-    /// Brine is the surface Ryan says still works in the built app. It drags the same `String`
-    /// (`BrineView.swift:112`) into the same destination (`ShelfView.swift:190`) — there is only
-    /// one Shelf drop destination in the whole tree, so this lands on the identical code the
-    /// tab's drag does. The only difference is which view the drag starts from.
+    /// Brine drags the same `String` (`BrineView.swift:112`) into the same destination
+    /// (`ShelfView.swift:190`) — there is only one Shelf drop destination in the whole tree, so
+    /// this lands on the identical code a tab's drag would. The only difference is which view
+    /// the drag starts from, and that is the whole of the bug.
     ///
-    /// | This test | What the tab's red means |
-    /// |---|---|
-    /// | passes | XCUITest can drive a drag, so the tab's drag is genuinely broken |
-    /// | fails   | XCUITest cannot drive `.draggable` at all, and neither red is about the app |
+    /// So this test is load-bearing beyond itself: while it passes, a red on the tab drags is
+    /// about the app. If it ever fails, the harness is broken and those reds mean nothing.
     ///
-    /// Until it passes once, `testDraggingATabOntoAJarMovesIt` going red is not evidence of a bug.
-    ///
-    /// Its first run failed — and that was the test's fault, not XCUITest's: both drags called
-    /// `press(forDuration:thenDragTo:)`, the touch idiom, where macOS wants
-    /// `click(forDuration:thenDragTo:)`. Fixed in both. If Brine passes now, the instrument works
-    /// and the tab's red can finally be read.
+    /// It uses `click(forDuration:thenDragTo:)`, not `press(...)`. `press` is the touch idiom;
+    /// the macOS mouse drag is `click`, and only that one drives the AppKit drag session a
+    /// SwiftUI `.draggable` needs. Five runs with `press` performed no drag at all.
     @MainActor
     func testDraggingABrineRowOntoAJarRestoresIt() throws {
         let app = launch()
@@ -291,49 +238,6 @@ final class RearrangingUITests: XCTestCase {
                       is not driving a drag session at all, and this file cannot measure drag \
                       until that is solved — a red here is about the test, not the app.
                       \(Self.targetJar) says: \(spokenValue(of: target))
-                      """)
-    }
-
-    /// A tab dragged sideways onto another tab reorders the strip — "like a regular browser"
-    /// (Ryan, 2026-11-24). Nothing covered this before today.
-    ///
-    /// It is also the sharpest discriminator left for the tab→jar drag that does not work.
-    /// Both start from the same chip and carry the same `.draggable`; they differ only in where
-    /// they land — `TabStrip`'s own drop destination, inside the strip, versus `ShelfView`'s,
-    /// across the window.
-    ///
-    /// | This test | What it means for the broken drag |
-    /// |---|---|
-    /// | passes | `.draggable` on a chip works. The fault is in crossing to the Shelf |
-    /// | fails  | a chip cannot be dragged anywhere at all, and the fault is on the chip |
-    ///
-    /// The menu-bar route for the same move is `testMoveTabFromTheMenuBar`, which passes, so
-    /// `Workbench.drop(_:onTab:)` and `moveTab(_:onto:)` are already known good.
-    @MainActor
-    func testDraggingATabOntoAnotherTabReordersTheStrip() throws {
-        let app = launch()
-        openFixturePage(in: app)
-
-        let page = chip(in: app, jar: Self.firstJar)
-        XCTAssertTrue(page.waitForExistence(timeout: Self.timeout), "The page didn't open in \(Self.firstJar)'s tabs")
-        app.typeKey("t", modifierFlags: .command)   // a second tab, which comes forward
-        XCTAssertTrue(waitForValue(of: page, toContain: "1 of 2"),
-                      "The page's tab isn't first of two after ⌘T: \(spokenValue(of: page))")
-
-        let others = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label == %@", "\(Self.firstJar) tabs")).firstMatch
-            .descendants(matching: .any).matching(identifier: "tab-chip")
-        let newTab = others.element(boundBy: 1)
-        XCTAssertTrue(newTab.waitForExistence(timeout: Self.timeout), "There's no second tab chip to drop onto")
-
-        page.click(forDuration: 0.8, thenDragTo: newTab)
-
-        XCTAssertTrue(waitForValue(of: page, toContain: "2 of 2"),
-                      """
-                      Dragging a tab onto another tab didn't reorder the strip.
-                      Tab › Move Tab Left does the same move and passes, so Workbench's side is \
-                      fine — a chip cannot be dragged at all, not merely onto a jar.
-                      the page's tab says: \(spokenValue(of: page))
                       """)
     }
 

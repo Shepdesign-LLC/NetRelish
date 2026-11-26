@@ -188,17 +188,13 @@ struct ShelfView: View {
             .simultaneousGesture(TapGesture(count: 2).onEnded { editingJar = jar })
             .highPriorityGesture(slideGesture(for: jar, at: index))
             .dropDestination(for: String.self) { payloads, _ in
-                workbench.dragTrace("dropped on \(jar.name)")   // TEMPORARY trace
                 let landed = workbench.drop(payloads, onJar: jar)
                 if landed, let line = JarTile.dropAnnouncement(payloads: payloads, jarName: jar.name) {
                     NRAnnounce.post(line, priority: .high)
                 }
                 return landed
             } isTargeted: { over in
-                if over {
-                    dropTarget = jar.id
-                    workbench.dragTrace("over \(jar.name)")   // TEMPORARY trace
-                } else if dropTarget == jar.id { dropTarget = nil }
+                if over { dropTarget = jar.id } else if dropTarget == jar.id { dropTarget = nil }
             }
             // The drag, the double-click and the right-click, as VoiceOver actions. All of
             // them always, so the tile stays the same view as it moves along the Shelf; at an
