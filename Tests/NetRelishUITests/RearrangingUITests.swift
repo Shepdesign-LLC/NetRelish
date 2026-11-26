@@ -15,6 +15,14 @@
 // the item and assert what it was supposed to do. The rule for this file from here: assert the
 // outcome, never the affordance.
 //
+// THIS BRANCH (`claude/tab-drag-bug`) carries the failing half. On main this file holds only
+// the routes that pass; here it also holds the two that do not — dragging a tab onto a jar,
+// and dragging a tab onto another tab — which are a real and unfixed bug.
+// The drag that is still here, Brine's, is the control that proves the instrument and the
+// Shelf's drop destination both work: it carries the same `String` payload into the same and
+// only `ShelfView.dropDestination`. If it ever goes red, the problem is this harness, not the
+// app, and the tab-drag branch's reds stop meaning anything.
+//
 // Launched with the same fixture as the other file (Sources/App/UITestFixture.swift, Debug
 // only): a throwaway Pantry, the jars Juniper Bakery (in front) and Meridian after the two
 // every fresh Pantry starts with, and one page served from inside the app. Nothing reads your
@@ -186,6 +194,53 @@ final class RearrangingUITests: XCTestCase {
                       """)
     }
 
+    /// The one drag that works, and the control for the two above that do not.
+    ///
+    /// Brine drags the same `String` (`BrineView.swift:112`) into the same destination
+    /// (`ShelfView.swift:190`) — there is only one Shelf drop destination in the whole tree, so
+    /// this lands on the identical code a tab's drag would. The only difference is which view
+    /// the drag starts from, and that is the whole of the bug.
+    ///
+    /// So this test is load-bearing beyond itself: while it passes, a red on the tab drags is
+    /// about the app. If it ever fails, the harness is broken and those reds mean nothing.
+    ///
+    /// It uses `click(forDuration:thenDragTo:)`, not `press(...)`. `press` is the touch idiom;
+    /// the macOS mouse drag is `click`, and only that one drives the AppKit drag session a
+    /// SwiftUI `.draggable` needs. Five runs with `press` performed no drag at all.
+    @MainActor
+    func testDraggingABrineRowOntoAJarRestoresIt() throws {
+        let app = launch()
+        openFixturePage(in: app)
+
+        // ⌘D (Bench › Capture This Page), then ⌃⌘1 (Jars › Brine) — the keyboard route, so a
+        // failure before the drag is never the pointer's.
+        app.typeKey("d", modifierFlags: .command)
+        app.typeKey("1", modifierFlags: [.control, .command])
+
+        let row = app.descendants(matching: .any).matching(identifier: "smart-jar-row")
+            .matching(NSPredicate(format: "label == %@", Self.pageTitle)).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: Self.timeout), "The capture isn't a row in Brine")
+
+        let target = jarTile(in: app, named: Self.targetJar)
+        XCTAssertTrue(target.waitForExistence(timeout: Self.timeout), "\(Self.targetJar) isn't on the Shelf")
+        XCTAssertTrue(spokenValue(of: target).contains("0 tabs"),
+                      "\(Self.targetJar) didn't start empty: \(spokenValue(of: target))")
+
+        row.click(forDuration: 0.8, thenDragTo: target)
+
+        // Workbench.drop(_:onJar:) restores a Brine row with `restore(item, into:)`, which calls
+        // newTab — so it arrives as a TAB in the jar, not as something kept.
+        XCTAssertTrue(waitForValue(of: target, toContain: "1 tab"),
+                      """
+                      Dragging a Brine row onto \(Self.targetJar) didn't restore it either.
+                      Brine's drag is the one the built app still does, and it lands on the same \
+                      ShelfView drop destination as the tab's. Both reds together mean XCUITest \
+                      is not driving a drag session at all, and this file cannot measure drag \
+                      until that is solved — a red here is about the test, not the app.
+                      \(Self.targetJar) says: \(spokenValue(of: target))
+                      """)
+    }
+
     // MARK: Drag
 
     /// A tab dragged onto a jar on the Shelf moves there (ADR 0028). The keyboard route for the
@@ -238,60 +293,6 @@ final class RearrangingUITests: XCTestCase {
                       """)
         XCTAssertTrue(waitForValue(of: source, toContain: "0 tabs"),
                       "The tab arrived in \(Self.targetJar) but never left \(Self.firstJar): \(spokenValue(of: source))")
-    }
-
-    /// The control for the test above, and the reason it exists: nothing in this project has
-    /// ever had a passing XCUITest drag, so a red drag test has two readings and only one of
-    /// them is about the app.
-    ///
-    /// Brine is the surface Ryan says still works in the built app. It drags the same `String`
-    /// (`BrineView.swift:112`) into the same destination (`ShelfView.swift:190`) — there is only
-    /// one Shelf drop destination in the whole tree, so this lands on the identical code the
-    /// tab's drag does. The only difference is which view the drag starts from.
-    ///
-    /// | This test | What the tab's red means |
-    /// |---|---|
-    /// | passes | XCUITest can drive a drag, so the tab's drag is genuinely broken |
-    /// | fails   | XCUITest cannot drive `.draggable` at all, and neither red is about the app |
-    ///
-    /// Until it passes once, `testDraggingATabOntoAJarMovesIt` going red is not evidence of a bug.
-    ///
-    /// Its first run failed — and that was the test's fault, not XCUITest's: both drags called
-    /// `press(forDuration:thenDragTo:)`, the touch idiom, where macOS wants
-    /// `click(forDuration:thenDragTo:)`. Fixed in both. If Brine passes now, the instrument works
-    /// and the tab's red can finally be read.
-    @MainActor
-    func testDraggingABrineRowOntoAJarRestoresIt() throws {
-        let app = launch()
-        openFixturePage(in: app)
-
-        // ⌘D (Bench › Capture This Page), then ⌃⌘1 (Jars › Brine) — the keyboard route, so a
-        // failure before the drag is never the pointer's.
-        app.typeKey("d", modifierFlags: .command)
-        app.typeKey("1", modifierFlags: [.control, .command])
-
-        let row = app.descendants(matching: .any).matching(identifier: "smart-jar-row")
-            .matching(NSPredicate(format: "label == %@", Self.pageTitle)).firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: Self.timeout), "The capture isn't a row in Brine")
-
-        let target = jarTile(in: app, named: Self.targetJar)
-        XCTAssertTrue(target.waitForExistence(timeout: Self.timeout), "\(Self.targetJar) isn't on the Shelf")
-        XCTAssertTrue(spokenValue(of: target).contains("0 tabs"),
-                      "\(Self.targetJar) didn't start empty: \(spokenValue(of: target))")
-
-        row.click(forDuration: 0.8, thenDragTo: target)
-
-        // Workbench.drop(_:onJar:) restores a Brine row with `restore(item, into:)`, which calls
-        // newTab — so it arrives as a TAB in the jar, not as something kept.
-        XCTAssertTrue(waitForValue(of: target, toContain: "1 tab"),
-                      """
-                      Dragging a Brine row onto \(Self.targetJar) didn't restore it either.
-                      Brine's drag is the one the built app still does, and it lands on the same \
-                      ShelfView drop destination as the tab's. Both reds together mean XCUITest \
-                      is not driving a drag session at all, and this file cannot measure drag \
-                      until that is solved — a red here is about the test, not the app.
-                      \(Self.targetJar) says: \(spokenValue(of: target))
-                      """)
     }
 
     /// A tab dragged sideways onto another tab reorders the strip — "like a regular browser"
