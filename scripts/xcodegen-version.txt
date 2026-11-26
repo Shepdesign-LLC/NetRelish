@@ -1,1 +1,12 @@
-2.48.0
+# The XcodeGen that generated the committed NetRelish.xcodeproj, pinned by version AND by the
+# hash of the release archive. Both are read by scripts/xcodegen.sh.
+#
+# Two XcodeGens do not write the same project — 2.48.0 writes `buildArchitectures` into every
+# .xcscheme and 2.46.0 does not — and CI compares the committed project against a fresh
+# generation. So the tool is pinned to bytes, not to "whatever Homebrew serves today".
+#
+# To move: change both fields, run scripts/gen-project.sh, and commit the project it writes in
+# the SAME commit. The hash is `shasum -a 256` of
+# https://github.com/yonaskolb/XcodeGen/releases/download/<version>/xcodegen.zip
+version 2.46.0
+sha256  4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806

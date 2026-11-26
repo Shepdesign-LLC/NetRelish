@@ -14,6 +14,13 @@ name: Regenerate Xcode project
 #               checks the patch touches only those files, applies it, commits, pushes.
 #
 # Run it from the Actions tab, or: gh workflow run regen-project.yml -f branch=<branch>
+#
+# Changing THIS file is different from changing the scripts it runs. workflow_dispatch reads
+# the workflow from the ref it is dispatched on, not from the `branch` input: a run started
+# against main executes MAIN's copy of these steps while checking out the branch. So an edit
+# here takes effect only once it is on main. That is how run 27 came to run main's unpinned
+# `brew install xcodegen` against the branch's pinned scripts, and tripped the pin's own
+# assertion (ADR 0040) — the scripts are read from the branch, the steps are not.
 
 on:
   workflow_dispatch:
