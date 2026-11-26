@@ -116,7 +116,18 @@ enum WindowButtons {
             frame.origin.y = windowH - needed
             container.frame = frame
         }
-        if titlebar.frame.height < container.bounds.height { titlebar.frame = container.bounds }
+        // The title-bar view holds the three buttons and nothing else, so it must never be as
+        // wide as the window. Stretched across the strip it lies over the mark and every tab,
+        // and AppKit's own window-move claims a press-and-drag there before SwiftUI can start
+        // a drag session — which is why a tab could not be dragged onto a jar from the facelift
+        // (8de5828) until this was fixed. docs/subsystems/workbench-shell.md carries it as a
+        // trap, and `container.bounds` walked straight into it. It stops at the mark's leading
+        // edge; the buttons end well before that.
+        if titlebar.frame.height < container.bounds.height {
+            var frame = container.bounds
+            frame.size.width = min(frame.size.width, NRShell.markLeading)
+            titlebar.frame = frame
+        }
 
         // Keep AppKit's own spacing between the three buttons.
         let toMinimize = minimize.frame.minX - close.frame.minX
