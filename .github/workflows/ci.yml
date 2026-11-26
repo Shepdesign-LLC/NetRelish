@@ -177,7 +177,10 @@ jobs:
           diff -ru Sources/Pantry/Models /tmp/PantryModels || { echo "::error file=design/NetRelish.json::Sources/Pantry/Models is stale — swift scripts/gen-pantry.swift design/NetRelish.json Sources/Pantry/Models"; exit 1; }
       - name: Regenerate NetRelish.xcodeproj
         run: |
-          brew install xcodegen >/dev/null
+          # The pinned XcodeGen, not whatever the runner has cached: `brew install` is a
+          # no-op when any version is already present, so two runners can hold two tools that
+          # write two different projects. scripts/xcodegen.sh says what to do on a mismatch.
+          scripts/xcodegen.sh
           cp -R NetRelish.xcodeproj /tmp/committed.xcodeproj
           xcodegen generate --quiet
           diff -ru /tmp/committed.xcodeproj NetRelish.xcodeproj || { echo "::error file=project.yml::NetRelish.xcodeproj is stale — run scripts/gen-project.sh"; exit 1; }

@@ -8,7 +8,7 @@ name: Regenerate Xcode project
 #
 # Two jobs, so the write token never shares a runner with the code it would be guarding
 # (ADR 0024):
-#   regenerate  read-only. Runs Homebrew's XcodeGen and the branch's scripts, and hands on
+#   regenerate  read-only. Runs the pinned XcodeGen and the branch's scripts, and hands on
 #               a patch of the project, plist and entitlements files, nothing else.
 #   push        the only job that can write. Runs nothing from the branch or Homebrew:
 #               checks the patch touches only those files, applies it, commits, pushes.
@@ -55,8 +55,7 @@ jobs:
 
       - name: Regenerate NetRelish.xcodeproj
         run: |
-          brew install xcodegen >/dev/null
-          scripts/gen-project.sh
+          scripts/gen-project.sh   # pins XcodeGen itself, via scripts/xcodegen.sh
 
       - name: The change, as a patch
         id: diff
