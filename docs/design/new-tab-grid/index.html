@@ -1,0 +1,685 @@
+<!doctype html>
+<!--
+  NetRelish — the Counter: what a new tab shows (v2.2 proposal)
+  =====================================================================
+  What this is: three decisions Ryan asked for on 2026-11-24, drawn together because
+  they touch the same window.
+
+    1. THE COUNTER. "To search there is no browser. The initial initial tab that is
+       shown should have like a grid pattern of efficient and knowledgeable tasks or
+       jobs." A new tab (Cmd-T) currently shows the jar's board. It would show a grid
+       of jobs instead, and the board stays what you get by clicking a jar.
+    2. SMALLER JARS. "I like the mason jar color stuff. The Jars are kinda big though."
+       The Shelf's drawn jar goes 58 -> 44 and the tile 100x88 -> 100x72.
+    3. NOTES IN THE PANEL, IN MARKDOWN. "And this area can be where the notes are made.
+       It can be MD." The dead space under RECIPE becomes the note. Needs NO schema change:
+       items.body, ItemKind.note and Item.jarId all already exist. An earlier draft of this
+       comp said otherwise and was wrong.
+
+  Nothing here is built. Signing it off makes it the design of record and moves
+  design/DESIGN_MANIFEST.md to v2.2 with the changelog line at the bottom of this file.
+
+  EVERY JOB ON THE COUNTER IS REAL AND IN 1.0 — checked against the source, not invented:
+    smart jars Brine / Today / Sealed / Sinking soon  Sources/App/Workbench.swift:88-140
+    jars on Cmd-1..9                                  Sources/App/NetRelishApp.swift:122-129
+    Open Location Cmd-L, Command Palette Cmd-K        NetRelishApp.swift:157,159
+    Capture Cmd-D, Seal Cmd-S                         NetRelishApp.swift:164,166
+    Zest and its four tools                           Sources/Zest/ZestWindow.swift:17-50
+  DELIBERATELY ABSENT, because they do not exist in 1.0:
+    Ask the Pantry      1.1 (ADR 0012); only a DEBUG Design Kit tile exists today
+    "Run a Recipe"      there is no Recipes list, no recorder and no Cmd-R anywhere.
+                        Seal & Summarize runs implicitly on Seal, and that is all.
+    a web search field  the address row navigates by URL only. There is no search-engine
+                        fallback in the repo. This is the point of the Counter.
+
+  RELISH — every use in this comp (anything else is a bug), against MANIFEST §4
+   §4 #1  Primary button fill, one per view: the Counter's "Open a page". On a jar board
+          the filled button takes the JAR's color; the Counter is not a jar, so it is relish.
+   §4 #3  The selected smart-jar row on the Shelf (relish-100).
+   §4 #4  The Sealed pill on a kept card in the Panel frame.
+   §4 #7  The focus ring, and the caret in the address field.
+   §4 #8  The cog mark — logo-cog.svg itself, referenced, never redrawn.
+   §4 #13 The Brine pill in the bottom bar, lit because something came in since it was
+          last opened.
+  The jar's own color appears only in: the drawn jar, the active tile's wash + 1pt edge,
+  the front tab's 5pt lip, a card's border under the pointer, the tile's count badge edge.
+  NOT relish: the job cards, their icons, the section labels, the keycaps, the note.
+
+  Icons are plain line stand-ins for SF Symbols; the Swift build uses the real symbol.
+  The jar is drawn, never an image: its fill is data (MANIFEST §8 "The jar, drawn").
+  No gradients, no glass, no blur, no shadow on chrome. One float shadow, on the menu only.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NetRelish — the Counter (v2.2 proposal)</title>
+<style>
+:root{
+  --nr-bg:#FCFCFB; --nr-surface:#FFFFFF; --nr-surface-2:#F5F5F3; --nr-hairline:#E5E5E2;
+  --nr-fg:#1D1D1B; --nr-fg-2:#66665F; --nr-fg-3:#6C6C65;
+  --nr-canvas:#F6F6F3; --nr-rail:#FAFAF8; --nr-tab:#F3F3F0; --nr-tab-hover:#EDEDEA;
+  --nr-float:#FFFFFF; --nr-hairline-soft:#EEEEEB; --nr-jar-line:#2A2A2A; --nr-jar-lid:#CFCFCA;
+  --relish-100:#EFFCCB; --relish-300:#C4F26B; --relish-500:#93E413; --relish-700:#4E9110;
+  --relish-edge:var(--relish-300);   /* the 1pt border on a relish-100 shape */
+  --relish-ink:#1D3506; --nr-warn:#E4A72A;
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px;
+  --r-1:6px; --r-2:10px; --r-3:16px;
+  --shelf-w:120px; --inspector-w:322px; --tab-h:34px; --lip-h:5px;
+  --font-ui:-apple-system,"SF Pro Text",system-ui,sans-serif;
+  --font-mono:"SF Mono",ui-monospace,Menlo,monospace;
+  --fs-xs:11px; --fs-sm:12px; --fs-md:13px; --fs-lg:15px; --fs-xl:20px; --fs-2xl:28px;
+  --jar-juniper:#93E413; --jar-harbor:#E0A42C; --jar-bright:#3F8EE8; --jar-field:#B98BE8;
+}
+.dark{
+  --nr-bg:#171716; --nr-surface:#1D1D1B; --nr-surface-2:#262624; --nr-hairline:#3B3B38;
+  --nr-fg:#F0F0EE; --nr-fg-2:#A8A8A2; --nr-fg-3:#96968F;
+  --nr-canvas:#141413; --nr-rail:#181817; --nr-tab:#262624; --nr-tab-hover:#2C2C2A;
+  --nr-float:#232321; --nr-hairline-soft:#2A2A28; --nr-jar-line:#DADAD5; --nr-jar-lid:#4A4A47;
+  --relish-100:#1F3308; --relish-ink:#0D1206; --relish-edge:var(--relish-700);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-ui);background:#E8E8E4;color:var(--nr-fg);
+     -webkit-font-smoothing:antialiased;padding:40px 24px 80px;line-height:1.35}
+.page{max-width:1360px;margin:0 auto}
+h1{font-size:var(--fs-2xl);font-weight:600;letter-spacing:-.4px}
+h1 + .sub{color:#56564F;font-size:var(--fs-lg);margin-top:6px;max-width:72ch}
+h2{font-size:var(--fs-xl);font-weight:600;margin:56px 0 4px;letter-spacing:-.2px}
+h2 + .sub{color:#56564F;font-size:var(--fs-md);margin-bottom:18px;max-width:84ch}
+.frame-label{font-size:var(--fs-xs);font-weight:600;letter-spacing:.8px;text-transform:uppercase;
+             color:#7A7A72;margin:0 0 8px}
+
+/* ---------- the window ---------- */
+.win{width:1280px;max-width:100%;border:1px solid var(--nr-hairline);border-radius:12px;
+     overflow:hidden;background:var(--nr-bg);display:grid;
+     grid-template-rows:44px 1fr 32px}
+.win.dark{border-color:#3B3B38}
+
+.strip{height:44px;background:var(--nr-surface);display:flex;align-items:flex-end;
+       border-bottom:1px solid var(--nr-hairline-soft);position:relative}
+.lights{position:absolute;left:18px;top:0;height:44px;display:flex;align-items:center;gap:8px}
+.light{width:12px;height:12px;border-radius:50%}
+.l1{background:#FF5F57}.l2{background:#FEBC2E}.l3{background:#28C840}
+.cog{position:absolute;left:80px;top:8px;width:28px;height:28px}
+.cog img{width:28px;height:28px;display:block}
+.tabs{margin-left:120px;display:flex;align-items:flex-end;gap:4px;height:44px;padding-bottom:0}
+.tab{height:33px;background:var(--nr-tab);border-radius:8px 8px 0 0;display:flex;align-items:center;
+     gap:7px;padding:0 12px;font-size:var(--fs-sm);color:var(--nr-fg-2);min-width:116px;max-width:224px;
+     white-space:nowrap;overflow:hidden}
+.tab.front{height:38px;background:var(--nr-surface);color:var(--nr-fg);font-weight:500;
+           border:1px solid var(--nr-hairline);border-bottom:none;position:relative;margin-bottom:-1px}
+.tab.front::before{content:"";position:absolute;left:-1px;right:-1px;top:-1px;height:var(--lip-h);
+                   border-radius:8px 8px 0 0;background:var(--jar-juniper)}
+.tab .ico{width:13px;height:13px;flex:none;opacity:.75}
+.plus{width:28px;height:33px;display:flex;align-items:center;justify-content:center;
+      color:var(--nr-fg-3);font-size:16px}
+.dragarea{flex:1}
+
+.body{display:grid;grid-template-columns:var(--shelf-w) 1fr;min-height:0}
+.body.with-panel{grid-template-columns:var(--shelf-w) 1fr var(--inspector-w)}
+
+/* ---------- Shelf ---------- */
+.shelf{background:var(--nr-rail);border-right:1px solid var(--nr-hairline-soft);
+       padding:10px 0 8px;display:flex;flex-direction:column;gap:2px;align-items:center}
+.tile{width:100px;height:72px;border-radius:var(--r-2);display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:3px;position:relative;border:1px solid transparent}
+.tile.big{height:88px}
+.tile .nm{font-size:var(--fs-sm);font-weight:500;color:var(--nr-fg-2);max-width:92px;
+          overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile.active .nm{font-weight:600;color:var(--nr-fg)}
+.tile.active{background:color-mix(in oklab, var(--tint) 16%, var(--nr-rail));
+             border-color:color-mix(in oklab, var(--tint) 55%, transparent)}
+.badge{position:absolute;top:4px;right:10px;min-width:18px;height:16px;border-radius:var(--r-1);
+       background:var(--nr-float);border:1px solid var(--tint);font-size:var(--fs-xs);
+       display:flex;align-items:center;justify-content:center;padding:0 4px;
+       font-variant-numeric:tabular-nums;color:var(--nr-fg)}
+.newjar{width:100px;height:28px;display:flex;align-items:center;justify-content:center;
+        color:var(--nr-fg-3);font-size:15px}
+.shelf hr{width:88px;border:none;border-top:1px solid var(--nr-hairline-soft);margin:6px 0}
+.srow{width:104px;height:28px;border-radius:var(--r-1);display:flex;align-items:center;gap:7px;
+      padding:0 8px;font-size:var(--fs-sm);color:var(--nr-fg-2)}
+.srow.sel{background:var(--relish-100);color:var(--nr-fg)}
+.srow .ico{width:16px;height:16px;flex:none;opacity:.8}
+.shelf .spacer{flex:1}
+
+/* ---------- address row + bench ---------- */
+.bench{display:flex;flex-direction:column;min-width:0}
+.addr{height:44px;background:var(--nr-surface);border-bottom:1px solid var(--nr-hairline-soft);
+      display:flex;align-items:center;gap:8px;padding:0 10px}
+.chip{height:26px;border-radius:var(--r-1);background:var(--nr-tab);display:flex;align-items:center;
+      gap:6px;padding:0 9px 0 6px;font-size:var(--fs-sm);color:var(--nr-fg)}
+.navbtn{width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:var(--nr-fg-3)}
+.field{flex:1;height:28px;border-radius:var(--r-1);background:var(--nr-tab);display:flex;
+       align-items:center;gap:7px;padding:0 10px;font-size:var(--fs-md);color:var(--nr-fg-3);min-width:0}
+.field .caret{width:1.5px;height:15px;background:var(--relish-500);flex:none}
+.field.focus{background:var(--nr-surface);box-shadow:0 0 0 2px var(--relish-500)}
+
+.canvas{background:var(--nr-canvas);flex:1;overflow:hidden;padding:26px 28px 24px}
+
+/* ---------- the Counter ---------- */
+.counter-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px}
+.counter-head .t{font-size:var(--fs-xl);font-weight:600;letter-spacing:-.2px}
+.counter-head .n{font-size:var(--fs-sm);color:var(--nr-fg-3);font-variant-numeric:tabular-nums}
+.grouplabel{font-size:var(--fs-xs);font-weight:600;letter-spacing:.7px;text-transform:uppercase;
+            color:var(--nr-fg-3);margin:22px 0 9px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(252px,1fr));gap:10px}
+.card{background:var(--nr-float);border:1px solid var(--nr-hairline);border-radius:var(--r-2);
+      padding:12px 13px;display:flex;gap:11px;align-items:flex-start;min-height:62px}
+.card.hover{border-color:var(--tint)}
+.card .ico{width:20px;height:20px;flex:none;margin-top:1px;color:var(--nr-fg-2)}
+.card .tx{min-width:0;flex:1}
+.card .ti{font-size:var(--fs-md);font-weight:500;color:var(--nr-fg);display:flex;
+          align-items:center;gap:6px}
+.card .su{font-size:var(--fs-sm);color:var(--nr-fg-2);margin-top:2px}
+.keys{font-size:var(--fs-xs);color:var(--nr-fg-3);border:1px solid var(--nr-hairline);
+      border-radius:4px;padding:1px 5px;white-space:nowrap;flex:none;
+      font-variant-numeric:tabular-nums}
+.card .jar{flex:none;margin-top:1px}
+.btnrow{display:flex;gap:8px;margin-top:4px}
+.primary{height:28px;border-radius:var(--r-1);background:var(--relish-500);color:var(--relish-ink);
+         font-size:var(--fs-md);font-weight:600;display:inline-flex;align-items:center;gap:6px;
+         padding:0 12px}
+.secondary{height:28px;border-radius:var(--r-1);border:1px solid var(--nr-hairline);
+           color:var(--nr-fg);font-size:var(--fs-md);display:inline-flex;align-items:center;padding:0 12px}
+
+/* ---------- bottom bar ---------- */
+.bottom{height:32px;background:var(--nr-rail);border-top:1px solid var(--nr-hairline);
+        display:flex;align-items:center;justify-content:space-between;padding:0 10px}
+.brine{height:22px;border-radius:var(--r-1);display:flex;align-items:center;gap:6px;padding:0 8px;
+       font-size:var(--fs-sm);color:var(--nr-fg);background:var(--relish-100);
+       border:1px solid var(--relish-edge)}
+.brine .ico{width:13px;height:13px;opacity:.8}
+.bottom .right{display:flex;align-items:center;gap:14px;font-size:var(--fs-sm);color:var(--nr-fg-2)}
+.bottom .right .ct{font-variant-numeric:tabular-nums}
+.searchbtn{display:flex;align-items:center;gap:6px}
+
+/* ---------- the Panel ---------- */
+.panel{background:var(--nr-rail);border-left:1px solid var(--nr-hairline-soft);
+       padding:18px 18px 14px;display:flex;flex-direction:column;min-width:0}
+.panel h3{font-size:var(--fs-2xl);font-weight:600;letter-spacing:-.3px}
+.panel .meta{font-size:var(--fs-md);color:var(--nr-fg-2);margin-top:2px}
+.sect{border-top:1px solid var(--nr-hairline-soft);margin-top:16px;padding-top:12px}
+.sect .lb{font-size:var(--fs-sm);font-weight:600;letter-spacing:.5px;text-transform:uppercase;
+          color:var(--nr-fg-2);margin-bottom:9px}
+.swatches{display:flex;gap:9px}
+.sw{width:26px;height:26px;border-radius:7px}
+.sw.on{box-shadow:0 0 0 2px var(--nr-fg), 0 0 0 4px var(--nr-rail)}
+.kv{display:flex;justify-content:space-between;font-size:var(--fs-md);color:var(--nr-fg)}
+.kv .k{color:var(--nr-fg-2)}
+.note{flex:1;min-height:150px;margin-top:9px;font-size:var(--fs-md);color:var(--nr-fg);
+      line-height:1.5}
+.note p{margin-bottom:9px}
+.note strong{font-weight:600}
+.note em{font-style:italic}
+.note code{font-family:var(--font-mono);font-size:var(--fs-sm);background:var(--nr-tab);
+           border-radius:4px;padding:1px 4px}
+.note a{color:var(--nr-fg);text-decoration:underline}
+.note .ph{color:var(--nr-fg-3)}
+.sealed{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px 0 4px;
+        border-radius:999px;background:var(--relish-100);border:1px solid var(--relish-edge);
+        font-size:var(--fs-xs);color:var(--nr-fg)}
+.sealed .disc{width:12px;height:12px;border-radius:50%;background:var(--relish-500);
+              display:flex;align-items:center;justify-content:center}
+
+/* ---------- comparison + notes ---------- */
+.compare{display:flex;gap:28px;align-items:flex-end;background:var(--nr-rail);
+         border:1px solid var(--nr-hairline);border-radius:12px;padding:22px 26px}
+.compare .col{display:flex;flex-direction:column;align-items:center;gap:8px}
+.compare .cap{font-size:var(--fs-sm);color:var(--nr-fg-2);text-align:center}
+.compare .cap b{color:var(--nr-fg);font-weight:600}
+.rail-demo{background:var(--nr-rail);border:1px solid var(--nr-hairline-soft);border-radius:10px;
+           width:120px;padding:8px 0;display:flex;flex-direction:column;align-items:center;gap:2px}
+.notes{background:#fff;border:1px solid var(--nr-hairline);border-radius:12px;padding:22px 26px;
+       margin-top:14px;font-size:var(--fs-md);line-height:1.55;color:#2C2C28}
+.notes h4{font-size:var(--fs-md);font-weight:600;margin:16px 0 6px;color:var(--nr-fg)}
+.notes h4:first-child{margin-top:0}
+.notes ul{margin:0 0 0 18px}
+.notes li{margin-bottom:5px}
+.notes code{font-family:var(--font-mono);font-size:var(--fs-sm);background:var(--nr-tab);
+            border-radius:4px;padding:1px 4px}
+.notes .q{border-left:2px solid var(--relish-500);padding-left:12px;margin:10px 0;color:#2C2C28}
+.tag{display:inline-block;font-size:var(--fs-xs);font-weight:600;letter-spacing:.4px;
+     text-transform:uppercase;border-radius:4px;padding:1px 6px;border:1px solid var(--nr-hairline);
+     color:var(--nr-fg-2);margin-right:6px}
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>The Counter</h1>
+<p class="sub">What a new tab shows, instead of a blank page or a search box it can't honor.
+Plus the two changes you called out on the same day: smaller jars on the Shelf, and the note
+living in the Panel. Nothing here is built — signing it off makes it the design of record.</p>
+
+<!-- ============================ FRAME 1: the Counter ============================ -->
+<h2>1 · A new tab</h2>
+<p class="sub">⌘T. Three groups, in the grammar ⌘K already uses — what you can pick up, your jars,
+and what you can start. Every card is a job the app can actually do today.</p>
+<p class="frame-label">Light · 1280 × 820 · the whole window</p>
+
+<div class="win">
+  <div class="strip">
+    <div class="lights"><i class="light l1"></i><i class="light l2"></i><i class="light l3"></i></div>
+    <div class="cog"><img src="../../../design/logo-cog.svg" alt="NetRelish"></div>
+    <div class="tabs">
+      <div class="tab"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="3.5" width="11" height="9" rx="1.5"/></svg>Fieldnote</div>
+      <div class="tab"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M8 2.5 3 5v3.5c0 2.5 2 4.4 5 5 3-.6 5-2.5 5-5V5z"/></svg>Staging · Bright Trails</div>
+      <div class="tab front" style="--jar-juniper:var(--jar-juniper)">New Tab</div>
+      <div class="plus">+</div>
+      <div class="dragarea"></div>
+    </div>
+  </div>
+
+  <div class="body">
+    <!-- Shelf, with the 44pt jar of change 2 already applied -->
+    <div class="shelf">
+      <div class="tile active" style="--tint:var(--jar-juniper)">
+        <span class="badge" style="--tint:var(--jar-juniper)">12</span>
+        <svg width="31" height="44" viewBox="0 0 33 47"><g fill="none" stroke="var(--nr-jar-line)" stroke-width="1.6">
+          <path d="M11 4h11v4.5H11z" fill="var(--nr-jar-line)" stroke="none"/>
+          <path d="M9.5 8.5h14v3.2H9.5z"/>
+          <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="var(--nr-float)"/>
+        </g>
+        <clipPath id="j1"><path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z"/></clipPath>
+        <g clip-path="url(#j1)">
+          <rect x="6" y="25" width="21" height="19" fill="var(--jar-juniper)"/>
+          <rect x="6" y="25" width="21" height="1.2" fill="var(--nr-jar-line)" opacity=".5"/>
+          <rect x="9.5" y="27" width="1.6" height="15" fill="#2C4208" opacity=".45"/>
+        </g>
+        <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="none" stroke="var(--nr-jar-line)" stroke-width="1.6"/>
+        <path d="M9.8 18v18" stroke="var(--nr-hairline)" stroke-width="1.4" fill="none"/>
+        </svg>
+        <span class="nm">Client work</span>
+      </div>
+
+      <div class="tile" style="--tint:var(--jar-harbor)">
+        <svg width="31" height="44" viewBox="0 0 33 47"><g fill="none" stroke="var(--nr-jar-line)" stroke-width="1.6">
+          <path d="M11 4h11v4.5H11z" fill="var(--nr-jar-lid)" stroke="none"/>
+          <path d="M9.5 8.5h14v3.2H9.5z"/>
+          <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="var(--nr-float)"/></g>
+        <clipPath id="j2"><path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z"/></clipPath>
+        <g clip-path="url(#j2)"><rect x="6" y="32" width="21" height="12" fill="var(--jar-harbor)"/>
+          <rect x="6" y="32" width="21" height="1.2" fill="var(--nr-jar-line)" opacity=".5"/></g>
+        <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="none" stroke="var(--nr-jar-line)" stroke-width="1.6"/></svg>
+        <span class="nm">Harbor Signs</span>
+      </div>
+
+      <div class="tile" style="--tint:var(--jar-bright)">
+        <svg width="31" height="44" viewBox="0 0 33 47"><g fill="none" stroke="var(--nr-jar-line)" stroke-width="1.6">
+          <path d="M11 4h11v4.5H11z" fill="var(--nr-jar-lid)" stroke="none"/>
+          <path d="M9.5 8.5h14v3.2H9.5z"/>
+          <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="var(--nr-float)"/></g>
+        <clipPath id="j3"><path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z"/></clipPath>
+        <g clip-path="url(#j3)"><rect x="6" y="36" width="21" height="8" fill="var(--jar-bright)"/>
+          <rect x="6" y="36" width="21" height="1.2" fill="var(--nr-jar-line)" opacity=".5"/></g>
+        <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="none" stroke="var(--nr-jar-line)" stroke-width="1.6"/></svg>
+        <span class="nm">Bright Trails</span>
+      </div>
+
+      <div class="newjar">+</div>
+      <hr>
+      <div class="srow"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 4h10M4.5 7h7M6 10h4"/></svg>Today</div>
+      <div class="srow"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 4h10M4.5 7h7M6 10h4"/></svg>Sealed</div>
+      <div class="srow sel"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 4h10M4.5 7h7M6 10h4"/></svg>Sinking soon</div>
+      <div class="spacer"></div>
+      <div class="srow"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="2.5" width="5" height="5"/><rect x="8.5" y="2.5" width="5" height="5"/><rect x="2.5" y="8.5" width="5" height="5"/><rect x="8.5" y="8.5" width="5" height="5"/></svg>Zest</div>
+    </div>
+
+    <div class="bench">
+      <div class="addr">
+        <div class="chip">
+          <svg width="13" height="18" viewBox="0 0 33 47"><g fill="none" stroke="var(--nr-jar-line)" stroke-width="2.2">
+            <path d="M9.5 8.5h14v3.2H9.5z"/>
+            <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="var(--nr-float)"/></g>
+            <clipPath id="jc"><path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z"/></clipPath>
+            <g clip-path="url(#jc)"><rect x="6" y="25" width="21" height="19" fill="var(--jar-juniper)"/></g>
+            <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="none" stroke="var(--nr-jar-line)" stroke-width="2.2"/></svg>
+          Client work</div>
+        <div class="navbtn"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 3 5 8l5 5"/></svg></div>
+        <div class="navbtn"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 3l5 5-5 5"/></svg></div>
+        <div class="field focus"><span class="caret"></span>Type a web address — it opens in Client work</div>
+      </div>
+
+      <div class="canvas">
+        <div class="counter-head">
+          <span class="t">What's cooking</span>
+          <span class="n">1,284 in the Pantry</span>
+        </div>
+
+        <div class="grouplabel">Pick up</div>
+        <div class="grid">
+          <div class="card">
+            <svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 3v10m0 0-3.5-3.5M10 13l3.5-3.5M4 16h12"/></svg>
+            <div class="tx"><div class="ti">Sinking soon <span class="keys">⌃⌘4</span></div>
+              <div class="su">3 tabs sink today</div></div>
+          </div>
+          <div class="card">
+            <svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 7h14M3 11h14M3 15h14M7 3v4"/></svg>
+            <div class="tx"><div class="ti">Brine <span class="keys">⌃⌘1</span></div>
+              <div class="su">5 came in since you looked</div></div>
+          </div>
+          <div class="card">
+            <svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>
+            <div class="tx"><div class="ti">Today <span class="keys">⌃⌘2</span></div>
+              <div class="su">12 came in today</div></div>
+          </div>
+        </div>
+
+        <div class="grouplabel">Your jars</div>
+        <div class="grid">
+          <div class="card hover" style="--tint:var(--jar-juniper)">
+            <svg class="jar" width="22" height="31" viewBox="0 0 33 47"><g fill="none" stroke="var(--nr-jar-line)" stroke-width="1.8">
+              <path d="M9.5 8.5h14v3.2H9.5z"/><path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="var(--nr-float)"/></g>
+              <clipPath id="jg1"><path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z"/></clipPath>
+              <g clip-path="url(#jg1)"><rect x="6" y="25" width="21" height="19" fill="var(--jar-juniper)"/><rect x="6" y="25" width="21" height="1.2" fill="var(--nr-jar-line)" opacity=".5"/></g>
+              <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="none" stroke="var(--nr-jar-line)" stroke-width="1.8"/></svg>
+            <div class="tx"><div class="ti">Client work <span class="keys">⌘1</span></div>
+              <div class="su">5 tabs · 7 kept</div></div>
+          </div>
+          <div class="card">
+            <svg class="jar" width="22" height="31" viewBox="0 0 33 47"><g fill="none" stroke="var(--nr-jar-line)" stroke-width="1.8">
+              <path d="M9.5 8.5h14v3.2H9.5z"/><path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="var(--nr-float)"/></g>
+              <clipPath id="jg2"><path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z"/></clipPath>
+              <g clip-path="url(#jg2)"><rect x="6" y="32" width="21" height="12" fill="var(--jar-harbor)"/><rect x="6" y="32" width="21" height="1.2" fill="var(--nr-jar-line)" opacity=".5"/></g>
+              <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="none" stroke="var(--nr-jar-line)" stroke-width="1.8"/></svg>
+            <div class="tx"><div class="ti">Harbor Signs <span class="keys">⌘2</span></div>
+              <div class="su">2 tabs · 31 kept</div></div>
+          </div>
+          <div class="card">
+            <svg class="jar" width="22" height="31" viewBox="0 0 33 47"><g fill="none" stroke="var(--nr-jar-line)" stroke-width="1.8">
+              <path d="M9.5 8.5h14v3.2H9.5z"/><path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="var(--nr-float)"/></g>
+              <clipPath id="jg3"><path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z"/></clipPath>
+              <g clip-path="url(#jg3)"><rect x="6" y="36" width="21" height="8" fill="var(--jar-bright)"/><rect x="6" y="36" width="21" height="1.2" fill="var(--nr-jar-line)" opacity=".5"/></g>
+              <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="none" stroke="var(--nr-jar-line)" stroke-width="1.8"/></svg>
+            <div class="tx"><div class="ti">Bright Trails <span class="keys">⌘3</span></div>
+              <div class="su">1 tab · 4 kept</div></div>
+          </div>
+        </div>
+
+        <div class="grouplabel">Start</div>
+        <div class="grid">
+          <div class="card">
+            <svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/></svg>
+            <div class="tx"><div class="ti">Search the Pantry <span class="keys">⌘K</span></div>
+              <div class="su">By name, or by what's written in it</div></div>
+          </div>
+          <div class="card">
+            <svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2.5" y="4.5" width="15" height="11" rx="2"/><path d="M2.5 8h15"/></svg>
+            <div class="tx"><div class="ti">Zest</div>
+              <div class="su">Studio, Mail, MD, Image — offline</div></div>
+          </div>
+          <div class="card">
+            <svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 4v12M4 10h12"/></svg>
+            <div class="tx"><div class="ti">Open a page <span class="keys">⌘L</span></div>
+              <div class="su">Goes to the address row above</div>
+              <div class="btnrow"><span class="primary">Open a page</span><span class="secondary">New jar</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="brine"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2v9m0 0L5 8m3 3 3-3M3 14h10"/></svg>Brine · 5</div>
+    <div class="right">
+      <span class="ct">1,284 in the Pantry</span>
+      <span class="searchbtn"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>Search the Pantry <span class="keys">⌘K</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ FRAME 2: jar size ============================ -->
+<h2>2 · The jars, smaller</h2>
+<p class="sub">You said they're too big. 58 → 44, and the tile 88 → 72. That's a quarter off the
+jar and two more jars in the same rail without scrolling. 44 rather than 46 on purpose, so the
+Shelf and the board never read as the same size.</p>
+
+<div class="compare">
+  <div class="col">
+    <div class="rail-demo">
+      <div class="tile big" style="--tint:var(--jar-harbor)">
+        <svg width="41" height="58" viewBox="0 0 33 47"><g fill="none" stroke="var(--nr-jar-line)" stroke-width="1.3">
+          <path d="M11 4h11v4.5H11z" fill="var(--nr-jar-lid)" stroke="none"/><path d="M9.5 8.5h14v3.2H9.5z"/>
+          <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="var(--nr-float)"/></g>
+          <clipPath id="c1"><path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z"/></clipPath>
+          <g clip-path="url(#c1)"><rect x="6" y="30" width="21" height="14" fill="var(--jar-harbor)"/><rect x="6" y="30" width="21" height="1" fill="var(--nr-jar-line)" opacity=".5"/></g>
+          <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="none" stroke="var(--nr-jar-line)" stroke-width="1.3"/></svg>
+        <span class="nm">Harbor Signs</span>
+      </div>
+    </div>
+    <div class="cap"><b>Today</b> — jar 58, tile 100 × 88</div>
+  </div>
+
+  <div class="col">
+    <div class="rail-demo">
+      <div class="tile" style="--tint:var(--jar-harbor)">
+        <svg width="31" height="44" viewBox="0 0 33 47"><g fill="none" stroke="var(--nr-jar-line)" stroke-width="1.6">
+          <path d="M11 4h11v4.5H11z" fill="var(--nr-jar-lid)" stroke="none"/><path d="M9.5 8.5h14v3.2H9.5z"/>
+          <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="var(--nr-float)"/></g>
+          <clipPath id="c2"><path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z"/></clipPath>
+          <g clip-path="url(#c2)"><rect x="6" y="30" width="21" height="14" fill="var(--jar-harbor)"/><rect x="6" y="30" width="21" height="1.2" fill="var(--nr-jar-line)" opacity=".5"/></g>
+          <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="none" stroke="var(--nr-jar-line)" stroke-width="1.6"/></svg>
+        <span class="nm">Harbor Signs</span>
+      </div>
+    </div>
+    <div class="cap"><b>Proposed</b> — jar 44, tile 100 × 72</div>
+  </div>
+
+  <div class="col" style="align-self:center;max-width:300px">
+    <div class="cap" style="text-align:left">The rail stays 120 wide. The name stays 12/500, 12/600
+    when the jar is active. The count badge, the wash and the 1pt edge are unchanged — only the
+    drawing and the tile shrink, so nothing about the jar's color changes.</div>
+  </div>
+</div>
+
+<!-- ============================ FRAME 3: the Panel ============================ -->
+<h2>3 · The note, in the Panel</h2>
+<p class="sub">Your screenshot, with the dead space under RECIPE doing something. Markdown —
+the ZestMail grammar you settled on Oct 21, so Send to Zest MD stays lossless.</p>
+
+<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+  <div class="win" style="width:322px;display:block;border-radius:12px">
+    <div class="panel" style="min-height:560px">
+      <h3>Client work</h3>
+      <div class="meta">5 tabs · 7 kept</div>
+
+      <div class="sect">
+        <div class="lb">Color</div>
+        <div class="swatches">
+          <i class="sw on" style="background:var(--jar-juniper)"></i>
+          <i class="sw" style="background:var(--jar-harbor)"></i>
+          <i class="sw" style="background:var(--jar-bright)"></i>
+          <i class="sw" style="background:#E06A62"></i>
+          <i class="sw" style="background:var(--jar-field)"></i>
+          <i class="sw" style="background:#4FD0C0"></i>
+        </div>
+      </div>
+
+      <div class="sect">
+        <div class="lb">Shelf life</div>
+        <div class="kv"><span class="k">Tabs sink after</span><span>7 idle days</span></div>
+      </div>
+
+      <div class="sect">
+        <div class="lb">Recipe</div>
+        <div class="kv"><span class="k">When sealed</span><span>Seal &amp; Summarize</span></div>
+      </div>
+
+      <div class="sect" style="flex:1;display:flex;flex-direction:column">
+        <div class="lb">Note</div>
+        <div class="note">
+          <p><strong>Harbor Signs</strong> wants the brand sheet before the <em>14th</em>.</p>
+          <p>Contrast checked: large text 3:1, body 4.5:1. Hairlines measured separately —
+          see <a href="#">the checklist</a>.</p>
+          <p>Staging password is in the Vault, not here. Build runs with
+          <code>--no-cache</code>.</p>
+          <p class="ph">Type to add to the note…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex:1;min-width:320px;max-width:560px">
+    <div class="notes" style="margin-top:0">
+      <h4>What the note is</h4>
+      <ul>
+        <li>One note per jar, and one per kept item — the Panel shows whichever it is describing.</li>
+        <li><b>Markdown, the ZestMail grammar exactly</b>: <code>**bold**</code>,
+            <code>*italic*</code>, <code>`code`</code>, <code>[link](url)</code>, a blank line
+            starts a paragraph. Nothing else, so one grammar covers the app and Zest MD.</li>
+        <li>Stored as plain text, so <b>Send to Zest MD</b> loses nothing.</li>
+        <li>It is the last section, and it grows to the bottom of the Panel. Empty, it shows one
+            line of placeholder and nothing else — no toolbar, no formatting bar.</li>
+        <li>Writing Tools work in it for free, because it is a system text view
+            (manifest §11 claim 4).</li>
+      </ul>
+      <h4>The cost — corrected 2026-11-24</h4>
+      <p><b>This needs no schema change.</b> An earlier draft of this comp said it did, and that
+      was wrong. The Pantry already holds a note: <code>items.body</code> is an existing column
+      (<code>Schema.swift:45</code>), <code>ItemKind</code> already has <code>note</code>
+      (<code>Types.swift:20</code>), and <code>Item</code> already carries <code>jarId</code>.
+      A jar's note is one row:</p>
+      <p><code>Item(kind: .note, body: markdown, jarId: jar.id)</code></p>
+      <p>No MSON change, no migration, no regeneration. System Designer designed it this way from
+      the start; nothing in the app has ever created one. What is left is a store method, the
+      Panel section, and a Markdown renderer — and the renderer already exists in Zest MD, in the
+      grammar this would use.</p>
+      <p>So ADR 0012's reason for moving notes to 1.1 does not hold. That is a decision to retake,
+      not a cost to swallow.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ FRAME 4: dark ============================ -->
+<h2>4 · The Counter, dark</h2>
+<p class="sub">Near-black neutrals, never green. The only dark surface with green in it is the
+lit Brine pill and the selected smart-jar row — <code>--relish-100</code> dark, <code>#1F3308</code>.</p>
+
+<div class="win dark" style="grid-template-rows:44px 1fr 32px">
+  <div class="dark" style="display:contents">
+  <div class="strip" style="background:var(--nr-surface);border-color:var(--nr-hairline-soft)">
+    <div class="lights"><i class="light l1"></i><i class="light l2"></i><i class="light l3"></i></div>
+    <div class="cog"><img src="../../../design/logo-cog.svg" alt="NetRelish"></div>
+    <div class="tabs">
+      <div class="tab">Fieldnote</div>
+      <div class="tab front">New Tab</div>
+      <div class="plus">+</div><div class="dragarea"></div>
+    </div>
+  </div>
+  <div class="body">
+    <div class="shelf">
+      <div class="tile active" style="--tint:var(--jar-juniper);background:var(--nr-float);border-color:var(--jar-juniper)">
+        <svg width="31" height="44" viewBox="0 0 33 47"><g fill="none" stroke="var(--nr-jar-line)" stroke-width="1.6">
+          <path d="M11 4h11v4.5H11z" fill="var(--nr-jar-line)" stroke="none"/><path d="M9.5 8.5h14v3.2H9.5z"/>
+          <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="var(--nr-float)"/></g>
+          <clipPath id="d1"><path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z"/></clipPath>
+          <g clip-path="url(#d1)"><rect x="6" y="25" width="21" height="19" fill="var(--jar-juniper)"/><rect x="6" y="25" width="21" height="1.2" fill="var(--nr-jar-line)" opacity=".5"/></g>
+          <path d="M6 15.5c0-2.2 1.6-3.8 3.8-3.8h13.4c2.2 0 3.8 1.6 3.8 3.8v24c0 2.2-1.6 3.8-3.8 3.8H9.8c-2.2 0-3.8-1.6-3.8-3.8z" fill="none" stroke="var(--nr-jar-line)" stroke-width="1.6"/></svg>
+        <span class="nm">Client work</span>
+      </div>
+      <div class="newjar">+</div><hr>
+      <div class="srow sel">Sinking soon</div>
+      <div class="spacer"></div>
+      <div class="srow">Zest</div>
+    </div>
+    <div class="bench">
+      <div class="addr"><div class="chip">Client work</div>
+        <div class="field">Type a web address — it opens in Client work</div></div>
+      <div class="canvas">
+        <div class="counter-head"><span class="t">What's cooking</span>
+          <span class="n">1,284 in the Pantry</span></div>
+        <div class="grouplabel">Pick up</div>
+        <div class="grid">
+          <div class="card"><div class="tx"><div class="ti">Sinking soon <span class="keys">⌃⌘4</span></div>
+            <div class="su">3 tabs sink today</div></div></div>
+          <div class="card"><div class="tx"><div class="ti">Brine <span class="keys">⌃⌘1</span></div>
+            <div class="su">5 came in since you looked</div></div></div>
+          <div class="card"><div class="tx"><div class="ti">Today <span class="keys">⌃⌘2</span></div>
+            <div class="su">12 came in today</div></div></div>
+        </div>
+        <div class="grouplabel">Start</div>
+        <div class="grid">
+          <div class="card"><div class="tx"><div class="ti">Search the Pantry <span class="keys">⌘K</span></div>
+            <div class="su">By name, or by what's written in it</div></div></div>
+          <div class="card"><div class="tx"><div class="ti">Zest</div>
+            <div class="su">Studio, Mail, MD, Image — offline</div></div></div>
+          <div class="card"><div class="tx"><div class="ti">Open a page <span class="keys">⌘L</span></div>
+            <div class="su">Goes to the address row above</div>
+            <div class="btnrow"><span class="primary">Open a page</span></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom">
+    <div class="brine">Brine · 5</div>
+    <div class="right"><span class="ct">1,284 in the Pantry</span>
+      <span class="searchbtn">Search the Pantry <span class="keys">⌘K</span></span></div>
+  </div>
+  </div>
+</div>
+
+<!-- ============================ NOTES ============================ -->
+<h2>Notes</h2>
+
+<div class="notes">
+  <h4>Why there is no search field on it</h4>
+  <p>Because there is nothing honest to put in one. The address row navigates by URL and has no
+  search-engine fallback anywhere in the repo — type a phrase that isn't an address and it goes
+  nowhere. The Pantry is searched with ⌘K, which already groups <b>Pantry</b>, <b>Open tabs</b>
+  and <b>Commands</b>. A box in the middle of a new tab would promise a web search this browser
+  does not do. So the Counter sends you to the two real doors instead, and the address row above
+  it is still right there for an address.</p>
+
+  <h4>Where it shows, and where it doesn't</h4>
+  <ul>
+    <li><b>⌘T, or launching with no tabs</b> → the Counter.</li>
+    <li><b>Clicking a jar, its chip, or the cog</b> → that jar's board, exactly as today. The
+        board is about one jar; the Counter is about what to do next. Keeping them apart is what
+        stops the board turning into a dashboard.</li>
+    <li>The counts are read at the moment it draws. Nothing on it polls, animates or refreshes
+        while you look at it.</li>
+  </ul>
+
+  <h4>What is on it, and why nothing else is</h4>
+  <p>Every card is a command the app has today, checked against the source. Three things a
+  grid like this would normally carry are deliberately missing:</p>
+  <ul>
+    <li><b>Ask the Pantry</b> — 1.1 (ADR 0012). It exists today only as a DEBUG Design Kit tile.</li>
+    <li><b>Run a Recipe</b> — there is no Recipes list, no recorder, and no ⌘R anywhere in the
+        source. <code>Seal &amp; Summarize</code> runs implicitly on Seal; that is the whole of
+        Recipes in 1.0, and a card promising more would be a lie.</li>
+    <li><b>Recently closed, or a history list</b> — not a thing this app has, and
+        <i>history</i> is a banned label besides.</li>
+  </ul>
+
+  <h4>Relish, counted</h4>
+  <p>Four uses on the Counter, all on the list: the one filled button (§4 #1), the selected
+  smart-jar row on the Shelf (§4 #3), the caret and focus ring (§4 #7), the cog (§4 #8), and the
+  lit Brine pill in the bottom bar (§4 #13). The job cards, their icons, the group labels and the
+  keycaps are all neutral. A jar's own color appears only on its drawn jar, the active tile's wash
+  and edge, the front tab's lip, and a card's border under the pointer.</p>
+
+  <h4>What signing this off changes</h4>
+  <ul>
+    <li><b>Manifest → v2.2</b>, with a changelog line: the Counter joins §8 as a component; §8
+        Shelf takes jar 44 and tile 100 × 72; the Panel gains a Note section; the jar-size list
+        in "The jar, drawn" becomes 14 · 18 · 22 · 44 · 46.</li>
+    <li><code>NRShell</code> takes the two new measures and <code>ShellMeasureTests</code> pins
+        them, as it does every other number.</li>
+    <li>Notes need the schema change in System Designer first — see the panel above.</li>
+  </ul>
+
+  <div class="q">
+    <b>Three things only you can answer.</b><br>
+    1 · Is <i>the Counter</i> the right word, or is it just "a new tab"? It would join the
+    locked vocabulary in CLAUDE.md, which is a bigger deal than a view name.<br>
+    2 · Does the Counter replace the board on ⌘T, or sit above the board's tiles and cards on the
+    same screen? Drawn here as a replacement.<br>
+    3 · Notes in 1.0? ADR 0012 put them in 1.1 because of a schema change that turns out not
+    to be needed — the Pantry already stores a note. The remaining cost is a Panel section and a
+    store method.
+  </div>
+</div>
+
+</div>
+</body>
+</html>

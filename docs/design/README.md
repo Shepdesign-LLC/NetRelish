@@ -98,6 +98,38 @@ Client data was scrubbed on landing, here and in the older prototype above:
 real client names, domains, a contact, billing details and a login are now
 made-up ones. Earlier commits still hold the originals in git history.
 
+## The Counter comp (2026-11-24)
+
+`new-tab-grid/index.html` is one self-contained page carrying three decisions
+Ryan raised the same day, drawn together because they touch the same window:
+
+1. **The Counter** — what ⌘T shows. His framing: *"To search there is no
+   browser. The initial initial tab that is shown should have like a grid
+   pattern of efficient and knowledgeable tasks or jobs."* Three groups (Pick
+   up · Your jars · Start) in ⌘K's grammar, on the board's 252pt-min column
+   grid. Every card is a command the app has today, checked against the
+   source; **Ask the Pantry, Run a Recipe and anything resembling history are
+   deliberately absent**, and the header comment says why for each. It has no
+   search field on purpose: the address row navigates by URL and has no
+   search-engine fallback, so a box there would promise a web search this
+   browser does not do.
+2. **Smaller jars on the Shelf** — *"the Jars are kinda big though"*. The
+   drawn jar 58 → 44 and the tile 100 × 88 → 100 × 72, shown side by side at
+   size. 44 rather than 46 so the Shelf and the jar board never read alike.
+3. **The note in the Panel**, in Markdown — *"this area can be where the notes
+   are made. It can be MD"* — filling the dead space under RECIPE. It is the
+   Oct 21 ZestMail-grammar decision above, drawn.
+
+Its header comment is the spec in words: every relish use against manifest §4,
+every place a jar's own color appears, the job inventory with the file and line
+each command comes from, and what signing it off would change in the manifest
+and in `NRShell`. Three questions are left open at the bottom for Ryan — the
+name, whether the Counter replaces the board on ⌘T or sits above it, and
+whether notes are 1.0 or 1.1 (ADR 0012 currently says 1.1, and they need a
+System Designer schema change first).
+
+Not signed off, and nothing here is built.
+
 ## What these mocks are
 
 The **destination**, not a sprint. `Workstation Desktop` alone spans P5
