@@ -1,5 +1,6 @@
 # The XcodeGen that generated the committed NetRelish.xcodeproj, pinned by version AND by the
 # hash of the release archive. Both are read by scripts/xcodegen.sh.
+# Both also key the cache directory, so changing either one fetches afresh.
 #
 # Two XcodeGens do not write the same project — 2.48.0 writes `buildArchitectures` into every
 # .xcscheme and 2.46.0 does not — and CI compares the committed project against a fresh
