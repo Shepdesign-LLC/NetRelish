@@ -1,0 +1,308 @@
+// RearrangingUITests.swift — the pointer half of the Shelf and the tab strip (ADR 0028):
+// right-click menus and drag.
+//
+// CaptureJarSealUITests is deliberately the opposite of this file — it drags nothing and uses
+// only what VoiceOver reaches, because its job is to prove the keyboard route exists. That
+// leaves the pointer route untested, and on 2026-11-24 it went dead in the built app without a
+// single check going red: every `.contextMenu` and every `.draggable` was still in the source,
+// so nothing looked deleted. The gestures were being swallowed by other gestures over them.
+//
+// These tests exist to catch exactly that.
+//
+// 2026-11-24, after the first run: the two right-click tests PASSED, and they were wrong to.
+// They asserted that a menu appeared and stopped there, which is true even when every item in
+// that menu is dead — which is what Ryan was reporting while they went green. They now click
+// the item and assert what it was supposed to do. The rule for this file from here: assert the
+// outcome, never the affordance.
+//
+// What this file covers, and what it does NOT: every pointer route here passes. The two that
+// do not — dragging a tab onto a jar, and dragging a tab onto another tab — are a real and
+// unfixed bug, and they live on the branch `claude/tab-drag-bug` so this file can stay green.
+// The drag that is still here, Brine's, is the control that proves the instrument and the
+// Shelf's drop destination both work: it carries the same `String` payload into the same and
+// only `ShelfView.dropDestination`. If it ever goes red, the problem is this harness, not the
+// app, and the tab-drag branch's reds stop meaning anything.
+//
+// Launched with the same fixture as the other file (Sources/App/UITestFixture.swift, Debug
+// only): a throwaway Pantry, the jars Juniper Bakery (in front) and Meridian after the two
+// every fresh Pantry starts with, and one page served from inside the app. Nothing reads your
+// Pantry and nothing goes to the network.
+
+import XCTest
+
+final class RearrangingUITests: XCTestCase {
+    static let pageURL = "nr-fixture://juniperbakery.example/invoice-terms"
+    static let pageTitle = "Invoice terms"
+    static let pageMarker = "Payment is due 30 days after delivery."
+    static let firstJar = "Juniper Bakery"
+    static let targetJar = "Meridian"
+
+    /// Generous: a CI Mac can be slow to start WebKit's processes the first time.
+    static let timeout: TimeInterval = 30
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+    }
+
+    // MARK: Right-click
+    //
+    // These click THROUGH the menu to the thing it is supposed to do. The first version of this
+    // file stopped at `XCTAssertTrue(app.menuItems["Pin"].waitForExistence(...))` — it proved a
+    // menu appeared and nothing else, and it went green on 2026-11-24 while Ryan was reporting
+    // that right-click did nothing. A menu that opens and whose items do nothing passes that
+    // assertion. So does a menu wired to the wrong tab. Both are exactly what he described.
+    //
+    // The rule this file now follows: assert the OUTCOME, never the affordance. The menu items
+    // are still checked, but as a precondition inside the test that uses them, so a failure
+    // still says which of the two went wrong — the menu never opened, or it opened and did
+    // nothing.
+
+    /// Right-click a tab, press Pin, and the tab says it is pinned.
+    ///
+    /// Stronger than ⌘⇧P: `Tab › Pin Tab` pins `pageInFront` (`NetRelishApp.swift:188`), while
+    /// this menu pins the chip that was right-clicked (`workbench.togglePin(tab)`,
+    /// `TabStrip.swift:249`). A menu wired to the wrong tab passes the first and fails this.
+    @MainActor
+    func testRightClickOnATabPinsIt() throws {
+        let app = launch()
+        openFixturePage(in: app)
+
+        let tab = chip(in: app, jar: Self.firstJar)
+        XCTAssertTrue(tab.waitForExistence(timeout: Self.timeout), "The page didn't open in \(Self.firstJar)'s tabs")
+        XCTAssertFalse(spokenValue(of: tab).contains("pinned"), "The tab was already pinned before the menu was opened")
+
+        tab.rightClick()
+
+        // Precondition. `TabStrip.menu(for:)` builds these unconditionally, so an empty menu
+        // means the right-click never reached the chip — a different fault from a dead item.
+        let pin = app.menuItems["Pin"]
+        XCTAssertTrue(pin.waitForExistence(timeout: Self.timeout),
+                      """
+                      Right-clicking a tab opened no menu.
+                      TabStrip.menu(for:) always builds Pin, Icon, Copy Link, Move Left, Move Right \
+                      and Move to Jar, so an empty menu is not possible — the click did not reach the chip.
+                      menuItems seen: \(app.menuItems.count)
+                      tree as XCUITest sees it:
+                      \(app.debugDescription)
+                      """)
+        XCTAssertTrue(app.menuItems["Copy Link"].exists, "The tab's menu has no Copy Link")
+        XCTAssertTrue(app.menuItems["Move to Jar"].exists, "The tab's menu has no Move to Jar")
+
+        pin.click()
+
+        XCTAssertTrue(waitForValue(of: tab, toContain: "pinned"),
+                      """
+                      The menu opened and Pin did nothing. This is the half the first version of \
+                      this file never tested.
+                      the tab says: \(spokenValue(of: tab))
+                      """)
+    }
+
+    /// Right-click a jar on the Shelf, press New Tab in <jar>, and that jar gains a tab.
+    ///
+    /// Asserted on the jar's own spoken value — `JarTile.spokenValue` reads "0 tabs, 0 kept, …"
+    /// and "1 tab, 0 kept, …" (`ShelfView.swift:584`) — so it holds whichever board the Bench
+    /// happens to be showing afterwards.
+    @MainActor
+    func testRightClickOnAJarTileOpensANewTabThere() throws {
+        let app = launch()
+
+        let tile = jarTile(in: app, named: Self.targetJar)
+        XCTAssertTrue(tile.waitForExistence(timeout: Self.timeout), "\(Self.targetJar) isn't on the Shelf")
+        XCTAssertTrue(spokenValue(of: tile).contains("0 tabs"),
+                      "\(Self.targetJar) didn't start empty, so a new tab proves nothing: \(spokenValue(of: tile))")
+
+        tile.rightClick()
+
+        let newTab = app.menuItems["New Tab in \(Self.targetJar)"]
+        XCTAssertTrue(newTab.waitForExistence(timeout: Self.timeout),
+                      """
+                      Right-clicking a jar on the Shelf opened no menu.
+                      ShelfView.menu(for:at:) always builds New Tab in <jar>, Edit Jar…, Color, \
+                      Move Up and Move Down, so an empty menu is not possible — the click did not \
+                      reach the tile.
+                      menuItems seen: \(app.menuItems.count)
+                      tree as XCUITest sees it:
+                      \(app.debugDescription)
+                      """)
+        XCTAssertTrue(app.menuItems["Edit Jar…"].exists, "The jar's menu has no Edit Jar…")
+
+        newTab.click()
+
+        XCTAssertTrue(waitForValue(of: tile, toContain: "1 tab"),
+                      """
+                      The menu opened and New Tab in \(Self.targetJar) did nothing.
+                      the jar says: \(spokenValue(of: tile))
+                      """)
+    }
+
+    // MARK: The same moves, from the menu bar
+    //
+    // These use no pointer at all, and they are the control for the three above. Ryan also
+    // can't pin a tab or move things around (2026-11-24), and that symptom has two very
+    // different causes: either the pointer routes are swallowed and the menu bar still works,
+    // or the moves themselves are broken and nothing can reach them. A tab says its own state
+    // to VoiceOver — "pinned, 1 of 2", "2 of 2" — so both are answerable without asking him
+    // which route he used.
+
+    /// ⌘⇧P (Tab › Pin Tab). The chip then says "pinned" before its position.
+    @MainActor
+    func testPinFromTheKeyboard() throws {
+        let app = launch()
+        openFixturePage(in: app)
+
+        let tab = chip(in: app, jar: Self.firstJar)
+        XCTAssertTrue(tab.waitForExistence(timeout: Self.timeout), "The page didn't open in \(Self.firstJar)'s tabs")
+        XCTAssertFalse(spokenValue(of: tab).contains("pinned"), "The tab was already pinned before ⌘⇧P")
+
+        app.typeKey("p", modifierFlags: [.command, .shift])
+
+        XCTAssertTrue(waitForValue(of: tab, toContain: "pinned"),
+                      """
+                      ⌘⇧P didn't pin the tab. If this fails while the right-click tests also fail, \
+                      the moves themselves are broken, not just the pointer routes.
+                      the tab says: \(spokenValue(of: tab))
+                      """)
+    }
+
+    /// Tab › Move Tab Left, clicked in the menu bar. With the fixture page and one new tab, the
+    /// page starts at "1 of 2"; moving the new tab left puts the page second.
+    @MainActor
+    func testMoveTabFromTheMenuBar() throws {
+        let app = launch()
+        openFixturePage(in: app)
+
+        let page = chip(in: app, jar: Self.firstJar)
+        XCTAssertTrue(page.waitForExistence(timeout: Self.timeout), "The page didn't open in \(Self.firstJar)'s tabs")
+        app.typeKey("t", modifierFlags: .command)   // a second tab, which comes forward
+        XCTAssertTrue(waitForValue(of: page, toContain: "1 of 2"),
+                      "The page's tab isn't first of two after ⌘T: \(spokenValue(of: page))")
+
+        let tabMenu = app.menuBars.menuBarItems["Tab"]
+        XCTAssertTrue(tabMenu.waitForExistence(timeout: Self.timeout), "There's no Tab menu")
+        tabMenu.click()
+        let moveLeft = tabMenu.menuItems["Move Tab Left"]
+        XCTAssertTrue(moveLeft.waitForExistence(timeout: Self.timeout), "The Tab menu has no Move Tab Left")
+        XCTAssertTrue(moveLeft.isEnabled, "Move Tab Left is disabled with the new tab second of two")
+        moveLeft.click()
+
+        XCTAssertTrue(waitForValue(of: page, toContain: "2 of 2"),
+                      """
+                      Move Tab Left didn't reorder the strip. The menu item exists and was enabled, \
+                      so the move itself did nothing.
+                      the page's tab says: \(spokenValue(of: page))
+                      """)
+    }
+
+    /// The one drag that works, and the control for the two that do not (`claude/tab-drag-bug`).
+    ///
+    /// Brine drags the same `String` (`BrineView.swift:112`) into the same destination
+    /// (`ShelfView.swift:190`) — there is only one Shelf drop destination in the whole tree, so
+    /// this lands on the identical code a tab's drag would. The only difference is which view
+    /// the drag starts from, and that is the whole of the bug.
+    ///
+    /// So this test is load-bearing beyond itself: while it passes, a red on the tab drags is
+    /// about the app. If it ever fails, the harness is broken and those reds mean nothing.
+    ///
+    /// It uses `click(forDuration:thenDragTo:)`, not `press(...)`. `press` is the touch idiom;
+    /// the macOS mouse drag is `click`, and only that one drives the AppKit drag session a
+    /// SwiftUI `.draggable` needs. Five runs with `press` performed no drag at all.
+    @MainActor
+    func testDraggingABrineRowOntoAJarRestoresIt() throws {
+        let app = launch()
+        openFixturePage(in: app)
+
+        // ⌘D (Bench › Capture This Page), then ⌃⌘1 (Jars › Brine) — the keyboard route, so a
+        // failure before the drag is never the pointer's.
+        app.typeKey("d", modifierFlags: .command)
+        app.typeKey("1", modifierFlags: [.control, .command])
+
+        let row = app.descendants(matching: .any).matching(identifier: "smart-jar-row")
+            .matching(NSPredicate(format: "label == %@", Self.pageTitle)).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: Self.timeout), "The capture isn't a row in Brine")
+
+        let target = jarTile(in: app, named: Self.targetJar)
+        XCTAssertTrue(target.waitForExistence(timeout: Self.timeout), "\(Self.targetJar) isn't on the Shelf")
+        XCTAssertTrue(spokenValue(of: target).contains("0 tabs"),
+                      "\(Self.targetJar) didn't start empty: \(spokenValue(of: target))")
+
+        row.click(forDuration: 0.8, thenDragTo: target)
+
+        // Workbench.drop(_:onJar:) restores a Brine row with `restore(item, into:)`, which calls
+        // newTab — so it arrives as a TAB in the jar, not as something kept.
+        XCTAssertTrue(waitForValue(of: target, toContain: "1 tab"),
+                      """
+                      Dragging a Brine row onto \(Self.targetJar) didn't restore it either.
+                      Brine's drag is the one the built app still does, and it lands on the same \
+                      ShelfView drop destination as the tab's. Both reds together mean XCUITest \
+                      is not driving a drag session at all, and this file cannot measure drag \
+                      until that is solved — a red here is about the test, not the app.
+                      \(Self.targetJar) says: \(spokenValue(of: target))
+                      """)
+    }
+
+    // MARK: Steps
+    //
+    // This file carries its own launch so it stands alone: the two UI test files prove opposite
+    // routes, and sharing a base class would make one able to break the other.
+
+    @MainActor
+    private func launch() -> XCUIApplication {
+        let app = XCUIApplication()
+        // Every argument is a "-key value" pair, so none is left standing alone: AppKit takes a
+        // lone argument for a file to open, and a launch that opens a file opens no window.
+        app.launchArguments = [
+            "-NRUITestFixture", "YES",
+            "-ApplePersistenceIgnoreState", "YES",   // no windows restored from a last run
+            "-panel.visible", "NO",                  // the Panel closed, whatever this Mac remembers
+        ]
+        app.launch()
+        app.activate()
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: Self.timeout),
+                      "The main window didn't open. app.state = \(app.state.rawValue)")
+        return app
+    }
+
+    /// ⌘L, the address, Return — the keyboard route, so a failure here is never the pointer's.
+    @MainActor
+    private func openFixturePage(in app: XCUIApplication) {
+        let field = app.descendants(matching: .any).matching(identifier: "address-field").firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: Self.timeout), "There's no address field")
+        app.typeKey("l", modifierFlags: .command)
+        app.typeText(Self.pageURL)
+        app.typeKey(.return, modifierFlags: [])
+        let marker = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label == %@ OR value == %@", Self.pageMarker, Self.pageMarker)).firstMatch
+        XCTAssertTrue(marker.waitForExistence(timeout: Self.timeout), "The fixture page didn't load")
+    }
+
+    /// The page's tab chip, inside the strip VoiceOver enters as "<jar> tabs".
+    @MainActor
+    private func chip(in app: XCUIApplication, jar: String) -> XCUIElement {
+        let strip = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "\(jar) tabs")).firstMatch
+        return strip.descendants(matching: .any).matching(identifier: "tab-chip")
+            .matching(NSPredicate(format: "label == %@", Self.pageTitle)).firstMatch
+    }
+
+    /// A jar's tile on the Shelf, by the name VoiceOver reads.
+    @MainActor
+    private func jarTile(in app: XCUIApplication, named jar: String) -> XCUIElement {
+        let shelf = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Shelf")).firstMatch
+        return shelf.descendants(matching: .any).matching(NSPredicate(format: "label == %@", jar)).firstMatch
+    }
+
+    /// What VoiceOver says after an element's name. A tab's is "pinned, 1 of 2" or "2 of 2"
+    /// (`TabChip.accessibilityValue`), so a state change is readable without a screenshot.
+    @MainActor
+    private func spokenValue(of element: XCUIElement) -> String {
+        element.value as? String ?? ""
+    }
+
+    /// Waits for a value to settle, since a move animates and the strip re-reads afterwards.
+    @MainActor
+    private func waitForValue(of element: XCUIElement, toContain text: String) -> Bool {
+        let matches = NSPredicate(format: "value CONTAINS %@", text)
+        let settled = XCTNSPredicateExpectation(predicate: matches, object: element)
+        return XCTWaiter().wait(for: [settled], timeout: Self.timeout) == .completed
+    }
+}
